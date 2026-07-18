@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans:
+    "思源黑体", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei",
+    sans-serif;
+  --font-serif:
+    "思源黑体", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  color: #1c1917;
+  background: #f5f5f4;
+  font-synthesis: weight;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background: #0c0a09;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+@layer components {
+  .field-control {
+    @apply min-h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none transition focus:border-emerald-800 focus:ring-3 focus:ring-emerald-900/10 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-400/10;
+  }
+}

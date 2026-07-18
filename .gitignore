@@ -1,0 +1,37 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+.playwright-cli
+*.local
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
+
+# Local-only screenshots that may expose desktop or development context
+output/playwright/Logo更新-Tauri实机.png
+output/playwright/UI微调-Tauri默认窄窗.png
+output/playwright/UI微调-Tauri手动拉宽.png
+output/playwright/阶段7-托盘菜单实机.png
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
