@@ -46,7 +46,7 @@ export function AppSidebar({
 
   return (
     <aside
-      className={`border-b border-stone-200 bg-stone-50 transition-[width] duration-300 ease-out motion-reduce:transition-none dark:border-stone-800 dark:bg-stone-950 md:flex md:shrink-0 md:flex-col md:border-r md:border-b-0 ${
+      className={`glass-sidebar border-0 border-b !border-b-[var(--glass-border-muted)] transition-[width] duration-300 ease-out motion-reduce:transition-none md:flex md:shrink-0 md:flex-col md:border-r md:border-b-0 md:!border-r-[var(--glass-border-muted)] ${
         collapsed ? "md:w-[76px]" : "md:w-60"
       }`}
     >
@@ -59,7 +59,7 @@ export function AppSidebar({
           src={torderLogo}
           alt=""
           aria-hidden="true"
-          className="size-9 shrink-0 rounded-xl shadow-sm shadow-stone-900/10 dark:shadow-black/30"
+          className="size-9 shrink-0 rounded-xl shadow-md shadow-emerald-950/15 ring-1 ring-white/70 dark:shadow-black/40 dark:ring-white/10"
         />
         <span className={`text-xl font-semibold tracking-tight ${labelClass}`}>
           今序
@@ -79,14 +79,14 @@ export function AppSidebar({
               onClick={() => onSelectView(id)}
               aria-current={active ? "page" : undefined}
               title={collapsed ? label : undefined}
-              className={`flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium transition-all duration-200 motion-reduce:transition-none md:w-full ${
+              className={`glass-button flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium duration-200 motion-reduce:transition-none md:w-full ${
                 collapsed
                   ? "md:justify-center md:gap-0 md:px-0"
                   : "md:gap-3 md:px-3"
               } ${
                 active
-                  ? "bg-emerald-900/10 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200"
-                  : "text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+                  ? "border-white/70 bg-white/55 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,.85),0_8px_22px_rgba(20,85,67,.1)] dark:border-blue-300/15 dark:bg-blue-400/10 dark:text-blue-200"
+                  : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
               }`}
             >
               <Icon aria-hidden="true" className="size-4.5 shrink-0" />
@@ -98,10 +98,10 @@ export function AppSidebar({
           type="button"
           onClick={onOpenSettings}
           aria-current={activeSection === "settings" ? "page" : undefined}
-          className={`flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium transition-colors md:hidden ${
+          className={`glass-button flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium md:hidden ${
             activeSection === "settings"
-              ? "bg-emerald-900/10 text-emerald-950 dark:text-emerald-200"
-              : "text-stone-600 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+              ? "bg-white/55 text-emerald-950 dark:bg-blue-400/10 dark:text-blue-200"
+              : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
           }`}
         >
           <Settings2 aria-hidden="true" className="size-4.5" />
@@ -109,18 +109,18 @@ export function AppSidebar({
         </button>
       </nav>
 
-      <div className="mt-auto hidden border-t border-stone-200 p-3 dark:border-stone-800 md:block">
+      <div className="mt-auto hidden border-t border-[var(--glass-border-muted)] p-3 md:block">
         <button
           type="button"
           onClick={onOpenSettings}
           aria-current={activeSection === "settings" ? "page" : undefined}
           title={collapsed ? "设置" : undefined}
-          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 motion-reduce:transition-none ${
+          className={`glass-button flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm duration-200 motion-reduce:transition-none ${
             collapsed ? "justify-center gap-0 px-0" : ""
           } ${
             activeSection === "settings"
-              ? "bg-emerald-900/10 font-medium text-emerald-950 dark:text-emerald-200"
-              : "text-stone-500 hover:bg-stone-200 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+              ? "bg-white/55 font-medium text-emerald-950 dark:bg-blue-400/10 dark:text-blue-200"
+              : "text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
           }`}
         >
           <Settings2 aria-hidden="true" className="size-4.5 shrink-0" />
@@ -138,7 +138,7 @@ export function AppSidebar({
           onClick={onToggleCollapsed}
           aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
           title={collapsed ? "展开侧边栏" : "收起侧边栏"}
-          className={`mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-stone-400 transition-all duration-200 motion-reduce:transition-none hover:bg-stone-200 hover:text-stone-800 dark:text-stone-500 dark:hover:bg-stone-800 dark:hover:text-stone-200 ${
+          className={`glass-button mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-stone-400 duration-200 motion-reduce:transition-none hover:text-stone-800 dark:text-stone-500 dark:hover:text-stone-200 ${
             collapsed ? "justify-center gap-0 px-0" : ""
           }`}
         >

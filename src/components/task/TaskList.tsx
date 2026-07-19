@@ -24,7 +24,7 @@ export function TaskListView({
 }: TaskListProps) {
   if (loading && tasks.length === 0) {
     return (
-      <div className="flex min-h-72 items-center justify-center text-sm text-stone-500 dark:text-stone-400">
+      <div className="glass-surface flex min-h-72 items-center justify-center rounded-2xl text-sm text-stone-500 dark:text-stone-400">
         <LoaderCircle aria-hidden="true" className="mr-2 size-4 animate-spin" />
         正在读取任务
       </div>
@@ -34,8 +34,8 @@ export function TaskListView({
   if (tasks.length === 0) {
     const copy = taskViewCopy[view];
     return (
-      <div className="flex min-h-72 flex-col items-center justify-center border-t border-stone-200 px-6 text-center dark:border-stone-800">
-        <span className="grid size-11 place-items-center rounded-2xl border border-stone-200 bg-stone-50 text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
+      <div className="glass-surface flex min-h-72 flex-col items-center justify-center rounded-2xl px-6 text-center">
+        <span className="glass-surface grid size-11 place-items-center rounded-2xl text-stone-500 dark:text-stone-400">
           <Inbox aria-hidden="true" className="size-5" />
         </span>
         <h2 className="mt-4 font-serif text-xl font-semibold">
@@ -53,23 +53,23 @@ export function TaskListView({
   const listNames = new Map(lists.map((list) => [list.id, list.name]));
 
   return (
-    <div className="border-t border-stone-200 dark:border-stone-800">
+    <div className="glass-surface overflow-hidden rounded-2xl">
       {tasks.map((task) => {
         const dueLabel = formatTaskDate(task.dueAt);
         const overdue = isOverdue(task.dueAt, task.status);
         return (
           <article
             key={task.id}
-            className="group grid min-h-16 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-stone-200 transition-colors hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-800/60 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
+            className="glass-row group grid min-h-16 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b last:border-b-0 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
           >
             <button
               type="button"
               onClick={() => void onToggle(task)}
               aria-label={task.status === "done" ? "取消完成" : "标记完成"}
-              className={`ml-2 grid size-6 place-items-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 sm:ml-3 ${
+              className={`ml-2 grid size-6 place-items-center rounded-lg border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 dark:focus-visible:outline-blue-300 sm:ml-3 ${
                 task.status === "done"
-                  ? "border-emerald-900 bg-emerald-900 text-white"
-                  : "border-stone-400 bg-white text-transparent hover:border-emerald-800 dark:border-stone-600 dark:bg-stone-900"
+                  ? "border-emerald-900 bg-emerald-900 text-white dark:border-blue-300/30 dark:bg-blue-500/70"
+                  : "border-stone-400/70 bg-white/45 text-transparent shadow-[inset_0_1px_0_rgba(255,255,255,.8)] hover:border-emerald-800 dark:border-stone-500 dark:bg-white/5"
               }`}
             >
               <Check aria-hidden="true" className="size-4" />
@@ -78,7 +78,7 @@ export function TaskListView({
             <button
               type="button"
               onClick={() => onOpen(task)}
-              className="min-w-0 py-3.5 pr-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+              className="min-w-0 py-3.5 pr-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 dark:focus-visible:outline-blue-300"
             >
               <span
                 className={`block truncate text-sm font-medium ${

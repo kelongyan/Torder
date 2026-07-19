@@ -17,6 +17,7 @@
         "height": 720,
         "minWidth": 480,
         "minHeight": 560,
+        "transparent": true,
         "center": true
       }
     ],

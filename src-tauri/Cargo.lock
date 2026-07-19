@@ -4086,6 +4086,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "uuid",
+ "window-vibrancy",
 ]
 
 [[package]]

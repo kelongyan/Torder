@@ -1,3 +1,4 @@
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { ThemePreference } from "../types/settings";
 
 export function applyThemePreference(theme: ThemePreference): () => void {
@@ -7,6 +8,11 @@ export function applyThemePreference(theme: ThemePreference): () => void {
     const dark = theme === "dark" || (theme === "system" && media.matches);
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
+    if (isTauri()) {
+      void invoke("set_window_material_theme", { dark }).catch(() => {
+        // CSS glass remains the visual fallback when native Mica is unavailable.
+      });
+    }
   }
 
   apply();

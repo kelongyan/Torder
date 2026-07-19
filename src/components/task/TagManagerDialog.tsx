@@ -96,8 +96,8 @@ export function TagManagerDialog({
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-60 bg-stone-950/30 backdrop-blur-[1px] dark:bg-black/60" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-70 max-h-[min(720px,calc(100vh-2rem))] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl focus:outline-none dark:border-stone-700 dark:bg-stone-900 sm:p-7">
+        <Dialog.Overlay className="glass-overlay fixed inset-0 z-60 dark:bg-black/40" />
+        <Dialog.Content className="glass-floating fixed top-1/2 left-1/2 z-70 max-h-[min(720px,calc(100vh-2rem))] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl p-5 focus:outline-none sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="font-serif text-2xl font-semibold">
@@ -109,7 +109,7 @@ export function TagManagerDialog({
             </div>
             <Dialog.Close
               aria-label="关闭标签管理"
-              className="rounded-lg p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+              className="glass-button rounded-lg p-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
             >
               <X aria-hidden="true" className="size-5" />
             </Dialog.Close>
@@ -117,7 +117,7 @@ export function TagManagerDialog({
 
           <form
             onSubmit={handleSubmit}
-            className="mt-6 rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-950/60"
+            className="glass-surface mt-6 rounded-2xl p-4"
           >
             <p className="text-sm font-medium text-stone-800 dark:text-stone-200">
               {form.id ? "编辑标签" : "新建标签"}
@@ -138,7 +138,7 @@ export function TagManagerDialog({
                   autoFocus
                 />
               </label>
-              <label className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 text-xs text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
+              <label className="glass-surface flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs text-stone-500 dark:text-stone-400">
                 <span>颜色</span>
                 <input
                   type="color"
@@ -156,7 +156,7 @@ export function TagManagerDialog({
               <button
                 type="submit"
                 disabled={busy || !form.name.trim()}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
               >
                 {form.id ? (
                   <Pencil aria-hidden="true" className="size-4" />
@@ -180,7 +180,7 @@ export function TagManagerDialog({
           {error && (
             <div
               role="alert"
-              className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+              className="glass-surface mt-4 rounded-2xl border-red-200/70 bg-red-50/55 px-4 py-3 text-sm text-red-800 dark:border-red-700/35 dark:bg-red-950/30 dark:text-red-200"
             >
               {error}
             </div>
@@ -188,7 +188,7 @@ export function TagManagerDialog({
 
           <div className="mt-5 space-y-2" aria-label="标签列表">
             {tags.length === 0 ? (
-              <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 text-center text-sm text-stone-400 dark:border-stone-700">
+              <div className="glass-surface flex min-h-32 flex-col items-center justify-center rounded-2xl border-dashed text-center text-sm text-stone-400">
                 <Tags aria-hidden="true" className="mb-2 size-5" />
                 还没有标签
               </div>
@@ -198,7 +198,7 @@ export function TagManagerDialog({
                 return (
                   <div
                     key={tag.id}
-                    className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-700"
+                    className="glass-row flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5"
                   >
                     <span
                       aria-hidden="true"

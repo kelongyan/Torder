@@ -125,8 +125,8 @@ export function TaskDetailDrawer({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-stone-950/20 backdrop-blur-[1px] dark:bg-black/50" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(100vw,460px)] overflow-y-auto border-l border-stone-200 bg-white p-6 shadow-2xl focus:outline-none dark:border-stone-800 dark:bg-stone-900 sm:p-8">
+        <Dialog.Overlay className="glass-overlay fixed inset-0 z-40 dark:bg-black/35" />
+        <Dialog.Content className="glass-floating fixed inset-y-2 right-2 z-50 w-[min(calc(100vw-1rem),460px)] overflow-y-auto rounded-3xl p-6 focus:outline-none sm:inset-y-3 sm:right-3 sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>
               <Dialog.Description className="text-xs font-medium tracking-[0.16em] text-stone-500 uppercase dark:text-stone-400">
@@ -137,7 +137,7 @@ export function TaskDetailDrawer({
               </Dialog.Title>
             </div>
             <Dialog.Close
-              className="rounded-lg p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+              className="glass-button rounded-lg p-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
               aria-label="关闭任务详情"
             >
               <X aria-hidden="true" className="size-5" />
@@ -222,7 +222,7 @@ export function TaskDetailDrawer({
               {tagsLoading ? (
                 <p className="text-xs text-stone-400">正在读取标签关联</p>
               ) : tags.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-stone-200 px-3 py-4 text-center text-xs text-stone-400 dark:border-stone-700">
+                <p className="glass-surface rounded-xl border-dashed px-3 py-4 text-center text-xs text-stone-400">
                   暂无标签，可在筛选面板中创建
                 </p>
               ) : (
@@ -234,8 +234,8 @@ export function TaskDetailDrawer({
                         key={tag.id}
                         className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${
                           selected
-                            ? "border-emerald-900/30 bg-emerald-900/8 text-emerald-950 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-100"
-                            : "border-stone-200 text-stone-600 hover:border-stone-300 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-600"
+                            ? "border-emerald-800/35 bg-emerald-900/8 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,.75)] dark:border-blue-300/30 dark:bg-blue-400/10 dark:text-blue-100"
+                            : "border-[var(--glass-border-muted)] bg-white/20 text-stone-600 hover:border-[var(--glass-border)] hover:bg-white/45 dark:bg-white/5 dark:text-stone-300"
                         }`}
                       >
                         <input
@@ -250,7 +250,7 @@ export function TaskDetailDrawer({
                                 : [...selectedTagIds, tag.id],
                             });
                           }}
-                          className="accent-emerald-900"
+                          className="accent-[var(--accent)]"
                         />
                         <span
                           aria-hidden="true"
@@ -305,9 +305,9 @@ export function TaskDetailDrawer({
               {task ? new Date(task.createdAt).toLocaleString("zh-CN") : "-"}
             </p>
 
-            <div className="border-t border-stone-200 pt-5 dark:border-stone-800">
+            <div className="border-t border-[var(--glass-border-muted)] pt-5">
               {confirmingDelete ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/40">
+                <div className="glass-surface rounded-2xl border-red-200/70 bg-red-50/55 p-4 dark:border-red-700/35 dark:bg-red-950/30">
                   <p className="text-sm font-medium text-red-900 dark:text-red-200">
                     确认删除这条任务？
                   </p>
@@ -318,7 +318,7 @@ export function TaskDetailDrawer({
                     <button
                       type="button"
                       onClick={() => setConfirmingDeleteId(null)}
-                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-stone-900 dark:text-red-200"
+                      className="glass-button glass-surface rounded-lg border-red-200/70 px-3 py-2 text-sm text-red-800 dark:border-red-700/40 dark:text-red-200"
                     >
                       取消
                     </button>
@@ -337,7 +337,7 @@ export function TaskDetailDrawer({
                   <button
                     type="button"
                     onClick={() => task && setConfirmingDeleteId(task.id)}
-                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                    className="glass-button inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50/60 dark:text-red-400 dark:hover:bg-red-950/30"
                   >
                     <Trash2 aria-hidden="true" className="size-4" />
                     删除任务
@@ -345,7 +345,7 @@ export function TaskDetailDrawer({
                   <button
                     type="submit"
                     disabled={busy || tagsLoading || !form.title.trim()}
-                    className="rounded-xl bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50"
+                    className="rounded-xl bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
                   >
                     保存并关闭
                   </button>

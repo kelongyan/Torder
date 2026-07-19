@@ -20,6 +20,13 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(error) = window_vibrancy::apply_mica(&window, None) {
+                    eprintln!("Windows Mica is unavailable; using CSS glass fallback: {error}");
+                }
+            }
+
             let database_path = app.path().app_data_dir()?.join("torder.sqlite");
             let database = Database::initialize(database_path)?;
             app.manage(database);
@@ -28,6 +35,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_info,
+            commands::app::set_window_material_theme,
             commands::backup::export_backup,
             commands::backup::inspect_backup,
             commands::backup::restore_backup,

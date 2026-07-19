@@ -170,7 +170,7 @@ export function SettingsPage({
   return (
     <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 lg:px-10 lg:py-10">
       <header>
-        <p className="font-mono text-xs tracking-[0.16em] text-emerald-900 uppercase dark:text-emerald-400">
+        <p className="font-mono text-xs tracking-[0.16em] text-emerald-900 uppercase dark:text-blue-300">
           偏好设置
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -184,9 +184,9 @@ export function SettingsPage({
       {feedback && (
         <div
           role={feedback.type === "error" ? "alert" : "status"}
-          className={`mt-6 rounded-xl border px-4 py-3 text-sm ${
+          className={`glass-surface mt-6 rounded-2xl px-4 py-3 text-sm ${
             feedback.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-200"
               : "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
           }`}
         >
@@ -209,10 +209,10 @@ export function SettingsPage({
                   disabled={busy}
                   onClick={() => void updateSetting("theme", value)}
                   aria-pressed={selected}
-                  className={`relative rounded-xl border p-4 text-left transition ${
+                  className={`glass-button relative rounded-2xl p-4 text-left ${
                     selected
-                      ? "border-emerald-800 bg-emerald-50 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-100"
-                      : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-stone-600"
+                      ? "border-emerald-700/35 bg-emerald-50/55 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,.8),0_10px_28px_rgba(6,95,75,.1)] dark:border-blue-300/25 dark:bg-blue-400/10 dark:text-blue-100"
+                      : "border-[var(--glass-border-muted)] bg-white/20 text-stone-700 dark:bg-white/5 dark:text-stone-200"
                   }`}
                 >
                   <Icon aria-hidden="true" className="size-5" />
@@ -225,7 +225,7 @@ export function SettingsPage({
                   {selected && (
                     <Check
                       aria-hidden="true"
-                      className="absolute top-3 right-3 size-4 text-emerald-800 dark:text-emerald-400"
+                      className="absolute top-3 right-3 size-4 text-emerald-800 dark:text-blue-300"
                     />
                   )}
                 </button>
@@ -238,7 +238,7 @@ export function SettingsPage({
           title="默认行为"
           description="这些选项将在下次启动或后续提醒流程中使用。"
         >
-          <div className="divide-y divide-stone-200 dark:divide-stone-800">
+          <div className="divide-y divide-[var(--glass-border-muted)]">
             <SettingRow
               label="启动默认视图"
               description="应用启动后首先打开的任务视图"
@@ -311,7 +311,7 @@ export function SettingsPage({
                 }
                 className={`relative h-7 w-12 rounded-full transition ${
                   settings.launchAtStartup
-                    ? "bg-emerald-800 dark:bg-emerald-600"
+                    ? "bg-emerald-800 dark:bg-blue-500/80"
                     : "bg-stone-300 dark:bg-stone-700"
                 }`}
               >
@@ -329,9 +329,9 @@ export function SettingsPage({
           title="本地数据"
           description="备份包含任务、清单、标签、关联关系和设置。"
         >
-          <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-950/60">
+          <div className="glass-surface rounded-2xl p-4">
             <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-stone-500 shadow-sm dark:bg-stone-900 dark:text-stone-400">
+              <span className="glass-surface grid size-10 shrink-0 place-items-center rounded-xl text-stone-500 dark:text-stone-400">
                 <Database aria-hidden="true" className="size-5" />
               </span>
               <div className="min-w-0">
@@ -355,7 +355,7 @@ export function SettingsPage({
               type="button"
               disabled={busy}
               onClick={() => void handleExport()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
             >
               <Download aria-hidden="true" className="size-4" />
               导出 JSON 备份
@@ -364,7 +364,7 @@ export function SettingsPage({
               type="button"
               disabled={busy}
               onClick={() => void handleChooseImport()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800"
+              className="glass-button glass-surface inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-stone-700 disabled:opacity-50 dark:text-stone-200"
             >
               <Upload aria-hidden="true" className="size-4" />
               导入 JSON 备份
@@ -385,7 +385,7 @@ export function SettingsPage({
             <div
               role="alertdialog"
               aria-label="确认整体恢复"
-              className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
+              className="glass-surface mt-4 rounded-2xl border-amber-300/70 bg-amber-50/55 p-4 text-amber-950 dark:border-amber-600/35 dark:bg-amber-950/25 dark:text-amber-100"
             >
               <div className="flex items-start gap-3">
                 <RotateCcw
@@ -416,7 +416,7 @@ export function SettingsPage({
                       type="button"
                       disabled={busy}
                       onClick={() => setPendingImport(null)}
-                      className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-medium dark:border-amber-800 dark:bg-stone-900"
+                      className="glass-button glass-surface rounded-lg border-amber-300/70 px-3 py-2 text-xs font-medium dark:border-amber-600/40"
                     >
                       取消
                     </button>
@@ -428,7 +428,7 @@ export function SettingsPage({
         </SettingsSection>
 
         <SettingsSection title="关于" description="本地优先，不上传任务内容。">
-          <div className="mb-5 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-950/60">
+          <div className="glass-surface mb-5 flex items-center gap-3 rounded-2xl p-4">
             <img
               src={torderLogo}
               alt=""
@@ -463,7 +463,7 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/3 dark:border-stone-800 dark:bg-stone-900 dark:shadow-black/10 sm:p-6">
+    <section className="glass-surface rounded-3xl p-5 sm:p-6">
       <h2 className="font-serif text-xl font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
         {description}

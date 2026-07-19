@@ -9,11 +9,13 @@ import { taskViewCopy } from "./taskViews";
 import { AppSidebar } from "../components/layout/AppSidebar";
 import { ReminderToast } from "../components/reminder/ReminderToast";
 import { SettingsPage } from "../components/settings/SettingsPage";
-import { QuickAdd } from "../components/task/QuickAdd";
 import { TagManagerDialog } from "../components/task/TagManagerDialog";
 import { TaskDetailDrawer } from "../components/task/TaskDetailDrawer";
-import { TaskFiltersPanel } from "../components/task/TaskFiltersPanel";
 import { TaskListView } from "../components/task/TaskList";
+import {
+  TaskToolbar,
+  type TaskToolbarHandle,
+} from "../components/task/TaskToolbar";
 import { getAppInfo, getDatabaseStatus } from "../services/appService";
 import { listLists } from "../services/listService";
 import {
@@ -45,8 +47,7 @@ import {
 } from "../types/settings";
 
 function App() {
-  const quickAddRef = useRef<HTMLInputElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<TaskToolbarHandle>(null);
   const initializedRef = useRef(false);
   const reminderScanRunningRef = useRef(false);
   const reminderTaskIdsRef = useRef(new Set<string>());
@@ -103,14 +104,14 @@ function App() {
       if (forceToday || (currentView !== "today" && currentView !== "all")) {
         await setView("today");
       }
-      window.setTimeout(() => quickAddRef.current?.focus(), 0);
+      window.setTimeout(() => toolbarRef.current?.focusQuickAdd(), 0);
     },
     [setView],
   );
 
   const focusSearch = useCallback(() => {
     setActiveSection("tasks");
-    window.setTimeout(() => searchRef.current?.focus(), 0);
+    window.setTimeout(() => toolbarRef.current?.focusSearch(), 0);
   }, []);
 
   const openSettings = useCallback(() => {
@@ -415,8 +416,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 p-0 text-stone-900 dark:bg-stone-950 dark:text-stone-100 md:p-3">
-      <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col overflow-hidden bg-white shadow-xl shadow-stone-900/5 dark:bg-stone-900 dark:shadow-black/20 md:min-h-[calc(100vh-1.5rem)] md:flex-row md:rounded-2xl md:border md:border-stone-200 md:dark:border-stone-800">
+    <div className="app-ambient min-h-screen p-0 text-stone-900 dark:text-stone-100 md:p-3">
+      <div className="glass-shell mx-auto flex min-h-screen max-w-[1440px] flex-col overflow-hidden md:min-h-[calc(100vh-1.5rem)] md:flex-row md:rounded-[28px]">
         <AppSidebar
           view={view}
           activeSection={activeSection}
@@ -426,7 +427,7 @@ function App() {
           onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         />
 
-        <main className="min-w-0 flex-1">
+        <main className="relative min-w-0 flex-1">
           {activeSection === "settings" ? (
             <SettingsPage
               settings={settings}
@@ -436,23 +437,18 @@ function App() {
               onRestoreComplete={handleRestoreComplete}
             />
           ) : (
-            <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 lg:px-10 lg:py-10">
-              <header className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    {copy.title}
-                  </h1>
-                  <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
-                    {copy.subtitle}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
+            <div className="mx-auto max-w-5xl px-5 pt-6 pb-44 sm:px-7 lg:px-9 lg:pt-8 lg:pb-44">
+              <header className="flex flex-wrap items-center justify-between gap-4">
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                  {copy.title}
+                </h1>
+                <div className="glass-surface flex items-center gap-1 rounded-full px-3 py-1 text-xs text-stone-500 dark:text-stone-300">
                   <span>{tasks.length} 条任务</span>
                   <button
                     type="button"
                     onClick={() => void loadTasks()}
                     disabled={loading}
-                    className="rounded-lg p-2 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-40 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+                    className="glass-button rounded-full p-1.5 text-stone-400 hover:text-stone-900 disabled:opacity-40 dark:text-stone-400 dark:hover:text-stone-100"
                     aria-label="刷新任务"
                   >
                     <RefreshCw
@@ -463,28 +459,22 @@ function App() {
                 </div>
               </header>
 
-              <TaskFiltersPanel
-                ref={searchRef}
+              <TaskToolbar
+                ref={toolbarRef}
                 filters={filters}
                 lists={lists}
                 tags={tags}
+                view={view}
+                addDisabled={loading}
                 onChange={setFilters}
-                onClear={clearFilters}
                 onManageTags={() => setTagManagerOpen(true)}
+                onCreate={handleCreate}
+                onRequestQuickAdd={() => void focusQuickAdd(false)}
               />
-
-              <section className="mt-5" aria-label="快速创建任务">
-                <QuickAdd
-                  ref={quickAddRef}
-                  view={view}
-                  disabled={loading}
-                  onCreate={handleCreate}
-                />
-              </section>
 
               {(error || appError) && (
                 <div
-                  className="mt-5 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                  className="glass-surface mt-5 flex items-start justify-between gap-4 rounded-2xl border-red-200/70 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800/50 dark:bg-red-950/35 dark:text-red-200"
                   role="alert"
                 >
                   <span>{error ?? appError}</span>
@@ -502,7 +492,7 @@ function App() {
                 </div>
               )}
 
-              <section className="mt-8" aria-label={`${copy.title}任务列表`}>
+              <section className="mt-6" aria-label={`${copy.title}任务列表`}>
                 <TaskListView
                   view={view}
                   tasks={tasks}
