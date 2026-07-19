@@ -126,13 +126,13 @@ export function TaskDetailDrawer({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="glass-overlay fixed inset-0 z-40 dark:bg-black/35" />
-        <Dialog.Content className="glass-floating fixed inset-y-2 right-2 z-50 w-[min(calc(100vw-1rem),460px)] overflow-y-auto rounded-3xl p-6 focus:outline-none sm:inset-y-3 sm:right-3 sm:p-8">
-          <div className="flex items-start justify-between gap-4">
+        <Dialog.Content className="glass-floating fixed inset-y-2 right-2 z-50 flex w-[min(calc(100vw-1rem),460px)] flex-col overflow-hidden rounded-3xl focus:outline-none sm:inset-y-3 sm:right-3">
+          <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
             <div>
-              <Dialog.Description className="text-xs font-medium tracking-[0.16em] text-stone-500 uppercase dark:text-stone-400">
+              <Dialog.Description className="eyebrow">
                 任务详情
               </Dialog.Description>
-              <Dialog.Title className="mt-2 font-serif text-2xl font-semibold">
+              <Dialog.Title className="dialog-title mt-1.5">
                 编辑任务
               </Dialog.Title>
             </div>
@@ -144,177 +144,182 @@ export function TaskDetailDrawer({
             </Dialog.Close>
           </div>
 
-          <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-            <Field label="标题" htmlFor="task-title">
-              <input
-                id="task-title"
-                value={form.title}
-                onChange={(event) =>
-                  updateForm((current) => ({
-                    ...current,
-                    title: event.target.value,
-                  }))
-                }
-                className="field-control"
-              />
-            </Field>
-
-            <Field label="备注" htmlFor="task-note">
-              <textarea
-                id="task-note"
-                value={form.note}
-                onChange={(event) =>
-                  updateForm((current) => ({
-                    ...current,
-                    note: event.target.value,
-                  }))
-                }
-                rows={5}
-                placeholder="补充必要信息"
-                className="field-control resize-y"
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="清单" htmlFor="task-list">
-                <select
-                  id="task-list"
-                  value={form.listId}
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={handleSubmit}
+          >
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5 sm:px-6">
+              <Field label="标题" htmlFor="task-title">
+                <input
+                  id="task-title"
+                  value={form.title}
                   onChange={(event) =>
                     updateForm((current) => ({
                       ...current,
-                      listId: event.target.value,
+                      title: event.target.value,
                     }))
                   }
                   className="field-control"
-                >
-                  {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </Field>
 
-              <Field label="优先级" htmlFor="task-priority">
-                <select
-                  id="task-priority"
-                  value={form.priority}
+              <Field label="备注" htmlFor="task-note">
+                <textarea
+                  id="task-note"
+                  value={form.note}
                   onChange={(event) =>
                     updateForm((current) => ({
                       ...current,
-                      priority: event.target.value,
+                      note: event.target.value,
                     }))
                   }
-                  className="field-control"
-                >
-                  <option value="0">普通</option>
-                  <option value="1">重要</option>
-                  <option value="2">紧急</option>
-                </select>
+                  rows={4}
+                  placeholder="补充必要信息"
+                  className="field-control resize-y"
+                />
               </Field>
-            </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-stone-500 dark:text-stone-400">
-                标签
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="清单" htmlFor="task-list">
+                  <select
+                    id="task-list"
+                    value={form.listId}
+                    onChange={(event) =>
+                      updateForm((current) => ({
+                        ...current,
+                        listId: event.target.value,
+                      }))
+                    }
+                    className="field-control"
+                  >
+                    {lists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="优先级" htmlFor="task-priority">
+                  <select
+                    id="task-priority"
+                    value={form.priority}
+                    onChange={(event) =>
+                      updateForm((current) => ({
+                        ...current,
+                        priority: event.target.value,
+                      }))
+                    }
+                    className="field-control"
+                  >
+                    <option value="0">普通</option>
+                    <option value="1">重要</option>
+                    <option value="2">紧急</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="space-y-2">
+                <p className="field-label">标签</p>
+                {tagsLoading ? (
+                  <p className="meta-copy">正在读取标签关联</p>
+                ) : tags.length === 0 ? (
+                  <p className="glass-surface meta-copy rounded-xl border-dashed px-3 py-4 text-center">
+                    暂无标签，可在筛选面板中创建
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => {
+                      const selected = selectedTagIds.includes(tag.id);
+                      return (
+                        <label
+                          key={tag.id}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] leading-5 font-medium transition ${
+                            selected
+                              ? "border-emerald-800/35 bg-emerald-900/8 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,.75)] dark:border-blue-300/30 dark:bg-blue-400/10 dark:text-blue-100"
+                              : "border-[var(--glass-border-muted)] bg-white/20 text-stone-600 hover:border-[var(--glass-border)] hover:bg-white/45 dark:bg-white/5 dark:text-stone-300"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => {
+                              if (!task) return;
+                              setTagDraft({
+                                taskId: task.id,
+                                tagIds: selected
+                                  ? selectedTagIds.filter((id) => id !== tag.id)
+                                  : [...selectedTagIds, tag.id],
+                              });
+                            }}
+                            className="accent-[var(--accent)]"
+                          />
+                          <span
+                            aria-hidden="true"
+                            className="size-2 rounded-full"
+                            style={{ backgroundColor: tag.color ?? "#78716c" }}
+                          />
+                          {tag.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {tagError && (
+                  <p className="meta-copy text-red-700">
+                    标签读取失败：{tagError}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="截止时间" htmlFor="task-due-at">
+                  <input
+                    id="task-due-at"
+                    type="datetime-local"
+                    value={form.dueAt}
+                    onChange={(event) =>
+                      updateForm((current) => ({
+                        ...current,
+                        dueAt: event.target.value,
+                      }))
+                    }
+                    className="field-control"
+                  />
+                </Field>
+
+                <Field label="提醒时间" htmlFor="task-remind-at">
+                  <input
+                    id="task-remind-at"
+                    type="datetime-local"
+                    value={form.remindAt}
+                    onChange={(event) =>
+                      updateForm((current) => ({
+                        ...current,
+                        remindAt: event.target.value,
+                      }))
+                    }
+                    className="field-control"
+                  />
+                </Field>
+              </div>
+
+              <p className="meta-copy tabular-nums">
+                创建于{" "}
+                {task ? new Date(task.createdAt).toLocaleString("zh-CN") : "-"}
               </p>
-              {tagsLoading ? (
-                <p className="text-xs text-stone-400">正在读取标签关联</p>
-              ) : tags.length === 0 ? (
-                <p className="glass-surface rounded-xl border-dashed px-3 py-4 text-center text-xs text-stone-400">
-                  暂无标签，可在筛选面板中创建
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => {
-                    const selected = selectedTagIds.includes(tag.id);
-                    return (
-                      <label
-                        key={tag.id}
-                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                          selected
-                            ? "border-emerald-800/35 bg-emerald-900/8 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,.75)] dark:border-blue-300/30 dark:bg-blue-400/10 dark:text-blue-100"
-                            : "border-[var(--glass-border-muted)] bg-white/20 text-stone-600 hover:border-[var(--glass-border)] hover:bg-white/45 dark:bg-white/5 dark:text-stone-300"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => {
-                            if (!task) return;
-                            setTagDraft({
-                              taskId: task.id,
-                              tagIds: selected
-                                ? selectedTagIds.filter((id) => id !== tag.id)
-                                : [...selectedTagIds, tag.id],
-                            });
-                          }}
-                          className="accent-[var(--accent)]"
-                        />
-                        <span
-                          aria-hidden="true"
-                          className="size-2 rounded-full"
-                          style={{ backgroundColor: tag.color ?? "#78716c" }}
-                        />
-                        {tag.name}
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-              {tagError && (
-                <p className="text-xs text-red-700">标签读取失败：{tagError}</p>
-              )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="截止时间" htmlFor="task-due-at">
-                <input
-                  id="task-due-at"
-                  type="datetime-local"
-                  value={form.dueAt}
-                  onChange={(event) =>
-                    updateForm((current) => ({
-                      ...current,
-                      dueAt: event.target.value,
-                    }))
-                  }
-                  className="field-control"
-                />
-              </Field>
-
-              <Field label="提醒时间" htmlFor="task-remind-at">
-                <input
-                  id="task-remind-at"
-                  type="datetime-local"
-                  value={form.remindAt}
-                  onChange={(event) =>
-                    updateForm((current) => ({
-                      ...current,
-                      remindAt: event.target.value,
-                    }))
-                  }
-                  className="field-control"
-                />
-              </Field>
-            </div>
-
-            <p className="text-xs text-stone-400">
-              创建于{" "}
-              {task ? new Date(task.createdAt).toLocaleString("zh-CN") : "-"}
-            </p>
-
-            <div className="border-t border-[var(--glass-border-muted)] pt-5">
+            <div className="shrink-0 border-t border-[var(--glass-border-muted)] bg-[var(--glass-panel-strong)] px-5 py-4 backdrop-blur-xl sm:px-6">
               {confirmingDelete ? (
-                <div className="glass-surface rounded-2xl border-red-200/70 bg-red-50/55 p-4 dark:border-red-700/35 dark:bg-red-950/30">
+                <div className="rounded-2xl border border-red-200/70 bg-red-50/55 p-3 dark:border-red-700/35 dark:bg-red-950/30">
                   <p className="text-sm font-medium text-red-900 dark:text-red-200">
                     确认删除这条任务？
                   </p>
                   <p className="mt-1 text-xs text-red-700 dark:text-red-300">
                     删除后不会出现在普通列表中。
                   </p>
-                  <div className="mt-4 flex justify-end gap-2">
+                  <div className="mt-3 flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setConfirmingDeleteId(null)}
@@ -337,7 +342,7 @@ export function TaskDetailDrawer({
                   <button
                     type="button"
                     onClick={() => task && setConfirmingDeleteId(task.id)}
-                    className="glass-button inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-700 hover:bg-red-50/60 dark:text-red-400 dark:hover:bg-red-950/30"
+                    className="glass-button inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-red-700 hover:bg-red-50/60 dark:text-red-400 dark:hover:bg-red-950/30"
                   >
                     <Trash2 aria-hidden="true" className="size-4" />
                     删除任务
@@ -345,7 +350,7 @@ export function TaskDetailDrawer({
                   <button
                     type="submit"
                     disabled={busy || tagsLoading || !form.title.trim()}
-                    className="rounded-xl bg-emerald-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
+                    className="min-h-10 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
                   >
                     保存并关闭
                   </button>
@@ -368,10 +373,7 @@ interface FieldProps {
 function Field({ label, htmlFor, children }: FieldProps) {
   return (
     <div className="space-y-1.5">
-      <label
-        htmlFor={htmlFor}
-        className="text-xs font-medium text-stone-500 dark:text-stone-400"
-      >
+      <label htmlFor={htmlFor} className="field-label">
         {label}
       </label>
       {children}

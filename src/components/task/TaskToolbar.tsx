@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ListFilter, Plus, Search, Tags, X } from "lucide-react";
+import { RotateCcw, Search, Tags, X } from "lucide-react";
 import type {
   Tag,
   TaskDateFilter,
@@ -25,15 +25,19 @@ interface TaskToolbarProps {
   onChange: (filters: Partial<TaskFilters>) => Promise<void>;
   onManageTags: () => void;
   onCreate: (title: string) => Promise<void>;
-  onRequestQuickAdd: () => void;
+  onPanelChange: (panel: TaskToolbarPanel) => void;
 }
 
 export interface TaskToolbarHandle {
   focusSearch: () => void;
   focusQuickAdd: () => void;
+  toggleSearch: () => void;
+  toggleQuickAdd: () => void;
+  toggleFilters: () => void;
+  close: () => void;
 }
 
-type ActivePanel = "search" | "add" | "filters" | null;
+export type TaskToolbarPanel = "search" | "add" | "filters" | null;
 
 const dateOptions: Array<{ value: TaskDateFilter; label: string }> = [
   { value: "today", label: "今天" },
@@ -59,28 +63,30 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
       onChange,
       onManageTags,
       onCreate,
-      onRequestQuickAdd,
+      onPanelChange,
     },
     ref,
   ) {
-    const searchButtonRef = useRef<HTMLButtonElement>(null);
-    const addButtonRef = useRef<HTMLButtonElement>(null);
-    const filterButtonRef = useRef<HTMLButtonElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const quickAddInputRef = useRef<HTMLInputElement>(null);
-    const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+    const [activePanel, setActivePanel] = useState<TaskToolbarPanel>(null);
     const [query, setQuery] = useState(filters.query);
     const filterCount = useMemo(
       () => countStructuredFilters(filters),
       [filters],
     );
 
+    function changePanel(nextPanel: TaskToolbarPanel) {
+      setActivePanel(nextPanel);
+      onPanelChange(nextPanel);
+    }
+
     function focusSearch() {
       if (activePanel === "search") {
         searchInputRef.current?.focus();
         return;
       }
-      setActivePanel("search");
+      changePanel("search");
     }
 
     function focusQuickAdd() {
@@ -88,15 +94,40 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
         quickAddInputRef.current?.focus();
         return;
       }
-      setActivePanel("add");
+      changePanel("add");
     }
 
-    function closePanel(button: React.RefObject<HTMLButtonElement | null>) {
-      setActivePanel(null);
-      window.setTimeout(() => button.current?.focus(), 0);
+    function closePanel(panel = activePanel) {
+      changePanel(null);
+      const actionId = panel ? `task-action-${panel}` : null;
+      if (actionId) {
+        window.setTimeout(() => document.getElementById(actionId)?.focus(), 0);
+      }
     }
 
-    useImperativeHandle(ref, () => ({ focusSearch, focusQuickAdd }));
+    function toggleSearch() {
+      if (activePanel === "search") closePanel("search");
+      else focusSearch();
+    }
+
+    function toggleQuickAdd() {
+      if (activePanel === "add") closePanel("add");
+      else focusQuickAdd();
+    }
+
+    function toggleFilters() {
+      if (activePanel === "filters") closePanel("filters");
+      else changePanel("filters");
+    }
+
+    useImperativeHandle(ref, () => ({
+      focusSearch,
+      focusQuickAdd,
+      toggleSearch,
+      toggleQuickAdd,
+      toggleFilters,
+      close: () => changePanel(null),
+    }));
 
     useEffect(() => {
       if (activePanel === "search") searchInputRef.current?.focus();
@@ -109,18 +140,15 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
       function handleEscape(event: KeyboardEvent) {
         if (event.key !== "Escape" || event.defaultPrevented) return;
         event.preventDefault();
-        const button =
-          activePanel === "search"
-            ? searchButtonRef
-            : activePanel === "add"
-              ? addButtonRef
-              : filterButtonRef;
-        closePanel(button);
+        setActivePanel(null);
+        onPanelChange(null);
+        const actionId = `task-action-${activePanel}`;
+        window.setTimeout(() => document.getElementById(actionId)?.focus(), 0);
       }
 
       document.addEventListener("keydown", handleEscape);
       return () => document.removeEventListener("keydown", handleEscape);
-    }, [activePanel]);
+    }, [activePanel, onPanelChange]);
 
     useEffect(() => {
       if (query === filters.query) return;
@@ -142,299 +170,204 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
         : [...values, value];
     }
 
+    if (!activePanel) return null;
+
     return (
       <section
-        className="fixed right-4 bottom-4 z-40 flex flex-col-reverse items-end gap-4 sm:right-6 sm:bottom-6"
-        aria-label="任务快捷操作"
+        id="task-toolbar-panel"
+        className={`toolbar-panel mt-4 ml-auto w-full ${
+          activePanel === "filters" ? "max-w-[600px]" : "max-w-[460px]"
+        }`}
+        aria-label="任务快捷面板"
       >
-        <div className="shrink-0">
-          <div
-            className="glass-floating inline-flex flex-col items-center gap-1 rounded-2xl p-1"
-            role="toolbar"
-            aria-label="任务工具"
-            aria-orientation="vertical"
-          >
-            <button
-              ref={searchButtonRef}
-              type="button"
-              onClick={() => {
-                if (activePanel === "search") {
-                  closePanel(searchButtonRef);
-                } else {
-                  focusSearch();
-                }
-              }}
-              aria-label={activePanel === "search" ? "收起搜索" : "搜索任务"}
-              aria-expanded={activePanel === "search"}
-              aria-controls="task-toolbar-panel"
-              title="搜索任务（Ctrl + F）"
-              className={toolbarButton(
-                activePanel === "search" || !!query.trim(),
-              )}
-            >
-              <Search aria-hidden="true" className="size-[18px]" />
-              {query.trim() && activePanel !== "search" && (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-emerald-700 dark:bg-blue-300"
-                />
-              )}
-            </button>
-
-            <button
-              ref={addButtonRef}
-              type="button"
-              onClick={() => {
-                if (activePanel === "add") {
-                  closePanel(addButtonRef);
-                } else {
-                  onRequestQuickAdd();
-                }
-              }}
-              aria-label={
-                activePanel === "add" ? "收起快速添加" : "快速添加任务"
-              }
-              aria-expanded={activePanel === "add"}
-              aria-controls="task-toolbar-panel"
-              title="快速添加任务（Ctrl + N）"
-              className={toolbarButton(activePanel === "add", true)}
-            >
-              <Plus aria-hidden="true" className="size-5" />
-            </button>
-
-            <button
-              ref={filterButtonRef}
-              type="button"
-              onClick={() => {
-                if (activePanel === "filters") {
-                  closePanel(filterButtonRef);
-                } else {
-                  setActivePanel("filters");
-                }
-              }}
-              aria-label={activePanel === "filters" ? "收起筛选" : "筛选任务"}
-              aria-expanded={activePanel === "filters"}
-              aria-controls="task-toolbar-panel"
-              title="筛选任务"
-              className={toolbarButton(
-                activePanel === "filters" || filterCount > 0,
-              )}
-            >
-              <ListFilter aria-hidden="true" className="size-[18px]" />
-              {filterCount > 0 && (
-                <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-emerald-900 text-[9px] font-semibold text-white ring-2 ring-white dark:bg-blue-400 dark:text-blue-950 dark:ring-slate-950">
-                  {filterCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div
-          id="task-toolbar-panel"
-          className={`grid transition-[grid-template-columns,width,opacity] duration-200 ease-out ${
-            activePanel
-              ? "w-[min(560px,calc(100vw-2rem))] grid-cols-[1fr] opacity-100"
-              : "w-0 grid-cols-[0fr] opacity-0"
-          }`}
-        >
-          <div className="overflow-hidden">
-            {activePanel === "search" && (
-              <div className="glass-floating liquid-panel rounded-2xl p-2">
-                <label className="relative block">
-                  <span className="sr-only">搜索任务</span>
-                  <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-stone-400"
-                  />
-                  <input
-                    ref={searchInputRef}
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        closePanel(searchButtonRef);
-                      }
-                    }}
-                    placeholder="搜索标题、备注、清单或标签"
-                    className="field-control pr-10 pl-10"
-                  />
-                  {query && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuery("");
-                        searchInputRef.current?.focus();
-                      }}
-                      aria-label="清空搜索"
-                      className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
-                    >
-                      <X aria-hidden="true" className="size-4" />
-                    </button>
-                  )}
-                </label>
-              </div>
-            )}
-
-            {activePanel === "add" && (
-              <div className="glass-floating liquid-panel rounded-2xl p-2">
-                <QuickAdd
-                  ref={quickAddInputRef}
-                  view={view}
-                  disabled={addDisabled}
-                  onCreate={onCreate}
-                  onEscape={() => closePanel(addButtonRef)}
-                />
-              </div>
-            )}
-
-            {activePanel === "filters" && (
-              <div
-                className="glass-floating liquid-panel max-h-[min(70vh,560px)] overflow-y-auto rounded-2xl p-4 sm:p-5"
+        {activePanel === "search" && (
+          <div className="glass-floating rounded-[18px] p-1.5">
+            <label className="flex min-h-14 items-center gap-2 rounded-[14px] border border-[var(--glass-border-muted)] bg-white/40 p-1.5 pl-2 shadow-[inset_0_1px_0_var(--glass-highlight)] transition focus-within:border-emerald-800/35 focus-within:bg-white/65 dark:bg-white/5 dark:focus-within:border-blue-300/25 dark:focus-within:bg-white/8">
+              <span className="sr-only">搜索任务</span>
+              <span className="grid size-9 shrink-0 place-items-center text-emerald-900 dark:text-blue-300">
+                <Search aria-hidden="true" className="size-[18px]" />
+              </span>
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Escape") {
                     event.preventDefault();
-                    closePanel(filterButtonRef);
+                    closePanel("search");
                   }
                 }}
-              >
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <FilterGroup title="日期">
-                    <button
-                      type="button"
-                      onClick={() => void onChange({ dateFilter: null })}
-                      className={filterChip(filters.dateFilter === null)}
-                      aria-pressed={filters.dateFilter === null}
-                    >
-                      不限
-                    </button>
-                    {dateOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          void onChange({ dateFilter: option.value })
-                        }
-                        className={filterChip(
-                          filters.dateFilter === option.value,
-                        )}
-                        aria-pressed={filters.dateFilter === option.value}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </FilterGroup>
+                placeholder="搜索事项…"
+                className="h-10 min-w-0 flex-1 bg-transparent px-1 text-[15px] leading-6 text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    searchInputRef.current?.focus();
+                  }}
+                  aria-label="清空搜索"
+                  title="清空搜索"
+                  className="glass-button grid size-10 shrink-0 place-items-center rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </button>
+              )}
+            </label>
+          </div>
+        )}
 
-                  <FilterGroup title="优先级">
-                    {priorityOptions.map((option) => (
-                      <label key={option.value} className={checkChip()}>
-                        <input
-                          type="checkbox"
-                          checked={filters.priorities.includes(option.value)}
-                          onChange={() =>
-                            void onChange({
-                              priorities: toggleNumber(
-                                filters.priorities,
-                                option.value,
-                              ),
-                            })
-                          }
-                          className="accent-[var(--accent)]"
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </FilterGroup>
+        {activePanel === "add" && (
+          <div className="glass-floating rounded-[18px] p-1.5">
+            <QuickAdd
+              ref={quickAddInputRef}
+              view={view}
+              disabled={addDisabled}
+              onCreate={onCreate}
+              onEscape={() => closePanel("add")}
+            />
+          </div>
+        )}
 
-                  <FilterGroup title="清单">
-                    {lists.map((list) => (
-                      <label key={list.id} className={checkChip()}>
-                        <input
-                          type="checkbox"
-                          checked={filters.listIds.includes(list.id)}
-                          onChange={() =>
-                            void onChange({
-                              listIds: toggleString(filters.listIds, list.id),
-                            })
-                          }
-                          className="accent-[var(--accent)]"
-                        />
-                        {list.name}
-                      </label>
-                    ))}
-                  </FilterGroup>
+        {activePanel === "filters" && (
+          <div
+            className="glass-floating max-h-[min(70vh,560px)] overflow-y-auto rounded-[20px] bg-white/95 p-4 dark:bg-slate-950/95 sm:p-5"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closePanel("filters");
+              }
+            }}
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <FilterGroup title="日期">
+                <button
+                  type="button"
+                  onClick={() => void onChange({ dateFilter: null })}
+                  className={filterChip(filters.dateFilter === null)}
+                  aria-pressed={filters.dateFilter === null}
+                >
+                  不限
+                </button>
+                {dateOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => void onChange({ dateFilter: option.value })}
+                    className={filterChip(filters.dateFilter === option.value)}
+                    aria-pressed={filters.dateFilter === option.value}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </FilterGroup>
 
-                  <div>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2 className="text-xs font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
-                        标签
-                      </h2>
-                      <button
-                        type="button"
-                        onClick={onManageTags}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-emerald-900 hover:bg-emerald-900/8 dark:text-blue-300 dark:hover:bg-blue-500/10"
-                      >
-                        <Tags aria-hidden="true" className="size-3.5" />
-                        管理标签
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {tags.length === 0 ? (
-                        <span className="text-xs text-stone-400">暂无标签</span>
-                      ) : (
-                        tags.map((tag) => (
-                          <label key={tag.id} className={checkChip()}>
-                            <input
-                              type="checkbox"
-                              checked={filters.tagIds.includes(tag.id)}
-                              onChange={() =>
-                                void onChange({
-                                  tagIds: toggleString(filters.tagIds, tag.id),
-                                })
-                              }
-                              className="accent-[var(--accent)]"
-                            />
-                            <span
-                              aria-hidden="true"
-                              className="size-2 rounded-full"
-                              style={{
-                                backgroundColor: tag.color ?? "#78716c",
-                              }}
-                            />
-                            {tag.name}
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <FilterGroup title="优先级">
+                {priorityOptions.map((option) => (
+                  <label key={option.value} className={checkChip()}>
+                    <input
+                      type="checkbox"
+                      checked={filters.priorities.includes(option.value)}
+                      onChange={() =>
+                        void onChange({
+                          priorities: toggleNumber(
+                            filters.priorities,
+                            option.value,
+                          ),
+                        })
+                      }
+                      className="accent-[var(--accent)]"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </FilterGroup>
 
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--glass-border-muted)] pt-4">
-                  <p className="text-xs text-stone-500 dark:text-stone-400">
-                    不同类别按 AND 组合，同一类别多选按 OR 匹配。
-                  </p>
+              <FilterGroup title="清单">
+                {lists.map((list) => (
+                  <label key={list.id} className={checkChip()}>
+                    <input
+                      type="checkbox"
+                      checked={filters.listIds.includes(list.id)}
+                      onChange={() =>
+                        void onChange({
+                          listIds: toggleString(filters.listIds, list.id),
+                        })
+                      }
+                      className="accent-[var(--accent)]"
+                    />
+                    {list.name}
+                  </label>
+                ))}
+              </FilterGroup>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h2 className="field-label">标签</h2>
                   <button
                     type="button"
-                    onClick={() =>
-                      void onChange({
-                        dateFilter: null,
-                        priorities: [],
-                        listIds: [],
-                        tagIds: [],
-                      })
-                    }
-                    disabled={filterCount === 0}
-                    className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 hover:text-stone-900 disabled:cursor-default disabled:opacity-40 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+                    onClick={onManageTags}
+                    aria-label="管理标签"
+                    title="管理标签"
+                    className="glass-button grid size-8 place-items-center rounded-lg text-emerald-900 hover:bg-emerald-900/8 dark:text-blue-300 dark:hover:bg-blue-500/10"
                   >
-                    清空筛选
+                    <Tags aria-hidden="true" className="size-4" />
                   </button>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {tags.length === 0 ? (
+                    <span className="meta-copy">暂无标签</span>
+                  ) : (
+                    tags.map((tag) => (
+                      <label key={tag.id} className={checkChip()}>
+                        <input
+                          type="checkbox"
+                          checked={filters.tagIds.includes(tag.id)}
+                          onChange={() =>
+                            void onChange({
+                              tagIds: toggleString(filters.tagIds, tag.id),
+                            })
+                          }
+                          className="accent-[var(--accent)]"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="size-2 rounded-full"
+                          style={{
+                            backgroundColor: tag.color ?? "#78716c",
+                          }}
+                        />
+                        {tag.name}
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
-            )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-end border-t border-[var(--glass-border-muted)] pt-4">
+              <button
+                type="button"
+                onClick={() =>
+                  void onChange({
+                    dateFilter: null,
+                    priorities: [],
+                    listIds: [],
+                    tagIds: [],
+                  })
+                }
+                disabled={filterCount === 0}
+                aria-label="清空筛选"
+                title="清空筛选"
+                className="glass-button grid size-9 place-items-center rounded-lg text-stone-500 hover:bg-stone-200 hover:text-stone-900 disabled:cursor-default disabled:opacity-35 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+              >
+                <RotateCcw aria-hidden="true" className="size-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </section>
     );
   },
@@ -449,28 +382,14 @@ function FilterGroup({
 }) {
   return (
     <div>
-      <h2 className="mb-2 text-xs font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
-        {title}
-      </h2>
+      <h2 className="field-label mb-2">{title}</h2>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
 
-function toolbarButton(active: boolean, primary = false): string {
-  const base =
-    "glass-button relative grid size-10 place-items-center rounded-xl outline-none duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 dark:focus-visible:outline-blue-300";
-  if (active) {
-    return `${base} border-emerald-700/40 bg-emerald-900/90 text-white shadow-[0_8px_24px_rgba(5,95,75,.24)] dark:border-blue-300/20 dark:bg-blue-500/70 dark:shadow-[0_8px_26px_rgba(74,111,220,.24)]`;
-  }
-  if (primary) {
-    return `${base} text-emerald-900 hover:bg-emerald-900/8 dark:text-blue-300 dark:hover:bg-blue-500/10`;
-  }
-  return `${base} text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100`;
-}
-
 function filterChip(active: boolean): string {
-  return `rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+  return `rounded-lg border px-3 py-1.5 text-[13px] leading-5 font-medium transition ${
     active
       ? "border-emerald-800/60 bg-emerald-900/90 text-white shadow-sm dark:border-blue-300/30 dark:bg-blue-500/65"
       : "border-[var(--glass-border-muted)] bg-white/30 text-stone-600 shadow-[inset_0_1px_0_var(--glass-highlight)] hover:border-[var(--glass-border)] hover:bg-white/55 dark:bg-white/5 dark:text-stone-300"
@@ -478,7 +397,7 @@ function filterChip(active: boolean): string {
 }
 
 function checkChip(): string {
-  return "inline-flex items-center gap-2 rounded-lg border border-[var(--glass-border-muted)] bg-white/30 px-3 py-1.5 text-xs font-medium text-stone-600 shadow-[inset_0_1px_0_var(--glass-highlight)] transition hover:border-[var(--glass-border)] hover:bg-white/55 dark:bg-white/5 dark:text-stone-300";
+  return "inline-flex items-center gap-2 rounded-lg border border-[var(--glass-border-muted)] bg-white/30 px-3 py-1.5 text-[13px] leading-5 font-medium text-stone-600 shadow-[inset_0_1px_0_var(--glass-highlight)] transition hover:border-[var(--glass-border)] hover:bg-white/55 dark:bg-white/5 dark:text-stone-300";
 }
 
 function countStructuredFilters(filters: TaskFilters): number {

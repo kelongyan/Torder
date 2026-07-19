@@ -168,23 +168,17 @@ export function SettingsPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 lg:px-10 lg:py-10">
+    <div className="mx-auto max-w-4xl px-5 py-6 sm:px-7 lg:px-8 lg:py-8">
       <header>
-        <p className="font-mono text-xs tracking-[0.16em] text-emerald-900 uppercase dark:text-blue-300">
-          偏好设置
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-          设置
-        </h1>
-        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">
-          管理外观、默认行为和本地数据。
-        </p>
+        <p className="eyebrow">偏好设置</p>
+        <h1 className="page-title mt-1.5">设置</h1>
+        <p className="body-copy mt-1.5">管理外观、默认行为和本地数据。</p>
       </header>
 
       {feedback && (
         <div
           role={feedback.type === "error" ? "alert" : "status"}
-          className={`glass-surface mt-6 rounded-2xl px-4 py-3 text-sm ${
+          className={`glass-surface mt-5 rounded-2xl px-4 py-3 text-sm ${
             feedback.type === "success"
               ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-200"
               : "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
@@ -194,7 +188,7 @@ export function SettingsPage({
         </div>
       )}
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-6 space-y-5">
         <SettingsSection
           title="外观"
           description="主题会立即生效，并保存到本地数据库。"
@@ -215,13 +209,11 @@ export function SettingsPage({
                       : "border-[var(--glass-border-muted)] bg-white/20 text-stone-700 dark:bg-white/5 dark:text-stone-200"
                   }`}
                 >
-                  <Icon aria-hidden="true" className="size-5" />
-                  <span className="mt-4 block text-sm font-semibold">
+                  <Icon aria-hidden="true" className="size-4.5" />
+                  <span className="mt-3 block text-sm font-semibold">
                     {label}
                   </span>
-                  <span className="mt-1 block text-xs text-stone-500 dark:text-stone-400">
-                    {description}
-                  </span>
+                  <span className="meta-copy mt-1 block">{description}</span>
                   {selected && (
                     <Check
                       aria-hidden="true"
@@ -265,7 +257,7 @@ export function SettingsPage({
 
             <SettingRow
               label="默认提醒时间"
-              description="阶段 7 创建提醒时使用的默认提前量"
+              description="创建今日任务时使用的默认提前量"
             >
               <select
                 aria-label="默认提醒时间"
@@ -325,129 +317,138 @@ export function SettingsPage({
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          title="本地数据"
-          description="备份包含任务、清单、标签、关联关系和设置。"
-        >
-          <div className="glass-surface rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <span className="glass-surface grid size-10 shrink-0 place-items-center rounded-xl text-stone-500 dark:text-stone-400">
-                <Database aria-hidden="true" className="size-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">数据存储位置</p>
-                <p className="mt-1 break-all font-mono text-xs text-stone-500 dark:text-stone-400">
-                  {databaseStatus?.databasePath ?? "正在读取…"}
-                </p>
-                {databaseStatus && (
-                  <p className="mt-2 text-xs text-stone-400">
-                    schema v{databaseStatus.schemaVersion} ·{" "}
-                    {databaseStatus.taskCount} 条任务 ·{" "}
-                    {databaseStatus.listCount} 个清单
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void handleExport()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
-            >
-              <Download aria-hidden="true" className="size-4" />
-              导出 JSON 备份
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void handleChooseImport()}
-              className="glass-button glass-surface inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-stone-700 disabled:opacity-50 dark:text-stone-200"
-            >
-              <Upload aria-hidden="true" className="size-4" />
-              导入 JSON 备份
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json"
-              aria-label="选择备份文件"
-              className="sr-only"
-              onChange={(event) =>
-                void handleBrowserFile(event.target.files?.[0])
-              }
-            />
-          </div>
-
-          {pendingImport && (
-            <div
-              role="alertdialog"
-              aria-label="确认整体恢复"
-              className="glass-surface mt-4 rounded-2xl border-amber-300/70 bg-amber-50/55 p-4 text-amber-950 dark:border-amber-600/35 dark:bg-amber-950/25 dark:text-amber-100"
-            >
+        <div className="grid gap-5 md:grid-cols-2">
+          <SettingsSection
+            title="本地数据"
+            description="备份包含任务、清单、标签、关联关系和设置。"
+          >
+            <div className="glass-surface rounded-2xl p-4">
               <div className="flex items-start gap-3">
-                <RotateCcw
-                  aria-hidden="true"
-                  className="mt-0.5 size-5 shrink-0"
-                />
-                <div>
-                  <p className="text-sm font-semibold">确认整体恢复？</p>
-                  <p className="mt-1 text-xs leading-5">
-                    {pendingImport.source.name} ·{" "}
-                    {pendingImport.preview.taskCount} 条任务 ·{" "}
-                    {pendingImport.preview.listCount} 个清单 ·{" "}
-                    {pendingImport.preview.tagCount} 个标签
+                <span className="glass-surface grid size-10 shrink-0 place-items-center rounded-xl text-stone-500 dark:text-stone-400">
+                  <Database aria-hidden="true" className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">数据存储位置</p>
+                  <p className="meta-copy mt-1 break-all font-mono">
+                    {databaseStatus?.databasePath ?? "正在读取…"}
                   </p>
-                  <p className="mt-2 text-xs leading-5">
-                    当前数据会在单个事务中被完整替换；任何一步失败都会保留原数据。
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void handleRestore()}
-                      className="rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 dark:bg-amber-700"
-                    >
-                      确认恢复
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => setPendingImport(null)}
-                      className="glass-button glass-surface rounded-lg border-amber-300/70 px-3 py-2 text-xs font-medium dark:border-amber-600/40"
-                    >
-                      取消
-                    </button>
-                  </div>
+                  {databaseStatus && (
+                    <p className="meta-copy tabular-nums mt-2">
+                      schema v{databaseStatus.schemaVersion} ·{" "}
+                      {databaseStatus.taskCount} 条任务 ·{" "}
+                      {databaseStatus.listCount} 个清单
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
-          )}
-        </SettingsSection>
 
-        <SettingsSection title="关于" description="本地优先，不上传任务内容。">
-          <div className="glass-surface mb-5 flex items-center gap-3 rounded-2xl p-4">
-            <img
-              src={torderLogo}
-              alt=""
-              aria-hidden="true"
-              className="size-12 shrink-0 rounded-2xl shadow-sm shadow-stone-900/10 dark:shadow-black/30"
-            />
-            <div>
-              <p className="text-lg font-semibold">今序</p>
-              <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
-                让今天的任务更有顺序。
-              </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleExport()}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
+              >
+                <Download aria-hidden="true" className="size-4" />
+                导出 JSON 备份
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleChooseImport()}
+                className="glass-button glass-surface inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-stone-700 disabled:opacity-50 dark:text-stone-200"
+              >
+                <Upload aria-hidden="true" className="size-4" />
+                导入 JSON 备份
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                aria-label="选择备份文件"
+                className="sr-only"
+                onChange={(event) =>
+                  void handleBrowserFile(event.target.files?.[0])
+                }
+              />
             </div>
-          </div>
-          <dl className="grid gap-4 text-sm sm:grid-cols-3">
-            <InfoItem label="应用" value={appInfo?.name ?? "Torder（今序）"} />
-            <InfoItem label="版本" value={appInfo?.version ?? "读取中"} />
-            <InfoItem label="平台" value={formatPlatform(appInfo?.platform)} />
-          </dl>
-        </SettingsSection>
+
+            {pendingImport && (
+              <div
+                role="alertdialog"
+                aria-label="确认整体恢复"
+                className="glass-surface mt-4 rounded-2xl border-amber-300/70 bg-amber-50/55 p-4 text-amber-950 dark:border-amber-600/35 dark:bg-amber-950/25 dark:text-amber-100"
+              >
+                <div className="flex items-start gap-3">
+                  <RotateCcw
+                    aria-hidden="true"
+                    className="mt-0.5 size-5 shrink-0"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold">确认整体恢复？</p>
+                    <p className="mt-1 text-xs leading-5">
+                      {pendingImport.source.name} ·{" "}
+                      {pendingImport.preview.taskCount} 条任务 ·{" "}
+                      {pendingImport.preview.listCount} 个清单 ·{" "}
+                      {pendingImport.preview.tagCount} 个标签
+                    </p>
+                    <p className="mt-2 text-xs leading-5">
+                      当前数据会在单个事务中被完整替换；任何一步失败都会保留原数据。
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleRestore()}
+                        className="rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 dark:bg-amber-700"
+                      >
+                        确认恢复
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setPendingImport(null)}
+                        className="glass-button glass-surface rounded-lg border-amber-300/70 px-3 py-2 text-xs font-medium dark:border-amber-600/40"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </SettingsSection>
+
+          <SettingsSection
+            title="关于"
+            description="本地优先，不上传任务内容。"
+          >
+            <div className="glass-surface mb-4 flex items-center gap-3 rounded-2xl p-4">
+              <img
+                src={torderLogo}
+                alt=""
+                aria-hidden="true"
+                className="size-12 shrink-0 rounded-2xl shadow-sm shadow-stone-900/10 dark:shadow-black/30"
+              />
+              <div>
+                <p className="text-lg font-semibold">今序</p>
+                <p className="meta-copy mt-0.5">让今天的任务更有顺序。</p>
+              </div>
+            </div>
+            <dl className="grid gap-4 text-sm sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
+              <InfoItem
+                label="应用"
+                value={appInfo?.name ?? "Torder（今序）"}
+              />
+              <InfoItem label="版本" value={appInfo?.version ?? "读取中"} />
+              <InfoItem
+                label="平台"
+                value={formatPlatform(appInfo?.platform)}
+              />
+            </dl>
+          </SettingsSection>
+        </div>
       </div>
     </div>
   );
@@ -463,12 +464,10 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="glass-surface rounded-3xl p-5 sm:p-6">
-      <h2 className="font-serif text-xl font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-        {description}
-      </p>
-      <div className="mt-5">{children}</div>
+    <section className="glass-surface rounded-3xl p-5">
+      <h2 className="section-title">{title}</h2>
+      <p className="body-copy mt-1">{description}</p>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -483,12 +482,10 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-medium">{label}</p>
-        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          {description}
-        </p>
+        <p className="meta-copy mt-1">{description}</p>
       </div>
       {children}
     </div>
@@ -498,8 +495,8 @@ function SettingRow({
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-stone-400">{label}</dt>
-      <dd className="mt-1 font-medium">{value}</dd>
+      <dt className="meta-copy">{label}</dt>
+      <dd className="mt-1 text-sm font-medium">{value}</dd>
     </div>
   );
 }

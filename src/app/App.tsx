@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { RefreshCw, X } from "lucide-react";
+import { ListTodo, RefreshCw, X } from "lucide-react";
 import { endOfTodayIso } from "./taskDates";
 import { applyThemePreference } from "./theme";
 import { taskViewCopy } from "./taskViews";
@@ -15,6 +15,7 @@ import { TaskListView } from "../components/task/TaskList";
 import {
   TaskToolbar,
   type TaskToolbarHandle,
+  type TaskToolbarPanel,
 } from "../components/task/TaskToolbar";
 import { getAppInfo, getDatabaseStatus } from "../services/appService";
 import { listLists } from "../services/listService";
@@ -54,7 +55,7 @@ function App() {
   const [lists, setLists] = useState<TaskList[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [toolbarPanel, setToolbarPanel] = useState<TaskToolbarPanel>(null);
   const [activeSection, setActiveSection] = useState<"tasks" | "settings">(
     "tasks",
   );
@@ -96,6 +97,12 @@ function App() {
     filters.listIds.length ||
     filters.tagIds.length,
   );
+  const structuredFilterCount = [
+    Boolean(filters.dateFilter),
+    filters.priorities.length > 0,
+    filters.listIds.length > 0,
+    filters.tagIds.length > 0,
+  ].filter(Boolean).length;
 
   const focusQuickAdd = useCallback(
     async (forceToday = false) => {
@@ -114,9 +121,32 @@ function App() {
     window.setTimeout(() => toolbarRef.current?.focusSearch(), 0);
   }, []);
 
+  const toggleQuickAddFromNavigation = useCallback(() => {
+    if (toolbarPanel === "add") {
+      toolbarRef.current?.toggleQuickAdd();
+      return;
+    }
+    void focusQuickAdd(false);
+  }, [focusQuickAdd, toolbarPanel]);
+
+  const toggleSearchFromNavigation = useCallback(() => {
+    if (toolbarPanel === "search") {
+      toolbarRef.current?.toggleSearch();
+      return;
+    }
+    focusSearch();
+  }, [focusSearch, toolbarPanel]);
+
+  const toggleFiltersFromNavigation = useCallback(() => {
+    setActiveSection("tasks");
+    window.setTimeout(() => toolbarRef.current?.toggleFilters(), 0);
+  }, []);
+
   const openSettings = useCallback(() => {
     selectTask(null);
     setTagManagerOpen(false);
+    toolbarRef.current?.close();
+    setToolbarPanel(null);
     setActiveSection("settings");
     void getDatabaseStatus()
       .then(setDatabaseStatus)
@@ -307,6 +337,8 @@ function App() {
   }, []);
 
   async function handleSelectView(nextView: TaskView) {
+    toolbarRef.current?.close();
+    setToolbarPanel(null);
     setActiveSection("tasks");
     await setView(nextView);
   }
@@ -421,10 +453,14 @@ function App() {
         <AppSidebar
           view={view}
           activeSection={activeSection}
-          collapsed={sidebarCollapsed}
+          activeQuickAction={toolbarPanel}
+          hasSearchQuery={Boolean(filters.query.trim())}
+          filterCount={structuredFilterCount}
           onSelectView={(nextView) => void handleSelectView(nextView)}
+          onOpenQuickAdd={toggleQuickAddFromNavigation}
+          onOpenSearch={toggleSearchFromNavigation}
+          onOpenFilters={toggleFiltersFromNavigation}
           onOpenSettings={openSettings}
-          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         />
 
         <main className="relative min-w-0 flex-1">
@@ -437,19 +473,25 @@ function App() {
               onRestoreComplete={handleRestoreComplete}
             />
           ) : (
-            <div className="mx-auto max-w-5xl px-5 pt-6 pb-44 sm:px-7 lg:px-9 lg:pt-8 lg:pb-44">
-              <header className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  {copy.title}
-                </h1>
-                <div className="glass-surface flex items-center gap-1 rounded-full px-3 py-1 text-xs text-stone-500 dark:text-stone-300">
-                  <span>{tasks.length} 条任务</span>
+            <div className="mx-auto max-w-4xl px-5 pt-6 pb-12 sm:px-7 lg:px-8 lg:pt-8 lg:pb-14">
+              <header className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="page-title">{copy.title}</h1>
+                <div className="glass-surface meta-copy tabular-nums flex items-center rounded-2xl p-1">
+                  <span
+                    className="flex h-10 items-center gap-1.5 px-2.5"
+                    aria-label={`${tasks.length} 条任务`}
+                    title={`${tasks.length} 条任务`}
+                  >
+                    <ListTodo aria-hidden="true" className="size-4" />
+                    <span>{tasks.length}</span>
+                  </span>
                   <button
                     type="button"
                     onClick={() => void loadTasks()}
                     disabled={loading}
-                    className="glass-button rounded-full p-1.5 text-stone-400 hover:text-stone-900 disabled:opacity-40 dark:text-stone-400 dark:hover:text-stone-100"
+                    className="glass-button grid size-10 place-items-center rounded-xl text-stone-400 hover:text-stone-900 disabled:opacity-40 dark:text-stone-400 dark:hover:text-stone-100"
                     aria-label="刷新任务"
+                    title="刷新任务"
                   >
                     <RefreshCw
                       aria-hidden="true"
@@ -469,7 +511,7 @@ function App() {
                 onChange={setFilters}
                 onManageTags={() => setTagManagerOpen(true)}
                 onCreate={handleCreate}
-                onRequestQuickAdd={() => void focusQuickAdd(false)}
+                onPanelChange={setToolbarPanel}
               />
 
               {(error || appError) && (
