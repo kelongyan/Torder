@@ -13,7 +13,7 @@ export interface UpdateTagInput {
 }
 
 let browserTags: Tag[] = [
-  browserTag("tag-development", "开发", "#047857"),
+  browserTag("tag-development", "开发", "#0d7a5f"),
   browserTag("tag-review", "复盘", "#b45309"),
 ];
 

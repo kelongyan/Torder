@@ -28,3 +28,16 @@ serde_json = "1"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 uuid = { version = "1.24.0", features = ["v4"] }
 window-vibrancy = "0.6"
+
+[profile.release]
+panic = "abort"
+codegen-units = 16
+lto = false
+opt-level = "s"
+strip = true
+
+# windows crate 体量极大，名字解析阶段容易 OOM。
+# opt-level=0 让 rustc 早期 pass 跳过大量优化分析，显著降低内存峰值。
+# windows API 绑定本质是 FFI，不优化对运行时性能影响可忽略。
+[profile.release.package.windows]
+opt-level = 0

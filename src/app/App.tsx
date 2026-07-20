@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ListTodo, RefreshCw, X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import { endOfTodayIso } from "./taskDates";
 import { applyThemePreference } from "./theme";
 import { taskViewCopy } from "./taskViews";
@@ -66,6 +66,7 @@ function App() {
   );
   const [appError, setAppError] = useState<string | null>(null);
   const [reminderQueue, setReminderQueue] = useState<Task[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
     view,
     filters,
@@ -448,19 +449,21 @@ function App() {
   }
 
   return (
-    <div className="app-ambient min-h-screen p-0 text-stone-900 dark:text-stone-100 md:p-3">
-      <div className="glass-shell mx-auto flex min-h-screen max-w-[1440px] flex-col overflow-hidden md:min-h-[calc(100vh-1.5rem)] md:flex-row md:rounded-[28px]">
+    <div className="app-ambient min-h-screen text-[var(--text-primary)]">
+      <div className="glass-shell flex min-h-screen flex-col overflow-hidden md:flex-row">
         <AppSidebar
           view={view}
           activeSection={activeSection}
           activeQuickAction={toolbarPanel}
           hasSearchQuery={Boolean(filters.query.trim())}
           filterCount={structuredFilterCount}
+          collapsed={sidebarCollapsed}
           onSelectView={(nextView) => void handleSelectView(nextView)}
           onOpenQuickAdd={toggleQuickAddFromNavigation}
           onOpenSearch={toggleSearchFromNavigation}
           onOpenFilters={toggleFiltersFromNavigation}
           onOpenSettings={openSettings}
+          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         />
 
         <main className="relative min-w-0 flex-1">
@@ -473,32 +476,28 @@ function App() {
               onRestoreComplete={handleRestoreComplete}
             />
           ) : (
-            <div className="mx-auto max-w-4xl px-5 pt-6 pb-12 sm:px-7 lg:px-8 lg:pt-8 lg:pb-14">
-              <header className="flex flex-wrap items-center justify-between gap-3">
+            <div className="mx-auto max-w-5xl px-5 pt-6 pb-8 sm:px-7 lg:px-10 lg:pt-8">
+              <header className="flex items-center gap-2.5">
                 <h1 className="page-title">{copy.title}</h1>
-                <div className="glass-surface meta-copy tabular-nums flex items-center rounded-2xl p-1">
-                  <span
-                    className="flex h-10 items-center gap-1.5 px-2.5"
-                    aria-label={`${tasks.length} 条任务`}
-                    title={`${tasks.length} 条任务`}
-                  >
-                    <ListTodo aria-hidden="true" className="size-4" />
-                    <span>{tasks.length}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void loadTasks()}
-                    disabled={loading}
-                    className="glass-button grid size-10 place-items-center rounded-xl text-stone-400 hover:text-stone-900 disabled:opacity-40 dark:text-stone-400 dark:hover:text-stone-100"
-                    aria-label="刷新任务"
-                    title="刷新任务"
-                  >
-                    <RefreshCw
-                      aria-hidden="true"
-                      className={`size-4 ${loading ? "animate-spin" : ""}`}
-                    />
-                  </button>
-                </div>
+                <span
+                  className="meta-copy tabular-nums mt-0.5"
+                  aria-label={`${tasks.length} 条任务`}
+                >
+                  {tasks.length} 条
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void loadTasks()}
+                  disabled={loading}
+                  className="glass-button mt-0.5 grid size-7 place-items-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                  aria-label="刷新任务"
+                  title="刷新任务"
+                >
+                  <RefreshCw
+                    aria-hidden="true"
+                    className={`size-3 ${loading ? "animate-spin" : ""}`}
+                  />
+                </button>
               </header>
 
               <TaskToolbar
@@ -516,7 +515,7 @@ function App() {
 
               {(error || appError) && (
                 <div
-                  className="glass-surface mt-5 flex items-start justify-between gap-4 rounded-2xl border-red-200/70 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800/50 dark:bg-red-950/35 dark:text-red-200"
+                  className="glass-surface mt-5 flex items-start justify-between gap-4 rounded-[var(--radius-lg)] border-[color-mix(in_srgb,var(--status-danger)_30%,transparent)] bg-[var(--status-danger-soft)] px-4 py-3 text-sm text-[var(--status-danger)]"
                   role="alert"
                 >
                   <span>{error ?? appError}</span>
@@ -527,7 +526,7 @@ function App() {
                       setAppError(null);
                     }}
                     aria-label="关闭错误提示"
-                    className="rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900"
+                    className="rounded-[var(--radius-sm)] p-0.5 hover:bg-[var(--status-danger-soft)]"
                   >
                     <X aria-hidden="true" className="size-4" />
                   </button>
@@ -543,6 +542,7 @@ function App() {
                   hasActiveFilters={hasActiveFilters}
                   onToggle={handleToggle}
                   onOpen={(task) => selectTask(task.id)}
+                  onQuickAdd={() => void focusQuickAdd(false)}
                 />
               </section>
             </div>

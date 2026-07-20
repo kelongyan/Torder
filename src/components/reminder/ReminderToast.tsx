@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { BellRing, Clock3, X } from "lucide-react";
 import type { Task } from "../../types/database";
 
@@ -14,54 +15,85 @@ export function ReminderToast({
   onSnooze,
   onDismiss,
 }: ReminderToastProps) {
-  if (!task) return null;
+  const [dismissing, setDismissing] = useState(false);
+  const dismissTimerRef = useRef<number | null>(null);
+
+  if (!task && !dismissing) return null;
+
+  function animateOut(callback: () => void) {
+    setDismissing(true);
+    dismissTimerRef.current = window.setTimeout(() => {
+      setDismissing(false);
+      callback();
+    }, 200);
+  }
+
+  function handleDismiss() {
+    animateOut(onDismiss);
+  }
+
+  function handleSnooze() {
+    if (!task) return;
+    animateOut(() => void onSnooze(task));
+  }
+
+  function handleOpen() {
+    if (!task) return;
+    animateOut(() => void onOpen(task));
+  }
 
   return (
     <aside
       role="status"
       aria-label="任务提醒"
-      className="glass-floating liquid-panel fixed right-4 bottom-4 z-30 w-[min(400px,calc(100vw-2rem))] rounded-2xl border-emerald-900/20 p-4 dark:border-blue-300/20 sm:right-6 sm:bottom-6"
+      className={`glass-floating fixed right-4 bottom-4 z-[var(--z-toast)] w-[min(380px,calc(100vw-2rem))] rounded-[var(--radius-lg)] border-[color-mix(in_srgb,var(--accent)_25%,transparent)] p-4 sm:right-6 sm:bottom-6 ${
+        dismissing ? "toast-exit" : "liquid-panel"
+      }`}
     >
-      <div className="flex items-start gap-3">
-        <span className="glass-surface grid size-10 shrink-0 place-items-center rounded-xl text-emerald-900 dark:text-blue-300">
-          <BellRing aria-hidden="true" className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow">任务提醒</p>
-          <p className="mt-1 truncate text-[15px] leading-[22px] font-semibold">
-            {task.title}
-          </p>
-          <p className="meta-copy tabular-nums mt-1 flex items-center gap-1.5">
-            <Clock3 aria-hidden="true" className="size-3.5" />
-            {formatReminderTime(task.remindAt)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="关闭任务提醒"
-          className="glass-button rounded-lg p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
-        >
-          <X aria-hidden="true" className="size-4" />
-        </button>
-      </div>
+      {task && (
+        <>
+          <div className="flex items-start gap-3">
+            <span className="glass-surface grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--accent)]">
+              <BellRing aria-hidden="true" className="size-4.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow">任务提醒</p>
+              <p className="mt-0.5 truncate text-sm leading-[21px] font-semibold text-[var(--text-primary)]">
+                {task.title}
+              </p>
+              <p className="meta-copy tabular-nums mt-0.5 flex items-center gap-1">
+                <Clock3 aria-hidden="true" className="size-3" />
+                {formatReminderTime(task.remindAt)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              aria-label="关闭任务提醒"
+              className="glass-button rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            >
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          </div>
 
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => void onSnooze(task)}
-          className="glass-button min-h-10 rounded-lg border-[var(--glass-border-muted)] bg-white/20 px-3 text-sm font-medium text-stone-600 dark:bg-white/5 dark:text-stone-300"
-        >
-          10 分钟后提醒
-        </button>
-        <button
-          type="button"
-          onClick={() => void onOpen(task)}
-          className="min-h-10 rounded-lg bg-emerald-900 px-3 text-sm font-semibold text-white hover:bg-emerald-950 dark:bg-blue-500/75 dark:hover:bg-blue-400"
-        >
-          查看任务
-        </button>
-      </div>
+          <div className="mt-3.5 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleSnooze}
+              className="btn-secondary min-h-9 px-3 text-[13px]"
+            >
+              10 分钟后提醒
+            </button>
+            <button
+              type="button"
+              onClick={handleOpen}
+              className="btn-primary min-h-9 px-3 text-[13px]"
+            >
+              查看任务
+            </button>
+          </div>
+        </>
+      )}
     </aside>
   );
 }

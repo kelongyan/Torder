@@ -1,0 +1,4 @@
+[build]
+# windows_raw_dylib: 改用运行时 DLL 导入而非编译时静态符号，
+# 显著降低 windows crate 编译阶段的内存占用。
+rustflags = ["--cfg", "windows_raw_dylib"]

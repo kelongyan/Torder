@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Trash2, X } from "lucide-react";
+import { Check, Trash2, X } from "lucide-react";
 import { fromDateTimeLocal, toDateTimeLocal } from "../../app/taskDates";
 import { listTaskTagIds } from "../../services/taskService";
 import type {
@@ -53,9 +53,8 @@ export function TaskDetailDrawer({
     taskId: string;
     form: TaskForm;
   } | null>(null);
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
-    null,
-  );
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteTimerRef = useRef<number | null>(null);
   const [tagDraft, setTagDraft] = useState<{
     taskId: string;
     tagIds: string[];
@@ -66,13 +65,13 @@ export function TaskDetailDrawer({
     task && draft?.taskId === task.id ? draft.form : taskToForm(task);
   const selectedTagIds =
     task && tagDraft?.taskId === task.id ? tagDraft.tagIds : [];
-  const confirmingDelete = Boolean(task && confirmingDeleteId === task.id);
 
   useEffect(() => {
     if (!open || !task) return;
 
     let cancelled = false;
     void Promise.resolve().then(async () => {
+      setConfirmingDelete(false);
       setTagsLoading(true);
       setTagError(null);
       try {
@@ -91,6 +90,12 @@ export function TaskDetailDrawer({
       cancelled = true;
     };
   }, [open, task]);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
+    };
+  }, []);
 
   function updateForm(update: (current: TaskForm) => TaskForm) {
     if (!task) return;
@@ -116,31 +121,50 @@ export function TaskDetailDrawer({
     );
   }
 
-  async function handleDelete() {
+  function handleDeleteClick() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      deleteTimerRef.current = window.setTimeout(
+        () => setConfirmingDelete(false),
+        3000,
+      );
+      return;
+    }
+    if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
+    if (task) void onDelete(task.id);
+    setConfirmingDelete(false);
+  }
+
+  function toggleTag(tagId: string) {
     if (!task) return;
-    await onDelete(task.id);
-    setConfirmingDeleteId(null);
+    setTagDraft({
+      taskId: task.id,
+      tagIds: selectedTagIds.includes(tagId)
+        ? selectedTagIds.filter((id) => id !== tagId)
+        : [...selectedTagIds, tagId],
+    });
   }
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="glass-overlay fixed inset-0 z-40 dark:bg-black/35" />
-        <Dialog.Content className="glass-floating fixed inset-y-2 right-2 z-50 flex w-[min(calc(100vw-1rem),460px)] flex-col overflow-hidden rounded-3xl focus:outline-none sm:inset-y-3 sm:right-3">
+        <Dialog.Overlay className="glass-overlay overlay-enter fixed inset-0 z-[var(--z-drawer-overlay)] data-[state=closed]:overlay-exit" />
+        <Dialog.Content className="glass-floating drawer-enter fixed inset-y-2 right-2 z-[var(--z-drawer)] flex w-[min(calc(100vw-1rem),440px)] flex-col overflow-hidden rounded-[var(--radius-xl)] focus:outline-none data-[state=closed]:drawer-exit sm:inset-y-3 sm:right-3">
+          {/* Header */}
           <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
             <div>
               <Dialog.Description className="eyebrow">
                 任务详情
               </Dialog.Description>
-              <Dialog.Title className="dialog-title mt-1.5">
+              <Dialog.Title className="dialog-title mt-1">
                 编辑任务
               </Dialog.Title>
             </div>
             <Dialog.Close
-              className="glass-button rounded-lg p-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+              className="glass-button rounded-[var(--radius-md)] p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               aria-label="关闭任务详情"
             >
-              <X aria-hidden="true" className="size-5" />
+              <X aria-hidden="true" className="size-4.5" />
             </Dialog.Close>
           </div>
 
@@ -148,214 +172,193 @@ export function TaskDetailDrawer({
             className="flex min-h-0 flex-1 flex-col"
             onSubmit={handleSubmit}
           >
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5 sm:px-6">
-              <Field label="标题" htmlFor="task-title">
-                <input
-                  id="task-title"
-                  value={form.title}
-                  onChange={(event) =>
-                    updateForm((current) => ({
-                      ...current,
-                      title: event.target.value,
-                    }))
-                  }
-                  className="field-control"
-                />
-              </Field>
-
-              <Field label="备注" htmlFor="task-note">
-                <textarea
-                  id="task-note"
-                  value={form.note}
-                  onChange={(event) =>
-                    updateForm((current) => ({
-                      ...current,
-                      note: event.target.value,
-                    }))
-                  }
-                  rows={4}
-                  placeholder="补充必要信息"
-                  className="field-control resize-y"
-                />
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="清单" htmlFor="task-list">
-                  <select
-                    id="task-list"
-                    value={form.listId}
-                    onChange={(event) =>
-                      updateForm((current) => ({
-                        ...current,
-                        listId: event.target.value,
-                      }))
-                    }
-                    className="field-control"
-                  >
-                    {lists.map((list) => (
-                      <option key={list.id} value={list.id}>
-                        {list.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="优先级" htmlFor="task-priority">
-                  <select
-                    id="task-priority"
-                    value={form.priority}
-                    onChange={(event) =>
-                      updateForm((current) => ({
-                        ...current,
-                        priority: event.target.value,
-                      }))
-                    }
-                    className="field-control"
-                  >
-                    <option value="0">普通</option>
-                    <option value="1">重要</option>
-                    <option value="2">紧急</option>
-                  </select>
-                </Field>
-              </div>
-
-              <div className="space-y-2">
-                <p className="field-label">标签</p>
-                {tagsLoading ? (
-                  <p className="meta-copy">正在读取标签关联</p>
-                ) : tags.length === 0 ? (
-                  <p className="glass-surface meta-copy rounded-xl border-dashed px-3 py-4 text-center">
-                    暂无标签，可在筛选面板中创建
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => {
-                      const selected = selectedTagIds.includes(tag.id);
-                      return (
-                        <label
-                          key={tag.id}
-                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] leading-5 font-medium transition ${
-                            selected
-                              ? "border-emerald-800/35 bg-emerald-900/8 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,.75)] dark:border-blue-300/30 dark:bg-blue-400/10 dark:text-blue-100"
-                              : "border-[var(--glass-border-muted)] bg-white/20 text-stone-600 hover:border-[var(--glass-border)] hover:bg-white/45 dark:bg-white/5 dark:text-stone-300"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => {
-                              if (!task) return;
-                              setTagDraft({
-                                taskId: task.id,
-                                tagIds: selected
-                                  ? selectedTagIds.filter((id) => id !== tag.id)
-                                  : [...selectedTagIds, tag.id],
-                              });
-                            }}
-                            className="accent-[var(--accent)]"
-                          />
-                          <span
-                            aria-hidden="true"
-                            className="size-2 rounded-full"
-                            style={{ backgroundColor: tag.color ?? "#78716c" }}
-                          />
-                          {tag.name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                {tagError && (
-                  <p className="meta-copy text-red-700">
-                    标签读取失败：{tagError}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="截止时间" htmlFor="task-due-at">
+            {/* Scrollable body */}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-5 sm:px-6">
+              {/* Section: basic info */}
+              <div className="glass-surface space-y-3 rounded-[var(--radius-lg)] p-4">
+                <Field label="标题" htmlFor="task-title">
                   <input
-                    id="task-due-at"
-                    type="datetime-local"
-                    value={form.dueAt}
+                    id="task-title"
+                    value={form.title}
                     onChange={(event) =>
                       updateForm((current) => ({
                         ...current,
-                        dueAt: event.target.value,
+                        title: event.target.value,
                       }))
                     }
                     className="field-control"
                   />
                 </Field>
 
-                <Field label="提醒时间" htmlFor="task-remind-at">
-                  <input
-                    id="task-remind-at"
-                    type="datetime-local"
-                    value={form.remindAt}
+                <Field label="备注" htmlFor="task-note">
+                  <textarea
+                    id="task-note"
+                    value={form.note}
                     onChange={(event) =>
                       updateForm((current) => ({
                         ...current,
-                        remindAt: event.target.value,
+                        note: event.target.value,
                       }))
                     }
-                    className="field-control"
+                    rows={3}
+                    placeholder="补充必要信息"
+                    className="field-control resize-y"
                   />
                 </Field>
               </div>
 
-              <p className="meta-copy tabular-nums">
+              {/* Section: classification */}
+              <div className="glass-surface space-y-3 rounded-[var(--radius-lg)] p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="清单" htmlFor="task-list">
+                    <select
+                      id="task-list"
+                      value={form.listId}
+                      onChange={(event) =>
+                        updateForm((current) => ({
+                          ...current,
+                          listId: event.target.value,
+                        }))
+                      }
+                      className="field-control"
+                    >
+                      {lists.map((list) => (
+                        <option key={list.id} value={list.id}>
+                          {list.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="优先级" htmlFor="task-priority">
+                    <select
+                      id="task-priority"
+                      value={form.priority}
+                      onChange={(event) =>
+                        updateForm((current) => ({
+                          ...current,
+                          priority: event.target.value,
+                        }))
+                      }
+                      className="field-control"
+                    >
+                      <option value="0">普通</option>
+                      <option value="1">重要</option>
+                      <option value="2">紧急</option>
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-1.5">
+                  <p className="field-label">标签</p>
+                  {tagsLoading ? (
+                    <p className="meta-copy">正在读取标签关联</p>
+                  ) : tags.length === 0 ? (
+                    <p className="meta-copy rounded-[var(--radius-sm)] border border-dashed border-[var(--glass-border-muted)] px-3 py-3 text-center">
+                      暂无标签，可在筛选面板中创建
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map((tag) => {
+                        const selected = selectedTagIds.includes(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => toggleTag(tag.id)}
+                            aria-pressed={selected}
+                            className={`chip ${selected ? "chip-active" : ""}`}
+                          >
+                            {selected && (
+                              <Check aria-hidden="true" className="size-3" />
+                            )}
+                            <span
+                              aria-hidden="true"
+                              className="size-2 rounded-full"
+                              style={{
+                                backgroundColor: tag.color ?? "#78716c",
+                              }}
+                            />
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {tagError && (
+                    <p className="meta-copy text-[var(--status-danger)]">
+                      标签读取失败：{tagError}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Section: time */}
+              <div className="glass-surface rounded-[var(--radius-lg)] p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="截止时间" htmlFor="task-due-at">
+                    <input
+                      id="task-due-at"
+                      type="datetime-local"
+                      value={form.dueAt}
+                      onChange={(event) =>
+                        updateForm((current) => ({
+                          ...current,
+                          dueAt: event.target.value,
+                        }))
+                      }
+                      className="field-control"
+                    />
+                  </Field>
+
+                  <Field label="提醒时间" htmlFor="task-remind-at">
+                    <input
+                      id="task-remind-at"
+                      type="datetime-local"
+                      value={form.remindAt}
+                      onChange={(event) =>
+                        updateForm((current) => ({
+                          ...current,
+                          remindAt: event.target.value,
+                        }))
+                      }
+                      className="field-control"
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              <p className="meta-copy tabular-nums px-1">
                 创建于{" "}
                 {task ? new Date(task.createdAt).toLocaleString("zh-CN") : "-"}
               </p>
             </div>
 
-            <div className="shrink-0 border-t border-[var(--glass-border-muted)] bg-[var(--glass-panel-strong)] px-5 py-4 backdrop-blur-xl sm:px-6">
-              {confirmingDelete ? (
-                <div className="rounded-2xl border border-red-200/70 bg-red-50/55 p-3 dark:border-red-700/35 dark:bg-red-950/30">
-                  <p className="text-sm font-medium text-red-900 dark:text-red-200">
-                    确认删除这条任务？
-                  </p>
-                  <p className="mt-1 text-xs text-red-700 dark:text-red-300">
-                    删除后不会出现在普通列表中。
-                  </p>
-                  <div className="mt-3 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDeleteId(null)}
-                      className="glass-button glass-surface rounded-lg border-red-200/70 px-3 py-2 text-sm text-red-800 dark:border-red-700/40 dark:text-red-200"
-                    >
-                      取消
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void handleDelete()}
-                      className="rounded-lg bg-red-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-                    >
-                      确认删除
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => task && setConfirmingDeleteId(task.id)}
-                    className="glass-button inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-red-700 hover:bg-red-50/60 dark:text-red-400 dark:hover:bg-red-950/30"
-                  >
-                    <Trash2 aria-hidden="true" className="size-4" />
-                    删除任务
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={busy || tagsLoading || !form.title.trim()}
-                    className="min-h-10 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-50 dark:bg-blue-500/75 dark:hover:bg-blue-400"
-                  >
-                    保存并关闭
-                  </button>
-                </div>
-              )}
+            {/* Footer */}
+            <div className="shrink-0 border-t border-[var(--glass-border-muted)] bg-[var(--glass-panel-strong)] px-5 py-3.5 backdrop-blur-xl sm:px-6">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleDeleteClick}
+                  disabled={busy}
+                  className={`btn-danger transition-colors ${
+                    confirmingDelete
+                      ? "bg-[var(--status-danger)] text-white hover:bg-[var(--status-danger)]"
+                      : ""
+                  }`}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                  {confirmingDelete ? "确认删除？" : "删除任务"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || tagsLoading || !form.title.trim()}
+                  className="btn-primary"
+                >
+                  保存并关闭
+                </button>
+              </div>
             </div>
           </form>
         </Dialog.Content>

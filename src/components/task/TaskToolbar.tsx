@@ -172,20 +172,26 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
 
     if (!activePanel) return null;
 
+    const isAdd = activePanel === "add";
+
     return (
       <section
         id="task-toolbar-panel"
-        className={`toolbar-panel mt-4 ml-auto w-full ${
-          activePanel === "filters" ? "max-w-[600px]" : "max-w-[460px]"
+        className={`mt-3 w-full ${
+          isAdd
+            ? "quickadd-drop"
+            : `toolbar-panel ml-auto ${
+                activePanel === "filters" ? "max-w-[600px]" : "max-w-[460px]"
+              }`
         }`}
         aria-label="任务快捷面板"
       >
         {activePanel === "search" && (
-          <div className="glass-floating rounded-[18px] p-1.5">
-            <label className="flex min-h-14 items-center gap-2 rounded-[14px] border border-[var(--glass-border-muted)] bg-white/40 p-1.5 pl-2 shadow-[inset_0_1px_0_var(--glass-highlight)] transition focus-within:border-emerald-800/35 focus-within:bg-white/65 dark:bg-white/5 dark:focus-within:border-blue-300/25 dark:focus-within:bg-white/8">
+          <div className="glass-floating rounded-[var(--radius-lg)] p-1.5">
+            <label className="flex min-h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--glass-border-muted)] bg-[var(--glass-control)] p-1.5 pl-2 shadow-[inset_0_1px_0_var(--glass-highlight)] transition-[border-color,background-color] duration-[var(--duration-fast)] focus-within:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] focus-within:bg-[var(--glass-panel)]">
               <span className="sr-only">搜索任务</span>
-              <span className="grid size-9 shrink-0 place-items-center text-emerald-900 dark:text-blue-300">
-                <Search aria-hidden="true" className="size-[18px]" />
+              <span className="grid size-8 shrink-0 place-items-center text-[var(--accent)]">
+                <Search aria-hidden="true" className="size-4" />
               </span>
               <input
                 ref={searchInputRef}
@@ -199,7 +205,7 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
                   }
                 }}
                 placeholder="搜索事项…"
-                className="h-10 min-w-0 flex-1 bg-transparent px-1 text-[15px] leading-6 text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
+                className="h-9 min-w-0 flex-1 bg-transparent px-1 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
               />
               {query && (
                 <button
@@ -210,7 +216,7 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
                   }}
                   aria-label="清空搜索"
                   title="清空搜索"
-                  className="glass-button grid size-10 shrink-0 place-items-center rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                  className="glass-button grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
                   <X aria-hidden="true" className="size-4" />
                 </button>
@@ -220,20 +226,18 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
         )}
 
         {activePanel === "add" && (
-          <div className="glass-floating rounded-[18px] p-1.5">
-            <QuickAdd
-              ref={quickAddInputRef}
-              view={view}
-              disabled={addDisabled}
-              onCreate={onCreate}
-              onEscape={() => closePanel("add")}
-            />
-          </div>
+          <QuickAdd
+            ref={quickAddInputRef}
+            view={view}
+            disabled={addDisabled}
+            onCreate={onCreate}
+            onEscape={() => closePanel("add")}
+          />
         )}
 
         {activePanel === "filters" && (
           <div
-            className="glass-floating max-h-[min(70vh,560px)] overflow-y-auto rounded-[20px] bg-white/95 p-4 dark:bg-slate-950/95 sm:p-5"
+            className="glass-floating max-h-[min(70vh,560px)] overflow-y-auto rounded-[var(--radius-lg)] p-4 sm:p-5"
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
@@ -241,12 +245,64 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
               }
             }}
           >
+            {/* Active filter summary */}
+            {filterCount > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-1.5">
+                <span className="meta-copy mr-1">当前筛选：</span>
+                {filters.dateFilter && (
+                  <FilterSummaryChip
+                    label={
+                      dateOptions.find((o) => o.value === filters.dateFilter)
+                        ?.label ?? filters.dateFilter
+                    }
+                    onClear={() => void onChange({ dateFilter: null })}
+                  />
+                )}
+                {filters.priorities.map((p) => (
+                  <FilterSummaryChip
+                    key={p}
+                    label={
+                      priorityOptions.find((o) => o.value === p)?.label ??
+                      String(p)
+                    }
+                    onClear={() =>
+                      void onChange({
+                        priorities: filters.priorities.filter((v) => v !== p),
+                      })
+                    }
+                  />
+                ))}
+                {filters.listIds.map((id) => (
+                  <FilterSummaryChip
+                    key={id}
+                    label={lists.find((l) => l.id === id)?.name ?? id}
+                    onClear={() =>
+                      void onChange({
+                        listIds: filters.listIds.filter((v) => v !== id),
+                      })
+                    }
+                  />
+                ))}
+                {filters.tagIds.map((id) => (
+                  <FilterSummaryChip
+                    key={id}
+                    label={tags.find((t) => t.id === id)?.name ?? id}
+                    onClear={() =>
+                      void onChange({
+                        tagIds: filters.tagIds.filter((v) => v !== id),
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="grid gap-4 lg:grid-cols-2">
               <FilterGroup title="日期">
                 <button
                   type="button"
                   onClick={() => void onChange({ dateFilter: null })}
-                  className={filterChip(filters.dateFilter === null)}
+                  className={`chip ${filters.dateFilter === null ? "chip-active" : ""}`}
                   aria-pressed={filters.dateFilter === null}
                 >
                   不限
@@ -256,7 +312,7 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
                     key={option.value}
                     type="button"
                     onClick={() => void onChange({ dateFilter: option.value })}
-                    className={filterChip(filters.dateFilter === option.value)}
+                    className={`chip ${filters.dateFilter === option.value ? "chip-active" : ""}`}
                     aria-pressed={filters.dateFilter === option.value}
                   >
                     {option.label}
@@ -266,40 +322,47 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
 
               <FilterGroup title="优先级">
                 {priorityOptions.map((option) => (
-                  <label key={option.value} className={checkChip()}>
-                    <input
-                      type="checkbox"
-                      checked={filters.priorities.includes(option.value)}
-                      onChange={() =>
-                        void onChange({
-                          priorities: toggleNumber(
-                            filters.priorities,
-                            option.value,
-                          ),
-                        })
-                      }
-                      className="accent-[var(--accent)]"
-                    />
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      void onChange({
+                        priorities: toggleNumber(
+                          filters.priorities,
+                          option.value,
+                        ),
+                      })
+                    }
+                    className={`chip ${filters.priorities.includes(option.value) ? "chip-active" : ""}`}
+                    aria-pressed={filters.priorities.includes(option.value)}
+                  >
                     {option.label}
-                  </label>
+                  </button>
                 ))}
               </FilterGroup>
 
               <FilterGroup title="清单">
                 {lists.map((list) => (
-                  <label key={list.id} className={checkChip()}>
-                    <input
-                      type="checkbox"
-                      checked={filters.listIds.includes(list.id)}
-                      onChange={() =>
-                        void onChange({
-                          listIds: toggleString(filters.listIds, list.id),
-                        })
-                      }
-                      className="accent-[var(--accent)]"
-                    />
+                  <button
+                    key={list.id}
+                    type="button"
+                    onClick={() =>
+                      void onChange({
+                        listIds: toggleString(filters.listIds, list.id),
+                      })
+                    }
+                    className={`chip ${filters.listIds.includes(list.id) ? "chip-active" : ""}`}
+                    aria-pressed={filters.listIds.includes(list.id)}
+                  >
+                    {list.color && (
+                      <span
+                        aria-hidden="true"
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: list.color }}
+                      />
+                    )}
                     {list.name}
-                  </label>
+                  </button>
                 ))}
               </FilterGroup>
 
@@ -311,27 +374,27 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
                     onClick={onManageTags}
                     aria-label="管理标签"
                     title="管理标签"
-                    className="glass-button grid size-8 place-items-center rounded-lg text-emerald-900 hover:bg-emerald-900/8 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                    className="glass-button grid size-7 place-items-center rounded-[var(--radius-sm)] text-[var(--accent)] hover:bg-[var(--accent-muted)]"
                   >
-                    <Tags aria-hidden="true" className="size-4" />
+                    <Tags aria-hidden="true" className="size-3.5" />
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {tags.length === 0 ? (
                     <span className="meta-copy">暂无标签</span>
                   ) : (
                     tags.map((tag) => (
-                      <label key={tag.id} className={checkChip()}>
-                        <input
-                          type="checkbox"
-                          checked={filters.tagIds.includes(tag.id)}
-                          onChange={() =>
-                            void onChange({
-                              tagIds: toggleString(filters.tagIds, tag.id),
-                            })
-                          }
-                          className="accent-[var(--accent)]"
-                        />
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() =>
+                          void onChange({
+                            tagIds: toggleString(filters.tagIds, tag.id),
+                          })
+                        }
+                        className={`chip ${filters.tagIds.includes(tag.id) ? "chip-active" : ""}`}
+                        aria-pressed={filters.tagIds.includes(tag.id)}
+                      >
                         <span
                           aria-hidden="true"
                           className="size-2 rounded-full"
@@ -340,14 +403,14 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
                           }}
                         />
                         {tag.name}
-                      </label>
+                      </button>
                     ))
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-end border-t border-[var(--glass-border-muted)] pt-4">
+            <div className="mt-4 flex items-center justify-end border-t border-[var(--glass-border-muted)] pt-3">
               <button
                 type="button"
                 onClick={() =>
@@ -359,11 +422,10 @@ export const TaskToolbar = forwardRef<TaskToolbarHandle, TaskToolbarProps>(
                   })
                 }
                 disabled={filterCount === 0}
-                aria-label="清空筛选"
-                title="清空筛选"
-                className="glass-button grid size-9 place-items-center rounded-lg text-stone-500 hover:bg-stone-200 hover:text-stone-900 disabled:cursor-default disabled:opacity-35 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+                className="btn-secondary min-h-8 px-3 text-[13px] disabled:opacity-35"
               >
-                <RotateCcw aria-hidden="true" className="size-4" />
+                <RotateCcw aria-hidden="true" className="size-3.5" />
+                重置筛选
               </button>
             </div>
           </div>
@@ -383,21 +445,31 @@ function FilterGroup({
   return (
     <div>
       <h2 className="field-label mb-2">{title}</h2>
-      <div className="flex flex-wrap gap-2">{children}</div>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
 }
 
-function filterChip(active: boolean): string {
-  return `rounded-lg border px-3 py-1.5 text-[13px] leading-5 font-medium transition ${
-    active
-      ? "border-emerald-800/60 bg-emerald-900/90 text-white shadow-sm dark:border-blue-300/30 dark:bg-blue-500/65"
-      : "border-[var(--glass-border-muted)] bg-white/30 text-stone-600 shadow-[inset_0_1px_0_var(--glass-highlight)] hover:border-[var(--glass-border)] hover:bg-white/55 dark:bg-white/5 dark:text-stone-300"
-  }`;
-}
-
-function checkChip(): string {
-  return "inline-flex items-center gap-2 rounded-lg border border-[var(--glass-border-muted)] bg-white/30 px-3 py-1.5 text-[13px] leading-5 font-medium text-stone-600 shadow-[inset_0_1px_0_var(--glass-highlight)] transition hover:border-[var(--glass-border)] hover:bg-white/55 dark:bg-white/5 dark:text-stone-300";
+function FilterSummaryChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+      {label}
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`移除筛选：${label}`}
+        className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--accent-muted)]"
+      >
+        <X aria-hidden="true" className="size-2.5" />
+      </button>
+    </span>
+  );
 }
 
 function countStructuredFilters(filters: TaskFilters): number {
