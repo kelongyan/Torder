@@ -1,6 +1,6 @@
 [package]
 name = "torder"
-version = "1.0.0"
+version = "2.0.0"
 description = "Torder（今序）本地优先待办桌面应用"
 authors = ["Zhaxideler"]
 edition = "2021"
