@@ -19,7 +19,7 @@
 <br />
 
 <p align="center">
-  <img src="./docs/assets/torder-preview.png" width="920" alt="今序宽屏首页" />
+  <img src="./output/playwright/README-v2-宽屏首页.png" width="920" alt="今序宽屏首页" />
 </p>
 
 <br />
@@ -92,7 +92,6 @@ Torder/
 │  ├─ src/                 # Rust 命令、Repository、数据库迁移、托盘能力
 │  ├─ icons/               # 桌面与安装包图标
 │  └─ capabilities/        # Tauri 权限配置
-├─ docs/                   # 方案书、验证记录和预览图
 └─ output/playwright/      # UI 回归截图
 ```
 
@@ -144,13 +143,6 @@ pnpm tauri build
 - 任务数据本地存储，不上传到远程服务器
 - 应用不要求登录，不绑定账号体系
 - 如需手动迁移数据，请先备份上面的 SQLite 数据库文件
-
-## 📚 文档
-
-- [产品需求简表](./docs/Torder（今序）产品需求简表.md)
-- [MVP 功能清单](./docs/Torder（今序）MVP功能清单.md)
-- [技术方案书](./docs/Torder（今序）技术方案书.md)
-- [分阶段开发方案书](./docs/Torder（今序）分阶段开发方案书.md)
 
 ---
 
