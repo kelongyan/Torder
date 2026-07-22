@@ -1,9 +1,3 @@
-export function endOfTodayIso(): string {
-  const date = new Date();
-  date.setHours(23, 59, 59, 999);
-  return date.toISOString();
-}
-
 export function toDateTimeLocal(iso: string | null): string {
   if (!iso) return "";
   const date = new Date(iso);
@@ -41,6 +35,35 @@ export function formatTaskDate(iso: string | null): string | null {
   }).format(date);
 }
 
+export function formatTaskDateTime(iso: string | null): string {
+  return formatTaskDate(iso) ?? "未设置";
+}
+
+export function formatCalendarDate(iso: string | null): {
+  key: string;
+  title: string;
+  weekday: string;
+  isToday: boolean;
+} {
+  if (!iso) {
+    return { key: "unscheduled", title: "未安排", weekday: "", isToday: false };
+  }
+
+  const date = new Date(iso);
+  const today = new Date();
+  const key = [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-");
+  return {
+    key,
+    title: `${date.getMonth() + 1}月${date.getDate()}日`,
+    weekday: new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(date),
+    isToday: isSameDay(date, today),
+  };
+}
+
 export function isOverdue(iso: string | null, status: string): boolean {
   return status === "todo" && Boolean(iso && new Date(iso) < new Date());
 }
@@ -51,4 +74,8 @@ function isSameDay(left: Date, right: Date): boolean {
     left.getMonth() === right.getMonth() &&
     left.getDate() === right.getDate()
   );
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
 }

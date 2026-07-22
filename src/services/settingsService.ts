@@ -1,9 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import {
-  disable as disableAutostart,
-  enable as enableAutostart,
-} from "@tauri-apps/plugin-autostart";
-import type { Setting, TaskView } from "../types/database";
+import type { Setting } from "../types/database";
 import {
   defaultAppSettings,
   type AppSettings,
@@ -52,11 +48,6 @@ export async function loadAppSettings(): Promise<AppSettings> {
   );
   return {
     theme: parseTheme(settings.get("theme")),
-    defaultView: parseDefaultView(settings.get("defaultView")),
-    defaultReminderMinutes: parseReminderMinutes(
-      settings.get("defaultReminderMinutes"),
-    ),
-    launchAtStartup: parseBoolean(settings.get("launchAtStartup"), false),
   };
 }
 
@@ -64,20 +55,7 @@ export async function saveAppSetting<K extends keyof AppSettings>(
   key: K,
   value: AppSettings[K],
 ): Promise<void> {
-  if (key === "launchAtStartup") {
-    await setLaunchAtStartup(Boolean(value));
-    return;
-  }
   await upsertSetting(key, value);
-}
-
-export async function synchronizeLaunchAtStartup(enabled: boolean) {
-  if (!isTauri()) return;
-  if (enabled) {
-    await enableAutostart();
-  } else {
-    await disableAutostart();
-  }
 }
 
 export function getBrowserSettingsSnapshot(): Setting[] {
@@ -86,11 +64,6 @@ export function getBrowserSettingsSnapshot(): Setting[] {
 
 export function replaceBrowserSettings(settings: Setting[]): void {
   browserSettings = settings.map((setting) => ({ ...setting }));
-}
-
-async function setLaunchAtStartup(enabled: boolean) {
-  await synchronizeLaunchAtStartup(enabled);
-  await upsertSetting("launchAtStartup", enabled);
 }
 
 function createBrowserSettings(): Setting[] {
@@ -107,32 +80,6 @@ function parseTheme(value: string | undefined): ThemePreference {
   return parsed === "light" || parsed === "dark" || parsed === "system"
     ? parsed
     : defaultAppSettings.theme;
-}
-
-function parseDefaultView(value: string | undefined): TaskView {
-  const parsed = parseJson(value);
-  return parsed === "today" ||
-    parsed === "all" ||
-    parsed === "completed" ||
-    parsed === "overdue"
-    ? parsed
-    : defaultAppSettings.defaultView;
-}
-
-function parseReminderMinutes(value: string | undefined): number | null {
-  const parsed = parseJson(value);
-  return parsed === null ||
-    parsed === 0 ||
-    parsed === 15 ||
-    parsed === 30 ||
-    parsed === 60
-    ? parsed
-    : defaultAppSettings.defaultReminderMinutes;
-}
-
-function parseBoolean(value: string | undefined, fallback: boolean): boolean {
-  const parsed = parseJson(value);
-  return typeof parsed === "boolean" ? parsed : fallback;
 }
 
 function parseJson(value: string | undefined): unknown {

@@ -5,24 +5,13 @@ export interface DatabaseStatus {
   taskCount: number;
 }
 
-export type TaskView = "today" | "all" | "completed" | "overdue";
-export type TaskDateFilter = "today" | "overdue" | "next7" | "none";
+export type SystemView = "all" | "today" | "planned" | "important" | "completed";
+export type TaskLayout = "list" | "board" | "calendar";
+export type TaskSortBy = "priority" | "date" | "created";
 
-export interface TaskFilters {
-  query: string;
-  dateFilter: TaskDateFilter | null;
-  priorities: number[];
-  listIds: string[];
-  tagIds: string[];
-}
-
-export const emptyTaskFilters: TaskFilters = {
-  query: "",
-  dateFilter: null,
-  priorities: [],
-  listIds: [],
-  tagIds: [],
-};
+export type TaskScope =
+  | { kind: "view"; view: SystemView }
+  | { kind: "list"; listId: string };
 
 export interface Task {
   id: string;
@@ -32,8 +21,6 @@ export interface Task {
   priority: 0 | 1 | 2;
   listId: string;
   dueAt: string | null;
-  remindAt: string | null;
-  remindedAt: string | null;
   completedAt: string | null;
   sortOrder: number;
   createdAt: string;
@@ -47,7 +34,6 @@ export interface CreateTaskInput {
   priority?: 0 | 1 | 2;
   listId?: string;
   dueAt?: string | null;
-  remindAt?: string | null;
   sortOrder?: number;
 }
 
@@ -59,7 +45,6 @@ export interface UpdateTaskInput {
   priority: Task["priority"];
   listId: string;
   dueAt: string | null;
-  remindAt: string | null;
   sortOrder: number;
 }
 
@@ -69,14 +54,6 @@ export interface TaskList {
   color: string | null;
   sortOrder: number;
   isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Tag {
-  id: string;
-  name: string;
-  color: string | null;
   createdAt: string;
   updatedAt: string;
 }

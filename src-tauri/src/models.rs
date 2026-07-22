@@ -10,8 +10,6 @@ pub struct Task {
     pub priority: i64,
     pub list_id: String,
     pub due_at: Option<String>,
-    pub remind_at: Option<String>,
-    pub reminded_at: Option<String>,
     pub completed_at: Option<String>,
     pub sort_order: i64,
     pub created_at: String,
@@ -27,7 +25,6 @@ pub struct CreateTaskInput {
     pub priority: Option<i64>,
     pub list_id: Option<String>,
     pub due_at: Option<String>,
-    pub remind_at: Option<String>,
     pub sort_order: Option<i64>,
 }
 
@@ -41,22 +38,17 @@ pub struct UpdateTaskInput {
     pub priority: i64,
     pub list_id: String,
     pub due_at: Option<String>,
-    pub remind_at: Option<String>,
     pub sort_order: i64,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskQueryInput {
-    pub view: String,
+    pub scope_kind: String,
+    pub scope_value: String,
     pub query: Option<String>,
-    pub date_filter: Option<String>,
-    #[serde(default)]
-    pub priorities: Vec<i64>,
-    #[serde(default)]
-    pub list_ids: Vec<String>,
-    #[serde(default)]
-    pub tag_ids: Vec<String>,
+    pub sort_by: Option<String>,
+    pub show_completed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -86,31 +78,6 @@ pub struct UpdateListInput {
     pub name: String,
     pub color: Option<String>,
     pub sort_order: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Tag {
-    pub id: String,
-    pub name: String,
-    pub color: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateTagInput {
-    pub name: String,
-    pub color: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateTagInput {
-    pub id: String,
-    pub name: String,
-    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

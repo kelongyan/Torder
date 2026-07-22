@@ -18,17 +18,17 @@ impl<'database> TaskRepository<'database> {
 
     pub fn create(&self, input: CreateTaskInput) -> RepositoryResult<Task> {
         let title = validate_title(&input.title)?;
-        let priority = input.priority.unwrap_or(0);
+        let priority = input.priority.unwrap_or(1);
         validate_priority(priority)?;
         let id = Uuid::new_v4().to_string();
-        let list_id = input.list_id.unwrap_or_else(|| "inbox".to_owned());
+        let list_id = input.list_id.unwrap_or_else(|| "work".to_owned());
         let connection = self.database.connect()?;
 
         connection.execute(
             r#"
             INSERT INTO tasks (
-                id, title, note, priority, list_id, due_at, remind_at, sort_order
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                id, title, note, priority, list_id, due_at, sort_order
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
             "#,
             params![
                 id,
@@ -37,7 +37,6 @@ impl<'database> TaskRepository<'database> {
                 priority,
                 list_id,
                 input.due_at,
-                input.remind_at,
                 input.sort_order.unwrap_or(0)
             ],
         )?;
@@ -55,71 +54,30 @@ impl<'database> TaskRepository<'database> {
         map_not_found(result, "task")
     }
 
-    pub fn list_all_todo(&self) -> RepositoryResult<Vec<Task>> {
-        self.query_tasks("status = 'todo' AND deleted_at IS NULL", default_sort())
-    }
-
-    pub fn list_today(&self) -> RepositoryResult<Vec<Task>> {
-        self.query_tasks(
-            r#"
-            status = 'todo'
-            AND deleted_at IS NULL
-            AND due_at IS NOT NULL
-            AND (
-                datetime(due_at) < datetime('now')
-                OR date(due_at, 'localtime') = date('now', 'localtime')
-            )
-            "#,
-            default_sort(),
-        )
-    }
-
-    pub fn list_completed(&self) -> RepositoryResult<Vec<Task>> {
-        self.query_tasks(
-            "status = 'done' AND deleted_at IS NULL",
-            "completed_at DESC, created_at DESC",
-        )
-    }
-
-    pub fn list_overdue(&self) -> RepositoryResult<Vec<Task>> {
-        self.query_tasks(
-            r#"
-            status = 'todo'
-            AND deleted_at IS NULL
-            AND due_at IS NOT NULL
-            AND datetime(due_at) < datetime('now')
-            "#,
-            default_sort(),
-        )
-    }
-
     pub fn query(&self, input: TaskQueryInput) -> RepositoryResult<Vec<Task>> {
-        let mut clauses = vec!["t.deleted_at IS NULL".to_owned()];
+        let mut clauses = vec![
+            "t.deleted_at IS NULL".to_owned(),
+            "t.status != 'archived'".to_owned(),
+        ];
         let mut values = Vec::<Value>::new();
 
-        match input.view.as_str() {
-            "today" => clauses.push(
-                r#"
-                t.status = 'todo'
-                AND t.due_at IS NOT NULL
-                AND (
-                    datetime(t.due_at) < datetime('now')
-                    OR date(t.due_at, 'localtime') = date('now', 'localtime')
-                )
-                "#
-                .to_owned(),
-            ),
-            "all" => clauses.push("t.status = 'todo'".to_owned()),
-            "completed" => clauses.push("t.status = 'done'".to_owned()),
-            "overdue" => clauses.push(
-                r#"
-                t.status = 'todo'
-                AND t.due_at IS NOT NULL
-                AND datetime(t.due_at) < datetime('now')
-                "#
-                .to_owned(),
-            ),
-            _ => return Err(RepositoryError::Validation("invalid task view")),
+        match input.scope_kind.as_str() {
+            "view" => push_view_scope(
+                &mut clauses,
+                input.scope_value.as_str(),
+                input.show_completed,
+            )?,
+            "list" => {
+                if input.scope_value.trim().is_empty() {
+                    return Err(RepositoryError::Validation("list scope cannot be empty"));
+                }
+                clauses.push("t.list_id = ?".to_owned());
+                values.push(Value::Text(input.scope_value));
+                if !input.show_completed {
+                    clauses.push("t.status != 'done'".to_owned());
+                }
+            }
+            _ => return Err(RepositoryError::Validation("invalid task scope")),
         }
 
         if let Some(query) = input.query.map(|query| query.trim().to_owned()) {
@@ -130,87 +88,16 @@ impl<'database> TaskRepository<'database> {
                     (
                         t.title LIKE ? ESCAPE '\'
                         OR COALESCE(t.note, '') LIKE ? ESCAPE '\'
-                        OR EXISTS (
-                            SELECT 1 FROM lists list_search
-                            WHERE list_search.id = t.list_id
-                              AND list_search.name LIKE ? ESCAPE '\'
-                        )
-                        OR EXISTS (
-                            SELECT 1
-                            FROM task_tags task_tag_search
-                            JOIN tags tag_search ON tag_search.id = task_tag_search.tag_id
-                            WHERE task_tag_search.task_id = t.id
-                              AND tag_search.name LIKE ? ESCAPE '\'
-                        )
                     )
                     "#
                     .to_owned(),
                 );
-                for _ in 0..4 {
-                    values.push(Value::Text(pattern.clone()));
-                }
+                values.push(Value::Text(pattern.clone()));
+                values.push(Value::Text(pattern));
             }
         }
 
-        if let Some(date_filter) = input.date_filter.as_deref() {
-            let date_clause = match date_filter {
-                "today" => {
-                    "t.due_at IS NOT NULL AND date(t.due_at, 'localtime') = date('now', 'localtime')"
-                }
-                "overdue" => {
-                    "t.due_at IS NOT NULL AND datetime(t.due_at) < datetime('now')"
-                }
-                "next7" => {
-                    r#"
-                    t.due_at IS NOT NULL
-                    AND date(t.due_at, 'localtime') >= date('now', 'localtime')
-                    AND date(t.due_at, 'localtime') < date('now', 'localtime', '+7 days')
-                    "#
-                }
-                "none" => "t.due_at IS NULL",
-                _ => return Err(RepositoryError::Validation("invalid date filter")),
-            };
-            clauses.push(date_clause.to_owned());
-        }
-
-        if !input.priorities.is_empty() {
-            for priority in &input.priorities {
-                validate_priority(*priority)?;
-            }
-            clauses.push(format!(
-                "t.priority IN ({})",
-                placeholders(input.priorities.len())
-            ));
-            values.extend(input.priorities.into_iter().map(Value::Integer));
-        }
-
-        if !input.list_ids.is_empty() {
-            clauses.push(format!(
-                "t.list_id IN ({})",
-                placeholders(input.list_ids.len())
-            ));
-            values.extend(input.list_ids.into_iter().map(Value::Text));
-        }
-
-        if !input.tag_ids.is_empty() {
-            clauses.push(format!(
-                r#"
-                EXISTS (
-                    SELECT 1 FROM task_tags task_tag_filter
-                    WHERE task_tag_filter.task_id = t.id
-                      AND task_tag_filter.tag_id IN ({})
-                )
-                "#,
-                placeholders(input.tag_ids.len())
-            ));
-            values.extend(input.tag_ids.into_iter().map(Value::Text));
-        }
-
-        let order = if input.view == "completed" {
-            "t.completed_at DESC, t.created_at DESC"
-        } else {
-            default_sort_aliased()
-        };
+        let order = sort_clause(input.sort_by.as_deref().unwrap_or("priority"))?;
         let sql = format!(
             "{} WHERE {} ORDER BY {order}",
             select_tasks_aliased(),
@@ -238,15 +125,13 @@ impl<'database> TaskRepository<'database> {
                 priority = ?5,
                 list_id = ?6,
                 due_at = ?7,
-                remind_at = ?8,
-                reminded_at = CASE WHEN remind_at IS NOT ?8 THEN NULL ELSE reminded_at END,
                 completed_at = CASE
                     WHEN ?4 = 'done' AND completed_at IS NULL
                         THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                     WHEN ?4 != 'done' THEN NULL
                     ELSE completed_at
                 END,
-                sort_order = ?9,
+                sort_order = ?8,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
             WHERE id = ?1 AND deleted_at IS NULL
             "#,
@@ -258,7 +143,6 @@ impl<'database> TaskRepository<'database> {
                 input.priority,
                 input.list_id,
                 input.due_at,
-                input.remind_at,
                 input.sort_order
             ],
         )?;
@@ -310,153 +194,68 @@ impl<'database> TaskRepository<'database> {
         }
         self.get(id)
     }
+}
 
-    pub fn list_due_reminders(&self) -> RepositoryResult<Vec<Task>> {
-        self.query_tasks(
+fn push_view_scope(
+    clauses: &mut Vec<String>,
+    view: &str,
+    show_completed: bool,
+) -> RepositoryResult<()> {
+    match view {
+        "all" => {
+            if !show_completed {
+                clauses.push("t.status != 'done'".to_owned());
+            }
+        }
+        "today" => clauses.push(
             r#"
-            status = 'todo'
-            AND deleted_at IS NULL
-            AND remind_at IS NOT NULL
-            AND reminded_at IS NULL
-            AND datetime(remind_at) <= datetime('now')
-            "#,
-            "remind_at ASC, created_at ASC",
-        )
+            t.status = 'todo'
+            AND t.due_at IS NOT NULL
+            AND date(t.due_at, 'localtime') = date('now', 'localtime')
+            "#
+            .to_owned(),
+        ),
+        "planned" => clauses.push("t.status = 'todo' AND t.due_at IS NOT NULL".to_owned()),
+        "important" => clauses.push("t.status = 'todo' AND t.priority = 2".to_owned()),
+        "completed" => clauses.push("t.status = 'done'".to_owned()),
+        _ => return Err(RepositoryError::Validation("invalid task view")),
     }
-
-    pub fn mark_reminded(&self, id: &str) -> RepositoryResult<Task> {
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
-            r#"
-            UPDATE tasks
-            SET reminded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1
-              AND status = 'todo'
-              AND deleted_at IS NULL
-              AND remind_at IS NOT NULL
-              AND reminded_at IS NULL
-            "#,
-            params![id],
-        )?;
-        if updated == 0 {
-            return Err(RepositoryError::NotFound("pending reminder"));
-        }
-        self.get(id)
-    }
-
-    pub fn snooze_reminder(&self, id: &str, minutes: i64) -> RepositoryResult<Task> {
-        if !(1..=1440).contains(&minutes) {
-            return Err(RepositoryError::Validation(
-                "snooze minutes must be between 1 and 1440",
-            ));
-        }
-        let modifier = format!("+{minutes} minutes");
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
-            r#"
-            UPDATE tasks
-            SET remind_at = strftime('%Y-%m-%dT%H:%M:%fZ', datetime('now', ?2)),
-                reminded_at = NULL,
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1 AND status = 'todo' AND deleted_at IS NULL
-            "#,
-            params![id, modifier],
-        )?;
-        if updated == 0 {
-            return Err(RepositoryError::NotFound("task"));
-        }
-        self.get(id)
-    }
-
-    pub fn set_tags(&self, task_id: &str, tag_ids: &[String]) -> RepositoryResult<()> {
-        self.get(task_id)?;
-        let mut connection = self.database.connect()?;
-        let transaction = connection.transaction()?;
-        transaction.execute("DELETE FROM task_tags WHERE task_id = ?1", params![task_id])?;
-        for tag_id in tag_ids {
-            transaction.execute(
-                "INSERT INTO task_tags (task_id, tag_id) VALUES (?1, ?2)",
-                params![task_id, tag_id],
-            )?;
-        }
-        transaction.commit()?;
-        Ok(())
-    }
-
-    pub fn list_tag_ids(&self, task_id: &str) -> RepositoryResult<Vec<String>> {
-        let connection = self.database.connect()?;
-        let mut statement = connection
-            .prepare("SELECT tag_id FROM task_tags WHERE task_id = ?1 ORDER BY tag_id ASC")?;
-        let tag_ids = statement
-            .query_map(params![task_id], |row| row.get(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(tag_ids)
-    }
-
-    fn query_tasks(&self, filter: &str, order: &str) -> RepositoryResult<Vec<Task>> {
-        let connection = self.database.connect()?;
-        let mut statement = connection.prepare(&format!(
-            "{} WHERE {filter} ORDER BY {order}",
-            select_tasks()
-        ))?;
-        let tasks = statement
-            .query_map([], map_task)?
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(tasks)
-    }
+    Ok(())
 }
 
 fn select_tasks() -> &'static str {
     r#"
-    SELECT id, title, note, status, priority, list_id, due_at, remind_at,
-           reminded_at, completed_at, sort_order, created_at, updated_at, deleted_at
+    SELECT id, title, note, status, priority, list_id, due_at,
+           completed_at, sort_order, created_at, updated_at, deleted_at
     FROM tasks
     "#
 }
 
 fn select_tasks_aliased() -> &'static str {
     r#"
-    SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.due_at, t.remind_at,
-           t.reminded_at, t.completed_at, t.sort_order, t.created_at, t.updated_at, t.deleted_at
+    SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.due_at,
+           t.completed_at, t.sort_order, t.created_at, t.updated_at, t.deleted_at
     FROM tasks t
     "#
 }
 
-fn default_sort() -> &'static str {
-    r#"
-    CASE
-        WHEN due_at IS NOT NULL AND datetime(due_at) < datetime('now') THEN 0
-        WHEN due_at IS NOT NULL AND date(due_at, 'localtime') = date('now', 'localtime') THEN 1
-        WHEN remind_at IS NOT NULL THEN 2
-        WHEN priority = 2 THEN 3
-        ELSE 4
-    END ASC,
-    priority DESC,
-    sort_order ASC,
-    created_at DESC
-    "#
-}
-
-fn default_sort_aliased() -> &'static str {
-    r#"
-    CASE
-        WHEN t.due_at IS NOT NULL AND datetime(t.due_at) < datetime('now') THEN 0
-        WHEN t.due_at IS NOT NULL AND date(t.due_at, 'localtime') = date('now', 'localtime') THEN 1
-        WHEN t.remind_at IS NOT NULL THEN 2
-        WHEN t.priority = 2 THEN 3
-        ELSE 4
-    END ASC,
-    t.priority DESC,
-    t.sort_order ASC,
-    t.created_at DESC
-    "#
-}
-
-fn placeholders(count: usize) -> String {
-    std::iter::repeat_n("?", count)
-        .collect::<Vec<_>>()
-        .join(", ")
+fn sort_clause(sort_by: &str) -> RepositoryResult<&'static str> {
+    match sort_by {
+        "priority" => Ok(r#"
+            t.priority DESC,
+            CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END ASC,
+            t.due_at ASC,
+            t.created_at DESC
+            "#),
+        "date" => Ok(r#"
+            CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END ASC,
+            t.due_at ASC,
+            t.priority DESC,
+            t.created_at DESC
+            "#),
+        "created" => Ok("t.created_at ASC"),
+        _ => Err(RepositoryError::Validation("invalid task sort")),
+    }
 }
 
 fn escape_like(value: &str) -> String {
@@ -475,13 +274,11 @@ fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
         priority: row.get(4)?,
         list_id: row.get(5)?,
         due_at: row.get(6)?,
-        remind_at: row.get(7)?,
-        reminded_at: row.get(8)?,
-        completed_at: row.get(9)?,
-        sort_order: row.get(10)?,
-        created_at: row.get(11)?,
-        updated_at: row.get(12)?,
-        deleted_at: row.get(13)?,
+        completed_at: row.get(7)?,
+        sort_order: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
+        deleted_at: row.get(11)?,
     })
 }
 

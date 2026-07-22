@@ -5,7 +5,6 @@ pub enum RepositoryError {
     Database(rusqlite::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
-    InvalidBackup(String),
     Validation(&'static str),
     NotFound(&'static str),
 }
@@ -16,7 +15,6 @@ impl Display for RepositoryError {
             Self::Database(error) => write!(formatter, "database error: {error}"),
             Self::Io(error) => write!(formatter, "file system error: {error}"),
             Self::Json(error) => write!(formatter, "json error: {error}"),
-            Self::InvalidBackup(message) => write!(formatter, "invalid backup: {message}"),
             Self::Validation(message) => write!(formatter, "validation error: {message}"),
             Self::NotFound(entity) => write!(formatter, "{entity} not found"),
         }
