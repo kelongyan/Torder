@@ -19,7 +19,7 @@
 <br />
 
 <p align="center">
-  <img src="./output/playwright/README-v2-宽屏首页.png" width="920" alt="今序宽屏首页" />
+  <img src="./src/assets/readme-preview.png" width="920" alt="今序宽屏首页" />
 </p>
 
 <br />
@@ -92,7 +92,6 @@ Torder/
 │  ├─ src/                 # Rust 命令、Repository、数据库迁移、托盘能力
 │  ├─ icons/               # 桌面与安装包图标
 │  └─ capabilities/        # Tauri 权限配置
-└─ output/playwright/      # UI 回归截图
 ```
 
 ## 🚀 本地开发
