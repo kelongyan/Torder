@@ -7,7 +7,6 @@
   <p>本地优先、暗色优先、轻量克制的 Windows 桌面待办应用。</p>
 
   <p>
-    <img src="https://img.shields.io/badge/Release-v2.0.0-6366F1?style=flat-square" alt="Release v2.0.0" />
     <img src="https://img.shields.io/badge/Tauri-2-24C8DB?style=flat-square&logo=tauri&logoColor=white" alt="Tauri 2" />
     <img src="https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react&logoColor=white" alt="React 19" />
     <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 5" />
@@ -19,25 +18,23 @@
 
 <br />
 
-<div align="center">
-  <img src="./docs/assets/torder-preview.png" width="920" alt="今序 v2.0.0 宽屏首页" />
-</div>
+<p align="center">
+  <img src="./docs/assets/torder-preview.png" width="920" alt="今序宽屏首页" />
+</p>
 
 <br />
 
-> 🌙 **v2.0.0 是一次以原型稿为准的 UI 与功能重构。** 今序现在更像一个安静的任务工作台：左侧整理入口，中间专注执行，右侧查看细节。没有账号、没有云同步，也没有多余的管理负担。
+> 🌙 今序是一款安静的任务工作台。左侧整理入口，中间专注执行，右侧查看细节；不要求登录，不把任务上传到云端，也不试图用复杂功能打断你。
 
-## ✨ v2.0.0 更新重点
+## ✨ 产品定位
 
-| 方向 | 变化 |
+| 特点 | 说明 |
 | --- | --- |
-| 🎨 视觉重构 | 暗色优先三栏工作台，整体从旧版绿色玻璃风格切换到深色靛蓝体系 |
-| 🧭 导航重构 | 侧栏聚合搜索、系统视图、我的清单和新建清单入口 |
-| ✅ 任务闭环 | 新建任务弹窗、右侧详情面板、编辑、完成、删除一条线打通 |
-| 🗂️ 视图增强 | 支持列表、看板、日历三种布局 |
-| 🔎 搜索优化 | 标题与描述实时过滤，关键词高亮 |
-| 🧹 功能减法 | 移除标签、提醒、备份导入导出、独立设置页等原型外能力 |
-| 🖥️ 桌面保留 | 保留 Tauri 托盘；托盘快速新建改为打开新建任务弹窗 |
+| 🔐 本地优先 | 任务数据默认保存在本机 SQLite 数据库中 |
+| 🌙 暗色优先 | 默认视觉适合长时间停留，信息密度克制 |
+| 🧭 清晰导航 | 侧栏聚合搜索、系统视图、我的清单和新建清单入口 |
+| ✅ 专注闭环 | 从创建、查看、编辑到完成，围绕任务本身展开 |
+| 🖥️ 桌面常驻 | 支持 Tauri 托盘，随时回到任务工作台 |
 
 ## 🧩 核心能力
 
@@ -125,7 +122,7 @@ pnpm build
 cargo +stable-x86_64-pc-windows-msvc test --manifest-path src-tauri/Cargo.toml
 ```
 
-### 低内存 Windows 打包
+### Windows 打包
 
 ```powershell
 $env:Path = 'D:\cargo\bin;' + $env:Path
@@ -134,11 +131,7 @@ $env:CARGO_BUILD_JOBS = '4'
 pnpm tauri build
 ```
 
-生成的 NSIS 安装包位于：
-
-```text
-src-tauri/target/release/bundle/nsis/
-```
+执行完成后会生成 Windows NSIS 安装包。
 
 ## 🔐 数据与隐私
 
@@ -150,7 +143,6 @@ src-tauri/target/release/bundle/nsis/
 
 - 任务数据本地存储，不上传到远程服务器
 - 应用不要求登录，不绑定账号体系
-- v2.0.0 按原型稿移除了标签、提醒和备份导入导出入口
 - 如需手动迁移数据，请先备份上面的 SQLite 数据库文件
 
 ## 📚 文档
@@ -159,14 +151,6 @@ src-tauri/target/release/bundle/nsis/
 - [MVP 功能清单](./docs/Torder（今序）MVP功能清单.md)
 - [技术方案书](./docs/Torder（今序）技术方案书.md)
 - [分阶段开发方案书](./docs/Torder（今序）分阶段开发方案书.md)
-- [原型稿重构分阶段方案](./docs/Torder（今序）原型稿重构分阶段方案.md)
-
-## 🏷️ 当前版本
-
-- 版本：`v2.0.0 release`
-- 平台：Windows x64
-- 安装包：见 GitHub Releases
-- 状态：原型稿重构主流程已完成，进入真实使用反馈阶段
 
 ---
 
