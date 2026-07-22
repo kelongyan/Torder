@@ -1,0 +1,139 @@
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 22px 0;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 10px 12px;
+  color: var(--red);
+  font-size: 13px;
+}
+
+.alert-banner span {
+  min-width: 0;
+  flex: 1;
+}
+
+.alert-banner button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+}
+
+.empty-state {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-state svg {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+}
+
+.empty-state h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.empty-state p {
+  max-width: 320px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.skeleton-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.skeleton-list span {
+  height: 74px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--bg-secondary), var(--bg-tertiary), var(--bg-secondary));
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.toast-host {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 70;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  min-width: 180px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow);
+  animation: toast-in 220ms var(--transition);
+}
+
+.toast.success svg {
+  color: var(--green);
+}
+
+.toast.error svg {
+  color: var(--red);
+}
+
+.toast.info svg {
+  color: var(--accent-hover);
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

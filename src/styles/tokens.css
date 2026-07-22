@@ -1,0 +1,48 @@
+:root {
+  color-scheme: dark;
+  --bg-primary: #0f1117;
+  --bg-secondary: #161822;
+  --bg-tertiary: #1c1f2e;
+  --bg-hover: #222639;
+  --bg-active: #2a2f45;
+  --border: #2a2e3f;
+  --border-light: #353a50;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0b0;
+  --text-muted: #5f6578;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-bg: rgba(99, 102, 241, 0.12);
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-family:
+    "Frex Sans GB", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #f7f8fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #edeef3;
+  --bg-hover: #e4e6ed;
+  --bg-active: #d9dcf7;
+  --border: #e2e4ea;
+  --border-light: #cfd2dc;
+  --text-primary: #1a1d2e;
+  --text-secondary: #545868;
+  --text-muted: #9195a8;
+  --accent-bg: rgba(99, 102, 241, 0.1);
+  --shadow: 0 4px 24px rgba(20, 24, 36, 0.1);
+}

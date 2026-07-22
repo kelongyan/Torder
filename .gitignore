@@ -22,6 +22,9 @@ RULE.md
 *.sqlite3
 *.db
 
+# Prototype design drafts (local only, do not commit)
+原型图设计稿/
+
 # Local-only screenshots that may expose desktop or development context
 output/playwright/Logo更新-Tauri实机.png
 output/playwright/UI微调-Tauri默认窄窗.png

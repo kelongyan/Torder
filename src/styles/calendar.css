@@ -1,0 +1,50 @@
+.calendar-view {
+  display: grid;
+  width: min(100%, 1060px);
+  gap: 18px;
+  margin: 0 auto;
+}
+
+.calendar-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.calendar-group > header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 13px 16px;
+}
+
+.calendar-group h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 21px;
+  letter-spacing: 0;
+}
+
+.calendar-group header div {
+  min-width: 0;
+  flex: 1;
+}
+
+.calendar-group header div span,
+.calendar-group header strong {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.calendar-items {
+  padding: 10px;
+}
