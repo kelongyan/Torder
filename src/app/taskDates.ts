@@ -1,14 +1,32 @@
 export function toDateTimeLocal(iso: string | null): string {
   if (!iso) return "";
   const date = new Date(iso);
-  const localDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60_000,
-  );
-  return localDate.toISOString().slice(0, 16);
+  return toLocalDateTimeValue(date);
 }
 
 export function fromDateTimeLocal(value: string): string | null {
   return value ? new Date(value).toISOString() : null;
+}
+
+export function toLocalDateTimeValue(date: Date): string {
+  return (
+    [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join(
+      "-",
+    ) + `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+export function getDefaultDueAtLocal(now = new Date()): string {
+  const due = new Date(now);
+  due.setSeconds(0, 0);
+
+  if (due.getHours() >= 23) {
+    due.setHours(23, 59, 0, 0);
+  } else {
+    due.setHours(due.getHours() + 1, 0, 0, 0);
+  }
+
+  return toLocalDateTimeValue(due);
 }
 
 export function formatTaskDate(iso: string | null): string | null {
@@ -59,7 +77,9 @@ export function formatCalendarDate(iso: string | null): {
   return {
     key,
     title: `${date.getMonth() + 1}月${date.getDate()}日`,
-    weekday: new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(date),
+    weekday: new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(
+      date,
+    ),
     isToday: isSameDay(date, today),
   };
 }

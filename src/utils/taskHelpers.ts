@@ -5,7 +5,7 @@ import {
   Star,
   type LucideIcon,
 } from "lucide-react";
-import { toDateTimeLocal } from "../app/taskDates";
+import { getDefaultDueAtLocal, toDateTimeLocal } from "../app/taskDates";
 import { taskViewCopy } from "../app/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
 import type { SystemView, Task, TaskList, TaskScope } from "../types/database";
@@ -81,7 +81,7 @@ export function emptyDraft(defaultListId: string): TaskDraft {
     note: "",
     priority: 1,
     listId: defaultListId,
-    dueAt: "",
+    dueAt: getDefaultDueAtLocal(),
   };
 }
 

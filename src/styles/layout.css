@@ -1,9 +1,105 @@
-.app-shell {
-  display: flex;
+.window-frame {
+  display: grid;
   width: 100vw;
   height: 100vh;
+  grid-template-rows: 38px minmax(0, 1fr);
   overflow: hidden;
   background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.window-titlebar {
+  display: grid;
+  height: 38px;
+  min-height: 38px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  user-select: none;
+}
+
+.window-titlebar-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  color: var(--text-primary);
+}
+
+.window-titlebar-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+.window-titlebar-brand > div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.window-titlebar-brand strong {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.window-titlebar-brand span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.window-titlebar-drag {
+  height: 100%;
+  min-width: 0;
+}
+
+.window-controls {
+  display: flex;
+  height: 100%;
+  align-items: stretch;
+}
+
+.window-control {
+  display: grid;
+  width: 46px;
+  height: 100%;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  transition:
+    background-color var(--transition),
+    color var(--transition);
+}
+
+.window-control:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.window-control.close:hover {
+  background: var(--red);
+  color: var(--on-danger);
+}
+
+.window-control svg {
+  width: 14px;
+  height: 14px;
+}
+
+.app-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   color: var(--text-primary);
 }
 

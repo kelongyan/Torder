@@ -18,6 +18,14 @@
 }
 
 @media (max-width: 720px) {
+  .window-titlebar-brand span {
+    display: none;
+  }
+
+  .window-control {
+    width: 42px;
+  }
+
   .app-shell {
     flex-direction: column;
   }

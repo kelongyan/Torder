@@ -32,6 +32,7 @@ import { TaskCreateDialog } from "../components/dialog/TaskCreateDialog";
 import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
+import { WindowTitleBar } from "../components/layout/WindowTitleBar";
 
 import { useAppInit } from "../hooks/useAppInit";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -196,90 +197,94 @@ function App() {
   const displayError = error ?? appError;
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        lists={lists}
-        scope={scope}
-        searchQuery={searchQuery}
-        counts={counts}
-        onSearchChange={(query) => void setSearchQuery(query)}
-        onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
-      />
+    <div className="window-frame">
+      <WindowTitleBar />
 
-      <main className="main">
-        <MainHeader
-          title={currentTitle}
-          taskCount={tasks.length}
-          layout={layout}
-          theme={settings.theme}
-          sortBy={sortBy}
-          showCompleted={showCompleted}
-          onLayoutChange={setLayout}
-          onThemeToggle={() => void handleThemeToggle()}
-          onMenuToggle={() => setMenuOpen((open) => !open)}
-          menuOpen={menuOpen}
-          onSortChange={(nextSort) => void handleSortChange(nextSort)}
-          onShowCompletedChange={() => void handleShowCompletedChange()}
+      <div className="app-shell">
+        <Sidebar
+          lists={lists}
+          scope={scope}
+          searchQuery={searchQuery}
+          counts={counts}
+          onSearchChange={(query) => void setSearchQuery(query)}
+          onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
         />
 
-        {displayError && (
-          <div className="alert-banner" role="alert">
-            <AlertCircle aria-hidden="true" className="icon-sm" />
-            <span>{displayError}</span>
-            <button
-              type="button"
-              onClick={() => {
-                clearError();
-                setAppError(null);
-              }}
-              aria-label="关闭错误"
-            >
-              <X aria-hidden="true" />
-            </button>
-          </div>
-        )}
+        <main className="main">
+          <MainHeader
+            title={currentTitle}
+            taskCount={tasks.length}
+            layout={layout}
+            theme={settings.theme}
+            sortBy={sortBy}
+            showCompleted={showCompleted}
+            onLayoutChange={setLayout}
+            onThemeToggle={() => void handleThemeToggle()}
+            onMenuToggle={() => setMenuOpen((open) => !open)}
+            menuOpen={menuOpen}
+            onSortChange={(nextSort) => void handleSortChange(nextSort)}
+            onShowCompletedChange={() => void handleShowCompletedChange()}
+          />
 
-        <section className="content-panel" aria-label={`${currentTitle}任务`}>
-          {layout === "list" ? (
-            <TaskListView
-              tasks={tasks}
-              lists={lists}
-              loading={loading}
-              selectedTaskId={selectedTaskId}
-              batchMode={batchMode}
-              batchSelectedIds={batchSelectedIds}
-              searchQuery={searchQuery}
-              scope={scope}
-              onQuickAdd={openCreateDialog}
-              onOpen={(task) => selectTask(task.id)}
-              onToggle={(task) => void handleToggleTask(task)}
-              onDelete={requestDeleteTask}
-              onToggleBatchSelected={toggleBatchSelected}
-              onBatchComplete={() => void handleBatchComplete()}
-              onBatchDelete={requestBatchDelete}
-              onExitBatch={clearBatchSelection}
-            />
-          ) : layout === "board" ? (
-            <TaskBoard
-              tasks={tasks}
-              lists={lists}
-              searchQuery={searchQuery}
-              selectedTaskId={selectedTaskId}
-              onOpen={(task) => selectTask(task.id)}
-              onToggle={(task) => void handleToggleTask(task)}
-            />
-          ) : (
-            <TaskCalendar
-              tasks={tasks}
-              lists={lists}
-              searchQuery={searchQuery}
-              selectedTaskId={selectedTaskId}
-              onOpen={(task) => selectTask(task.id)}
-              onToggle={(task) => void handleToggleTask(task)}
-            />
+          {displayError && (
+            <div className="alert-banner" role="alert">
+              <AlertCircle aria-hidden="true" className="icon-sm" />
+              <span>{displayError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  clearError();
+                  setAppError(null);
+                }}
+                aria-label="关闭错误"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
           )}
-        </section>
-      </main>
+
+          <section className="content-panel" aria-label={`${currentTitle}任务`}>
+            {layout === "list" ? (
+              <TaskListView
+                tasks={tasks}
+                lists={lists}
+                loading={loading}
+                selectedTaskId={selectedTaskId}
+                batchMode={batchMode}
+                batchSelectedIds={batchSelectedIds}
+                searchQuery={searchQuery}
+                scope={scope}
+                onQuickAdd={openCreateDialog}
+                onOpen={(task) => selectTask(task.id)}
+                onToggle={(task) => void handleToggleTask(task)}
+                onDelete={requestDeleteTask}
+                onToggleBatchSelected={toggleBatchSelected}
+                onBatchComplete={() => void handleBatchComplete()}
+                onBatchDelete={requestBatchDelete}
+                onExitBatch={clearBatchSelection}
+              />
+            ) : layout === "board" ? (
+              <TaskBoard
+                tasks={tasks}
+                lists={lists}
+                searchQuery={searchQuery}
+                selectedTaskId={selectedTaskId}
+                onOpen={(task) => selectTask(task.id)}
+                onToggle={(task) => void handleToggleTask(task)}
+              />
+            ) : (
+              <TaskCalendar
+                tasks={tasks}
+                lists={lists}
+                searchQuery={searchQuery}
+                selectedTaskId={selectedTaskId}
+                onOpen={(task) => selectTask(task.id)}
+                onToggle={(task) => void handleToggleTask(task)}
+              />
+            )}
+          </section>
+        </main>
+      </div>
 
       <TaskDetailPanel
         task={selectedTask}

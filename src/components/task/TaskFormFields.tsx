@@ -2,6 +2,7 @@ import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { TaskList } from "../../types/database";
 import type { TaskDraft } from "../../utils/taskHelpers";
+import { TaskDateTimeField } from "./TaskDateTimeField";
 
 export function TaskFormFields({
   draft,
@@ -79,16 +80,10 @@ export function TaskFormFields({
           })}
         </div>
       </div>
-      <label className="form-field">
-        <span>截止日期时间</span>
-        <input
-          type="datetime-local"
-          value={draft.dueAt}
-          onChange={(event) =>
-            onChange({ ...draft, dueAt: event.target.value })
-          }
-        />
-      </label>
+      <TaskDateTimeField
+        value={draft.dueAt}
+        onChange={(dueAt) => onChange({ ...draft, dueAt })}
+      />
     </>
   );
 }
