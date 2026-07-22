@@ -10,6 +10,19 @@
   border-radius: var(--radius);
   background: var(--bg-secondary);
   overflow: hidden;
+  animation: calendar-group-in var(--motion-panel) var(--ease-out)
+    calc(var(--item-index, 0) * 44ms) both;
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: opacity, transform;
+}
+
+.calendar-group:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .calendar-group > header {
@@ -22,6 +35,9 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
   padding: 14px 17px;
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
 }
 
 .calendar-group h2 {

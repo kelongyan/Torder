@@ -1,5 +1,6 @@
 import { MoreHorizontal, Moon, Sun } from "lucide-react";
 import { layoutOptions } from "../../constants/taskConfig";
+import { usePresence } from "../../hooks/usePresence";
 import type { TaskLayout } from "../../types/database";
 import type { ThemePreference } from "../../types/settings";
 import { ViewMenu } from "../common/ViewMenu";
@@ -31,6 +32,8 @@ export function MainHeader({
   onSortChange: (sortBy: import("../../types/database").TaskSortBy) => void;
   onShowCompletedChange: () => void;
 }) {
+  const menuPresence = usePresence(menuOpen, 180);
+
   return (
     <header className="main-header">
       <div>
@@ -76,10 +79,11 @@ export function MainHeader({
           >
             <MoreHorizontal aria-hidden="true" />
           </button>
-          {menuOpen && (
+          {menuPresence.rendered && (
             <ViewMenu
               sortBy={sortBy}
               showCompleted={showCompleted}
+              presence={menuPresence.phase}
               onSortChange={onSortChange}
               onShowCompletedChange={onShowCompletedChange}
             />

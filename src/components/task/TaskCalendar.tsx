@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { CSSProperties } from "react";
 import type { Task, TaskList } from "../../types/database";
 import { groupCalendarTasks } from "../../utils/calendarHelpers";
 import { TaskRow } from "./TaskRow";
@@ -22,8 +23,12 @@ export function TaskCalendar({
 
   return (
     <div className="calendar-view">
-      {groups.map((group) => (
-        <section key={group.key} className="calendar-group">
+      {groups.map((group, groupIndex) => (
+        <section
+          key={group.key}
+          className="calendar-group"
+          style={{ "--item-index": groupIndex } as CSSProperties}
+        >
           <header>
             <div>
               <h2>{group.title}</h2>
@@ -42,6 +47,7 @@ export function TaskCalendar({
                 last={index === group.tasks.length - 1}
                 batchMode={false}
                 batchSelected={false}
+                motionIndex={index}
                 searchQuery={searchQuery}
                 onOpen={onOpen}
                 onToggle={onToggle}

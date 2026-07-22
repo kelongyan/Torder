@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";
@@ -11,6 +12,8 @@ export function TaskRow({
   last,
   batchMode,
   batchSelected,
+  leaving = false,
+  motionIndex = 0,
   searchQuery,
   onOpen,
   onToggle,
@@ -23,6 +26,8 @@ export function TaskRow({
   last: boolean;
   batchMode: boolean;
   batchSelected: boolean;
+  leaving?: boolean;
+  motionIndex?: number;
   searchQuery: string;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
@@ -39,7 +44,10 @@ export function TaskRow({
 
   return (
     <article
-      className={`task-item ${selected ? "selected" : ""} ${completed ? "completed" : ""}`}
+      className={`task-item ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
+        leaving ? "is-leaving" : ""
+      }`}
+      style={{ "--item-index": motionIndex } as CSSProperties}
       onClick={handleRowClick}
     >
       {!batchMode && (

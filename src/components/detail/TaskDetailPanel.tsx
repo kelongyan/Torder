@@ -3,6 +3,7 @@ import { Trash2, X } from "lucide-react";
 import { formatTaskDateTime, fromDateTimeLocal } from "../../app/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
+import { usePresence, type PresencePhase } from "../../hooks/usePresence";
 import type { Task, TaskList, UpdateTaskInput } from "../../types/database";
 import { createTaskDraft, type TaskDraft } from "../../utils/taskHelpers";
 import { DetailBlock } from "./DetailBlock";
@@ -25,21 +26,30 @@ export function TaskDetailPanel({
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
 }) {
-  if (!task) {
-    return <aside className="detail-panel hidden" aria-hidden="true" />;
-  }
+  const detailPresence = usePresence(task, 320);
+  const presentTask = detailPresence.value;
 
   return (
-    <TaskDetailContent
-      key={task.id}
-      task={task}
-      lists={lists}
-      busy={busy}
-      onClose={onClose}
-      onSave={onSave}
-      onToggle={onToggle}
-      onDelete={onDelete}
-    />
+    <aside
+      className={`detail-panel ${
+        detailPresence.rendered ? detailPresence.className : "hidden"
+      }`}
+      aria-hidden={!detailPresence.rendered}
+    >
+      {presentTask && (
+        <TaskDetailContent
+          key={presentTask.id}
+          task={presentTask}
+          lists={lists}
+          busy={busy}
+          presence={detailPresence.phase}
+          onClose={onClose}
+          onSave={onSave}
+          onToggle={onToggle}
+          onDelete={onDelete}
+        />
+      )}
+    </aside>
   );
 }
 
@@ -47,6 +57,7 @@ function TaskDetailContent({
   task,
   lists,
   busy,
+  presence,
   onClose,
   onSave,
   onToggle,
@@ -55,6 +66,7 @@ function TaskDetailContent({
   task: Task;
   lists: TaskList[];
   busy: boolean;
+  presence: PresencePhase;
   onClose: () => void;
   onSave: (input: UpdateTaskInput) => Promise<void> | void;
   onToggle: (task: Task) => void;
@@ -84,7 +96,11 @@ function TaskDetailContent({
   }
 
   return (
-    <aside className="detail-panel">
+    <div
+      className={`detail-panel-content ${
+        presence === "exit" ? "is-exiting" : "is-entering"
+      }`}
+    >
       <header className="detail-header">
         <div>
           <span>任务详情</span>
@@ -101,42 +117,47 @@ function TaskDetailContent({
       </header>
 
       <div className="detail-body">
-        {editing ? (
-          <TaskFormFields draft={draft} lists={lists} onChange={setDraft} />
-        ) : (
-          <>
-            <DetailBlock label="任务名称">{task.title}</DetailBlock>
-            <DetailBlock label="描述">{task.note || "暂无描述"}</DetailBlock>
-            <DetailBlock label="优先级">
-              <span
-                className={`priority-pill ${priorityCopy[task.priority].className}`}
-              >
-                {priorityCopy[task.priority].label}
-              </span>
-            </DetailBlock>
-            <DetailBlock label="所属清单">
-              <span
-                className="list-badge"
-                style={{
-                  color: listColor,
-                  backgroundColor: `${listColor}24`,
-                }}
-              >
-                {list?.name ?? "未分类"}
-              </span>
-            </DetailBlock>
-            <DetailBlock label="截止日期时间">
-              {formatTaskDateTime(task.dueAt)}
-            </DetailBlock>
-            <DetailBlock label="状态">
-              <span
-                className={`status-pill ${task.status === "done" ? "done" : ""}`}
-              >
-                {task.status === "done" ? "已完成" : "进行中"}
-              </span>
-            </DetailBlock>
-          </>
-        )}
+        <div
+          key={editing ? "editing" : "reading"}
+          className="detail-body-motion"
+        >
+          {editing ? (
+            <TaskFormFields draft={draft} lists={lists} onChange={setDraft} />
+          ) : (
+            <>
+              <DetailBlock label="任务名称">{task.title}</DetailBlock>
+              <DetailBlock label="描述">{task.note || "暂无描述"}</DetailBlock>
+              <DetailBlock label="优先级">
+                <span
+                  className={`priority-pill ${priorityCopy[task.priority].className}`}
+                >
+                  {priorityCopy[task.priority].label}
+                </span>
+              </DetailBlock>
+              <DetailBlock label="所属清单">
+                <span
+                  className="list-badge"
+                  style={{
+                    color: listColor,
+                    backgroundColor: `${listColor}24`,
+                  }}
+                >
+                  {list?.name ?? "未分类"}
+                </span>
+              </DetailBlock>
+              <DetailBlock label="截止日期时间">
+                {formatTaskDateTime(task.dueAt)}
+              </DetailBlock>
+              <DetailBlock label="状态">
+                <span
+                  className={`status-pill ${task.status === "done" ? "done" : ""}`}
+                >
+                  {task.status === "done" ? "已完成" : "进行中"}
+                </span>
+              </DetailBlock>
+            </>
+          )}
+        </div>
       </div>
 
       <footer className="detail-footer">
@@ -190,6 +211,6 @@ function TaskDetailContent({
           )}
         </div>
       </footer>
-    </aside>
+    </div>
   );
 }

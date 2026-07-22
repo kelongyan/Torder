@@ -7,6 +7,7 @@ import {
   X,
 } from "lucide-react";
 import { toLocalDateTimeValue } from "../../app/taskDates";
+import { usePresence } from "../../hooks/usePresence";
 
 const weekdayLabels = ["一", "二", "三", "四", "五", "六", "日"];
 const quickTimes = ["09:00", "14:00", "18:00", "21:00"];
@@ -23,6 +24,7 @@ export function TaskDateTimeField({
   const containerRef = useRef<HTMLDivElement>(null);
   const selectedDate = useMemo(() => getSafeDate(value), [value]);
   const [open, setOpen] = useState(false);
+  const pickerPresence = usePresence(open, 180);
   const [viewDate, setViewDate] = useState(
     () => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
   );
@@ -120,9 +122,9 @@ export function TaskDateTimeField({
         )}
       </div>
 
-      {open && (
+      {pickerPresence.rendered && (
         <div
-          className="date-picker-panel"
+          className={`date-picker-panel ${pickerPresence.className}`}
           role="dialog"
           aria-label="选择截止日期时间"
         >

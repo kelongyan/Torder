@@ -11,6 +11,19 @@
   border-radius: var(--radius);
   background: var(--bg-secondary);
   overflow: hidden;
+  animation: column-in var(--motion-panel) var(--ease-out)
+    calc(var(--item-index, 0) * 46ms) both;
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: opacity, transform;
+}
+
+.board-column:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .board-column header {
@@ -62,14 +75,21 @@
   background: var(--bg-primary);
   padding: 13px;
   transition:
-    border-color var(--transition),
-    background-color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  animation: card-in var(--motion-soft) var(--ease-out)
+    calc(var(--item-index, 0) * 32ms) both;
+  will-change: opacity, transform;
 }
 
 .board-card:hover,
 .board-card.selected {
   border-color: var(--accent);
   background: var(--bg-tertiary);
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-2px);
 }
 
 .board-card.completed h3 {
@@ -91,6 +111,7 @@
   font-weight: 700;
   line-height: 22px;
   letter-spacing: 0;
+  transition: color var(--motion-theme) var(--ease-standard);
 }
 
 .board-card p {
@@ -98,6 +119,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 20px;
+  transition: color var(--motion-theme) var(--ease-standard);
 }
 
 .board-card-footer {

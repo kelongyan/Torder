@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Torder（今序）",
-        "width": 480,
-        "height": 600,
+        "width": 1440,
+        "height": 900,
         "minWidth": 360,
         "minHeight": 460,
         "decorations": false,

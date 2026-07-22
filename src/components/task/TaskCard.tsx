@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Check } from "lucide-react";
 import { formatTaskDateTime } from "../../app/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
@@ -10,6 +11,7 @@ export function TaskCard({
   list,
   searchQuery,
   selected,
+  motionIndex = 0,
   onOpen,
   onToggle,
 }: {
@@ -17,6 +19,7 @@ export function TaskCard({
   list: TaskList | null;
   searchQuery: string;
   selected: boolean;
+  motionIndex?: number;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
 }) {
@@ -25,6 +28,7 @@ export function TaskCard({
   return (
     <article
       className={`board-card ${selected ? "selected" : ""} ${task.status === "done" ? "completed" : ""}`}
+      style={{ "--item-index": motionIndex } as CSSProperties}
       onClick={() => onOpen(task)}
     >
       <div className="board-card-top">

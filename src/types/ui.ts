@@ -4,6 +4,7 @@ export interface ToastMessage {
   id: number;
   type: ToastKind;
   message: string;
+  leaving?: boolean;
 }
 
 export interface ConfirmState {

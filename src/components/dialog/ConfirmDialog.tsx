@@ -1,16 +1,22 @@
 import { AlertCircle } from "lucide-react";
+import type { PresencePhase } from "../../hooks/usePresence";
 import type { ConfirmState } from "../../types/ui";
 
 export function ConfirmDialog({
   state,
+  presence,
   onClose,
 }: {
   state: ConfirmState | null;
+  presence: PresencePhase;
   onClose: () => void;
 }) {
   if (!state) return null;
   return (
-    <div className="dialog-overlay" role="presentation">
+    <div
+      className={`dialog-overlay ${presence === "exit" ? "is-exiting" : "is-entering"}`}
+      role="presentation"
+    >
       <section className="dialog-card confirm-card" role="alertdialog" aria-modal="true">
         <header className="dialog-header">
           <span className={`dialog-icon ${state.danger ? "danger" : ""}`}>

@@ -17,15 +17,24 @@
   color: var(--text-secondary);
   text-align: left;
   transition:
-    border-color var(--transition),
-    background-color var(--transition),
-    color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
 }
 
 .quick-add:hover {
   border-color: var(--accent);
   background: var(--accent-bg);
   color: var(--accent-hover);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.quick-add:active {
+  transform: scale(0.992);
 }
 
 kbd {
@@ -45,28 +54,52 @@ kbd {
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
+  animation: subtle-rise var(--motion-soft) var(--ease-out) both;
 }
 
 .task-item {
   position: relative;
   display: flex;
+  max-height: 180px;
   min-height: 82px;
   gap: 14px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 13px 14px 13px 46px;
   transition:
-    border-color var(--transition),
-    background-color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    max-height var(--motion-soft) var(--ease-standard),
+    margin var(--motion-soft) var(--ease-standard),
+    padding var(--motion-soft) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  animation: task-row-in var(--motion-panel) var(--ease-out)
+    calc(var(--item-index, 0) * 28ms) both;
+  will-change: opacity, transform;
 }
 
 .task-item:hover {
   background: var(--bg-secondary);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .task-item.selected {
   border-color: var(--accent);
   background: var(--accent-bg);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.task-item.is-leaving {
+  max-height: 0;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
+  animation: task-row-out var(--motion-soft) var(--ease-standard) both;
 }
 
 .task-item.completed .task-content h3 {
@@ -89,6 +122,10 @@ kbd {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  transition:
+    background-color var(--motion-soft) var(--ease-standard),
+    box-shadow var(--motion-soft) var(--ease-standard),
+    transform var(--motion-soft) var(--ease-out);
 }
 
 .timeline-line {
@@ -121,6 +158,10 @@ kbd {
     color-mix(in srgb, var(--priority-color) 46%, transparent);
 }
 
+.task-item:hover .timeline-dot {
+  transform: scale(1.18);
+}
+
 .timeline-dot.completed-dot {
   background: var(--green);
 }
@@ -138,8 +179,11 @@ kbd {
   color: var(--on-success);
   margin-top: 2px;
   transition:
-    border-color var(--transition),
-    background-color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
 }
 
 .batch-check {
@@ -157,6 +201,13 @@ kbd {
 .batch-check.checked {
   border-color: var(--green);
   background: var(--green);
+  box-shadow: 0 0 0 4px var(--success-bg);
+  animation: check-pop var(--motion-soft) var(--ease-out) both;
+}
+
+.task-check:active,
+.batch-check:active {
+  transform: scale(0.9);
 }
 
 .task-check svg,
@@ -178,6 +229,9 @@ kbd {
   font-weight: 600;
   line-height: 23px;
   letter-spacing: 0;
+  transition:
+    color var(--motion-theme) var(--ease-standard),
+    text-decoration-color var(--motion-fast) var(--ease-standard);
 }
 
 .task-content p {
@@ -186,6 +240,7 @@ kbd {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 21px;
+  transition: color var(--motion-theme) var(--ease-standard);
 }
 
 mark {
@@ -219,6 +274,10 @@ mark {
   font-size: 12px;
   font-weight: 600;
   line-height: 18px;
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    color var(--motion-theme) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .priority-pill {
@@ -250,12 +309,16 @@ mark {
   align-items: flex-start;
   gap: 4px;
   opacity: 0;
-  transition: opacity var(--transition);
+  transform: translateX(6px);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-out);
 }
 
 .task-item:hover .task-actions,
 .task-item.selected .task-actions {
   opacity: 1;
+  transform: translateX(0);
 }
 
 .task-actions button {
@@ -267,11 +330,16 @@ mark {
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .task-actions button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  transform: scale(1.06);
 }
 
 .task-actions svg {
@@ -293,6 +361,7 @@ mark {
   background: var(--bg-secondary);
   padding: 11px 13px;
   box-shadow: var(--shadow);
+  animation: batch-bar-in var(--motion-panel) var(--ease-out) both;
 }
 
 .batch-bar span {
@@ -315,6 +384,16 @@ mark {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 18px;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+}
+
+.batch-bar button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .batching .task-item {

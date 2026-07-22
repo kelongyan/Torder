@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Task, TaskList } from "../../types/database";
 import { TaskCard } from "./TaskCard";
 
@@ -39,21 +40,26 @@ export function TaskBoard({
 
   return (
     <div className="board-view">
-      {columns.map((column) => (
-        <section key={column.id} className="board-column">
+      {columns.map((column, columnIndex) => (
+        <section
+          key={column.id}
+          className="board-column"
+          style={{ "--item-index": columnIndex } as CSSProperties}
+        >
           <header>
             <span className="board-dot" style={{ backgroundColor: column.color }} />
             <h2>{column.title}</h2>
             <span>{column.tasks.length}</span>
           </header>
           <div className="board-cards">
-            {column.tasks.map((task) => (
+            {column.tasks.map((task, taskIndex) => (
               <TaskCard
                 key={task.id}
                 task={task}
                 list={lists.find((item) => item.id === task.listId) ?? null}
                 searchQuery={searchQuery}
                 selected={selectedTaskId === task.id}
+                motionIndex={taskIndex}
                 onOpen={onOpen}
                 onToggle={onToggle}
               />

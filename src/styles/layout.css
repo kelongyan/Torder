@@ -6,6 +6,9 @@
   overflow: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    color var(--motion-theme) var(--ease-standard);
 }
 
 .window-titlebar {
@@ -16,6 +19,9 @@
   align-items: center;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
   user-select: none;
 }
 
@@ -75,13 +81,19 @@
   background: transparent;
   color: var(--text-secondary);
   transition:
-    background-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
 }
 
 .window-control:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.window-control:active {
+  transform: scale(0.92);
 }
 
 .window-control.close:hover {
@@ -111,6 +123,9 @@
   flex-direction: column;
   border-right: 1px solid var(--border);
   background: var(--bg-secondary);
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
 }
 
 .brand {
@@ -154,13 +169,15 @@
   padding: 0 12px;
   color: var(--text-muted);
   transition:
-    border-color var(--transition),
-    background-color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .search-box:focus-within {
   border-color: var(--accent-border);
   background: var(--bg-hover);
+  box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 .search-box input {
@@ -194,6 +211,7 @@
 }
 
 .nav-item {
+  position: relative;
   display: grid;
   width: 100%;
   min-height: 40px;
@@ -207,18 +225,40 @@
   color: var(--text-secondary);
   text-align: left;
   transition:
-    background-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
+}
+
+.nav-item::before {
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  content: "";
+  opacity: 0;
+  transform: scaleY(0.38);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-soft) var(--ease-out);
 }
 
 .nav-item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  transform: translateX(1px);
 }
 
 .nav-item.active {
   background: var(--accent-bg);
   color: var(--accent-hover);
+}
+
+.nav-item.active::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .nav-item span:nth-child(2) {
@@ -265,6 +305,14 @@
   gap: 16px;
   border-bottom: 1px solid var(--border);
   padding: 17px 24px;
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
+}
+
+.main-header h1,
+.main-header p {
+  animation: text-reveal var(--motion-soft) var(--ease-out) both;
 }
 
 .main-header h1 {
@@ -291,6 +339,7 @@
 }
 
 .layout-tabs {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -298,6 +347,9 @@
   border-radius: var(--radius);
   background: var(--bg-secondary);
   padding: 3px;
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
 }
 
 .layout-tabs button {
@@ -310,14 +362,19 @@
   font-size: 13px;
   line-height: 19px;
   transition:
-    background-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .layout-tabs button.active,
 .layout-tabs button:hover {
   background: var(--bg-active);
   color: var(--text-primary);
+}
+
+.layout-tabs button:active {
+  transform: scale(0.97);
 }
 
 .icon-button {
@@ -330,15 +387,24 @@
   background: var(--bg-secondary);
   color: var(--text-secondary);
   transition:
-    border-color var(--transition),
-    background-color var(--transition),
-    color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
 }
 
 .icon-button:hover {
   border-color: var(--border-light);
   background: var(--bg-hover);
   color: var(--text-primary);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.icon-button:active {
+  transform: scale(0.94);
 }
 
 .icon-button svg {
@@ -361,6 +427,16 @@
   background: var(--bg-secondary);
   padding: 8px;
   box-shadow: var(--shadow);
+  transform-origin: top right;
+  will-change: opacity, transform;
+}
+
+.view-menu.is-entering {
+  animation: menu-in var(--motion-soft) var(--ease-out) both;
+}
+
+.view-menu.is-exiting {
+  animation: menu-out var(--motion-fast) var(--ease-standard) both;
 }
 
 .menu-label {
@@ -384,11 +460,16 @@
   padding: 7px 8px 8px;
   color: var(--text-secondary);
   text-align: left;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .menu-item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  transform: translateX(2px);
 }
 
 .menu-separator {
@@ -402,4 +483,13 @@
   flex: 1;
   overflow: auto;
   padding: 26px 28px;
+}
+
+.content-motion {
+  min-height: 100%;
+  animation: content-reveal var(--motion-panel) var(--ease-out) both;
+}
+
+.content-motion-board {
+  animation-name: content-reveal-wide;
 }

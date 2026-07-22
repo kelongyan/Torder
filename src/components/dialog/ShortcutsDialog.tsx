@@ -1,9 +1,12 @@
 import { Keyboard } from "lucide-react";
+import type { PresencePhase } from "../../hooks/usePresence";
 import { DialogShell } from "./DialogShell";
 
 export function ShortcutsDialog({
+  presence,
   onClose,
 }: {
+  presence: PresencePhase;
   onClose: () => void;
 }) {
   return (
@@ -11,6 +14,7 @@ export function ShortcutsDialog({
       title="快捷键"
       subtitle="常用操作可以直接从键盘触发"
       icon={Keyboard}
+      presence={presence}
       onClose={onClose}
       width="420px"
     >

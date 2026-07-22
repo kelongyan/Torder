@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { PresencePhase } from "../../hooks/usePresence";
 
 export function DialogShell({
   title,
   subtitle,
   icon: Icon,
   width,
+  presence = "enter",
   children,
   onClose,
 }: {
@@ -14,11 +16,15 @@ export function DialogShell({
   subtitle?: string;
   icon: LucideIcon;
   width: string;
+  presence?: PresencePhase;
   children: ReactNode;
   onClose: () => void;
 }) {
   return (
-    <div className="dialog-overlay" role="presentation">
+    <div
+      className={`dialog-overlay ${presence === "exit" ? "is-exiting" : "is-entering"}`}
+      role="presentation"
+    >
       <section
         className="dialog-card"
         role="dialog"

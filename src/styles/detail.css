@@ -7,6 +7,26 @@
   border-left: 1px solid var(--border);
   background: var(--bg-secondary);
   box-shadow: var(--detail-shadow);
+  overflow: hidden;
+  transition:
+    width var(--motion-panel) var(--ease-out),
+    min-width var(--motion-panel) var(--ease-out),
+    border-color var(--motion-theme) var(--ease-standard),
+    background-color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-panel) var(--ease-standard);
+  will-change: width;
+}
+
+.detail-panel.is-entering {
+  animation: detail-shell-in var(--motion-panel) var(--ease-out) both;
+}
+
+.detail-panel.is-exiting {
+  width: 0;
+  min-width: 0;
+  border-left: 0;
+  box-shadow: none;
+  pointer-events: none;
 }
 
 .detail-panel.hidden {
@@ -17,12 +37,30 @@
   box-shadow: none;
 }
 
+.detail-panel-content {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  background: inherit;
+  will-change: opacity, transform;
+}
+
+.detail-panel-content.is-entering {
+  animation: panel-content-in var(--motion-panel) var(--ease-out) both;
+}
+
+.detail-panel-content.is-exiting {
+  animation: panel-content-out var(--motion-soft) var(--ease-standard) both;
+}
+
 .detail-header {
   display: flex;
   align-items: flex-start;
   gap: 13px;
   border-bottom: 1px solid var(--border);
   padding: 19px;
+  transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
 .detail-header div {
@@ -54,12 +92,17 @@
   padding: 19px;
 }
 
+.detail-body-motion {
+  animation: detail-body-in var(--motion-soft) var(--ease-out) both;
+}
+
 .detail-block {
   display: grid;
   gap: 8px;
   border-bottom: 1px solid var(--border);
   padding: 0 0 17px;
   margin-bottom: 16px;
+  transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
 .detail-block > span,
@@ -84,6 +127,7 @@
   gap: 11px;
   border-top: 1px solid var(--border);
   padding: 15px 17px;
+  transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
 .detail-footer > div {

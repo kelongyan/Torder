@@ -36,6 +36,7 @@ import { WindowTitleBar } from "../components/layout/WindowTitleBar";
 
 import { useAppInit } from "../hooks/useAppInit";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { usePresence } from "../hooks/usePresence";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
 
@@ -98,6 +99,20 @@ function App() {
     () => pickDefaultListId(scope, lists),
     [lists, scope],
   );
+  const contentKey = useMemo(
+    () =>
+      [
+        layout,
+        scope.kind,
+        scope.kind === "view" ? scope.view : scope.listId,
+        sortBy,
+        showCompleted,
+      ].join(":"),
+    [layout, scope, sortBy, showCompleted],
+  );
+  const createPresence = usePresence(createOpen, 280);
+  const shortcutsPresence = usePresence(shortcutsOpen, 280);
+  const confirmPresence = usePresence(confirmState, 280);
 
   const openCreateDialog = useCallback(() => setCreateOpen(true), []);
   const closeEverything = useCallback(() => {
@@ -244,73 +259,83 @@ function App() {
           )}
 
           <section className="content-panel" aria-label={`${currentTitle}任务`}>
-            {layout === "list" ? (
-              <TaskListView
-                tasks={tasks}
-                lists={lists}
-                loading={loading}
-                selectedTaskId={selectedTaskId}
-                batchMode={batchMode}
-                batchSelectedIds={batchSelectedIds}
-                searchQuery={searchQuery}
-                scope={scope}
-                onQuickAdd={openCreateDialog}
-                onOpen={(task) => selectTask(task.id)}
-                onToggle={(task) => void handleToggleTask(task)}
-                onDelete={requestDeleteTask}
-                onToggleBatchSelected={toggleBatchSelected}
-                onBatchComplete={() => void handleBatchComplete()}
-                onBatchDelete={requestBatchDelete}
-                onExitBatch={clearBatchSelection}
-              />
-            ) : layout === "board" ? (
-              <TaskBoard
-                tasks={tasks}
-                lists={lists}
-                searchQuery={searchQuery}
-                selectedTaskId={selectedTaskId}
-                onOpen={(task) => selectTask(task.id)}
-                onToggle={(task) => void handleToggleTask(task)}
-              />
-            ) : (
-              <TaskCalendar
-                tasks={tasks}
-                lists={lists}
-                searchQuery={searchQuery}
-                selectedTaskId={selectedTaskId}
-                onOpen={(task) => selectTask(task.id)}
-                onToggle={(task) => void handleToggleTask(task)}
-              />
-            )}
+            <div
+              key={contentKey}
+              className={`content-motion content-motion-${layout}`}
+            >
+              {layout === "list" ? (
+                <TaskListView
+                  tasks={tasks}
+                  lists={lists}
+                  loading={loading}
+                  selectedTaskId={selectedTaskId}
+                  batchMode={batchMode}
+                  batchSelectedIds={batchSelectedIds}
+                  searchQuery={searchQuery}
+                  scope={scope}
+                  onQuickAdd={openCreateDialog}
+                  onOpen={(task) => selectTask(task.id)}
+                  onToggle={(task) => void handleToggleTask(task)}
+                  onDelete={requestDeleteTask}
+                  onToggleBatchSelected={toggleBatchSelected}
+                  onBatchComplete={() => void handleBatchComplete()}
+                  onBatchDelete={requestBatchDelete}
+                  onExitBatch={clearBatchSelection}
+                />
+              ) : layout === "board" ? (
+                <TaskBoard
+                  tasks={tasks}
+                  lists={lists}
+                  searchQuery={searchQuery}
+                  selectedTaskId={selectedTaskId}
+                  onOpen={(task) => selectTask(task.id)}
+                  onToggle={(task) => void handleToggleTask(task)}
+                />
+              ) : (
+                <TaskCalendar
+                  tasks={tasks}
+                  lists={lists}
+                  searchQuery={searchQuery}
+                  selectedTaskId={selectedTaskId}
+                  onOpen={(task) => selectTask(task.id)}
+                  onToggle={(task) => void handleToggleTask(task)}
+                />
+              )}
+            </div>
           </section>
         </main>
+
+        <TaskDetailPanel
+          task={selectedTask}
+          lists={lists}
+          busy={loading}
+          onClose={() => selectTask(null)}
+          onSave={handleSaveTask}
+          onToggle={(task) => void handleToggleTask(task)}
+          onDelete={requestDeleteTask}
+        />
       </div>
 
-      <TaskDetailPanel
-        task={selectedTask}
-        lists={lists}
-        busy={loading}
-        onClose={() => selectTask(null)}
-        onSave={handleSaveTask}
-        onToggle={(task) => void handleToggleTask(task)}
-        onDelete={requestDeleteTask}
-      />
-
-      {createOpen && (
+      {createPresence.rendered && (
         <TaskCreateDialog
           lists={lists}
           defaultListId={defaultListId}
+          presence={createPresence.phase}
           onClose={() => setCreateOpen(false)}
           onSubmit={(input) => void handleCreateTask(input)}
         />
       )}
 
-      {shortcutsOpen && (
-        <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />
+      {shortcutsPresence.rendered && (
+        <ShortcutsDialog
+          presence={shortcutsPresence.phase}
+          onClose={() => setShortcutsOpen(false)}
+        />
       )}
 
       <ConfirmDialog
-        state={confirmState}
+        state={confirmPresence.value}
+        presence={confirmPresence.phase}
         onClose={() => setConfirmState(null)}
       />
 

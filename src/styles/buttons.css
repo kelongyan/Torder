@@ -12,6 +12,27 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-danger:hover,
+.btn-danger-solid:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary:active,
+.btn-secondary:active,
+.btn-danger:active,
+.btn-danger-solid:active {
+  transform: scale(0.985);
 }
 
 .btn-primary {
@@ -23,6 +44,7 @@
 .btn-primary:hover {
   border-color: var(--accent-hover);
   background: var(--accent-hover);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 .btn-secondary {
@@ -34,6 +56,7 @@
 .btn-secondary:hover {
   border-color: var(--border-light);
   color: var(--text-primary);
+  box-shadow: var(--shadow);
 }
 
 .btn-danger {
@@ -50,4 +73,8 @@
   border: 1px solid var(--red);
   background: var(--red);
   color: var(--on-danger);
+}
+
+.btn-danger-solid:hover {
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--red) 24%, transparent);
 }

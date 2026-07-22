@@ -15,6 +15,9 @@ body,
 
 body {
   background: var(--bg-primary);
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    color var(--motion-theme) var(--ease-standard);
 }
 
 button,
@@ -26,6 +29,7 @@ select {
 
 button {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:disabled {

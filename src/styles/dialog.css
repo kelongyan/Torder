@@ -7,6 +7,16 @@
   background: var(--overlay-bg);
   padding: 18px;
   backdrop-filter: blur(6px);
+  will-change: opacity, backdrop-filter;
+}
+
+.dialog-overlay.is-entering {
+  animation: overlay-in var(--motion-soft) var(--ease-standard) both;
+}
+
+.dialog-overlay.is-exiting {
+  animation: overlay-out var(--motion-fast) var(--ease-standard) both;
+  pointer-events: none;
 }
 
 .dialog-card {
@@ -16,8 +26,16 @@
   border: 1px solid var(--border-light);
   border-radius: 16px;
   background: var(--bg-secondary);
-  box-shadow: var(--shadow);
-  animation: dialog-in 220ms var(--transition);
+  box-shadow: var(--shadow-floating);
+  will-change: opacity, transform;
+}
+
+.dialog-overlay.is-entering .dialog-card {
+  animation: dialog-in var(--motion-panel) var(--ease-out) both;
+}
+
+.dialog-overlay.is-exiting .dialog-card {
+  animation: dialog-out var(--motion-fast) var(--ease-standard) both;
 }
 
 .confirm-card {
@@ -30,6 +48,7 @@
   gap: 13px;
   border-bottom: 1px solid var(--border);
   padding: 19px;
+  transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
 .dialog-header > div {
@@ -62,6 +81,10 @@
   border-radius: var(--radius);
   background: var(--accent-bg);
   color: var(--accent-hover);
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    color var(--motion-theme) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .dialog-icon.danger {
@@ -92,8 +115,9 @@
   font-size: 14px;
   line-height: 22px;
   transition:
-    border-color var(--transition),
-    box-shadow var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .form-field input {
@@ -140,6 +164,22 @@
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 20px;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+}
+
+.choice-pill:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  transform: translateY(-1px);
+}
+
+.choice-pill:active {
+  transform: scale(0.98);
 }
 
 .choice-pill.selected {
@@ -150,6 +190,8 @@
     transparent
   );
   color: var(--priority-color, var(--accent-hover));
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--priority-color, var(--accent)) 10%, transparent);
 }
 
 .color-row {
@@ -162,10 +204,20 @@
   height: 32px;
   border: 3px solid transparent;
   border-radius: 50%;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .color-row button.selected {
   border-color: var(--text-primary);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+  transform: scale(1.06);
+}
+
+.color-row button:hover {
+  transform: scale(1.08);
 }
 
 .date-time-field {
@@ -191,9 +243,11 @@
   color: var(--text-primary);
   text-align: left;
   transition:
-    border-color var(--transition),
-    box-shadow var(--transition),
-    background-color var(--transition);
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
 }
 
 .date-time-trigger:hover,
@@ -201,6 +255,7 @@
   border-color: var(--accent);
   background: var(--bg-hover);
   box-shadow: 0 0 0 3px var(--focus-ring);
+  transform: translateY(-1px);
 }
 
 .date-time-trigger > span {
@@ -233,12 +288,18 @@
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
   color: var(--text-muted);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .date-time-clear:hover {
   border-color: var(--border-light);
   background: var(--bg-hover);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .date-time-clear svg {
@@ -259,7 +320,18 @@
   border-radius: var(--radius);
   background: linear-gradient(180deg, var(--bg-secondary), var(--bg-tertiary));
   padding: 14px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-floating);
+  transform-origin: center bottom;
+  will-change: opacity, transform;
+}
+
+.date-picker-panel.is-entering {
+  animation: picker-in var(--motion-soft) var(--ease-out) both;
+}
+
+.date-picker-panel.is-exiting {
+  animation: picker-out var(--motion-fast) var(--ease-standard) both;
+  pointer-events: none;
 }
 
 .date-picker-toolbar {
@@ -287,12 +359,18 @@
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
   color: var(--text-secondary);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .date-picker-nav:hover {
   border-color: var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent-hover);
+  transform: scale(1.04);
 }
 
 .date-picker-nav svg {
@@ -325,12 +403,18 @@
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 18px;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .date-picker-day:hover {
   border-color: var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent-hover);
+  transform: scale(1.04);
 }
 
 .date-picker-day.muted {
@@ -441,6 +525,7 @@
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .dialog-footer {
@@ -449,6 +534,7 @@
   gap: 10px;
   border-top: 1px solid var(--border);
   padding: 15px 19px;
+  transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
 .shortcut-row {

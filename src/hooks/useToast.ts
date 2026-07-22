@@ -8,8 +8,15 @@ export function useToast() {
     const id = Date.now() + Math.random();
     setToasts((current) => [...current, { id, type, message }]);
     window.setTimeout(() => {
+      setToasts((current) =>
+        current.map((toast) =>
+          toast.id === id ? { ...toast, leaving: true } : toast,
+        ),
+      );
+    }, 2200);
+    window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, 2400);
+    }, 2520);
   }, []);
 
   return { toasts, pushToast };

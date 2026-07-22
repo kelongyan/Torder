@@ -33,9 +33,20 @@
   --scrollbar-thumb: rgba(189, 147, 249, 0.44);
   --detail-shadow: -12px 0 28px rgba(0, 0, 0, 0.22);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.28);
+  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.24);
+  --shadow-floating: 0 18px 48px rgba(0, 0, 0, 0.32);
   --radius: 10px;
   --radius-sm: 6px;
-  --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-micro: 120ms;
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+  --motion-soft: 260ms;
+  --motion-panel: 320ms;
+  --motion-theme: 220ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition: var(--motion-base) var(--ease-standard);
   font-family:
     "Source Han Sans SC", "Noto Sans SC", "Noto Sans CJK SC",
     "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
@@ -85,4 +96,6 @@
   --scrollbar-thumb: rgba(99, 102, 241, 0.36);
   --detail-shadow: -12px 0 28px rgba(0, 0, 0, 0.16);
   --shadow: 0 4px 24px rgba(20, 24, 36, 0.1);
+  --shadow-lift: 0 12px 28px rgba(20, 24, 36, 0.13);
+  --shadow-floating: 0 22px 54px rgba(20, 24, 36, 0.18);
 }

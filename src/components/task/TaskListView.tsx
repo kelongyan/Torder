@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import type { Task, TaskList, TaskScope } from "../../types/database";
 import { EmptyState } from "../common/EmptyState";
@@ -40,8 +41,13 @@ export function TaskListView({
   onBatchDelete: () => void;
   onExitBatch: () => void;
 }) {
-  const activeTasks = tasks.filter((task) => task.status !== "done");
-  const completedTasks = tasks.filter((task) => task.status === "done");
+  const animatedTasks = useAnimatedTasks(tasks);
+  const activeTasks = animatedTasks.filter((item) => item.task.status !== "done");
+  const completedTasks = animatedTasks.filter(
+    (item) => item.task.status === "done",
+  );
+  const activeCount = activeTasks.filter((item) => !item.leaving).length;
+  const completedCount = completedTasks.filter((item) => !item.leaving).length;
 
   if (loading && tasks.length === 0) {
     return (
@@ -84,16 +90,18 @@ export function TaskListView({
       <TaskQuickAdd onClick={onQuickAdd} />
       {activeTasks.length > 0 && (
         <>
-          <SectionHeader label={`进行中 · ${activeTasks.length}`} />
-          {activeTasks.map((task, index) => (
+          <SectionHeader label={`进行中 · ${activeCount}`} />
+          {activeTasks.map((item, index) => (
             <TaskRow
-              key={task.id}
-              task={task}
+              key={item.task.id}
+              task={item.task}
               lists={lists}
-              selected={task.id === selectedTaskId}
+              selected={item.task.id === selectedTaskId}
               last={index === activeTasks.length - 1 && completedTasks.length === 0}
               batchMode={batchMode}
-              batchSelected={batchSelectedIds.includes(task.id)}
+              batchSelected={batchSelectedIds.includes(item.task.id)}
+              leaving={item.leaving}
+              motionIndex={index}
               searchQuery={searchQuery}
               onOpen={onOpen}
               onToggle={onToggle}
@@ -105,16 +113,18 @@ export function TaskListView({
       )}
       {completedTasks.length > 0 && (
         <>
-          <SectionHeader label={`已完成 · ${completedTasks.length}`} />
-          {completedTasks.map((task, index) => (
+          <SectionHeader label={`已完成 · ${completedCount}`} />
+          {completedTasks.map((item, index) => (
             <TaskRow
-              key={task.id}
-              task={task}
+              key={item.task.id}
+              task={item.task}
               lists={lists}
-              selected={task.id === selectedTaskId}
+              selected={item.task.id === selectedTaskId}
               last={index === completedTasks.length - 1}
               batchMode={batchMode}
-              batchSelected={batchSelectedIds.includes(task.id)}
+              batchSelected={batchSelectedIds.includes(item.task.id)}
+              leaving={item.leaving}
+              motionIndex={activeTasks.length + index}
               searchQuery={searchQuery}
               onOpen={onOpen}
               onToggle={onToggle}
@@ -126,4 +136,41 @@ export function TaskListView({
       )}
     </div>
   );
+}
+
+interface AnimatedTask {
+  task: Task;
+  leaving: boolean;
+}
+
+function useAnimatedTasks(tasks: Task[]): AnimatedTask[] {
+  const [items, setItems] = useState<AnimatedTask[]>(
+    tasks.map((task) => ({ task, leaving: false })),
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const nextIds = new Set(tasks.map((task) => task.id));
+      setItems((current) => [
+        ...tasks.map((task) => ({ task, leaving: false })),
+        ...current
+          .filter((item) => !nextIds.has(item.task.id) && !item.leaving)
+          .map((item) => ({ ...item, leaving: true })),
+      ]);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!items.some((item) => item.leaving)) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setItems((current) => current.filter((item) => !item.leaving));
+    }, 280);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [items]);
+
+  return items;
 }

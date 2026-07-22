@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { fromDateTimeLocal } from "../../app/taskDates";
+import type { PresencePhase } from "../../hooks/usePresence";
 import type { CreateTaskInput, TaskList } from "../../types/database";
 import { emptyDraft, type TaskDraft } from "../../utils/taskHelpers";
 import { DialogFooter } from "./DialogFooter";
@@ -10,11 +11,13 @@ import { TaskFormFields } from "../task/TaskFormFields";
 export function TaskCreateDialog({
   lists,
   defaultListId,
+  presence,
   onClose,
   onSubmit,
 }: {
   lists: TaskList[];
   defaultListId: string;
+  presence: PresencePhase;
   onClose: () => void;
   onSubmit: (input: CreateTaskInput) => void;
 }) {
@@ -38,6 +41,7 @@ export function TaskCreateDialog({
       title="新建任务"
       subtitle="把下一件事放进合适的清单"
       icon={Plus}
+      presence={presence}
       onClose={onClose}
       width="580px"
     >
