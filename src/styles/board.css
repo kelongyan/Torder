@@ -2,7 +2,7 @@
   display: grid;
   min-height: 100%;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .board-column {
@@ -18,7 +18,7 @@
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
-  padding: 13px 14px;
+  padding: 14px 15px;
 }
 
 .board-column h2 {
@@ -28,15 +28,17 @@
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
+  line-height: 21px;
   letter-spacing: 0;
 }
 
 .board-column header span:last-child {
   border-radius: 999px;
   background: var(--bg-tertiary);
-  padding: 2px 7px;
+  padding: 2px 7px 3px;
   color: var(--text-muted);
   font-size: 11px;
+  line-height: 17px;
 }
 
 .board-dot,
@@ -50,15 +52,15 @@
 
 .board-cards {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 11px;
+  padding: 13px;
 }
 
 .board-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-primary);
-  padding: 12px;
+  padding: 13px;
   transition:
     border-color var(--transition),
     background-color var(--transition);
@@ -87,19 +89,20 @@
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
-  line-height: 21px;
+  line-height: 22px;
   letter-spacing: 0;
 }
 
 .board-card p {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: var(--text-secondary);
   font-size: 12px;
-  line-height: 19px;
+  line-height: 20px;
 }
 
 .board-card-footer {
   justify-content: space-between;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 18px;
 }

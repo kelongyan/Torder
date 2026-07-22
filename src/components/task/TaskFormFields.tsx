@@ -1,3 +1,4 @@
+import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { TaskList } from "../../types/database";
 import type { TaskDraft } from "../../utils/taskHelpers";
@@ -20,7 +21,9 @@ export function TaskFormFields({
         <input
           autoFocus
           value={draft.title}
-          onChange={(event) => onChange({ ...draft, title: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...draft, title: event.target.value })
+          }
           className={titleInvalid ? "invalid" : ""}
           placeholder="输入任务名称..."
         />
@@ -52,22 +55,28 @@ export function TaskFormFields({
       <div className="form-field">
         <span>所属清单</span>
         <div className="pill-group wrap">
-          {lists.map((list) => (
-            <button
-              key={list.id}
-              type="button"
-              className={`choice-pill ${draft.listId === list.id ? "selected" : ""}`}
-              style={
-                draft.listId === list.id
-                  ? { borderColor: list.color ?? "#6366f1", color: list.color ?? "#6366f1" }
-                  : undefined
-              }
-              onClick={() => onChange({ ...draft, listId: list.id })}
-            >
-              <span className="list-dot" style={{ backgroundColor: list.color ?? "#6366f1" }} />
-              {list.name}
-            </button>
-          ))}
+          {lists.map((list) => {
+            const listColor = list.color ?? DEFAULT_LIST_COLOR;
+            return (
+              <button
+                key={list.id}
+                type="button"
+                className={`choice-pill ${draft.listId === list.id ? "selected" : ""}`}
+                style={
+                  draft.listId === list.id
+                    ? { borderColor: listColor, color: listColor }
+                    : undefined
+                }
+                onClick={() => onChange({ ...draft, listId: list.id })}
+              >
+                <span
+                  className="list-dot"
+                  style={{ backgroundColor: listColor }}
+                />
+                {list.name}
+              </button>
+            );
+          })}
         </div>
       </div>
       <label className="form-field">
@@ -75,7 +84,9 @@ export function TaskFormFields({
         <input
           type="datetime-local"
           value={draft.dueAt}
-          onChange={(event) => onChange({ ...draft, dueAt: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...draft, dueAt: event.target.value })
+          }
         />
       </label>
     </>

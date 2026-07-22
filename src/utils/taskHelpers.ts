@@ -5,14 +5,10 @@ import {
   Star,
   type LucideIcon,
 } from "lucide-react";
+import { toDateTimeLocal } from "../app/taskDates";
 import { taskViewCopy } from "../app/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
-import type {
-  SystemView,
-  Task,
-  TaskList,
-  TaskScope,
-} from "../types/database";
+import type { SystemView, Task, TaskList, TaskScope } from "../types/database";
 
 export interface TaskDraft {
   title: string;
@@ -39,12 +35,15 @@ export function buildCounts(tasks: Task[], lists: TaskList[]) {
     all: tasks.length,
     today: tasks.filter((task) => matchesViewCount(task, "today")).length,
     planned: tasks.filter((task) => matchesViewCount(task, "planned")).length,
-    important: tasks.filter((task) => matchesViewCount(task, "important")).length,
+    important: tasks.filter((task) => matchesViewCount(task, "important"))
+      .length,
     completed: tasks.filter((task) => task.status === "done").length,
   };
   const listCounts: Record<string, number> = {};
   for (const list of lists) {
-    listCounts[list.id] = tasks.filter((task) => task.listId === list.id).length;
+    listCounts[list.id] = tasks.filter(
+      (task) => task.listId === list.id,
+    ).length;
   }
   return { views, lists: listCounts };
 }
@@ -86,7 +85,10 @@ export function emptyDraft(defaultListId: string): TaskDraft {
   };
 }
 
-export function createTaskDraft(task: Task | null, lists: TaskList[]): TaskDraft {
+export function createTaskDraft(
+  task: Task | null,
+  lists: TaskList[],
+): TaskDraft {
   if (!task) return emptyDraft(pickDefaultListId(defaultTaskScope, lists));
   return {
     title: task.title,
@@ -130,13 +132,4 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 
 export function normalizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function toDateTimeLocal(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const localDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60_000,
-  );
-  return localDate.toISOString().slice(0, 16);
 }

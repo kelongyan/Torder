@@ -1,7 +1,7 @@
 .calendar-view {
   display: grid;
   width: min(100%, 1060px);
-  gap: 18px;
+  gap: 19px;
   margin: 0 auto;
 }
 
@@ -21,7 +21,7 @@
   gap: 10px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
-  padding: 13px 16px;
+  padding: 14px 17px;
 }
 
 .calendar-group h2 {
@@ -29,7 +29,7 @@
   color: var(--text-primary);
   font-size: 15px;
   font-weight: 700;
-  line-height: 21px;
+  line-height: 23px;
   letter-spacing: 0;
 }
 
@@ -43,6 +43,7 @@
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 500;
+  line-height: 18px;
 }
 
 .calendar-items {

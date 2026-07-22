@@ -90,20 +90,20 @@ const MIGRATIONS: &[Migration] = &[
           AND name IN ('工作', '个人', '学习');
 
         INSERT OR IGNORE INTO lists (id, name, color, sort_order, is_default)
-        VALUES ('work', '工作', '#6366f1', 0, 1);
+        VALUES ('work', '工作', '#bd93f9', 0, 1);
         INSERT OR IGNORE INTO lists (id, name, color, sort_order, is_default)
-        VALUES ('personal', '个人', '#22c55e', 1, 1);
+        VALUES ('personal', '个人', '#50fa7b', 1, 1);
         INSERT OR IGNORE INTO lists (id, name, color, sort_order, is_default)
-        VALUES ('study', '学习', '#a855f7', 2, 1);
+        VALUES ('study', '学习', '#8be9fd', 2, 1);
 
         UPDATE lists
-        SET name = '工作', color = '#6366f1', sort_order = 0, is_default = 1
+        SET name = '工作', color = '#bd93f9', sort_order = 0, is_default = 1
         WHERE id = 'work';
         UPDATE lists
-        SET name = '个人', color = '#22c55e', sort_order = 1, is_default = 1
+        SET name = '个人', color = '#50fa7b', sort_order = 1, is_default = 1
         WHERE id = 'personal';
         UPDATE lists
-        SET name = '学习', color = '#a855f7', sort_order = 2, is_default = 1
+        SET name = '学习', color = '#8be9fd', sort_order = 2, is_default = 1
         WHERE id = 'study';
         UPDATE lists
         SET is_default = 0
@@ -163,6 +163,29 @@ const MIGRATIONS: &[Migration] = &[
         WHERE key = 'theme'
           AND value NOT IN ('"dark"', '"light"', '"system"');
         "#,
+    },
+    Migration {
+        version: 4,
+        name: "apply_dracula_default_list_colors",
+        sql: r##"
+        UPDATE lists
+        SET color = '#bd93f9', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = 'work'
+          AND is_default = 1
+          AND (color IS NULL OR lower(color) = '#6366f1');
+
+        UPDATE lists
+        SET color = '#50fa7b', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = 'personal'
+          AND is_default = 1
+          AND (color IS NULL OR lower(color) = '#22c55e');
+
+        UPDATE lists
+        SET color = '#8be9fd', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = 'study'
+          AND is_default = 1
+          AND (color IS NULL OR lower(color) = '#a855f7');
+        "##,
     },
 ];
 

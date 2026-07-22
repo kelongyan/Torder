@@ -6,7 +6,7 @@
   flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--bg-secondary);
-  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--detail-shadow);
 }
 
 .detail-panel.hidden {
@@ -20,9 +20,9 @@
 .detail-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 13px;
   border-bottom: 1px solid var(--border);
-  padding: 18px;
+  padding: 19px;
 }
 
 .detail-header div {
@@ -34,6 +34,7 @@
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
+  line-height: 18px;
 }
 
 .detail-header h2 {
@@ -42,7 +43,7 @@
   color: var(--text-primary);
   font-size: 18px;
   font-weight: 700;
-  line-height: 26px;
+  line-height: 27px;
   letter-spacing: 0;
 }
 
@@ -50,14 +51,14 @@
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 18px;
+  padding: 19px;
 }
 
 .detail-block {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
-  padding: 0 0 16px;
+  padding: 0 0 17px;
   margin-bottom: 16px;
 }
 
@@ -66,23 +67,23 @@
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
-  line-height: 16px;
+  line-height: 18px;
 }
 
 .detail-block div {
   overflow-wrap: anywhere;
   color: var(--text-primary);
   font-size: 14px;
-  line-height: 22px;
+  line-height: 23px;
 }
 
 .detail-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 11px;
   border-top: 1px solid var(--border);
-  padding: 14px 16px;
+  padding: 15px 17px;
 }
 
 .detail-footer > div {

@@ -3,12 +3,13 @@
   align-items: center;
   gap: 10px;
   margin: 14px 22px 0;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius);
-  background: rgba(239, 68, 68, 0.1);
-  padding: 10px 12px;
+  background: var(--danger-bg);
+  padding: 11px 13px;
   color: var(--red);
   font-size: 13px;
+  line-height: 20px;
 }
 
 .alert-banner span {
@@ -32,7 +33,7 @@
   min-height: 280px;
   place-items: center;
   align-content: center;
-  gap: 10px;
+  gap: 11px;
   color: var(--text-muted);
   text-align: center;
 }
@@ -47,14 +48,14 @@
   margin: 0;
   color: var(--text-primary);
   font-size: 18px;
-  line-height: 26px;
+  line-height: 27px;
 }
 
 .empty-state p {
   max-width: 320px;
   margin: 0;
   font-size: 13px;
-  line-height: 21px;
+  line-height: 22px;
 }
 
 .skeleton-list {
@@ -66,7 +67,12 @@
 .skeleton-list span {
   height: 74px;
   border-radius: var(--radius);
-  background: linear-gradient(90deg, var(--bg-secondary), var(--bg-tertiary), var(--bg-secondary));
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary),
+    var(--bg-tertiary),
+    var(--bg-secondary)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -85,12 +91,14 @@
   display: flex;
   min-width: 180px;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-secondary);
-  padding: 10px 12px;
+  padding: 11px 13px;
   color: var(--text-primary);
+  font-size: 13px;
+  line-height: 20px;
   box-shadow: var(--shadow);
   animation: toast-in 220ms var(--transition);
 }

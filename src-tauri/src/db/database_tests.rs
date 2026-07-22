@@ -15,7 +15,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
     let database = Database::initialize(database_path.clone())?;
 
     let status = database.status()?;
-    assert_eq!(status.schema_version, 3);
+    assert_eq!(status.schema_version, 4);
     assert_eq!(status.list_count, 3);
     assert_eq!(status.task_count, 0);
 
@@ -26,6 +26,13 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
             .map(|list| list.id.as_str())
             .collect::<Vec<_>>(),
         vec!["work", "personal", "study"]
+    );
+    assert_eq!(
+        default_lists
+            .iter()
+            .map(|list| list.color.as_deref())
+            .collect::<Vec<_>>(),
+        vec![Some("#bd93f9"), Some("#50fa7b"), Some("#8be9fd")]
     );
 
     let task_repository = TaskRepository::new(&database);
@@ -74,7 +81,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
 
     drop(database);
     let reopened_database = Database::initialize(database_path.clone())?;
-    assert_eq!(reopened_database.status()?.schema_version, 3);
+    assert_eq!(reopened_database.status()?.schema_version, 4);
     assert_eq!(
         TaskRepository::new(&reopened_database)
             .get(&persistent_task.id)?

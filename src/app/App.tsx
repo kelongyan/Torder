@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, X } from "lucide-react";
 import { applyThemePreference } from "./theme";
-import { createList, listLists } from "../services/listService";
 import { saveAppSetting } from "../services/settingsService";
-import {
-  useTaskStore,
-} from "../stores/taskStore";
+import { useTaskStore } from "../stores/taskStore";
 import type {
   CreateTaskInput,
   Task,
@@ -32,7 +29,6 @@ import { TaskBoard } from "../components/task/TaskBoard";
 import { TaskCalendar } from "../components/task/TaskCalendar";
 import { TaskDetailPanel } from "../components/detail/TaskDetailPanel";
 import { TaskCreateDialog } from "../components/dialog/TaskCreateDialog";
-import { ListCreateDialog } from "../components/dialog/ListCreateDialog";
 import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -47,7 +43,6 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
   const [appError, setAppError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [listDialogOpen, setListDialogOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -108,7 +103,6 @@ function App() {
     setMenuOpen(false);
     setShortcutsOpen(false);
     setCreateOpen(false);
-    setListDialogOpen(false);
     setConfirmState(null);
     clearBatchSelection();
   }, [clearBatchSelection]);
@@ -124,10 +118,6 @@ function App() {
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
 
-  async function refreshLists() {
-    setLists(await listLists());
-  }
-
   async function handleSelectScope(nextScope: TaskScope) {
     setMenuOpen(false);
     selectTask(null);
@@ -136,7 +126,8 @@ function App() {
   }
 
   async function handleThemeToggle() {
-    const nextTheme: ThemePreference = settings.theme === "dark" ? "light" : "dark";
+    const nextTheme: ThemePreference =
+      settings.theme === "dark" ? "light" : "dark";
     await saveAppSetting("theme", nextTheme);
     setSettings((current) => ({ ...current, theme: nextTheme }));
   }
@@ -145,13 +136,6 @@ function App() {
     await addTask(input);
     setCreateOpen(false);
     pushToast("任务已创建", "success");
-  }
-
-  async function handleCreateList(name: string, color: string) {
-    await createList({ name, color, sortOrder: lists.length });
-    await refreshLists();
-    setListDialogOpen(false);
-    pushToast("清单已创建", "success");
   }
 
   async function handleToggleTask(task: Task) {
@@ -220,7 +204,6 @@ function App() {
         counts={counts}
         onSearchChange={(query) => void setSearchQuery(query)}
         onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
-        onNewList={() => setListDialogOpen(true)}
       />
 
       <main className="main">
@@ -303,7 +286,7 @@ function App() {
         lists={lists}
         busy={loading}
         onClose={() => selectTask(null)}
-        onSave={(input) => void handleSaveTask(input)}
+        onSave={handleSaveTask}
         onToggle={(task) => void handleToggleTask(task)}
         onDelete={requestDeleteTask}
       />
@@ -317,14 +300,9 @@ function App() {
         />
       )}
 
-      {listDialogOpen && (
-        <ListCreateDialog
-          onClose={() => setListDialogOpen(false)}
-          onSubmit={(name, color) => void handleCreateList(name, color)}
-        />
+      {shortcutsOpen && (
+        <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />
       )}
-
-      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
 
       <ConfirmDialog
         state={confirmState}

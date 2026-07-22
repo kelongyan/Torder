@@ -41,7 +41,7 @@ select {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(99, 102, 241, 0.36) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -56,7 +56,7 @@ select {
 *::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.36);
+  background: var(--scrollbar-thumb);
   background-clip: padding-box;
 }
 

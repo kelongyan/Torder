@@ -49,8 +49,7 @@
   }
 
   .nav-group-label,
-  .sidebar-divider,
-  .new-list-button {
+  .sidebar-divider {
     display: none;
   }
 

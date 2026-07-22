@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { DEFAULT_LIST_COLOR, defaultListColors } from "../constants/listConfig";
 import type { TaskList } from "../types/database";
 
 export interface CreateListInput {
@@ -15,9 +16,9 @@ export interface UpdateListInput {
 }
 
 let browserLists: TaskList[] = [
-  defaultList("work", "工作", "#6366f1", 0),
-  defaultList("personal", "个人", "#22c55e", 1),
-  defaultList("study", "学习", "#a855f7", 2),
+  defaultList("work", "工作", defaultListColors.work, 0),
+  defaultList("personal", "个人", defaultListColors.personal, 1),
+  defaultList("study", "学习", defaultListColors.study, 2),
 ];
 
 export function listLists(): Promise<TaskList[]> {
@@ -35,7 +36,7 @@ export function createList(input: CreateListInput): Promise<TaskList> {
     const list: TaskList = {
       id: `list-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       name,
-      color: input.color ?? "#6366f1",
+      color: input.color ?? DEFAULT_LIST_COLOR,
       sortOrder: input.sortOrder ?? browserLists.length,
       isDefault: false,
       createdAt: timestamp,
@@ -121,6 +122,7 @@ function ensureBrowserNameAvailable(name: string, currentId?: string): void {
 }
 
 function compareLists(left: TaskList, right: TaskList): number {
-  if (left.sortOrder !== right.sortOrder) return left.sortOrder - right.sortOrder;
+  if (left.sortOrder !== right.sortOrder)
+    return left.sortOrder - right.sortOrder;
   return left.createdAt.localeCompare(right.createdAt);
 }

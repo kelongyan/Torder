@@ -4,7 +4,7 @@
   z-index: 50;
   display: grid;
   place-items: center;
-  background: rgba(4, 6, 12, 0.58);
+  background: var(--overlay-bg);
   padding: 18px;
   backdrop-filter: blur(6px);
 }
@@ -27,9 +27,9 @@
 .dialog-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 13px;
   border-bottom: 1px solid var(--border);
-  padding: 18px;
+  padding: 19px;
 }
 
 .dialog-header > div {
@@ -42,15 +42,15 @@
   color: var(--text-primary);
   font-size: 18px;
   font-weight: 700;
-  line-height: 24px;
+  line-height: 26px;
   letter-spacing: 0;
 }
 
 .dialog-header p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: var(--text-muted);
   font-size: 13px;
-  line-height: 20px;
+  line-height: 21px;
 }
 
 .dialog-icon {
@@ -65,20 +65,20 @@
 }
 
 .dialog-icon.danger {
-  background: rgba(239, 68, 68, 0.12);
+  background: var(--danger-bg);
   color: var(--red);
 }
 
 .dialog-form,
 .shortcut-list {
   display: grid;
-  gap: 18px;
-  padding: 18px;
+  gap: 19px;
+  padding: 19px;
 }
 
 .form-field {
   display: grid;
-  gap: 8px;
+  gap: 9px;
 }
 
 .form-field input,
@@ -90,32 +90,32 @@
   background: var(--bg-tertiary);
   color: var(--text-primary);
   font-size: 14px;
-  line-height: 20px;
+  line-height: 22px;
   transition:
     border-color var(--transition),
     box-shadow var(--transition);
 }
 
 .form-field input {
-  min-height: 40px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 13px;
 }
 
 .form-field textarea {
   resize: vertical;
-  min-height: 94px;
-  padding: 10px 12px;
+  min-height: 98px;
+  padding: 10px 13px;
 }
 
 .form-field input:focus,
 .form-field textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .form-field .invalid {
   border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+  box-shadow: 0 0 0 3px var(--danger-bg);
 }
 
 .pill-group {
@@ -130,20 +130,25 @@
 
 .choice-pill {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 36px;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
-  padding: 0 12px;
+  padding: 0 13px;
   color: var(--text-secondary);
   font-size: 13px;
+  line-height: 20px;
 }
 
 .choice-pill.selected {
   border-color: var(--priority-color, var(--accent));
-  background: color-mix(in srgb, var(--priority-color, var(--accent)) 14%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--priority-color, var(--accent)) 14%,
+    transparent
+  );
   color: var(--priority-color, var(--accent-hover));
 }
 
@@ -168,7 +173,7 @@
   justify-content: flex-end;
   gap: 10px;
   border-top: 1px solid var(--border);
-  padding: 14px 18px;
+  padding: 15px 19px;
 }
 
 .shortcut-row {
@@ -180,6 +185,7 @@
   padding-bottom: 12px;
   color: var(--text-secondary);
   font-size: 14px;
+  line-height: 22px;
 }
 
 .shortcut-row:last-child {

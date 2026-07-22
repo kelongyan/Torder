@@ -72,9 +72,9 @@ impl Database {
     fn initialize_default_lists(connection: &mut Connection) -> RepositoryResult<()> {
         let transaction = connection.transaction()?;
         for (id, name, color, sort_order) in [
-            ("work", "工作", "#6366f1", 0),
-            ("personal", "个人", "#22c55e", 1),
-            ("study", "学习", "#a855f7", 2),
+            ("work", "工作", "#bd93f9", 0),
+            ("personal", "个人", "#50fa7b", 1),
+            ("study", "学习", "#8be9fd", 2),
         ] {
             transaction.execute(
                 r#"

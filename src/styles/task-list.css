@@ -6,14 +6,14 @@
 .quick-add {
   display: grid;
   width: 100%;
-  min-height: 48px;
+  min-height: 50px;
   grid-template-columns: 20px 1fr auto;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   border: 1px dashed var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-secondary);
-  padding: 0 16px;
+  padding: 0 17px;
   color: var(--text-secondary);
   text-align: left;
   transition:
@@ -33,28 +33,28 @@ kbd {
   border: 1px solid var(--border-light);
   border-radius: 5px;
   background: var(--bg-tertiary);
-  padding: 2px 6px;
+  padding: 2px 6px 3px;
   color: var(--text-muted);
   font-size: 11px;
-  line-height: 16px;
+  line-height: 17px;
 }
 
 .section-header {
-  margin: 22px 0 10px;
+  margin: 23px 0 11px;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
-  line-height: 16px;
+  line-height: 18px;
 }
 
 .task-item {
   position: relative;
   display: flex;
-  min-height: 78px;
-  gap: 12px;
+  min-height: 82px;
+  gap: 14px;
   border: 1px solid transparent;
   border-radius: var(--radius);
-  padding: 12px 12px 12px 44px;
+  padding: 13px 14px 13px 46px;
   transition:
     border-color var(--transition),
     background-color var(--transition);
@@ -117,7 +117,8 @@ kbd {
 .timeline-dot.priority-medium,
 .timeline-dot.priority-low {
   background: var(--priority-color);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--priority-color) 46%, transparent);
+  box-shadow: 0 0 10px
+    color-mix(in srgb, var(--priority-color) 46%, transparent);
 }
 
 .timeline-dot.completed-dot {
@@ -134,7 +135,7 @@ kbd {
   border: 1px solid var(--border-light);
   border-radius: 50%;
   background: transparent;
-  color: var(--bg-primary);
+  color: var(--on-success);
   margin-top: 2px;
   transition:
     border-color var(--transition),
@@ -175,21 +176,21 @@ kbd {
   color: var(--text-primary);
   font-size: 15px;
   font-weight: 600;
-  line-height: 22px;
+  line-height: 23px;
   letter-spacing: 0;
 }
 
 .task-content p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   overflow-wrap: anywhere;
   color: var(--text-secondary);
   font-size: 13px;
-  line-height: 20px;
+  line-height: 21px;
 }
 
 mark {
   border-radius: 3px;
-  background: rgba(245, 158, 11, 0.22);
+  background: var(--highlight-bg);
   color: inherit;
   padding: 0 2px;
 }
@@ -200,8 +201,8 @@ mark {
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 9px;
 }
 
 .list-badge,
@@ -214,10 +215,10 @@ mark {
   align-items: center;
   gap: 4px;
   border-radius: var(--radius-sm);
-  padding: 2px 7px;
-  font-size: 11px;
+  padding: 2px 7px 3px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 17px;
+  line-height: 18px;
 }
 
 .priority-pill {
@@ -240,7 +241,7 @@ mark {
 
 .status-pill.done,
 .today-badge {
-  background: rgba(34, 197, 94, 0.13);
+  background: var(--success-bg);
   color: var(--green);
 }
 
@@ -285,12 +286,12 @@ mark {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 9px;
+  margin-bottom: 15px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-secondary);
-  padding: 10px 12px;
+  padding: 11px 13px;
   box-shadow: var(--shadow);
 }
 
@@ -299,19 +300,21 @@ mark {
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 600;
+  line-height: 20px;
 }
 
 .batch-bar button {
   display: inline-flex;
-  min-height: 30px;
+  min-height: 32px;
   align-items: center;
   gap: 5px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
-  padding: 0 9px;
+  padding: 0 10px;
   color: var(--text-secondary);
   font-size: 12px;
+  line-height: 18px;
 }
 
 .batching .task-item {

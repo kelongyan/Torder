@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { Trash2, X } from "lucide-react";
-import { formatTaskDateTime } from "../../app/taskDates";
-import { fromDateTimeLocal } from "../../app/taskDates";
+import { formatTaskDateTime, fromDateTimeLocal } from "../../app/taskDates";
+import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList, UpdateTaskInput } from "../../types/database";
-import {
-  createTaskDraft,
-  type TaskDraft,
-} from "../../utils/taskHelpers";
+import { createTaskDraft, type TaskDraft } from "../../utils/taskHelpers";
 import { DetailBlock } from "./DetailBlock";
 import { TaskFormFields } from "../task/TaskFormFields";
 
@@ -24,7 +21,7 @@ export function TaskDetailPanel({
   lists: TaskList[];
   busy: boolean;
   onClose: () => void;
-  onSave: (input: UpdateTaskInput) => void;
+  onSave: (input: UpdateTaskInput) => Promise<void> | void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
 }) {
@@ -59,18 +56,21 @@ function TaskDetailContent({
   lists: TaskList[];
   busy: boolean;
   onClose: () => void;
-  onSave: (input: UpdateTaskInput) => void;
+  onSave: (input: UpdateTaskInput) => Promise<void> | void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<TaskDraft>(() => createTaskDraft(task, lists));
+  const [draft, setDraft] = useState<TaskDraft>(() =>
+    createTaskDraft(task, lists),
+  );
 
   const list = lists.find((item) => item.id === task.listId) ?? null;
+  const listColor = list?.color ?? DEFAULT_LIST_COLOR;
 
-  function handleSave() {
+  async function handleSave() {
     if (!draft.title.trim()) return;
-    onSave({
+    await onSave({
       id: task.id,
       title: draft.title,
       note: draft.note.trim() || null,
@@ -90,7 +90,12 @@ function TaskDetailContent({
           <span>任务详情</span>
           <h2>{editing ? "编辑任务" : task.title}</h2>
         </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="关闭详情">
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onClose}
+          aria-label="关闭详情"
+        >
           <X aria-hidden="true" />
         </button>
       </header>
@@ -103,7 +108,9 @@ function TaskDetailContent({
             <DetailBlock label="任务名称">{task.title}</DetailBlock>
             <DetailBlock label="描述">{task.note || "暂无描述"}</DetailBlock>
             <DetailBlock label="优先级">
-              <span className={`priority-pill ${priorityCopy[task.priority].className}`}>
+              <span
+                className={`priority-pill ${priorityCopy[task.priority].className}`}
+              >
                 {priorityCopy[task.priority].label}
               </span>
             </DetailBlock>
@@ -111,8 +118,8 @@ function TaskDetailContent({
               <span
                 className="list-badge"
                 style={{
-                  color: list?.color ?? "#6366f1",
-                  backgroundColor: `${list?.color ?? "#6366f1"}24`,
+                  color: listColor,
+                  backgroundColor: `${listColor}24`,
                 }}
               >
                 {list?.name ?? "未分类"}
@@ -122,7 +129,9 @@ function TaskDetailContent({
               {formatTaskDateTime(task.dueAt)}
             </DetailBlock>
             <DetailBlock label="状态">
-              <span className={`status-pill ${task.status === "done" ? "done" : ""}`}>
+              <span
+                className={`status-pill ${task.status === "done" ? "done" : ""}`}
+              >
                 {task.status === "done" ? "已完成" : "进行中"}
               </span>
             </DetailBlock>
@@ -131,7 +140,11 @@ function TaskDetailContent({
       </div>
 
       <footer className="detail-footer">
-        <button type="button" className="btn-danger" onClick={() => onDelete(task)}>
+        <button
+          type="button"
+          className="btn-danger"
+          onClick={() => onDelete(task)}
+        >
           <Trash2 aria-hidden="true" className="icon-sm" />
           删除
         </button>
@@ -152,17 +165,25 @@ function TaskDetailContent({
                 type="button"
                 className="btn-primary"
                 disabled={busy || !draft.title.trim()}
-                onClick={handleSave}
+                onClick={() => void handleSave()}
               >
                 保存修改
               </button>
             </>
           ) : (
             <>
-              <button type="button" className="btn-secondary" onClick={() => onToggle(task)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => onToggle(task)}
+              >
                 {task.status === "done" ? "恢复" : "完成"}
               </button>
-              <button type="button" className="btn-primary" onClick={() => setEditing(true)}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setEditing(true)}
+              >
                 编辑
               </button>
             </>

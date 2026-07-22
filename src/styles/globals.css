@@ -1,37 +1,4 @@
 @import "tailwindcss";
-
-@font-face {
-  font-family: "Frex Sans GB";
-  src: url("../assets/fonts/FrexSansGB-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Frex Sans GB";
-  src: url("../assets/fonts/FrexSansGB-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Frex Sans GB";
-  src: url("../assets/fonts/FrexSansGB-SemiBold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Frex Sans GB";
-  src: url("../assets/fonts/FrexSansGB-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 @import "./tokens.css";
 @import "./base.css";
 @import "./layout.css";
@@ -43,3 +10,33 @@
 @import "./buttons.css";
 @import "./feedback.css";
 @import "./responsive.css";
+
+@font-face {
+  font-family: "Source Han Sans SC";
+  src:
+    local("Source Han Sans SC"), local("Source Han Sans SC Regular"),
+    local("Noto Sans SC"), local("Noto Sans CJK SC");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Han Sans SC";
+  src:
+    local("Source Han Sans SC Medium"), local("Noto Sans SC Medium"),
+    local("Noto Sans CJK SC Medium"), local("Noto Sans SC");
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Han Sans SC";
+  src:
+    local("Source Han Sans SC Bold"), local("Noto Sans SC Bold"),
+    local("Noto Sans CJK SC Bold"), local("Noto Sans SC");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

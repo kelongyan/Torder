@@ -1,5 +1,6 @@
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
+import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
 import { taskViewCopy } from "../../app/taskViews";
 import { isScopeActive } from "../../utils/taskHelpers";
@@ -14,7 +15,6 @@ export function Sidebar({
   counts,
   onSearchChange,
   onScopeChange,
-  onNewList,
 }: {
   lists: TaskList[];
   scope: TaskScope;
@@ -25,7 +25,6 @@ export function Sidebar({
   };
   onSearchChange: (query: string) => void;
   onScopeChange: (scope: TaskScope) => void;
-  onNewList: () => void;
 }) {
   return (
     <aside className="sidebar">
@@ -65,7 +64,7 @@ export function Sidebar({
         {lists.map((list) => (
           <SidebarItem
             key={list.id}
-            color={list.color ?? "#6366f1"}
+            color={list.color ?? DEFAULT_LIST_COLOR}
             label={list.name}
             active={isScopeActive(scope, listScope(list.id))}
             count={counts.lists[list.id] ?? 0}
@@ -73,15 +72,6 @@ export function Sidebar({
           />
         ))}
       </nav>
-
-      <button
-        type="button"
-        className="new-list-button"
-        onClick={onNewList}
-      >
-        <Plus aria-hidden="true" className="icon-sm" />
-        新建清单
-      </button>
     </aside>
   );
 }
