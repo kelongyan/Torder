@@ -7,7 +7,6 @@ import { ViewMenu } from "../common/ViewMenu";
 
 export function MainHeader({
   title,
-  taskCount,
   layout,
   theme,
   sortBy,
@@ -36,12 +35,8 @@ export function MainHeader({
 
   return (
     <header className="main-header">
-      <div>
-        <h1>{title}</h1>
-        <p>{taskCount} 项任务</p>
-      </div>
-
-      <div className="header-actions">
+      <div className="main-header-left" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>{title}</h1>
         <div className="layout-tabs" aria-label="布局切换">
           {layoutOptions.map((item) => (
             <button
@@ -54,7 +49,9 @@ export function MainHeader({
             </button>
           ))}
         </div>
+      </div>
 
+      <div className="header-actions">
         <button
           type="button"
           className="icon-button"

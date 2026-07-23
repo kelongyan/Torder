@@ -3,38 +3,91 @@
   margin: 0 auto;
 }
 
-.quick-add {
-  display: grid;
+.quick-add-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
-  min-height: 50px;
-  grid-template-columns: 20px 1fr auto;
-  align-items: center;
-  gap: 11px;
-  border: 1px dashed var(--border-light);
+  padding: 12px 16px;
+  border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-secondary);
-  padding: 0 17px;
-  color: var(--text-secondary);
-  text-align: left;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-spring);
-  will-change: transform;
+  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+  margin-bottom: 16px;
 }
 
-.quick-add:hover {
+.quick-add-inline:focus-within {
   border-color: var(--accent);
-  background: var(--accent-bg);
-  color: var(--accent-hover);
-  box-shadow: var(--shadow);
-  transform: translateY(-1px);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
-.quick-add:active {
-  transform: scale(0.992);
+.quick-add-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-add-input-row .add-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.quick-add-input-row input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.quick-add-input-row input::placeholder {
+  color: var(--text-muted);
+}
+
+.btn-dialog-trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.quick-add-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 28px;
+  flex-wrap: wrap;
+}
+
+.quick-add-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.quick-add-chip:hover,
+.quick-add-chip.active {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+  background: var(--accent-bg);
+}
+
+.quick-add-chip .chip-icon {
+  width: 13px;
+  height: 13px;
 }
 
 kbd {

@@ -273,6 +273,8 @@ function App() {
                   batchSelectedIds={batchSelectedIds}
                   searchQuery={searchQuery}
                   scope={scope}
+                  defaultListId={defaultListId}
+                  onInlineCreate={(input) => void addTask(input)}
                   onQuickAdd={openCreateDialog}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}

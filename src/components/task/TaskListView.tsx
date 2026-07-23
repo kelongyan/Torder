@@ -15,6 +15,8 @@ export function TaskListView({
   batchSelectedIds,
   searchQuery,
   scope,
+  defaultListId,
+  onInlineCreate,
   onQuickAdd,
   onOpen,
   onToggle,
@@ -32,6 +34,8 @@ export function TaskListView({
   batchSelectedIds: string[];
   searchQuery: string;
   scope: TaskScope;
+  defaultListId: string;
+  onInlineCreate: (input: import("../../types/database").CreateTaskInput) => Promise<void> | void;
   onQuickAdd: () => void;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
@@ -52,7 +56,12 @@ export function TaskListView({
   if (loading && tasks.length === 0) {
     return (
       <div className="list-container">
-        <TaskQuickAdd onClick={onQuickAdd} />
+        <TaskQuickAdd
+  lists={lists}
+  defaultListId={defaultListId}
+  onInlineCreate={onInlineCreate}
+  onOpenDialog={onQuickAdd}
+/>
         <div className="skeleton-list" aria-label="任务加载中">
           <span />
           <span />
@@ -65,7 +74,12 @@ export function TaskListView({
   if (tasks.length === 0) {
     return (
       <div className="list-container">
-        <TaskQuickAdd onClick={onQuickAdd} />
+        <TaskQuickAdd
+  lists={lists}
+  defaultListId={defaultListId}
+  onInlineCreate={onInlineCreate}
+  onOpenDialog={onQuickAdd}
+/>
         <EmptyState scope={scope} searchQuery={searchQuery} />
       </div>
     );
@@ -87,7 +101,12 @@ export function TaskListView({
           <button type="button" onClick={onExitBatch}>退出</button>
         </div>
       )}
-      <TaskQuickAdd onClick={onQuickAdd} />
+      <TaskQuickAdd
+  lists={lists}
+  defaultListId={defaultListId}
+  onInlineCreate={onInlineCreate}
+  onOpenDialog={onQuickAdd}
+/>
       {activeTasks.length > 0 && (
         <>
           <SectionHeader label={`进行中 · ${activeCount}`} />

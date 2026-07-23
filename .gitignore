@@ -35,6 +35,8 @@ output/playwright/阶段7-托盘菜单实机.png
 .vscode/*
 !.vscode/extensions.json
 .idea
+.workbuddy/
+.agents/
 .DS_Store
 *.suo
 *.ntvs*
