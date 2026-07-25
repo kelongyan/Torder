@@ -74,7 +74,7 @@
 
 ---
 
-## 🚀 本地开发与打包
+## 🚀 本地开发
 
 ### 1. 环境准备
 - Node.js 20.19+ / 22.12+ & `pnpm`
@@ -85,13 +85,6 @@
 pnpm install
 pnpm tauri dev
 ```
-
-### 3. 低内存模式打包 (Windows NSIS)
-```powershell
-$env:CARGO_BUILD_JOBS = "4"
-pnpm tauri build
-```
-产物将自动落地为单个 `.exe` 安装包。
 
 ---
 
