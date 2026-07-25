@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
@@ -15,6 +15,9 @@ export function Sidebar({
   counts,
   onSearchChange,
   onScopeChange,
+  onAddList,
+  onEditList,
+  onDeleteList,
 }: {
   lists: TaskList[];
   scope: TaskScope;
@@ -25,6 +28,9 @@ export function Sidebar({
   };
   onSearchChange: (query: string) => void;
   onScopeChange: (scope: TaskScope) => void;
+  onAddList: () => void;
+  onEditList: (list: TaskList) => void;
+  onDeleteList: (list: TaskList) => void;
 }) {
   return (
     <aside className="sidebar">
@@ -47,7 +53,9 @@ export function Sidebar({
       </label>
 
       <nav className="sidebar-nav" aria-label="任务视图">
-        <div className="nav-group-label">导航</div>
+        <div className="nav-group-header">
+          <span className="nav-group-label">导航</span>
+        </div>
         {systemNav.map((item) => (
           <SidebarItem
             key={item.view}
@@ -60,7 +68,18 @@ export function Sidebar({
         ))}
 
         <div className="sidebar-divider" />
-        <div className="nav-group-label">我的清单</div>
+        <div className="nav-group-header">
+          <span className="nav-group-label">我的清单</span>
+          <button
+            type="button"
+            className="btn-add-list"
+            onClick={onAddList}
+            title="新建自定义清单"
+            aria-label="新建自定义清单"
+          >
+            <Plus className="icon-xs" />
+          </button>
+        </div>
         {lists.map((list) => (
           <SidebarItem
             key={list.id}
@@ -69,6 +88,8 @@ export function Sidebar({
             active={isScopeActive(scope, listScope(list.id))}
             count={counts.lists[list.id] ?? 0}
             onClick={() => onScopeChange(listScope(list.id))}
+            onEdit={!list.isDefault ? () => onEditList(list) : undefined}
+            onDelete={!list.isDefault ? () => onDeleteList(list) : undefined}
           />
         ))}
       </nav>

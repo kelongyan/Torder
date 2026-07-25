@@ -178,9 +178,11 @@ kbd {
   max-height: 180px;
   min-height: 82px;
   gap: 14px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
   padding: 13px 14px 13px 46px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
@@ -195,15 +197,16 @@ kbd {
 }
 
 .task-item:hover {
+  border-color: var(--border-light);
   background: var(--bg-secondary);
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
 .task-item.selected {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .task-item.is-leaving {

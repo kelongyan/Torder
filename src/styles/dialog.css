@@ -567,3 +567,63 @@
     padding-left: 0;
   }
 }
+
+.list-dialog-card {
+  width: min(92vw, 440px);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-floating), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.dialog-error-msg {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 500;
+  animation: subtle-rise var(--motion-fast) var(--ease-out) both;
+}
+
+.color-picker-grid {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 2px;
+}
+
+.color-picker-dot {
+  position: relative;
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in srgb, currentColor 30%, transparent);
+  transition:
+    transform var(--motion-fast) var(--ease-spring),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.color-picker-dot:hover {
+  transform: scale(1.16);
+  box-shadow: 0 4px 14px color-mix(in srgb, currentColor 50%, transparent);
+}
+
+.color-picker-dot.active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 45%, transparent), 0 4px 14px color-mix(in srgb, currentColor 40%, transparent);
+  transform: scale(1.12);
+}
+
+.color-check-icon {
+  width: 15px;
+  height: 15px;
+  color: #ffffff;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  animation: check-pop var(--motion-soft) var(--ease-out) both;
+}

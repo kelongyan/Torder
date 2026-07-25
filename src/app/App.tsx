@@ -27,8 +27,10 @@ import { MainHeader } from "../components/layout/MainHeader";
 import { TaskListView } from "../components/task/TaskListView";
 import { TaskBoard } from "../components/task/TaskBoard";
 import { TaskCalendar } from "../components/task/TaskCalendar";
+import { createList, deleteList, listLists, updateList } from "../services/listService";
 import { TaskDetailPanel } from "../components/detail/TaskDetailPanel";
 import { TaskCreateDialog } from "../components/dialog/TaskCreateDialog";
+import { ListDialog } from "../components/dialog/ListDialog";
 import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -45,6 +47,8 @@ function App() {
   const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
   const [appError, setAppError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [listDialogOpen, setListDialogOpen] = useState(false);
+  const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -111,14 +115,25 @@ function App() {
     [layout, scope, sortBy, showCompleted],
   );
   const createPresence = usePresence(createOpen, 280);
+  const listDialogPresence = usePresence(listDialogOpen, 280);
   const shortcutsPresence = usePresence(shortcutsOpen, 280);
   const confirmPresence = usePresence(confirmState, 280);
 
   const openCreateDialog = useCallback(() => setCreateOpen(true), []);
+  const openAddListDialog = useCallback(() => {
+    setEditingList(null);
+    setListDialogOpen(true);
+  }, []);
+  const openEditListDialog = useCallback((listToEdit: TaskList) => {
+    setEditingList(listToEdit);
+    setListDialogOpen(true);
+  }, []);
+
   const closeEverything = useCallback(() => {
     setMenuOpen(false);
     setShortcutsOpen(false);
     setCreateOpen(false);
+    setListDialogOpen(false);
     setConfirmState(null);
     clearBatchSelection();
   }, [clearBatchSelection]);
@@ -133,6 +148,47 @@ function App() {
   });
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
+
+  async function handleSaveList(data: { id?: string; name: string; color: string }) {
+    if (data.id) {
+      await updateList({
+        id: data.id,
+        name: data.name,
+        color: data.color,
+        sortOrder: editingList?.sortOrder ?? 0,
+      });
+      pushToast("清单修改完成", "success");
+    } else {
+      await createList({
+        name: data.name,
+        color: data.color,
+      });
+      pushToast("自定义清单已创建", "success");
+    }
+    const nextLists = await listLists();
+    setLists(nextLists);
+    setListDialogOpen(false);
+  }
+
+  function requestDeleteList(listToDelete: TaskList) {
+    if (listToDelete.isDefault) return;
+    setConfirmState({
+      title: "确认删除清单",
+      body: `确定要删除清单"${listToDelete.name}"吗？关联的任务仍将保留在全集中。`,
+      confirmText: "删除清单",
+      danger: true,
+      onConfirm: async () => {
+        await deleteList(listToDelete.id);
+        const nextLists = await listLists();
+        setLists(nextLists);
+        if (scope.kind === "list" && scope.listId === listToDelete.id) {
+          await setScope({ kind: "view", view: "all" });
+        }
+        setConfirmState(null);
+        pushToast("清单已删除", "info");
+      },
+    });
+  }
 
   async function handleSelectScope(nextScope: TaskScope) {
     setMenuOpen(false);
@@ -223,6 +279,9 @@ function App() {
           counts={counts}
           onSearchChange={(query) => void setSearchQuery(query)}
           onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
+          onAddList={openAddListDialog}
+          onEditList={openEditListDialog}
+          onDeleteList={requestDeleteList}
         />
 
         <main className="main">
@@ -325,6 +384,15 @@ function App() {
           presence={createPresence.phase}
           onClose={() => setCreateOpen(false)}
           onSubmit={(input) => void handleCreateTask(input)}
+        />
+      )}
+
+      {listDialogPresence.rendered && (
+        <ListDialog
+          initialList={editingList}
+          presence={listDialogPresence.phase}
+          onClose={() => setListDialogOpen(false)}
+          onSubmit={handleSaveList}
         />
       )}
 
