@@ -1,82 +1,97 @@
-# Torder 开发与设计标准规范（RULE.md）
+# 打包规则（RULE）
 
-> 本规则为 Torder 桌面应用界面设计、交互动效与 Windows 打包构建的默认约定。所有后续 UI 开发与修改默认全量遵循此标准。
+> 本规则为 Torder Windows 安装包构建的默认约定。执行任何 `pnpm tauri build` 前，先按此规则检查。
 
----
+## 1. 目标：为低内存开发机产出最小可行安装包
 
-## 🎨 第一部分：UI 视觉设计系统与交互规范（默认标准）
+- 开发机仅有 **16GB 内存 / 12 核**，编译期峰值内存必须严控，宁可二进制稍大也不能 OOM。
+- 产物必须是**单文件可分发的 Windows 安装包**，放在桌面，方便龙哥直接双击安装/分发。
 
-### 1. 色彩与主题模式规范 (Theme Standards)
+## 2. 安装包格式：NSIS（单 .exe）
 
-* **深色模式 (Dark Mode)**：
-  * **主背景 (`--bg-primary`)**：深邃沉静的冷暗调 `#0e1017`。
-  * **侧边栏与卡片 (`--bg-secondary`)**：高雅阶梯色 `#161822`。
-  * **组件底座 (`--bg-tertiary`)**：温润层次色 `#1f2230`。
-  * **品牌 Accent**：高雅靛蓝 `#6366f1`（Indigo），Hover 呈现柔发光 `#818cf8`。
-* **浅色模式 (Light Mode)**：
-  * **主背景 (`--bg-primary`)**：通透清爽的雪白底色 `#f8fafc`。
-  * **侧边栏与卡片 (`--bg-secondary`)**：洁净纯白 `#ffffff`。
-  * **组件底座 (`--bg-tertiary`)**：灰蓝软底 `#f1f5f9`。
-  * **文字分级**：主字 Crisp Slate 900 (`#0f172a`)，次字 Slate 600 (`#475569`)，弱字 Slate 400 (`#94a3b8`)。
+- `tauri.conf.json` → `bundle.targets = "nsis"`（不是 `msi`、不是 `all`）。
+- 原因：NSIS 产物是单个 `.exe` 安装包，体积小、构建内存开销低；MSI（WiX）和冷启动内存更高。
+- NSIS 依赖：系统需安装 NSIS（`winget install NSIS.NSID`），并确保 `makensis.exe` 在 PATH 内。
 
-### 2. 边缘与发光视效规范 (Borders & Specular Highlights)
+## 3. Rust 构建 profile：低内存优先，体积其次
 
-* **半透明淡墨边框**：全站禁止使用僵硬的硬灰色实线，统一采用基于半透明度 `rgba(255, 255, 255, 0.08)` (深色) 或 `rgba(15, 23, 42, 0.08)` (浅色) 的半透明线条。
-* **顶部 1px 精细高光 (Specular Highlight)**：所有悬浮卡片、输入框、气泡弹窗顶部统一保留 `inset 0 1px 0 rgba(255, 255, 255, 0.08)` 的极细微高光。
-* **双重弥散阴影 (Layered Ambient Shadows)**：悬浮元素统一使用双重弥散软阴影，避免死板混沌。
+`src-tauri/Cargo.toml` 的 `[profile.release]` 采用**低内存参数**，不做最大体积压缩：
 
-### 3. 输入框与折叠拉伸动画 (Inputs & Expanded Interactions)
+| 参数            | 值        | 理由                                           |
+| --------------- | --------- | ---------------------------------------------- |
+| `panic`         | `"abort"` | 去掉 unwinding 元数据，减小体积                |
+| `codegen-units` | `16`      | 拆分代码生成单元，避免单个优化任务占用过多内存 |
+| `lto`           | `false`   | 完全关闭 LTO，优先降低链接阶段的内存峰值       |
+| `opt-level`     | `"s"`     | 优化体积(`3` 是速度，`"z"` 更激进但编译更慢)   |
+| `strip`         | `true`    | 去除符号，显著减小产物                         |
 
-* **获焦光晕**：输入框获焦 (`:focus` / `:focus-within`) 统一带有 Accent 环形外发光圈 (`0 0 0 3px color-mix(...)`) 与沉浸内阴影。
-* **展开式输入框交互**：复杂录入组件（如快捷新建任务框）默认保持单行紧凑折叠态，点击或获得焦点时平滑向下拉伸展开属性 Chips，且需对属性按钮添加 `onMouseDown` 防失焦保护。
+另外保留两项 Windows 专用降内存设置：
 
-### 4. 按钮、软胶囊与下拉菜单 (Buttons & Segmented Controls)
+- `[profile.release.package.windows] opt-level = 0`：避免庞大的 Windows API 绑定进入高强度优化。
+- `src-tauri/.cargo/config.toml` 中的 `windows_raw_dylib`：改用运行时 DLL 导入，降低 `windows` crate 的编译压力。
 
-* **分段软胶囊 (Segmented Control)**：顶部布局/视图切换统一采用胶囊分段组件，包含专属 Lucide 图标 + 文本。
-* **图标按钮动效**：深浅色切换、更多设置等 `.icon-button` 在 Hover 时带有旋转（45°/360°）、放大与 Accent 柔光发光的悬浮反馈。
-* **毛玻璃与 Click Outside**：下拉菜单一律使用 `backdrop-filter: blur(16px)` 毛玻璃，且**必须挂载全局 Click Outside 监听**，点击外部或选中选项后自动平滑收起。
+这组参数已在当前 16GB Windows 开发机上完成实机打包。平衡点是：**适度增大二进制，换取编译稳定性**；不要在普通开发构建中随意恢复 `codegen-units=1` 或开启 LTO。
 
-### 5. 弹窗规范 (Dialog Standards)
+## 4. 并行度：显式限制 cargo jobs，压低内存峰值
 
-* **统一容器框架**：所有弹窗组件必须 100% 继承全局 `<DialogShell>` 框架与 `<DialogFooter>` 按钮组件，严禁自写缺乏 Padding 或脱离 Theme Token 的裸 HTML 结构。
-* **色盘 Picker 规范**：调色盘点 (`color-picker-dot`) 必须带有对应色彩的 Glow 发光圈与弹性缩放反馈。
-
----
-
-## 📦 第二部分：打包与构建规则
-
-### 1. 目标：为 16GB 低内存开发机产出最小可行安装包
-
-* 开发机仅有 **16GB 内存 / 12 核**，编译期峰值内存严控，宁可二进制稍大不能 OOM。
-* 产物必须是**单文件可分发的 Windows 安装包**，构建完成后自动覆盖复制到桌面。
-
-### 2. 安装包格式：NSIS（单 .exe）
-
-* `tauri.conf.json` → `bundle.targets = "nsis"`。
-* NSIS 产物为单个 `.exe` 安装包，体积小、构建内存开销低。
-
-### 3. Cargo 构建 profile
-
-```toml
-[profile.release]
-panic = "abort"
-codegen-units = 16
-lto = false
-opt-level = "s"
-strip = true
-```
-
-### 4. 并行度限制与构建命令
+构建时通过 Cargo 环境变量限制并行度，不要把 12 核跑满：
 
 ```powershell
-Set-Location F:\Torder
-$env:CARGO_HOME = "D:\cargo"
-$env:RUSTUP_HOME = "D:\rustup"
-$env:PATH = "D:\cargo\bin;C:\Program Files (x86)\NSIS;$env:PATH"
 $env:CARGO_BUILD_JOBS = "4"
 pnpm tauri build
 ```
 
+- `CARGO_BUILD_JOBS=4`：限制**最多 4 个 rustc 并行**，给前端构建和系统保留内存。
+- 当前 pnpm 版本下，不要使用 `pnpm tauri build -- -j 4`；该写法会丢失参数分隔符并触发 `unexpected argument '-j'`。
+- 若机器比本规则假设的更吃力（如 8GB），把 `CARGO_BUILD_JOBS` 降到 `2`。
+- 不要同时运行 `pnpm dev` / 浏览器 / 大型 IDE 的繁重索引，先释放内存。
+
+## 5. 构建命令（完整）
+
+```powershell
+# 切到项目目录
+Set-Location F:\Torder
+
+# 本机 Rust/NSIS 未进入 PATH 时，临时补齐；不修改系统环境变量
+$env:CARGO_HOME = "D:\cargo"
+$env:RUSTUP_HOME = "D:\rustup"
+$env:PATH = "D:\cargo\bin;C:\Program Files (x86)\NSIS;$env:PATH"
+
+# 低内存模式打包（NSIS 单 exe），限制并行度
+$env:CARGO_BUILD_JOBS = "4"
+pnpm tauri build
+```
+
+构建分两步：`pnpm build`（Vite 前端，较快）→ `cargo tauri build`（Rust + 打包，较慢、内存重）。
+
+## 6. 产物落到桌面
+
+构建成功后，安装包自动定位并复制到桌面：
+
+```powershell
+$src = Get-ChildItem "src-tauri\target\release\bundle\nsis\*_x64-setup.exe" |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+
+if (-not $src) { throw "未找到 NSIS 安装包" }
+
+$desktop = [Environment]::GetFolderPath("Desktop")
+$dest = Join-Path $desktop $src.Name
+Copy-Item -LiteralPath $src.FullName -Destination $dest -Force
+Get-Item -LiteralPath $dest
+```
+
+- 桌面路径通过系统 API 获取，不硬编码用户名或 OneDrive 状态。
+- 若 NSIS 产物命名发生变化，仍从 `src-tauri/target/release/bundle/nsis/` 中按最新修改时间定位。
+
+## 7. 验证（最低限度）
+
+部署前必做：
+
+1. **文件可落地**：`Get-Item` 确认桌面 `.exe` 存在、大小合理（通常 5–30MB，含 WebView2 引导）。
+2. **校验产物**：检查文件头为 `MZ`，并使用 `Get-FileHash -Algorithm SHA256` 记录校验值。
+3. （可选）在干净环境或当前桌面双击，确认安装→启动→主界面正常。
+
 ---
 
-**一句话总结**：跟随 Slate-Charcoal & Pure Snow 设计系统 + 1px 细微高光 + 动态展开输入框 + 胶囊分段 Tab + NSIS 单文件打包落桌面。
+**本规则一句话总结**：低内存机 → NSIS 单 exe + 关闭 LTO + codegen-units=16 + Cargo 4 并发 + 产物落桌面。
