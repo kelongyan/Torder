@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   Clock,
   Flag,
+  Kanban,
+  List,
   ListTodo,
   Star,
   type LucideIcon,
@@ -21,10 +23,10 @@ export const systemNav: Array<{
   { view: "completed", icon: CheckCircle2 },
 ];
 
-export const layoutOptions: Array<{ value: TaskLayout; label: string }> = [
-  { value: "list", label: "列表" },
-  { value: "board", label: "看板" },
-  { value: "calendar", label: "日历" },
+export const layoutOptions: Array<{ value: TaskLayout; label: string; icon: LucideIcon }> = [
+  { value: "list", label: "列表", icon: List },
+  { value: "board", label: "看板", icon: Kanban },
+  { value: "calendar", label: "日历", icon: Calendar },
 ];
 
 export const sortOptions: Array<{

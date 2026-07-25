@@ -6,32 +6,46 @@
 .quick-add-inline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
   background: var(--bg-secondary);
-  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
-  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    padding var(--motion-soft) var(--ease-standard);
+  margin-bottom: 18px;
 }
 
-.quick-add-inline:focus-within {
+.quick-add-inline.is-expanded {
+  padding: 14px 18px;
   border-color: var(--accent);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 98%, var(--accent));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 6px 20px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .quick-add-input-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .quick-add-input-row .add-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   color: var(--accent);
   flex-shrink: 0;
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.quick-add-inline.is-expanded .add-icon {
+  transform: rotate(90deg) scale(1.1);
 }
 
 .quick-add-input-row input {
@@ -42,47 +56,93 @@
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
+  line-height: 22px;
 }
 
 .quick-add-input-row input::placeholder {
   color: var(--text-muted);
 }
 
-.btn-dialog-trigger {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
 .quick-add-chips-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-left: 28px;
+  padding-left: 32px;
   flex-wrap: wrap;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-8px);
+  pointer-events: none;
+  margin-top: 0;
+  transition:
+    max-height var(--motion-soft) var(--ease-out),
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out),
+    margin-top var(--motion-soft) var(--ease-out);
+}
+
+.quick-add-inline.is-expanded .quick-add-chips-row {
+  max-height: 80px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  margin-top: 10px;
 }
 
 .quick-add-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 16px;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--ease-standard);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
 
-.quick-add-chip:hover,
-.quick-add-chip.active {
-  border-color: var(--accent);
+.quick-add-chip:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.quick-add-chip.due-active {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent-hover);
-  background: var(--accent-bg);
+}
+
+.quick-add-chip.priority-chip-2.active {
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
+  background: color-mix(in srgb, var(--red) 16%, transparent);
+  color: var(--red);
+}
+
+.quick-add-chip.priority-chip-1.active {
+  border-color: color-mix(in srgb, var(--amber) 50%, transparent);
+  background: color-mix(in srgb, var(--amber) 16%, transparent);
+  color: var(--amber);
+}
+
+.quick-add-chip.priority-chip-0.active {
+  border-color: color-mix(in srgb, var(--blue) 50%, transparent);
+  background: color-mix(in srgb, var(--blue) 16%, transparent);
+  color: var(--blue);
+}
+
+.quick-add-chip.list-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .quick-add-chip .chip-icon {
@@ -95,10 +155,12 @@ kbd {
   border: 1px solid var(--border-light);
   border-radius: 5px;
   background: var(--bg-tertiary);
-  padding: 2px 6px 3px;
+  padding: 2px 7px 3px;
   color: var(--text-muted);
   font-size: 11px;
+  font-weight: 600;
   line-height: 17px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .section-header {

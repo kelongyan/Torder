@@ -37,7 +37,7 @@ export function Sidebar({
       </div>
 
       <label className="search-box">
-        <Search aria-hidden="true" className="icon-sm" />
+        <Search aria-hidden="true" className="search-icon" />
         <input
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}

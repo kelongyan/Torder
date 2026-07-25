@@ -6,7 +6,6 @@ export function TaskQuickAdd({
   lists,
   defaultListId,
   onInlineCreate,
-  onOpenDialog,
 }: {
   lists: TaskList[];
   defaultListId: string;
@@ -17,9 +16,12 @@ export function TaskQuickAdd({
   const [priority, setPriority] = useState<0 | 1 | 2>(1);
   const [listId, setListId] = useState(defaultListId);
   const [dueChoice, setDueChoice] = useState<"none" | "today" | "tomorrow">("none");
+  const [isFocused, setIsFocused] = useState(false);
 
   const activeListId = lists.some((l) => l.id === listId) ? listId : defaultListId;
   const currentList = lists.find((l) => l.id === activeListId);
+
+  const isExpanded = isFocused || title.trim().length > 0;
 
   const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && title.trim()) {
@@ -68,32 +70,25 @@ export function TaskQuickAdd({
   const dueLabels = { none: "截止时间", today: "今天 20:00", tomorrow: "明天 09:00" };
 
   return (
-    <div className="quick-add-inline">
+    <div className={`quick-add-inline ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
       <div className="quick-add-input-row">
         <Plus aria-hidden="true" className="add-icon" />
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
-          placeholder="添加任务（按 Enter 快速录入，Ctrl+N 打开高级表单）..."
+          placeholder="添加任务（按 Enter 快速录入）..."
         />
-        {onOpenDialog && (
-          <button
-            type="button"
-            className="btn-dialog-trigger"
-            onClick={onOpenDialog}
-            title="高级弹窗创建 (Ctrl+N)"
-          >
-            <kbd>Ctrl+N</kbd>
-          </button>
-        )}
       </div>
 
       <div className="quick-add-chips-row">
         <button
           type="button"
-          className={`quick-add-chip ${dueChoice !== "none" ? "active" : ""}`}
+          className={`quick-add-chip ${dueChoice !== "none" ? "active due-active" : ""}`}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={cycleDue}
         >
           <Calendar className="chip-icon" />
@@ -102,7 +97,8 @@ export function TaskQuickAdd({
 
         <button
           type="button"
-          className={`quick-add-chip ${priority === 2 ? "active" : ""}`}
+          className={`quick-add-chip priority-chip-${priority} ${priority > 0 ? "active" : ""}`}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={cyclePriority}
         >
           <Flag className="chip-icon" />
@@ -111,7 +107,8 @@ export function TaskQuickAdd({
 
         <button
           type="button"
-          className="quick-add-chip"
+          className="quick-add-chip list-chip"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={cycleList}
         >
           <Folder className="chip-icon" />
