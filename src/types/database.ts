@@ -23,6 +23,9 @@ export interface Task {
   dueAt: string | null;
   completedAt: string | null;
   sortOrder: number;
+  remindBefore: number | null;
+  remindAt: string | null;
+  remindedAt: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -35,6 +38,7 @@ export interface CreateTaskInput {
   listId?: string;
   dueAt?: string | null;
   sortOrder?: number;
+  remindBefore?: number | null;
 }
 
 export interface UpdateTaskInput {
@@ -46,6 +50,7 @@ export interface UpdateTaskInput {
   listId: string;
   dueAt: string | null;
   sortOrder: number;
+  remindBefore: number | null;
 }
 
 export interface TaskList {

@@ -16,6 +16,7 @@ export interface TaskDraft {
   priority: 0 | 1 | 2;
   listId: string;
   dueAt: string;
+  remindBefore: number | null;
 }
 
 export function getScopeTitle(scope: TaskScope, lists: TaskList[]): string {
@@ -82,6 +83,7 @@ export function emptyDraft(defaultListId: string): TaskDraft {
     priority: 1,
     listId: defaultListId,
     dueAt: getDefaultDueAtLocal(),
+    remindBefore: 1440, // default 1 day before due
   };
 }
 
@@ -96,6 +98,7 @@ export function createTaskDraft(
     priority: task.priority,
     listId: task.listId,
     dueAt: toDateTimeLocal(task.dueAt),
+    remindBefore: task.remindBefore,
   };
 }
 

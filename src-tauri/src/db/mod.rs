@@ -3,9 +3,6 @@ pub mod migrations;
 pub mod settings_repository;
 pub mod task_repository;
 
-#[cfg(test)]
-mod database_tests;
-
 use std::path::PathBuf;
 use std::time::Duration;
 

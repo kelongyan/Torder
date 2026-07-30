@@ -28,6 +28,9 @@ export function createTask(input: CreateTaskInput): Promise<Task> {
       dueAt: input.dueAt ?? null,
       completedAt: null,
       sortOrder: input.sortOrder ?? 0,
+      remindBefore: input.remindBefore ?? null,
+      remindAt: null,
+      remindedAt: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -120,6 +123,7 @@ export function setTaskCompleted(
       listId: task.listId,
       dueAt: task.dueAt,
       sortOrder: task.sortOrder,
+      remindBefore: task.remindBefore,
     });
   }
 

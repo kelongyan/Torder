@@ -39,6 +39,7 @@ import { WindowTitleBar } from "../components/layout/WindowTitleBar";
 import { useAppInit } from "../hooks/useAppInit";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { usePresence } from "../hooks/usePresence";
+import { useTaskReminder } from "../hooks/useTaskReminder";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
 
@@ -140,6 +141,7 @@ function App() {
 
   useAppInit(setSettings, setLists, setAppError);
   useTrayQuickAdd(openCreateDialog, setAppError);
+  useTaskReminder();
   useKeyboardShortcuts({
     onOpenCreateDialog: openCreateDialog,
     onOpenShortcuts: () => setShortcutsOpen(true),

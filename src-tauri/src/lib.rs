@@ -1,7 +1,8 @@
-mod commands;
-mod db;
-mod error;
-mod models;
+pub mod commands;
+pub mod db;
+pub mod error;
+pub mod models;
+mod notifier;
 mod tray;
 
 use tauri::Manager;
@@ -20,8 +21,9 @@ pub fn run() {
             }
 
             let database_path = app.path().app_data_dir()?.join("torder.sqlite");
-            let database = Database::initialize(database_path)?;
+            let database = Database::initialize(database_path.clone())?;
             app.manage(database);
+            notifier::start_notifier(app.handle().clone(), database_path);
             tray::setup(app)?;
             Ok(())
         })

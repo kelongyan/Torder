@@ -33,6 +33,7 @@ export function TaskCreateDialog({
       priority: draft.priority,
       listId: draft.listId,
       dueAt: fromDateTimeLocal(draft.dueAt),
+      remindBefore: draft.remindBefore,
     });
   }
 

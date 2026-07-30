@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2, X } from "lucide-react";
 import { formatTaskDateTime, fromDateTimeLocal } from "../../app/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
+import { describeReminder } from "../../constants/reminderConfig";
 import { usePresence, type PresencePhase } from "../../hooks/usePresence";
 import type { Task, TaskList, UpdateTaskInput } from "../../types/database";
 import { createTaskDraft, type TaskDraft } from "../../utils/taskHelpers";
@@ -73,14 +74,34 @@ function TaskDetailContent({
   onDelete: (task: Task) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [titleTouched, setTitleTouched] = useState(false);
   const [draft, setDraft] = useState<TaskDraft>(() =>
     createTaskDraft(task, lists),
   );
 
+  useEffect(() => {
+    if (!editing) {
+      setDraft(createTaskDraft(task, lists));
+    }
+  }, [task, lists, editing]);
+
   const list = lists.find((item) => item.id === task.listId) ?? null;
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
 
+  function startEditing() {
+    setDraft(createTaskDraft(task, lists));
+    setTitleTouched(false);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setDraft(createTaskDraft(task, lists));
+    setTitleTouched(false);
+    setEditing(false);
+  }
+
   async function handleSave() {
+    setTitleTouched(true);
     if (!draft.title.trim()) return;
     await onSave({
       id: task.id,
@@ -91,6 +112,7 @@ function TaskDetailContent({
       listId: draft.listId,
       dueAt: fromDateTimeLocal(draft.dueAt),
       sortOrder: task.sortOrder,
+      remindBefore: draft.remindBefore,
     });
     setEditing(false);
   }
@@ -100,11 +122,25 @@ function TaskDetailContent({
       className={`detail-panel-content ${
         presence === "exit" ? "is-exiting" : "is-entering"
       }`}
+      onKeyDown={(e) => {
+        if (editing && e.key === "Escape") {
+          e.stopPropagation();
+          cancelEditing();
+        }
+      }}
     >
       <header className="detail-header">
         <div>
           <span>任务详情</span>
-          <h2>{editing ? "编辑任务" : task.title}</h2>
+          <h2
+            onClick={() => {
+              if (!editing) startEditing();
+            }}
+            title={editing ? undefined : "点击修改任务名称"}
+            style={{ cursor: editing ? "default" : "pointer" }}
+          >
+            {editing ? "编辑任务" : task.title}
+          </h2>
         </div>
         <button
           type="button"
@@ -122,9 +158,22 @@ function TaskDetailContent({
           className="detail-body-motion"
         >
           {editing ? (
-            <TaskFormFields draft={draft} lists={lists} onChange={setDraft} />
+            <TaskFormFields
+              draft={draft}
+              lists={lists}
+              onChange={(nextDraft) => {
+                setTitleTouched(true);
+                setDraft(nextDraft);
+              }}
+              onSubmit={() => void handleSave()}
+              titleInvalid={titleTouched && !draft.title.trim()}
+            />
           ) : (
-            <>
+            <div
+              onDoubleClick={startEditing}
+              title="双击进入编辑模式"
+              style={{ cursor: "pointer" }}
+            >
               <DetailBlock label="任务名称">{task.title}</DetailBlock>
               <DetailBlock label="描述">{task.note || "暂无描述"}</DetailBlock>
               <DetailBlock label="优先级">
@@ -148,6 +197,9 @@ function TaskDetailContent({
               <DetailBlock label="截止日期时间">
                 {formatTaskDateTime(task.dueAt)}
               </DetailBlock>
+              <DetailBlock label="提醒">
+                {task.dueAt ? describeReminder(task.remindBefore) : "未设置截止时间时不可用"}
+              </DetailBlock>
               <DetailBlock label="状态">
                 <span
                   className={`status-pill ${task.status === "done" ? "done" : ""}`}
@@ -155,7 +207,7 @@ function TaskDetailContent({
                   {task.status === "done" ? "已完成" : "进行中"}
                 </span>
               </DetailBlock>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -175,10 +227,7 @@ function TaskDetailContent({
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => {
-                  setDraft(createTaskDraft(task, lists));
-                  setEditing(false);
-                }}
+                onClick={cancelEditing}
               >
                 取消
               </button>
@@ -203,7 +252,7 @@ function TaskDetailContent({
               <button
                 type="button"
                 className="btn-primary"
-                onClick={() => setEditing(true)}
+                onClick={startEditing}
               >
                 编辑
               </button>

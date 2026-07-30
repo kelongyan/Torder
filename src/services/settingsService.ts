@@ -48,6 +48,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
   );
   return {
     theme: parseTheme(settings.get("theme")),
+    defaultReminderMinutes: parseNumber(settings.get("defaultReminderMinutes"), 1440),
   };
 }
 
@@ -80,6 +81,11 @@ function parseTheme(value: string | undefined): ThemePreference {
   return parsed === "light" || parsed === "dark" || parsed === "system"
     ? parsed
     : defaultAppSettings.theme;
+}
+
+function parseNumber(value: string | undefined, fallback: number): number {
+  const parsed = parseJson(value);
+  return typeof parsed === "number" ? parsed : fallback;
 }
 
 function parseJson(value: string | undefined): unknown {

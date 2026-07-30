@@ -1,12 +1,15 @@
+use std::path::Path;
+
 use uuid::Uuid;
 
-use crate::db::settings_repository::SettingsRepository;
-use crate::db::task_repository::TaskRepository;
-use crate::error::{RepositoryError, RepositoryResult};
-use crate::models::{CreateTaskInput, TaskQueryInput, UpdateTaskInput, UpsertSettingInput};
-
-use super::list_repository::ListRepository;
-use super::Database;
+use torder_lib::db::list_repository::ListRepository;
+use torder_lib::db::settings_repository::SettingsRepository;
+use torder_lib::db::task_repository::TaskRepository;
+use torder_lib::db::Database;
+use torder_lib::error::{RepositoryError, RepositoryResult};
+use torder_lib::models::{
+    CreateTaskInput, TaskQueryInput, UpdateTaskInput, UpsertSettingInput,
+};
 
 #[test]
 fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
@@ -15,7 +18,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
     let database = Database::initialize(database_path.clone())?;
 
     let status = database.status()?;
-    assert_eq!(status.schema_version, 4);
+    assert_eq!(status.schema_version, 5);
     assert_eq!(status.list_count, 3);
     assert_eq!(status.task_count, 0);
 
@@ -43,6 +46,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         list_id: Some("work".to_owned()),
         due_at: None,
         sort_order: Some(1),
+        remind_before: None,
     })?;
     assert_eq!(task.title, "数据层测试任务");
     assert_eq!(task.status, "todo");
@@ -56,6 +60,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         list_id: task.list_id.clone(),
         due_at: task.due_at.clone(),
         sort_order: task.sort_order,
+        remind_before: task.remind_before,
     })?;
     assert_eq!(updated.status, "done");
     assert!(updated.completed_at.is_some());
@@ -73,6 +78,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         list_id: None,
         due_at: None,
         sort_order: None,
+        remind_before: None,
     })?;
     SettingsRepository::new(&database).upsert(UpsertSettingInput {
         key: "theme".to_owned(),
@@ -81,7 +87,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
 
     drop(database);
     let reopened_database = Database::initialize(database_path.clone())?;
-    assert_eq!(reopened_database.status()?.schema_version, 4);
+    assert_eq!(reopened_database.status()?.schema_version, 5);
     assert_eq!(
         TaskRepository::new(&reopened_database)
             .get(&persistent_task.id)?
@@ -196,6 +202,7 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         list_id: Some("work".to_owned()),
         due_at: None,
         sort_order: None,
+        remind_before: None,
     })?;
     repository.create(CreateTaskInput {
         title: "购买生活用品".to_owned(),
@@ -204,6 +211,7 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         list_id: Some("personal".to_owned()),
         due_at: None,
         sort_order: None,
+        remind_before: None,
     })?;
 
     assert_eq!(
@@ -295,10 +303,11 @@ fn task_input(
         list_id: list_id.map(str::to_owned),
         due_at: due_at.map(str::to_owned),
         sort_order: Some(sort_order),
+        remind_before: None,
     }
 }
 
-fn cleanup_database_files(database_path: &std::path::Path) {
+fn cleanup_database_files(database_path: &Path) {
     let _ = std::fs::remove_file(database_path);
     let _ = std::fs::remove_file(format!("{}-wal", database_path.display()));
     let _ = std::fs::remove_file(format!("{}-shm", database_path.display()));

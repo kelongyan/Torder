@@ -187,6 +187,20 @@ const MIGRATIONS: &[Migration] = &[
           AND (color IS NULL OR lower(color) = '#a855f7');
         "##,
     },
+    Migration {
+        version: 5,
+        name: "add_reminder_columns",
+        sql: r#"
+        ALTER TABLE tasks ADD COLUMN remind_before INTEGER;
+
+        ALTER TABLE tasks ADD COLUMN remind_at TEXT;
+
+        ALTER TABLE tasks ADD COLUMN reminded_at TEXT;
+
+        CREATE INDEX IF NOT EXISTS idx_tasks_remind_at
+            ON tasks(remind_at) WHERE deleted_at IS NULL AND reminded_at IS NULL;
+        "#,
+    },
 ];
 
 pub fn apply_migrations(connection: &mut Connection) -> RepositoryResult<()> {

@@ -12,6 +12,9 @@ pub struct Task {
     pub due_at: Option<String>,
     pub completed_at: Option<String>,
     pub sort_order: i64,
+    pub remind_before: Option<i64>,
+    pub remind_at: Option<String>,
+    pub reminded_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub deleted_at: Option<String>,
@@ -26,6 +29,7 @@ pub struct CreateTaskInput {
     pub list_id: Option<String>,
     pub due_at: Option<String>,
     pub sort_order: Option<i64>,
+    pub remind_before: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,6 +43,7 @@ pub struct UpdateTaskInput {
     pub list_id: String,
     pub due_at: Option<String>,
     pub sort_order: i64,
+    pub remind_before: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
