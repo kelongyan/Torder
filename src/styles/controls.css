@@ -1,0 +1,257 @@
+/* ===== 通用控件体系 (Select / SegmentedControl / FieldRow) ===== */
+
+/* --- Select:毛玻璃下拉 --- */
+.select-root {
+  position: relative;
+  min-width: 0;
+}
+
+.select-trigger {
+  display: flex;
+  min-height: 40px;
+  width: 100%;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg-tertiary);
+  padding: 0 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+}
+
+.select-trigger:hover,
+.select-trigger.active {
+  border-color: var(--accent-border);
+  background: var(--bg-hover);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.select-trigger .placeholder {
+  color: var(--text-muted);
+}
+
+.select-chevron {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.select-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.select-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 100%;
+  max-width: 260px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: calc(var(--radius) + 2px);
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  backdrop-filter: blur(16px);
+  padding: 6px;
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  transform-origin: top center;
+  will-change: opacity, transform;
+}
+
+.select-panel.is-entering {
+  animation: menu-in var(--motion-soft) var(--ease-out) both;
+}
+
+.select-panel.is-exiting {
+  animation: menu-out var(--motion-fast) var(--ease-standard) both;
+  pointer-events: none;
+}
+
+.select-option {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.select-option:hover,
+.select-option.highlighted {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.select-option.selected {
+  color: var(--accent-hover);
+}
+
+.select-option .select-check {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.select-dot {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* --- SegmentedControl:分段选择器 --- */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  padding: 3px;
+  width: 100%;
+}
+
+.segmented-option {
+  display: inline-flex;
+  min-height: 34px;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+  background: transparent;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.segmented-option:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.segmented-option.selected {
+  background: var(--bg-active);
+  color: var(--accent-hover);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 26%, transparent);
+}
+
+.segmented-option:not(.selected) .segmented-dot {
+  opacity: 0.45;
+}
+
+.segmented-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+
+/* --- FieldRow:就地编辑字段行 --- */
+.field-row {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 5px 4px;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
+}
+
+.field-row:last-child {
+  border-bottom: 0;
+}
+
+.field-row.editable:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.field-row-label {
+  width: 76px;
+  min-width: 76px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.field-row-value {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.field-row-edit {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+}
+
+.field-row:hover .field-row-edit,
+.field-row:focus-within .field-row-edit {
+  opacity: 1;
+}
+
+.field-row-edit:hover {
+  background: var(--accent-bg);
+  color: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.field-row-edit svg {
+  width: 14px;
+  height: 14px;
+}

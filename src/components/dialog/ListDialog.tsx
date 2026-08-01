@@ -1,6 +1,9 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Check, FolderPlus, Palette } from "lucide-react";
-import { DEFAULT_LIST_COLOR, presetListColors } from "../../constants/listConfig";
+import {
+  DEFAULT_LIST_COLOR,
+  presetListColors,
+} from "../../constants/listConfig";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { TaskList } from "../../types/database";
 import { DialogShell } from "./DialogShell";
@@ -15,18 +18,24 @@ export function ListDialog({
   initialList?: TaskList | null;
   presence: PresencePhase;
   onClose: () => void;
-  onSubmit: (data: { id?: string; name: string; color: string }) => Promise<void> | void;
+  onSubmit: (data: {
+    id?: string;
+    name: string;
+    color: string;
+  }) => Promise<void> | void;
 }) {
+  const [prevInitial, setPrevInitial] = useState(initialList);
   const [name, setName] = useState(initialList?.name ?? "");
   const [color, setColor] = useState(initialList?.color ?? DEFAULT_LIST_COLOR);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  if (prevInitial !== initialList) {
+    setPrevInitial(initialList);
     setName(initialList?.name ?? "");
     setColor(initialList?.color ?? DEFAULT_LIST_COLOR);
     setError(null);
-  }, [initialList]);
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -55,7 +64,11 @@ export function ListDialog({
   return (
     <DialogShell
       title={isEditing ? "编辑清单" : "新建自定义清单"}
-      subtitle={isEditing ? "修改清单名称与专属标识颜色" : "创建属于你的专属任务归类清单"}
+      subtitle={
+        isEditing
+          ? "修改清单名称与专属标识颜色"
+          : "创建属于你的专属任务归类清单"
+      }
       icon={FolderPlus}
       presence={presence}
       onClose={onClose}
@@ -103,7 +116,9 @@ export function ListDialog({
 
         <DialogFooter
           onCancel={onClose}
-          submitLabel={submitting ? "保存中..." : isEditing ? "完成修改" : "创建清单"}
+          submitLabel={
+            submitting ? "保存中..." : isEditing ? "完成修改" : "创建清单"
+          }
         />
       </form>
     </DialogShell>

@@ -3,7 +3,23 @@ import { priorityCopy } from "../../constants/taskConfig";
 import { reminderPresets } from "../../constants/reminderConfig";
 import type { TaskList } from "../../types/database";
 import type { TaskDraft } from "../../utils/taskHelpers";
+import { SegmentedControl } from "../common/SegmentedControl";
+import { Select } from "../common/Select";
 import { TaskDateTimeField } from "./TaskDateTimeField";
+
+const priorityOptions = [
+  { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
+  { value: 1 as const, label: priorityCopy[1].label, color: "var(--amber)" },
+  { value: 0 as const, label: priorityCopy[0].label, color: "var(--blue)" },
+];
+
+const reminderOptions = [
+  { value: -1, label: "不提醒" },
+  ...reminderPresets.map((preset) => ({
+    value: preset.value,
+    label: preset.label,
+  })),
+];
 
 export function TaskFormFields({
   draft,
@@ -20,8 +36,7 @@ export function TaskFormFields({
 }) {
   return (
     <>
-      <label className="form-field">
-        <span>任务名称</span>
+      <div className="form-title-field">
         <input
           autoFocus
           value={draft.title}
@@ -29,7 +44,11 @@ export function TaskFormFields({
             onChange({ ...draft, title: event.target.value })
           }
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing && onSubmit) {
+            if (
+              event.key === "Enter" &&
+              !event.nativeEvent.isComposing &&
+              onSubmit
+            ) {
               event.preventDefault();
               onSubmit();
             }
@@ -38,18 +57,20 @@ export function TaskFormFields({
           placeholder="输入任务名称..."
         />
         {titleInvalid && (
-          <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px" }}>
-            任务名称不能为空
-          </span>
+          <span className="form-title-error">任务名称不能为空</span>
         )}
-      </label>
-      <label className="form-field">
+      </div>
+      <div className="form-field">
         <span>描述</span>
         <textarea
           value={draft.note}
           onChange={(event) => onChange({ ...draft, note: event.target.value })}
           onKeyDown={(event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && onSubmit) {
+            if (
+              (event.ctrlKey || event.metaKey) &&
+              event.key === "Enter" &&
+              onSubmit
+            ) {
               event.preventDefault();
               onSubmit();
             }
@@ -57,75 +78,51 @@ export function TaskFormFields({
           placeholder="补充任务背景、要求或链接 (支持 Ctrl+Enter 保存)"
           rows={4}
         />
-      </label>
-      <div className="form-field">
-        <span>优先级</span>
-        <div className="pill-group">
-          {([2, 1, 0] as const).map((priority) => (
-            <button
-              key={priority}
-              type="button"
-              className={`choice-pill ${draft.priority === priority ? "selected" : ""} ${priorityCopy[priority].className}`}
-              onClick={() => onChange({ ...draft, priority })}
-            >
-              {priorityCopy[priority].label}
-            </button>
-          ))}
+      </div>
+      <div className="form-grid">
+        <TaskDateTimeField
+          value={draft.dueAt}
+          onChange={(dueAt) => onChange({ ...draft, dueAt })}
+        />
+        {draft.dueAt && (
+          <div className="form-field">
+            <span>提醒</span>
+            <Select<number>
+              value={draft.remindBefore ?? -1}
+              options={reminderOptions}
+              onChange={(value) =>
+                onChange({
+                  ...draft,
+                  remindBefore: value < 0 ? null : value,
+                })
+              }
+              ariaLabel="提醒时间"
+            />
+          </div>
+        )}
+        <div className="form-field">
+          <span>优先级</span>
+          <SegmentedControl
+            value={draft.priority}
+            options={priorityOptions}
+            onChange={(priority) => onChange({ ...draft, priority })}
+            ariaLabel="优先级"
+          />
+        </div>
+        <div className="form-field">
+          <span>所属清单</span>
+          <Select<string>
+            value={draft.listId}
+            options={lists.map((list) => ({
+              value: list.id,
+              label: list.name,
+              dotColor: list.color ?? DEFAULT_LIST_COLOR,
+            }))}
+            onChange={(listId) => onChange({ ...draft, listId })}
+            ariaLabel="所属清单"
+          />
         </div>
       </div>
-      <div className="form-field">
-        <span>所属清单</span>
-        <div className="pill-group wrap">
-          {lists.map((list) => {
-            const listColor = list.color ?? DEFAULT_LIST_COLOR;
-            return (
-              <button
-                key={list.id}
-                type="button"
-                className={`choice-pill ${draft.listId === list.id ? "selected" : ""}`}
-                style={
-                  draft.listId === list.id
-                    ? { borderColor: listColor, color: listColor }
-                    : undefined
-                }
-                onClick={() => onChange({ ...draft, listId: list.id })}
-              >
-                <span
-                  className="list-dot"
-                  style={{ backgroundColor: listColor }}
-                />
-                {list.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <TaskDateTimeField
-        value={draft.dueAt}
-        onChange={(dueAt) => onChange({ ...draft, dueAt })}
-      />
-      {draft.dueAt && (
-        <label className="form-field">
-          <span>提醒</span>
-          <select
-            value={draft.remindBefore ?? -1}
-            onChange={(event) => {
-              const value = Number(event.target.value);
-              onChange({
-                ...draft,
-                remindBefore: value < 0 ? null : value,
-              });
-            }}
-          >
-            <option value={-1}>不提醒</option>
-            {reminderPresets.map((preset) => (
-              <option key={preset.value} value={preset.value}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
     </>
   );
 }

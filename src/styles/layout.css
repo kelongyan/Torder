@@ -160,14 +160,14 @@
 
 .search-box {
   display: flex;
-  height: 38px;
+  height: 40px;
   align-items: center;
   gap: 8px;
   margin: 0 16px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 2px);
   background: var(--bg-tertiary);
-  padding: 0 10px 0 12px;
+  padding: 0 8px 0 12px;
   color: var(--text-muted);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
   transition:
@@ -177,11 +177,44 @@
 }
 
 .search-box:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent-border);
   background: var(--bg-secondary);
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
     inset 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.search-box .search-clear {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.75;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+}
+
+.search-box .search-clear:hover {
+  background: var(--danger-bg);
+  color: var(--red);
+  opacity: 1;
+}
+
+.search-box .search-clear:active {
+  transform: scale(0.92);
+}
+
+.search-box .search-clear svg {
+  width: 14px;
+  height: 14px;
 }
 
 .search-box .search-icon {
@@ -189,7 +222,9 @@
   height: 16px;
   color: var(--text-muted);
   flex-shrink: 0;
-  transition: color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-spring);
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
 }
 
 .search-box:focus-within .search-icon {
@@ -203,7 +238,7 @@
   outline: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
 }
 
@@ -508,7 +543,9 @@
   width: 14px;
   height: 14px;
   opacity: 0.7;
-  transition: opacity var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .layout-tabs button:hover {
@@ -524,7 +561,9 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--border-light);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.22),
+    0 0 0 1px var(--border-light);
 }
 
 .layout-tabs button.active .tab-icon {
@@ -577,7 +616,9 @@
 .icon-button .theme-icon {
   width: 17px;
   height: 17px;
-  transition: transform var(--motion-soft) var(--ease-spring), color var(--motion-fast) var(--ease-standard);
+  transition:
+    transform var(--motion-soft) var(--ease-spring),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .icon-button:hover .theme-icon.sun {
@@ -615,7 +656,9 @@
   background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
   backdrop-filter: blur(16px);
   padding: 6px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
   transform-origin: top right;
   will-change: opacity, transform;
 }

@@ -1,4 +1,4 @@
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
@@ -42,7 +42,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <label className="search-box">
+      <div className="search-box">
         <Search aria-hidden="true" className="search-icon" />
         <input
           value={searchQuery}
@@ -50,7 +50,18 @@ export function Sidebar({
           placeholder="搜索任务..."
           aria-label="搜索任务"
         />
-      </label>
+        {searchQuery && (
+          <button
+            type="button"
+            className="search-clear"
+            onClick={() => onSearchChange("")}
+            aria-label="清空搜索"
+            title="清空搜索"
+          >
+            <X aria-hidden="true" />
+          </button>
+        )}
+      </div>
 
       <nav className="sidebar-nav" aria-label="任务视图">
         <div className="nav-group-header">

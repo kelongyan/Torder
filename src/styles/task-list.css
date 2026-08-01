@@ -69,37 +69,131 @@
   gap: 8px;
   padding-left: 32px;
   flex-wrap: wrap;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transform: translateY(-8px);
-  pointer-events: none;
-  margin-top: 0;
-  transition:
-    max-height var(--motion-soft) var(--ease-out),
-    opacity var(--motion-soft) var(--ease-out),
-    transform var(--motion-soft) var(--ease-out),
-    margin-top var(--motion-soft) var(--ease-out);
+  margin-top: 10px;
 }
 
-.quick-add-inline.is-expanded .quick-add-chips-row {
-  max-height: 80px;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-  margin-top: 10px;
+.quick-add-more {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.quick-add-more:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.quick-add-more svg {
+  width: 17px;
+  height: 17px;
+}
+
+.quick-add-select {
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.quick-add-list-select .select-trigger,
+.quick-add-remind-select .select-trigger {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.quick-add-date-wrap {
+  position: relative;
+}
+
+.quick-add-date-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  min-width: 260px;
+  border: 1px solid var(--border-light);
+  border-radius: calc(var(--radius) + 2px);
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  backdrop-filter: blur(16px);
+  padding: 12px;
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: menu-in var(--motion-soft) var(--ease-out) both;
+}
+
+.date-chip-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.date-chip-row button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.date-chip-row button:hover,
+.date-chip-row button.active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent-hover);
+}
+
+.date-chip-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.date-chip-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.date-chip-footer button:hover {
+  color: var(--red);
 }
 
 .quick-add-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 34px;
   padding: 4px 11px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition:
@@ -121,28 +215,6 @@
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent-hover);
-}
-
-.quick-add-chip.priority-chip-2.active {
-  border-color: color-mix(in srgb, var(--red) 50%, transparent);
-  background: color-mix(in srgb, var(--red) 16%, transparent);
-  color: var(--red);
-}
-
-.quick-add-chip.priority-chip-1.active {
-  border-color: color-mix(in srgb, var(--amber) 50%, transparent);
-  background: color-mix(in srgb, var(--amber) 16%, transparent);
-  color: var(--amber);
-}
-
-.quick-add-chip.priority-chip-0.active {
-  border-color: color-mix(in srgb, var(--blue) 50%, transparent);
-  background: color-mix(in srgb, var(--blue) 16%, transparent);
-  color: var(--blue);
-}
-
-.quick-add-chip.list-chip:hover {
-  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .quick-add-chip .chip-icon {
@@ -199,14 +271,18 @@ kbd {
 .task-item:hover {
   border-color: var(--border-light);
   background: var(--bg-secondary);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
 .task-item.selected {
   border-color: var(--accent-border);
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 28px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .task-item.is-leaving {

@@ -1,7 +1,7 @@
 .detail-panel {
   display: flex;
-  width: 380px;
-  min-width: 380px;
+  width: 420px;
+  min-width: 420px;
   height: 100%;
   flex-direction: column;
   border-left: 1px solid var(--border);
@@ -133,4 +133,112 @@
 .detail-footer > div {
   display: flex;
   gap: 8px;
+}
+
+/* --- 就地编辑字段 --- */
+.detail-field-editing {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 4px 14px;
+  margin-bottom: 2px;
+  animation: detail-body-in var(--motion-soft) var(--ease-out) both;
+  transition: border-color var(--motion-theme) var(--ease-standard);
+}
+
+.detail-field-editing-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.detail-field-editing input,
+.detail-field-editing textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 22px;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.detail-field-editing input {
+  min-height: 40px;
+  padding: 0 13px;
+}
+
+.detail-field-editing textarea {
+  resize: vertical;
+  min-height: 92px;
+  padding: 10px 13px;
+}
+
+.detail-field-editing input:focus,
+.detail-field-editing textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.detail-empty {
+  color: var(--text-muted);
+}
+
+/* --- 更多菜单 --- */
+.detail-more {
+  position: relative;
+}
+
+.detail-more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  min-width: 150px;
+  border: 1px solid var(--border-light);
+  border-radius: calc(var(--radius) + 2px);
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  backdrop-filter: blur(16px);
+  padding: 6px;
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  transform-origin: bottom right;
+  will-change: opacity, transform;
+}
+
+.detail-more-menu.is-entering {
+  animation: menu-in var(--motion-soft) var(--ease-out) both;
+}
+
+.detail-more-menu.is-exiting {
+  animation: menu-out var(--motion-fast) var(--ease-standard) both;
+  pointer-events: none;
+}
+
+.detail-more-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0 10px;
+  color: var(--red);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.detail-more-menu button:hover {
+  background: var(--danger-bg);
 }

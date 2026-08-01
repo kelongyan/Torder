@@ -3,12 +3,12 @@
 .btn-danger,
 .btn-danger-solid {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 36px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   border-radius: var(--radius-sm);
-  padding: 0 15px;
+  padding: 0 14px;
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -77,4 +77,68 @@
 
 .btn-danger-solid:hover {
   box-shadow: 0 8px 20px color-mix(in srgb, var(--red) 24%, transparent);
+}
+
+/* 主操作按钮(标记完成/恢复) */
+.btn-complete {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: var(--radius-sm);
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 22%, transparent);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+  will-change: transform;
+}
+
+.btn-complete:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 30%, transparent);
+  transform: translateY(-1px);
+}
+
+.btn-complete:active {
+  transform: scale(0.97);
+}
+
+.btn-complete:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.btn-complete svg {
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.btn-complete:hover svg {
+  transform: scale(1.12);
+}
+
+/* 已完成态:绿色,表示可恢复 */
+.btn-complete.done {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-success);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--green) 22%, transparent);
+}
+
+.btn-complete.done:hover {
+  border-color: color-mix(in srgb, var(--green) 85%, white);
+  background: color-mix(in srgb, var(--green) 85%, white);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--green) 30%, transparent);
 }
