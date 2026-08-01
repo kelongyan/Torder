@@ -341,6 +341,28 @@
   }
 }
 
+@keyframes detail-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-32px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes detail-drop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.98);
+  }
+}
+
 @keyframes subtle-rise {
   from {
     opacity: 0;

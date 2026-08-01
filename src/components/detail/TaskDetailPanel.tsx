@@ -9,7 +9,6 @@ import {
 } from "../../constants/reminderConfig";
 import { usePresence, type PresencePhase } from "../../hooks/usePresence";
 import type { Task, TaskList, UpdateTaskInput } from "../../types/database";
-import { FieldRow } from "../common/FieldRow";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
 import { TaskDateTimeField } from "../task/TaskDateTimeField";
@@ -52,11 +51,14 @@ export function TaskDetailPanel({
   const presentTask = detailPresence.value;
 
   return (
-    <aside
-      className={`detail-panel ${
+    <div
+      className={`dialog-overlay detail-overlay ${
         detailPresence.rendered ? detailPresence.className : "hidden"
       }`}
-      aria-hidden={!detailPresence.rendered}
+      role="presentation"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       {presentTask && (
         <TaskDetailContent
@@ -71,7 +73,7 @@ export function TaskDetailPanel({
           onDelete={onDelete}
         />
       )}
-    </aside>
+    </div>
   );
 }
 
@@ -125,6 +127,9 @@ function TaskDetailContent({
 
   const list = lists.find((item) => item.id === task.listId) ?? null;
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
+  const priorityColor =
+    priorityOptions.find((option) => option.value === task.priority)?.color ??
+    "var(--blue)";
 
   function patchAndSave(patch: Partial<Omit<UpdateTaskInput, "id">>) {
     return onSave({
@@ -162,10 +167,13 @@ function TaskDetailContent({
   }
 
   return (
-    <div
-      className={`detail-panel-content ${
+    <section
+      className={`detail-dialog ${
         presence === "exit" ? "is-exiting" : "is-entering"
       }`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="任务详情"
       onKeyDown={(e) => {
         if (e.key === "Escape" && editing) {
           e.stopPropagation();
@@ -175,11 +183,8 @@ function TaskDetailContent({
         }
       }}
     >
-      <header className="detail-header">
-        <div>
-          <span>任务详情</span>
-          <h2>{task.title}</h2>
-        </div>
+      <header className="detail-topbar">
+        <span>任务详情</span>
         <button
           type="button"
           className="icon-button"
@@ -190,9 +195,9 @@ function TaskDetailContent({
         </button>
       </header>
 
-      <div className="detail-body">
+      <div className="detail-dialog-body">
         {editing === "title" ? (
-          <div className="detail-field-editing">
+          <div className="detail-title-editing">
             <span className="detail-field-editing-label">任务名称</span>
             <input
               ref={titleInputRef}
@@ -209,13 +214,18 @@ function TaskDetailContent({
             />
           </div>
         ) : (
-          <FieldRow label="任务名称" onEdit={() => startEdit("title")}>
-            {task.title}
-          </FieldRow>
+          <button
+            type="button"
+            className="detail-title"
+            onClick={() => startEdit("title")}
+          >
+            <span>{task.title}</span>
+            <span className="detail-title-hint">点击重命名</span>
+          </button>
         )}
 
         {editing === "note" ? (
-          <div className="detail-field-editing">
+          <div className="detail-note-editing">
             <span className="detail-field-editing-label">描述</span>
             <textarea
               autoFocus
@@ -229,126 +239,165 @@ function TaskDetailContent({
               }}
               onBlur={saveNote}
               placeholder="补充任务背景、要求或链接..."
-              rows={4}
+              rows={3}
             />
           </div>
         ) : (
-          <FieldRow label="描述" onEdit={() => startEdit("note")}>
-            {task.note || <span className="detail-empty">暂无描述</span>}
-          </FieldRow>
-        )}
-
-        {editing === "priority" ? (
-          <div className="detail-field-editing">
-            <span className="detail-field-editing-label">优先级</span>
-            <SegmentedControl
-              value={task.priority}
-              options={priorityOptions}
-              onChange={(priority) => {
-                if (priority !== task.priority) {
-                  void patchAndSave({ priority });
-                }
-                setEditing(null);
-              }}
-              ariaLabel="优先级"
-            />
-          </div>
-        ) : (
-          <FieldRow label="优先级" onEdit={() => startEdit("priority")}>
-            <span
-              className={`priority-pill ${priorityCopy[task.priority].className}`}
-            >
-              {priorityCopy[task.priority].label}
-            </span>
-          </FieldRow>
-        )}
-
-        {editing === "listId" ? (
-          <div className="detail-field-editing">
-            <span className="detail-field-editing-label">所属清单</span>
-            <Select<string>
-              value={task.listId}
-              options={lists.map((item) => ({
-                value: item.id,
-                label: item.name,
-                dotColor: item.color ?? DEFAULT_LIST_COLOR,
-              }))}
-              onChange={(listId) => {
-                if (listId !== task.listId) {
-                  void patchAndSave({ listId });
-                }
-                setEditing(null);
-              }}
-              ariaLabel="所属清单"
-            />
-          </div>
-        ) : (
-          <FieldRow label="所属清单" onEdit={() => startEdit("listId")}>
-            <span
-              className="list-badge"
-              style={{ color: listColor, backgroundColor: `${listColor}24` }}
-            >
-              {list?.name ?? "未分类"}
-            </span>
-          </FieldRow>
-        )}
-
-        {editing === "dueAt" ? (
-          <div className="detail-field-editing">
-            <span className="detail-field-editing-label">截止日期时间</span>
-            <TaskDateTimeField
-              value={task.dueAt ? toLocal(task.dueAt) : ""}
-              onChange={(dueAt) => {
-                void patchAndSave({ dueAt: fromDateTimeLocal(dueAt) });
-              }}
-            />
-          </div>
-        ) : (
-          <FieldRow label="截止日期时间" onEdit={() => startEdit("dueAt")}>
-            {task.dueAt ? (
-              formatTaskDateTime(task.dueAt)
-            ) : (
-              <span className="detail-empty">未设置</span>
+          <button
+            type="button"
+            className="detail-note"
+            onClick={() => startEdit("note")}
+          >
+            {task.note || (
+              <span className="detail-empty">暂无描述,点击添加</span>
             )}
-          </FieldRow>
+          </button>
         )}
 
-        {editing === "remindBefore" ? (
-          <div className="detail-field-editing">
-            <span className="detail-field-editing-label">提醒</span>
-            <Select<number>
-              value={task.remindBefore ?? -1}
-              options={reminderOptions}
-              onChange={(value) => {
-                const remindBefore = value < 0 ? null : value;
-                if (remindBefore !== task.remindBefore) {
-                  void patchAndSave({ remindBefore });
-                }
-                setEditing(null);
-              }}
-              ariaLabel="提醒时间"
-            />
-          </div>
-        ) : (
-          <FieldRow label="提醒" onEdit={() => startEdit("remindBefore")}>
-            {task.dueAt ? (
-              describeReminder(task.remindBefore)
-            ) : (
-              <span className="detail-empty">未设置截止时间时不可用</span>
-            )}
-          </FieldRow>
-        )}
+        <div className="detail-attr-grid">
+          {editing === "priority" ? (
+            <div className="detail-attr-cell detail-attr-editing">
+              <span className="detail-attr-label">优先级</span>
+              <SegmentedControl
+                value={task.priority}
+                options={priorityOptions}
+                onChange={(priority) => {
+                  if (priority !== task.priority) {
+                    void patchAndSave({ priority });
+                  }
+                  setEditing(null);
+                }}
+                ariaLabel="优先级"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="detail-attr-cell"
+              onClick={() => startEdit("priority")}
+            >
+              <span className="detail-attr-label">优先级</span>
+              <span className="detail-attr-value">
+                <span
+                  className="detail-attr-dot"
+                  style={{ background: priorityColor }}
+                />
+                {priorityCopy[task.priority].label}
+              </span>
+            </button>
+          )}
 
-        <FieldRow label="状态" editable={false}>
+          {editing === "listId" ? (
+            <div className="detail-attr-cell detail-attr-editing">
+              <span className="detail-attr-label">所属清单</span>
+              <Select<string>
+                value={task.listId}
+                options={lists.map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                  dotColor: item.color ?? DEFAULT_LIST_COLOR,
+                }))}
+                onChange={(listId) => {
+                  if (listId !== task.listId) {
+                    void patchAndSave({ listId });
+                  }
+                  setEditing(null);
+                }}
+                ariaLabel="所属清单"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="detail-attr-cell"
+              onClick={() => startEdit("listId")}
+            >
+              <span className="detail-attr-label">所属清单</span>
+              <span className="detail-attr-value">
+                <span
+                  className="detail-attr-dot"
+                  style={{ background: listColor }}
+                />
+                {list?.name ?? "未分类"}
+              </span>
+            </button>
+          )}
+
+          {editing === "dueAt" ? (
+            <div className="detail-attr-cell detail-attr-editing">
+              <span className="detail-attr-label">截止时间</span>
+              <TaskDateTimeField
+                value={task.dueAt ? toLocal(task.dueAt) : ""}
+                onChange={(dueAt) => {
+                  void patchAndSave({ dueAt: fromDateTimeLocal(dueAt) });
+                }}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="detail-attr-cell"
+              onClick={() => startEdit("dueAt")}
+            >
+              <span className="detail-attr-label">截止时间</span>
+              <span className="detail-attr-value">
+                {task.dueAt ? (
+                  formatTaskDateTime(task.dueAt)
+                ) : (
+                  <span className="detail-empty">未设置</span>
+                )}
+              </span>
+            </button>
+          )}
+
+          {editing === "remindBefore" ? (
+            <div className="detail-attr-cell detail-attr-editing">
+              <span className="detail-attr-label">提醒</span>
+              <Select<number>
+                value={task.remindBefore ?? -1}
+                options={reminderOptions}
+                onChange={(value) => {
+                  const remindBefore = value < 0 ? null : value;
+                  if (remindBefore !== task.remindBefore) {
+                    void patchAndSave({ remindBefore });
+                  }
+                  setEditing(null);
+                }}
+                ariaLabel="提醒时间"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="detail-attr-cell"
+              onClick={() => startEdit("remindBefore")}
+            >
+              <span className="detail-attr-label">提醒</span>
+              <span className="detail-attr-value">
+                {task.dueAt ? (
+                  describeReminder(task.remindBefore)
+                ) : (
+                  <span className="detail-empty">未设置截止时间时不可用</span>
+                )}
+              </span>
+            </button>
+          )}
+        </div>
+
+        <div className="detail-meta-row">
           <span
             className={`status-pill ${task.status === "done" ? "done" : ""}`}
           >
             {task.status === "done" ? "已完成" : "进行中"}
           </span>
-        </FieldRow>
+          <span className="detail-meta">
+            创建于 {formatTaskDateTime(task.createdAt)} · 更新于{" "}
+            {formatTaskDateTime(task.updatedAt)}
+          </span>
+        </div>
       </div>
 
-      <footer className="detail-footer">
+      <footer className="detail-dialog-footer">
         <button
           type="button"
           className={`btn-complete ${task.status === "done" ? "done" : ""}`}
@@ -387,7 +436,7 @@ function TaskDetailContent({
           )}
         </div>
       </footer>
-    </div>
+    </section>
   );
 }
 

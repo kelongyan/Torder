@@ -1,18 +1,4 @@
 @media (max-width: 1039px) {
-  .detail-panel {
-    position: fixed;
-    top: 38px;
-    right: 0;
-    z-index: 30;
-    width: min(380px, 92vw);
-    min-width: 0;
-    height: calc(100vh - 38px);
-  }
-
-  .detail-panel.hidden {
-    display: none;
-  }
-
   .board-view {
     grid-template-columns: 1fr;
   }
@@ -291,11 +277,6 @@
     padding: 10px;
   }
 
-  .detail-panel {
-    top: 36px;
-    height: calc(100vh - 36px);
-  }
-
   .quick-add {
     min-height: 42px;
     padding: 0 12px;
@@ -320,8 +301,6 @@
   .board-card,
   .board-column,
   .calendar-group,
-  .detail-panel,
-  .detail-panel-content,
   .dialog-card,
   .view-menu,
   .date-picker-panel,

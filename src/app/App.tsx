@@ -27,7 +27,12 @@ import { MainHeader } from "../components/layout/MainHeader";
 import { TaskListView } from "../components/task/TaskListView";
 import { TaskBoard } from "../components/task/TaskBoard";
 import { TaskCalendar } from "../components/task/TaskCalendar";
-import { createList, deleteList, listLists, updateList } from "../services/listService";
+import {
+  createList,
+  deleteList,
+  listLists,
+  updateList,
+} from "../services/listService";
 import { TaskDetailPanel } from "../components/detail/TaskDetailPanel";
 import { TaskCreateDialog } from "../components/dialog/TaskCreateDialog";
 import { ListDialog } from "../components/dialog/ListDialog";
@@ -136,8 +141,9 @@ function App() {
     setCreateOpen(false);
     setListDialogOpen(false);
     setConfirmState(null);
+    selectTask(null);
     clearBatchSelection();
-  }, [clearBatchSelection]);
+  }, [clearBatchSelection, selectTask]);
 
   useAppInit(setSettings, setLists, setAppError);
   useTrayQuickAdd(openCreateDialog, setAppError);
@@ -151,7 +157,11 @@ function App() {
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
 
-  async function handleSaveList(data: { id?: string; name: string; color: string }) {
+  async function handleSaveList(data: {
+    id?: string;
+    name: string;
+    color: string;
+  }) {
     if (data.id) {
       await updateList({
         id: data.id,
@@ -367,16 +377,6 @@ function App() {
             </div>
           </section>
         </main>
-
-        <TaskDetailPanel
-          task={selectedTask}
-          lists={lists}
-          busy={loading}
-          onClose={() => selectTask(null)}
-          onSave={handleSaveTask}
-          onToggle={(task) => void handleToggleTask(task)}
-          onDelete={requestDeleteTask}
-        />
       </div>
 
       {createPresence.rendered && (
@@ -388,6 +388,16 @@ function App() {
           onSubmit={(input) => void handleCreateTask(input)}
         />
       )}
+
+      <TaskDetailPanel
+        task={selectedTask}
+        lists={lists}
+        busy={loading}
+        onClose={() => selectTask(null)}
+        onSave={handleSaveTask}
+        onToggle={(task) => void handleToggleTask(task)}
+        onDelete={requestDeleteTask}
+      />
 
       {listDialogPresence.rendered && (
         <ListDialog
