@@ -350,6 +350,10 @@
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+.nav-item:active {
+  transform: scale(0.98);
+}
+
 .nav-item.active .icon-sm {
   color: var(--accent-hover);
   transform: scale(1.08);
@@ -661,14 +665,24 @@
     0 0 0 1px rgba(255, 255, 255, 0.05);
   transform-origin: top right;
   will-change: opacity, transform;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out);
 }
 
-.view-menu.is-entering {
-  animation: menu-in var(--motion-soft) var(--ease-out) both;
+@starting-style {
+  .view-menu {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
 }
 
 .view-menu.is-exiting {
-  animation: menu-out var(--motion-fast) var(--ease-standard) both;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.985);
+  pointer-events: none;
 }
 
 .menu-label {

@@ -1,4 +1,4 @@
-import { Check, Eye } from "lucide-react";
+import { BarChart3, Check, Eye, Settings } from "lucide-react";
 import { sortOptions } from "../../constants/taskConfig";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { TaskSortBy } from "../../types/database";
@@ -9,12 +9,16 @@ export function ViewMenu({
   presence,
   onSortChange,
   onShowCompletedChange,
+  onOpenSettings,
+  onOpenStats,
 }: {
   sortBy: TaskSortBy;
   showCompleted: boolean;
   presence: PresencePhase;
   onSortChange: (sortBy: TaskSortBy) => void;
   onShowCompletedChange: () => void;
+  onOpenSettings: () => void;
+  onOpenStats: () => void;
 }) {
   return (
     <div
@@ -44,6 +48,16 @@ export function ViewMenu({
         <span>显示已完成</span>
         {showCompleted && <Check aria-hidden="true" className="icon-sm" />}
       </button>
+      <div className="menu-separator" />
+      <button type="button" className="menu-item" onClick={onOpenStats}>
+        <BarChart3 aria-hidden="true" className="icon-sm" />
+        <span>统计洞察</span>
+      </button>
+      <button type="button" className="menu-item" onClick={onOpenSettings}>
+        <Settings aria-hidden="true" className="icon-sm" />
+        <span>设置与备份</span>
+      </button>
     </div>
   );
 }
+

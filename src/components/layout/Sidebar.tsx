@@ -1,4 +1,4 @@
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Repeat2, Search, X } from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
@@ -18,6 +18,9 @@ export function Sidebar({
   onAddList,
   onEditList,
   onDeleteList,
+  recurringActive,
+  recurringCount,
+  onOpenRecurring,
 }: {
   lists: TaskList[];
   scope: TaskScope;
@@ -31,6 +34,9 @@ export function Sidebar({
   onAddList: () => void;
   onEditList: (list: TaskList) => void;
   onDeleteList: (list: TaskList) => void;
+  recurringActive: boolean;
+  recurringCount: number;
+  onOpenRecurring: () => void;
 }) {
   return (
     <aside className="sidebar">
@@ -72,11 +78,20 @@ export function Sidebar({
             key={item.view}
             icon={item.icon}
             label={taskViewCopy[item.view].title}
-            active={isScopeActive(scope, viewScope(item.view))}
+            active={
+              !recurringActive && isScopeActive(scope, viewScope(item.view))
+            }
             count={counts.views[item.view] ?? 0}
             onClick={() => onScopeChange(viewScope(item.view))}
           />
         ))}
+        <SidebarItem
+          icon={Repeat2}
+          label="循环任务"
+          active={recurringActive}
+          count={recurringCount}
+          onClick={onOpenRecurring}
+        />
 
         <div className="sidebar-divider" />
         <div className="nav-group-header">
@@ -96,7 +111,7 @@ export function Sidebar({
             key={list.id}
             color={list.color ?? DEFAULT_LIST_COLOR}
             label={list.name}
-            active={isScopeActive(scope, listScope(list.id))}
+            active={!recurringActive && isScopeActive(scope, listScope(list.id))}
             count={counts.lists[list.id] ?? 0}
             onClick={() => onScopeChange(listScope(list.id))}
             onEdit={!list.isDefault ? () => onEditList(list) : undefined}

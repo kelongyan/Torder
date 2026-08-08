@@ -1,9 +1,11 @@
 import {
   Calendar,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   Clock,
   Flag,
+  Inbox,
   Kanban,
   List,
   ListTodo,
@@ -19,6 +21,8 @@ export const systemNav: Array<{
   { view: "all", icon: ListTodo },
   { view: "today", icon: Calendar },
   { view: "planned", icon: CalendarDays },
+  { view: "overdue", icon: CalendarClock },
+  { view: "no-date", icon: Inbox },
   { view: "important", icon: Star },
   { view: "completed", icon: CheckCircle2 },
 ];

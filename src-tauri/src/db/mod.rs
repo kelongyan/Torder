@@ -1,5 +1,6 @@
 pub mod list_repository;
 pub mod migrations;
+pub mod recurring_repository;
 pub mod settings_repository;
 pub mod task_repository;
 
@@ -11,7 +12,7 @@ use rusqlite::{params, Connection};
 use crate::error::RepositoryResult;
 use crate::models::DatabaseStatus;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Database {
     path: PathBuf,
 }

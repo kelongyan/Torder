@@ -19,6 +19,16 @@ export const taskViewCopy: Record<
     emptyTitle: "没有计划中的任务",
     emptyBody: "设置截止时间后，任务会出现在这里。",
   },
+  overdue: {
+    title: "已逾期",
+    emptyTitle: "没有逾期的任务",
+    emptyBody: "截止时间已过的未完成任务会集中在这里，建议尽快处理。",
+  },
+  "no-date": {
+    title: "无截止日期",
+    emptyTitle: "没有无截止日期的任务",
+    emptyBody: "没有设置截止时间的任务会出现在这里。",
+  },
   important: {
     title: "重要任务",
     emptyTitle: "没有标记为重要的任务",

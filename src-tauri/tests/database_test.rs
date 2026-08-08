@@ -3,12 +3,15 @@ use std::path::Path;
 use uuid::Uuid;
 
 use torder_lib::db::list_repository::ListRepository;
+use torder_lib::db::migrations::CURRENT_SCHEMA_VERSION;
+use torder_lib::db::recurring_repository::RecurringRuleRepository;
 use torder_lib::db::settings_repository::SettingsRepository;
 use torder_lib::db::task_repository::TaskRepository;
 use torder_lib::db::Database;
 use torder_lib::error::{RepositoryError, RepositoryResult};
 use torder_lib::models::{
-    CreateTaskInput, TaskQueryInput, UpdateTaskInput, UpsertSettingInput,
+    CreateRecurringRuleInput, CreateTaskInput, TaskQueryInput, UpdateRecurringRuleInput,
+    UpdateTaskInput, UpsertSettingInput,
 };
 
 #[test]
@@ -18,7 +21,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
     let database = Database::initialize(database_path.clone())?;
 
     let status = database.status()?;
-    assert_eq!(status.schema_version, 5);
+    assert_eq!(status.schema_version, CURRENT_SCHEMA_VERSION);
     assert_eq!(status.list_count, 3);
     assert_eq!(status.task_count, 0);
 
@@ -47,6 +50,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         due_at: None,
         sort_order: Some(1),
         remind_before: None,
+        repeat_rule: None,
     })?;
     assert_eq!(task.title, "数据层测试任务");
     assert_eq!(task.status, "todo");
@@ -61,6 +65,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         due_at: task.due_at.clone(),
         sort_order: task.sort_order,
         remind_before: task.remind_before,
+        repeat_rule: task.repeat_rule.clone(),
     })?;
     assert_eq!(updated.status, "done");
     assert!(updated.completed_at.is_some());
@@ -79,6 +84,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         due_at: None,
         sort_order: None,
         remind_before: None,
+        repeat_rule: None,
     })?;
     SettingsRepository::new(&database).upsert(UpsertSettingInput {
         key: "theme".to_owned(),
@@ -87,7 +93,10 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
 
     drop(database);
     let reopened_database = Database::initialize(database_path.clone())?;
-    assert_eq!(reopened_database.status()?.schema_version, 5);
+    assert_eq!(
+        reopened_database.status()?.schema_version,
+        CURRENT_SCHEMA_VERSION
+    );
     assert_eq!(
         TaskRepository::new(&reopened_database)
             .get(&persistent_task.id)?
@@ -203,6 +212,7 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         due_at: None,
         sort_order: None,
         remind_before: None,
+        repeat_rule: None,
     })?;
     repository.create(CreateTaskInput {
         title: "购买生活用品".to_owned(),
@@ -212,6 +222,7 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         due_at: None,
         sort_order: None,
         remind_before: None,
+        repeat_rule: None,
     })?;
 
     assert_eq!(
@@ -273,6 +284,192 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
     Ok(())
 }
 
+#[test]
+fn generates_only_latest_due_recurring_occurrence_idempotently() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-recurring-test-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let recurring = RecurringRuleRepository::new(&database);
+    let rule = recurring.create(CreateRecurringRuleInput {
+        source_task_id: None,
+        title: "每日报表".to_owned(),
+        note: Some("自动生成".to_owned()),
+        priority: 2,
+        list_id: "work".to_owned(),
+        frequency: "daily".to_owned(),
+        interval_count: 1,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2024-01-01T09:00:00Z".to_owned(),
+        timezone: "Asia/Shanghai".to_owned(),
+        generate_ahead_minutes: 1440,
+        remind_before: Some(60),
+        end_at: None,
+    })?;
+
+    let now =
+        chrono::DateTime::parse_from_rfc3339("2024-01-05T12:00:00Z")?.with_timezone(&chrono::Utc);
+    assert_eq!(recurring.generate_due_at(now)?.generated_count, 1);
+    assert_eq!(recurring.generate_due_at(now)?.generated_count, 0);
+
+    let tasks =
+        TaskRepository::new(&database).query(query_input("view", "all", None, "date", true))?;
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].due_at.as_deref(), Some("2024-01-06T09:00:00Z"));
+    assert_eq!(
+        tasks[0].recurring_rule_id.as_deref(),
+        Some(rule.id.as_str())
+    );
+    assert_eq!(tasks[0].occurrence_at, tasks[0].due_at);
+
+    let skipped = recurring.skip_next(&rule.id)?;
+    assert_eq!(skipped.next_due_at.as_deref(), Some("2024-01-08T09:00:00Z"));
+    let paused = recurring.set_enabled(&rule.id, false)?;
+    assert!(!paused.enabled);
+    assert_eq!(recurring.generate_due_at(now)?.generated_count, 0);
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+/// 回归：编辑非排期字段不得倒回进度，删除实例后必须能重新生成。
+#[test]
+fn recurring_edits_preserve_progress_and_deleted_occurrences_regenerate(
+) -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-recurring-edit-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let recurring = RecurringRuleRepository::new(&database);
+    let tasks = TaskRepository::new(&database);
+
+    let rule = recurring.create(CreateRecurringRuleInput {
+        source_task_id: None,
+        title: "每日站会".to_owned(),
+        note: None,
+        priority: 1,
+        list_id: "work".to_owned(),
+        frequency: "daily".to_owned(),
+        interval_count: 1,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2024-03-01T01:00:00Z".to_owned(),
+        timezone: "Asia/Shanghai".to_owned(),
+        generate_ahead_minutes: 0,
+        remind_before: None,
+        end_at: None,
+    })?;
+
+    // 先跳过两次，把进度推到 03-03。
+    recurring.skip_next(&rule.id)?;
+    let skipped = recurring.skip_next(&rule.id)?;
+    assert_eq!(skipped.next_due_at.as_deref(), Some("2024-03-03T01:00:00Z"));
+
+    // 只改标题/优先级/提醒，排期没动，进度必须原地保留。
+    let renamed = recurring.update(UpdateRecurringRuleInput {
+        id: rule.id.clone(),
+        title: "每日站会（改名）".to_owned(),
+        note: Some("换个说明".to_owned()),
+        priority: 2,
+        list_id: "personal".to_owned(),
+        frequency: skipped.frequency.clone(),
+        interval_count: skipped.interval_count,
+        weekdays: skipped.weekdays.clone(),
+        month_day: skipped.month_day,
+        first_due_at: skipped.first_due_at.clone(),
+        timezone: skipped.timezone.clone(),
+        generate_ahead_minutes: 30,
+        remind_before: Some(15),
+        end_at: None,
+    })?;
+    assert_eq!(renamed.title, "每日站会（改名）");
+    assert_eq!(
+        renamed.next_due_at.as_deref(),
+        Some("2024-03-03T01:00:00Z"),
+        "改非排期字段不应该把 next_due_at 倒回 first_due_at"
+    );
+
+    // 真正改排期时才允许重排到新的首次到期时间。
+    let rescheduled = recurring.update(UpdateRecurringRuleInput {
+        id: rule.id.clone(),
+        title: renamed.title.clone(),
+        note: renamed.note.clone(),
+        priority: renamed.priority,
+        list_id: renamed.list_id.clone(),
+        frequency: "daily".to_owned(),
+        interval_count: 2,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2024-03-10T01:00:00Z".to_owned(),
+        timezone: renamed.timezone.clone(),
+        generate_ahead_minutes: 0,
+        remind_before: None,
+        end_at: None,
+    })?;
+    assert_eq!(
+        rescheduled.next_due_at.as_deref(),
+        Some("2024-03-10T01:00:00Z"),
+        "改了排期就应该按新的 first_due_at 重排"
+    );
+
+    // 生成一个实例，删掉它，然后把进度重排回同一时刻，必须能重新生成。
+    let now =
+        chrono::DateTime::parse_from_rfc3339("2024-03-10T02:00:00Z")?.with_timezone(&chrono::Utc);
+    assert_eq!(recurring.generate_due_at(now)?.generated_count, 1);
+    let generated = tasks.query(query_input("view", "all", None, "date", true))?;
+    assert_eq!(generated.len(), 1);
+    assert_eq!(
+        generated[0].occurrence_at.as_deref(),
+        Some("2024-03-10T01:00:00Z")
+    );
+
+    tasks.soft_delete(&generated[0].id)?;
+    assert_eq!(
+        tasks
+            .query(query_input("view", "all", None, "date", true))?
+            .len(),
+        0
+    );
+
+    // 改排期把 next_due_at 重排回 2024-03-10，即刚被删掉的那个 occurrence。
+    let replanned = recurring.update(UpdateRecurringRuleInput {
+        id: rule.id.clone(),
+        title: rescheduled.title.clone(),
+        note: rescheduled.note.clone(),
+        priority: rescheduled.priority,
+        list_id: rescheduled.list_id.clone(),
+        frequency: "daily".to_owned(),
+        interval_count: 3,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2024-03-10T01:00:00Z".to_owned(),
+        timezone: rescheduled.timezone.clone(),
+        generate_ahead_minutes: 0,
+        remind_before: None,
+        end_at: None,
+    })?;
+    assert_eq!(
+        replanned.next_due_at.as_deref(),
+        Some("2024-03-10T01:00:00Z")
+    );
+
+    assert_eq!(
+        recurring.generate_due_at(now)?.generated_count,
+        1,
+        "软删除的实例不应该永久占用唯一索引，同一 occurrence 必须能重新生成"
+    );
+    let regenerated = tasks.query(query_input("view", "all", None, "date", true))?;
+    assert_eq!(regenerated.len(), 1);
+    assert_eq!(
+        regenerated[0].occurrence_at.as_deref(),
+        Some("2024-03-10T01:00:00Z")
+    );
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
 fn query_input(
     scope_kind: &str,
     scope_value: &str,
@@ -304,6 +501,7 @@ fn task_input(
         due_at: due_at.map(str::to_owned),
         sort_order: Some(sort_order),
         remind_before: None,
+        repeat_rule: None,
     }
 }
 

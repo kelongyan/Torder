@@ -131,7 +131,24 @@
   box-shadow:
     0 14px 36px rgba(0, 0, 0, 0.35),
     0 0 0 1px rgba(255, 255, 255, 0.05);
-  animation: menu-in var(--motion-soft) var(--ease-out) both;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out);
+}
+
+@starting-style {
+  .quick-add-date-panel {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+.quick-add-date-panel.is-exiting {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.985);
+  pointer-events: none;
 }
 
 .date-chip-row {
@@ -262,6 +279,7 @@ kbd {
     max-height var(--motion-soft) var(--ease-standard),
     margin var(--motion-soft) var(--ease-standard),
     padding var(--motion-soft) var(--ease-standard),
+    opacity var(--motion-soft) var(--ease-standard),
     transform var(--motion-fast) var(--ease-spring);
   animation: task-row-in var(--motion-panel) var(--ease-out)
     calc(var(--item-index, 0) * 28ms) both;
@@ -275,6 +293,10 @@ kbd {
     0 6px 24px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
+}
+
+.task-item:active {
+  transform: scale(0.99);
 }
 
 .task-item.selected {
@@ -293,7 +315,8 @@ kbd {
   padding-top: 0;
   padding-bottom: 0;
   pointer-events: none;
-  animation: task-row-out var(--motion-soft) var(--ease-standard) both;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.985);
 }
 
 .task-item.completed .task-content h3 {

@@ -41,6 +41,9 @@ interface TaskState {
   removeTask: (id: string) => Promise<void>;
   batchComplete: () => Promise<void>;
   batchDelete: () => Promise<void>;
+  batchUpdate: (
+    patch: Partial<Pick<UpdateTaskInput, "listId" | "priority">>,
+  ) => Promise<void>;
   selectTask: (id: string | null) => void;
   toggleBatchMode: () => void;
   toggleBatchSelected: (id: string) => void;
@@ -171,6 +174,34 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         await deleteTask(id);
       }
       set({ selectedTaskId: null, batchSelectedIds: [], batchMode: false });
+      await get().loadTasks();
+    });
+  },
+
+  batchUpdate: async (patch) => {
+    await runMutation(set, async () => {
+      const selectedIds = get().batchSelectedIds;
+      const source = new Map(
+        get().allTasks.map((task) => [task.id, task] as const),
+      );
+      for (const id of selectedIds) {
+        const task = source.get(id);
+        if (!task) continue;
+        await updateTask({
+          id: task.id,
+          title: task.title,
+          note: task.note,
+          status: task.status,
+          priority: task.priority,
+          listId: task.listId,
+          dueAt: task.dueAt,
+          sortOrder: task.sortOrder,
+          remindBefore: task.remindBefore,
+          repeatRule: task.repeatRule,
+          ...patch,
+        });
+      }
+      set({ batchSelectedIds: [], batchMode: false });
       await get().loadTasks();
     });
   },

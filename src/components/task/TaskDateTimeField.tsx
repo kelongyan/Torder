@@ -17,9 +17,11 @@ const minutes = Array.from({ length: 60 }, (_, index) => index);
 export function TaskDateTimeField({
   value,
   onChange,
+  label = "截止日期时间",
 }: {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const selectedDate = useMemo(() => getSafeDate(value), [value]);
@@ -95,7 +97,7 @@ export function TaskDateTimeField({
         }
       }}
     >
-      <span>截止日期时间</span>
+      <span>{label}</span>
       <div className="date-time-control">
         <button
           type="button"
@@ -126,7 +128,7 @@ export function TaskDateTimeField({
         <div
           className={`date-picker-panel ${pickerPresence.className}`}
           role="dialog"
-          aria-label="选择截止日期时间"
+          aria-label={`选择${label}`}
         >
           <div className="date-picker-calendar">
             <div className="date-picker-toolbar">

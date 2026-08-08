@@ -5,7 +5,14 @@ export interface DatabaseStatus {
   taskCount: number;
 }
 
-export type SystemView = "all" | "today" | "planned" | "important" | "completed";
+export type SystemView =
+  | "all"
+  | "today"
+  | "planned"
+  | "overdue"
+  | "no-date"
+  | "important"
+  | "completed";
 export type TaskLayout = "list" | "board" | "calendar";
 export type TaskSortBy = "priority" | "date" | "created";
 
@@ -26,6 +33,9 @@ export interface Task {
   remindBefore: number | null;
   remindAt: string | null;
   remindedAt: string | null;
+  repeatRule: string | null;
+  recurringRuleId: string | null;
+  occurrenceAt: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -39,6 +49,7 @@ export interface CreateTaskInput {
   dueAt?: string | null;
   sortOrder?: number;
   remindBefore?: number | null;
+  repeatRule?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -51,6 +62,7 @@ export interface UpdateTaskInput {
   dueAt: string | null;
   sortOrder: number;
   remindBefore: number | null;
+  repeatRule: string | null;
 }
 
 export interface TaskList {
@@ -61,6 +73,55 @@ export interface TaskList {
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "quarterly";
+
+export interface RecurringRule {
+  id: string;
+  title: string;
+  note: string | null;
+  priority: 0 | 1 | 2;
+  listId: string;
+  frequency: RecurrenceFrequency;
+  intervalCount: number;
+  weekdays: number[];
+  monthDay: number | null;
+  firstDueAt: string;
+  nextDueAt: string | null;
+  timezone: string;
+  generateAheadMinutes: number;
+  remindBefore: number | null;
+  endAt: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface CreateRecurringRuleInput {
+  sourceTaskId?: string | null;
+  title: string;
+  note?: string | null;
+  priority: 0 | 1 | 2;
+  listId: string;
+  frequency: RecurrenceFrequency;
+  intervalCount: number;
+  weekdays: number[];
+  monthDay: number | null;
+  firstDueAt: string;
+  timezone: string;
+  generateAheadMinutes: number;
+  remindBefore: number | null;
+  endAt: string | null;
+}
+
+export interface UpdateRecurringRuleInput extends Omit<CreateRecurringRuleInput, "sourceTaskId"> {
+  id: string;
+}
+
+export interface RecurringGenerationResult {
+  generatedCount: number;
 }
 
 export interface Setting {

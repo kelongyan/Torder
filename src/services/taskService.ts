@@ -31,6 +31,9 @@ export function createTask(input: CreateTaskInput): Promise<Task> {
       remindBefore: input.remindBefore ?? null,
       remindAt: null,
       remindedAt: null,
+      repeatRule: input.repeatRule ?? null,
+      recurringRuleId: null,
+      occurrenceAt: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -124,6 +127,7 @@ export function setTaskCompleted(
       dueAt: task.dueAt,
       sortOrder: task.sortOrder,
       remindBefore: task.remindBefore,
+      repeatRule: task.repeatRule,
     });
   }
 

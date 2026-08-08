@@ -42,3 +42,7 @@ output/playwright/阶段7-托盘菜单实机.png
 *.njsproj
 *.sln
 *.sw?
+
+# Local-only build artifacts and process snapshots (never commit)
+dist-*/
+procs.txt

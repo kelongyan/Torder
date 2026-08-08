@@ -8,7 +8,14 @@ import {
 import { getDefaultDueAtLocal, toDateTimeLocal } from "../app/taskDates";
 import { taskViewCopy } from "../app/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
-import type { SystemView, Task, TaskList, TaskScope } from "../types/database";
+import type {
+  RecurrenceFrequency,
+  RecurringRule,
+  SystemView,
+  Task,
+  TaskList,
+  TaskScope,
+} from "../types/database";
 
 export interface TaskDraft {
   title: string;
@@ -17,6 +24,13 @@ export interface TaskDraft {
   listId: string;
   dueAt: string;
   remindBefore: number | null;
+  recurrenceFrequency: RecurrenceFrequency | null;
+  recurrenceInterval: number;
+  recurrenceWeekdays: number[];
+  recurrenceMonthDay: number;
+  generateAheadMinutes: number;
+  generateAheadUnit: "hours" | "days";
+  recurrenceEndAt: string;
 }
 
 export function getScopeTitle(scope: TaskScope, lists: TaskList[]): string {
@@ -31,11 +45,23 @@ export function isScopeActive(current: TaskScope, target: TaskScope): boolean {
     : current.listId === (target as { kind: "list"; listId: string }).listId;
 }
 
-export function buildCounts(tasks: Task[], lists: TaskList[]) {
+export function buildCounts(
+  tasks: Task[],
+  lists: TaskList[],
+  showCompleted: boolean,
+) {
+  // 「全部任务」和清单角标必须和后端同名视图的过滤口径一致：始终排除归档，
+  // 已完成只在用户打开「显示已完成」时计入。否则角标会比列表里的条数虚高。
+  const inScope = (task: Task) =>
+    task.status !== "archived" && (showCompleted || task.status !== "done");
+
   const views: Record<SystemView, number> = {
-    all: tasks.length,
+    all: tasks.filter(inScope).length,
     today: tasks.filter((task) => matchesViewCount(task, "today")).length,
     planned: tasks.filter((task) => matchesViewCount(task, "planned")).length,
+    overdue: tasks.filter((task) => matchesViewCount(task, "overdue")).length,
+    "no-date": tasks.filter((task) => matchesViewCount(task, "no-date"))
+      .length,
     important: tasks.filter((task) => matchesViewCount(task, "important"))
       .length,
     completed: tasks.filter((task) => task.status === "done").length,
@@ -43,7 +69,7 @@ export function buildCounts(tasks: Task[], lists: TaskList[]) {
   const listCounts: Record<string, number> = {};
   for (const list of lists) {
     listCounts[list.id] = tasks.filter(
-      (task) => task.listId === list.id,
+      (task) => task.listId === list.id && inScope(task),
     ).length;
   }
   return { views, lists: listCounts };
@@ -62,6 +88,19 @@ function matchesViewCount(task: Task, view: SystemView): boolean {
     );
   }
   if (view === "planned") return task.dueAt !== null;
+  if (view === "overdue") {
+    if (!task.dueAt) return false;
+    const due = new Date(task.dueAt);
+    const now = new Date();
+    return (
+      due.getFullYear() < now.getFullYear() ||
+      due.getMonth() < now.getMonth() ||
+      (due.getFullYear() === now.getFullYear() &&
+        due.getMonth() === now.getMonth() &&
+        due.getDate() < now.getDate())
+    );
+  }
+  if (view === "no-date") return task.dueAt === null;
   if (view === "important") return task.priority === 2;
   return true;
 }
@@ -84,6 +123,13 @@ export function emptyDraft(defaultListId: string): TaskDraft {
     listId: defaultListId,
     dueAt: getDefaultDueAtLocal(),
     remindBefore: 1440, // default 1 day before due
+    recurrenceFrequency: null,
+    recurrenceInterval: 1,
+    recurrenceWeekdays: [new Date().getDay()],
+    recurrenceMonthDay: new Date().getDate(),
+    generateAheadMinutes: 1440,
+    generateAheadUnit: "days",
+    recurrenceEndAt: "",
   };
 }
 
@@ -99,6 +145,32 @@ export function createTaskDraft(
     listId: task.listId,
     dueAt: toDateTimeLocal(task.dueAt),
     remindBefore: task.remindBefore,
+    recurrenceFrequency: null,
+    recurrenceInterval: 1,
+    recurrenceWeekdays: [new Date(task.dueAt ?? Date.now()).getDay()],
+    recurrenceMonthDay: new Date(task.dueAt ?? Date.now()).getDate(),
+    generateAheadMinutes: 1440,
+    generateAheadUnit: "days",
+    recurrenceEndAt: "",
+  };
+}
+
+export function recurringRuleDraft(rule: RecurringRule): TaskDraft {
+  return {
+    title: rule.title,
+    note: rule.note ?? "",
+    priority: rule.priority,
+    listId: rule.listId,
+    dueAt: toDateTimeLocal(rule.firstDueAt),
+    remindBefore: rule.remindBefore,
+    recurrenceFrequency: rule.frequency,
+    recurrenceInterval: rule.intervalCount,
+    recurrenceWeekdays: rule.weekdays,
+    recurrenceMonthDay: rule.monthDay ?? new Date(rule.firstDueAt).getDate(),
+    generateAheadMinutes: rule.generateAheadMinutes,
+    generateAheadUnit:
+      rule.generateAheadMinutes % 1440 === 0 ? "days" : "hours",
+    recurrenceEndAt: toDateTimeLocal(rule.endAt),
   };
 }
 

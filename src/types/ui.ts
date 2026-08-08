@@ -12,5 +12,7 @@ export interface ConfirmState {
   body: string;
   confirmText: string;
   danger?: boolean;
+  secondaryText?: string;
+  onSecondary?: () => Promise<void>;
   onConfirm: () => Promise<void>;
 }

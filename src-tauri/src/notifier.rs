@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, TransactionBehavior};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
@@ -25,34 +25,69 @@ pub fn start_notifier(app_handle: AppHandle, database_path: PathBuf) {
 }
 
 fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(), String> {
-    let connection = open_connection(database_path).map_err(|e| format!("db open: {e}"))?;
+    let mut connection = open_connection(database_path).map_err(|e| format!("db open: {e}"))?;
 
-    let mut statement = connection
-        .prepare(
-            r#"
-            SELECT id, title, note, status, priority, list_id, due_at,
-                   completed_at, sort_order, remind_before, remind_at, reminded_at,
-                   created_at, updated_at, deleted_at
-            FROM tasks
-            WHERE remind_at IS NOT NULL
-              AND reminded_at IS NULL
-              AND deleted_at IS NULL
-              AND remind_at <= datetime('now')
-            "#,
-        )
-        .map_err(|e| format!("prepare: {e}"))?;
+    // 认领与发送必须原子化：早先的实现用两条独立语句，各自重新求值
+    // julianday('now') 且谓词无界，落在两次求值之间的任务会被打上
+    // reminded_at 却从未发出事件，那条提醒就永久丢失了。
+    // 现在先在一个事务里查出待提醒任务并按 id 精确认领，提交成功后才发送事件。
+    // IMMEDIATE 让写锁在 SELECT 之前就拿到，避免读到已被别处认领的行。
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|e| format!("begin: {e}"))?;
 
-    let tasks: Vec<Task> = statement
-        .query_map([], map_task)
-        .map_err(|e| format!("query_map: {e}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("collect: {e}"))?;
+    let tasks: Vec<Task> = {
+        let mut statement = transaction
+            .prepare(
+                r#"
+                SELECT id, title, note, status, priority, list_id, due_at,
+                       completed_at, sort_order, remind_before, remind_at, reminded_at,
+                       repeat_rule, recurring_rule_id, occurrence_at,
+                       created_at, updated_at, deleted_at
+                FROM tasks
+                WHERE remind_at IS NOT NULL
+                  AND reminded_at IS NULL
+                  AND deleted_at IS NULL
+                  AND status = 'todo'
+                  AND julianday(remind_at) <= julianday('now')
+                "#,
+            )
+            .map_err(|e| format!("prepare: {e}"))?;
+
+        let rows = statement
+            .query_map([], map_task)
+            .map_err(|e| format!("query_map: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("collect: {e}"))?;
+        rows
+    };
 
     if tasks.is_empty() {
         return Ok(());
     }
 
-    for task in &tasks {
+    // 只为真正认领成功的任务发送事件，重复认领不会产生重复通知。
+    let mut claimed = Vec::with_capacity(tasks.len());
+    for task in tasks {
+        let updated = transaction
+            .execute(
+                r#"
+                UPDATE tasks
+                SET reminded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?1 AND reminded_at IS NULL
+                "#,
+                params![task.id],
+            )
+            .map_err(|e| format!("update reminded_at: {e}"))?;
+        if updated > 0 {
+            claimed.push(task);
+        }
+    }
+
+    transaction.commit().map_err(|e| format!("commit: {e}"))?;
+
+    for task in &claimed {
         let event = ReminderEvent {
             task_id: task.id.clone(),
             title: task.title.clone(),
@@ -60,21 +95,6 @@ fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(
         };
         let _ = app_handle.emit("task-reminder", event);
     }
-
-    connection
-        .execute(
-            r#"
-            UPDATE tasks
-            SET reminded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE remind_at IS NOT NULL
-              AND reminded_at IS NULL
-              AND deleted_at IS NULL
-              AND remind_at <= datetime('now')
-            "#,
-            params![],
-        )
-        .map_err(|e| format!("update reminded_at: {e}"))?;
 
     Ok(())
 }
@@ -105,8 +125,11 @@ fn map_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         remind_before: row.get(9)?,
         remind_at: row.get(10)?,
         reminded_at: row.get(11)?,
-        created_at: row.get(12)?,
-        updated_at: row.get(13)?,
-        deleted_at: row.get(14)?,
+        repeat_rule: row.get(12)?,
+        recurring_rule_id: row.get(13)?,
+        occurrence_at: row.get(14)?,
+        created_at: row.get(15)?,
+        updated_at: row.get(16)?,
+        deleted_at: row.get(17)?,
     })
 }

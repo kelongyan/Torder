@@ -6,16 +6,21 @@
   place-items: center;
   background: var(--overlay-bg);
   padding: 18px;
-  backdrop-filter: blur(6px);
-  will-change: opacity, backdrop-filter;
+  backdrop-filter: blur(6px); /* 静态模糊，不再逐帧动画，避免昂贵的模糊重算 */
+  opacity: 1;
+  transition: opacity var(--motion-soft) var(--ease-standard);
+  will-change: opacity;
 }
 
-.dialog-overlay.is-entering {
-  animation: overlay-in var(--motion-soft) var(--ease-standard) both;
+/* 进入：@starting-style 替代 keyframes，仅过渡 opacity（blur 保持静态） */
+@starting-style {
+  .dialog-overlay {
+    opacity: 0;
+  }
 }
 
 .dialog-overlay.is-exiting {
-  animation: overlay-out var(--motion-fast) var(--ease-standard) both;
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -378,14 +383,23 @@
   box-shadow: var(--shadow-floating);
   transform-origin: center bottom;
   will-change: opacity, transform;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out);
 }
 
-.date-picker-panel.is-entering {
-  animation: picker-in var(--motion-soft) var(--ease-out) both;
+@starting-style {
+  .date-picker-panel {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
 }
 
 .date-picker-panel.is-exiting {
-  animation: picker-out var(--motion-fast) var(--ease-standard) both;
+  opacity: 0;
+  transform: translateY(8px) scale(0.985);
   pointer-events: none;
 }
 
@@ -685,4 +699,268 @@
   color: #ffffff;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
   animation: check-pop var(--motion-soft) var(--ease-out) both;
+}
+
+/* --- 设置对话框 --- */
+.settings-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  padding: 14px 16px;
+}
+
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 22px;
+}
+
+.settings-section-title .icon-sm {
+  color: var(--accent-hover);
+}
+
+.settings-section-hint {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 19px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.settings-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.btn-sm {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.settings-list-label {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.settings-backup-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.settings-backup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  padding: 6px 8px 6px 12px;
+}
+
+.settings-backup-item > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 恢复确认浮层 */
+.restore-confirm-overlay {
+  z-index: 60;
+}
+
+.restore-confirm-card {
+  width: min(92vw, 420px);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-floating);
+  padding: 20px;
+}
+
+.restore-confirm-card h3 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 23px;
+}
+
+.restore-confirm-card p {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.restore-confirm-card p strong {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.restore-confirm-card .settings-row {
+  justify-content: flex-end;
+}
+
+/* --- 统计洞察 --- */
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.stats-metric {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  padding: 12px;
+  text-align: center;
+}
+
+.stats-metric span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.stats-metric strong {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.stats-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  padding: 14px 16px;
+}
+
+.stats-section-title {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.stats-trend {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stats-trend-col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-trend-count {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.stats-trend-bar {
+  width: 70%;
+  min-height: 4px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0.85;
+  transition: height var(--motion-soft) var(--ease-out);
+}
+
+.stats-trend-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.stats-bar-row {
+  display: grid;
+  grid-template-columns: 84px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stats-bar-row:last-child {
+  margin-bottom: 0;
+}
+
+.stats-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.stats-bar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stats-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.stats-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  opacity: 0.85;
+  transition: width var(--motion-soft) var(--ease-out);
+}
+
+.stats-bar-count {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
 }

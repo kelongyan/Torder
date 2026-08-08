@@ -124,6 +124,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 16px;
+  align-items: start;
 }
 
 .detail-attr-cell {
@@ -180,6 +181,27 @@
 .detail-attr-editing:hover {
   border-color: var(--border);
   background: var(--bg-tertiary);
+}
+
+/* 窄属性格里让日期时间面板改用下方流式 1 列堆叠,
+   避免日历被两列布局挤压成一团 */
+.detail-attr-editing .date-time-field {
+  min-width: 0;
+}
+
+.detail-attr-editing .date-picker-panel {
+  position: static;
+  grid-template-columns: 1fr;
+  max-height: 380px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.detail-attr-editing .date-picker-time {
+  border-left: 0;
+  border-top: 1px solid var(--border);
+  padding-left: 0;
+  padding-top: 14px;
 }
 
 /* --- 状态 + 元信息 --- */
@@ -287,14 +309,23 @@
     0 0 0 1px rgba(255, 255, 255, 0.05);
   transform-origin: bottom right;
   will-change: opacity, transform;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out);
 }
 
-.detail-more-menu.is-entering {
-  animation: menu-in var(--motion-soft) var(--ease-out) both;
+@starting-style {
+  .detail-more-menu {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
 }
 
 .detail-more-menu.is-exiting {
-  animation: menu-out var(--motion-fast) var(--ease-standard) both;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.985);
   pointer-events: none;
 }
 

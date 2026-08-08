@@ -19,7 +19,7 @@ export function getDatabaseStatus(): Promise<DatabaseStatus> {
   if (!isTauri()) {
     return Promise.resolve({
       databasePath: "浏览器内存预览（不会写入正式数据库）",
-      schemaVersion: 2,
+      schemaVersion: 7,
       listCount: getBrowserListsSnapshot().length,
       taskCount: getBrowserTasksSnapshot().filter((task) => !task.deletedAt)
         .length,

@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, MoreHorizontal, RotateCcw, Trash2, X } from "lucide-react";
+import {
+  Check,
+  MoreHorizontal,
+  Repeat2,
+  RotateCcw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { formatTaskDateTime, fromDateTimeLocal } from "../../app/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
@@ -14,7 +21,12 @@ import { Select } from "../common/Select";
 import { TaskDateTimeField } from "../task/TaskDateTimeField";
 
 type EditingField =
-  "title" | "note" | "listId" | "priority" | "dueAt" | "remindBefore";
+  | "title"
+  | "note"
+  | "listId"
+  | "priority"
+  | "dueAt"
+  | "remindBefore";
 
 const priorityOptions = [
   { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
@@ -38,6 +50,7 @@ export function TaskDetailPanel({
   onSave,
   onToggle,
   onDelete,
+  onOpenRecurring,
 }: {
   task: Task | null;
   lists: TaskList[];
@@ -46,6 +59,7 @@ export function TaskDetailPanel({
   onSave: (input: UpdateTaskInput) => Promise<void> | void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onOpenRecurring: (task: Task) => void;
 }) {
   const detailPresence = usePresence(task, 320);
   const presentTask = detailPresence.value;
@@ -71,6 +85,7 @@ export function TaskDetailPanel({
           onSave={onSave}
           onToggle={onToggle}
           onDelete={onDelete}
+          onOpenRecurring={onOpenRecurring}
         />
       )}
     </div>
@@ -86,6 +101,7 @@ function TaskDetailContent({
   onSave,
   onToggle,
   onDelete,
+  onOpenRecurring,
 }: {
   task: Task;
   lists: TaskList[];
@@ -95,6 +111,7 @@ function TaskDetailContent({
   onSave: (input: UpdateTaskInput) => Promise<void> | void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onOpenRecurring: (task: Task) => void;
 }) {
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
@@ -142,6 +159,7 @@ function TaskDetailContent({
       dueAt: task.dueAt,
       sortOrder: task.sortOrder,
       remindBefore: task.remindBefore,
+      repeatRule: task.repeatRule,
       ...patch,
     });
   }
@@ -382,6 +400,18 @@ function TaskDetailContent({
               </span>
             </button>
           )}
+
+          <button
+            type="button"
+            className="detail-attr-cell"
+            onClick={() => onOpenRecurring(task)}
+          >
+            <span className="detail-attr-label">循环</span>
+            <span className="detail-attr-value">
+              <Repeat2 aria-hidden="true" className="icon-sm" />
+              {task.recurringRuleId ? "查看循环规则" : "设为循环任务"}
+            </span>
+          </button>
         </div>
 
         <div className="detail-meta-row">

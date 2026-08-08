@@ -103,12 +103,26 @@
   font-size: 13px;
   line-height: 20px;
   box-shadow: var(--shadow);
-  animation: toast-in var(--motion-soft) var(--ease-out) both;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out);
   will-change: opacity, transform;
 }
 
+/* 进入：用 @starting-style 替代 keyframes，从当前值平滑过渡、可被中断重定位 */
+@starting-style {
+  .toast {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
+
 .toast.is-leaving {
-  animation: toast-out var(--motion-soft) var(--ease-standard) both;
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
 }
 
 .toast.success svg {
@@ -154,71 +168,6 @@
   }
 }
 
-@keyframes overlay-in {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(6px);
-  }
-}
-
-@keyframes overlay-out {
-  from {
-    opacity: 1;
-    backdrop-filter: blur(6px);
-  }
-  to {
-    opacity: 0;
-    backdrop-filter: blur(0);
-  }
-}
-
-@keyframes menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes menu-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.985);
-  }
-}
-
-@keyframes picker-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes picker-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-  }
-}
 
 @keyframes content-reveal {
   from {
@@ -253,16 +202,6 @@
   }
 }
 
-@keyframes task-row-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.985);
-  }
-}
 
 @keyframes column-in {
   from {
@@ -430,24 +369,3 @@
   }
 }
 
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateX(18px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-}
-
-@keyframes toast-out {
-  from {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(12px) scale(0.985);
-  }
-}

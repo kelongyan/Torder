@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, X } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
+import { isTauri } from "@tauri-apps/api/core";
 import { applyThemePreference } from "./theme";
 import { saveAppSetting } from "../services/settingsService";
 import { useTaskStore } from "../stores/taskStore";
 import type {
   CreateTaskInput,
+  CreateRecurringRuleInput,
+  RecurringRule,
   Task,
   TaskList,
   TaskScope,
   UpdateTaskInput,
+  UpdateRecurringRuleInput,
 } from "../types/database";
 import {
   defaultAppSettings,
@@ -35,8 +40,13 @@ import {
 } from "../services/listService";
 import { TaskDetailPanel } from "../components/detail/TaskDetailPanel";
 import { TaskCreateDialog } from "../components/dialog/TaskCreateDialog";
+import { RecurringRuleDialog } from "../components/dialog/RecurringRuleDialog";
+import { RecurringRulesView } from "../components/recurring/RecurringRulesView";
 import { ListDialog } from "../components/dialog/ListDialog";
 import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
+import { SettingsDialog } from "../components/dialog/SettingsDialog";
+import { StatsDialog } from "../components/dialog/StatsDialog";
+import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
 import { WindowTitleBar } from "../components/layout/WindowTitleBar";
@@ -47,6 +57,15 @@ import { usePresence } from "../hooks/usePresence";
 import { useTaskReminder } from "../hooks/useTaskReminder";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
+import {
+  createRecurringRule,
+  deleteRecurringRule,
+  generateNextRecurringOccurrence,
+  listRecurringRules,
+  setRecurringRuleEnabled,
+  skipNextRecurringOccurrence,
+  updateRecurringRule,
+} from "../services/recurringService";
 
 function App() {
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -56,8 +75,19 @@ function App() {
   const [listDialogOpen, setListDialogOpen] = useState(false);
   const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [batchEditOpen, setBatchEditOpen] = useState(false);
+  const [autoBackup, setAutoBackup] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
+  const [recurringLoading, setRecurringLoading] = useState(false);
+  const [recurringViewActive, setRecurringViewActive] = useState(false);
+  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
+  const [editingRecurringRule, setEditingRecurringRule] =
+    useState<RecurringRule | null>(null);
+  const [recurringSourceTask, setRecurringSourceTask] = useState<Task | null>(null);
 
   const { toasts, pushToast } = useToast();
 
@@ -85,6 +115,7 @@ function App() {
     removeTask,
     batchComplete,
     batchDelete,
+    batchUpdate,
     selectTask,
     toggleBatchMode,
     toggleBatchSelected,
@@ -101,10 +132,13 @@ function App() {
   );
 
   const currentTitle = useMemo(
-    () => getScopeTitle(scope, lists),
-    [lists, scope],
+    () => (recurringViewActive ? "循环任务" : getScopeTitle(scope, lists)),
+    [lists, recurringViewActive, scope],
   );
-  const counts = useMemo(() => buildCounts(allTasks, lists), [allTasks, lists]);
+  const counts = useMemo(
+    () => buildCounts(allTasks, lists, showCompleted),
+    [allTasks, lists, showCompleted],
+  );
   const defaultListId = useMemo(
     () => pickDefaultListId(scope, lists),
     [lists, scope],
@@ -112,20 +146,40 @@ function App() {
   const contentKey = useMemo(
     () =>
       [
-        layout,
+        recurringViewActive ? "recurring" : layout,
         scope.kind,
         scope.kind === "view" ? scope.view : scope.listId,
         sortBy,
         showCompleted,
       ].join(":"),
-    [layout, scope, sortBy, showCompleted],
+    [layout, recurringViewActive, scope, sortBy, showCompleted],
   );
   const createPresence = usePresence(createOpen, 280);
   const listDialogPresence = usePresence(listDialogOpen, 280);
   const shortcutsPresence = usePresence(shortcutsOpen, 280);
+  const settingsPresence = usePresence(settingsOpen, 280);
+  const statsPresence = usePresence(statsOpen, 280);
+  const batchEditPresence = usePresence(batchEditOpen, 280);
   const confirmPresence = usePresence(confirmState, 280);
+  const recurringDialogPresence = usePresence(recurringDialogOpen, 280);
 
   const openCreateDialog = useCallback(() => setCreateOpen(true), []);
+  const loadRecurringRules = useCallback(async () => {
+    setRecurringLoading(true);
+    try {
+      setRecurringRules(await listRecurringRules());
+    } finally {
+      setRecurringLoading(false);
+    }
+  }, []);
+  const openSettingsDialog = useCallback(() => {
+    setMenuOpen(false);
+    setSettingsOpen(true);
+  }, []);
+  const openStatsDialog = useCallback(() => {
+    setMenuOpen(false);
+    setStatsOpen(true);
+  }, []);
   const openAddListDialog = useCallback(() => {
     setEditingList(null);
     setListDialogOpen(true);
@@ -135,17 +189,61 @@ function App() {
     setListDialogOpen(true);
   }, []);
 
+  const openRecurringView = useCallback(() => {
+    setRecurringViewActive(true);
+    setMenuOpen(false);
+    selectTask(null);
+    clearBatchSelection();
+    void loadRecurringRules();
+  }, [clearBatchSelection, loadRecurringRules, selectTask]);
+
+  const openNewRecurringDialog = useCallback(() => {
+    setEditingRecurringRule(null);
+    setRecurringSourceTask(null);
+    setRecurringDialogOpen(true);
+  }, []);
+
   const closeEverything = useCallback(() => {
     setMenuOpen(false);
     setShortcutsOpen(false);
     setCreateOpen(false);
     setListDialogOpen(false);
+    setSettingsOpen(false);
+    setStatsOpen(false);
+    setBatchEditOpen(false);
     setConfirmState(null);
+    setRecurringDialogOpen(false);
+    setEditingRecurringRule(null);
+    setRecurringSourceTask(null);
+    setRecurringViewActive(false);
     selectTask(null);
     clearBatchSelection();
   }, [clearBatchSelection, selectTask]);
 
-  useAppInit(setSettings, setLists, setAppError);
+  useAppInit(setSettings, setLists, setAppError, setAutoBackup);
+  useEffect(() => {
+    let cancelled = false;
+    void listRecurringRules()
+      .then((rules) => {
+        if (!cancelled) setRecurringRules(rules);
+      })
+      .catch((nextError: unknown) => {
+        if (!cancelled) setAppError(String(nextError));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    void listen("recurring-tasks-generated", () => {
+      void useTaskStore.getState().loadTasks();
+    }).then((dispose) => {
+      unlisten = dispose;
+    });
+    return () => unlisten?.();
+  }, []);
   useTrayQuickAdd(openCreateDialog, setAppError);
   useTaskReminder();
   useKeyboardShortcuts({
@@ -203,6 +301,7 @@ function App() {
   }
 
   async function handleSelectScope(nextScope: TaskScope) {
+    setRecurringViewActive(false);
     setMenuOpen(false);
     selectTask(null);
     if (searchQuery.trim()) await setSearchQuery("");
@@ -222,6 +321,21 @@ function App() {
     pushToast("任务已创建", "success");
   }
 
+  async function handleCreateRecurring(input: CreateRecurringRuleInput) {
+    await createRecurringRule(input);
+    await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+    setCreateOpen(false);
+    setRecurringDialogOpen(false);
+    pushToast("循环任务已创建", "success");
+  }
+
+  async function handleUpdateRecurring(input: UpdateRecurringRuleInput) {
+    await updateRecurringRule(input);
+    await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+    setRecurringDialogOpen(false);
+    pushToast("循环规则已更新", "success");
+  }
+
   async function handleToggleTask(task: Task) {
     await toggleTask(task.id, task.status !== "done");
     pushToast(task.status === "done" ? "任务已恢复" : "任务已完成", "success");
@@ -230,6 +344,57 @@ function App() {
   async function handleSaveTask(input: UpdateTaskInput) {
     await saveTask(input);
     pushToast("任务已更新", "success");
+  }
+
+  function openTaskRecurring(task: Task) {
+    selectTask(null);
+    setRecurringSourceTask(task.recurringRuleId ? null : task);
+    setEditingRecurringRule(
+      task.recurringRuleId
+        ? recurringRules.find((rule) => rule.id === task.recurringRuleId) ?? null
+        : null,
+    );
+    setRecurringDialogOpen(true);
+  }
+
+  function requestDeleteRecurring(rule: RecurringRule) {
+    setConfirmState({
+      title: "删除循环规则",
+      body: `删除“${rule.title}”后不会再生成新任务。已生成的任务默认保留。`,
+      confirmText: "仅删除规则",
+      secondaryText: "删除未来实例",
+      danger: true,
+      onConfirm: async () => {
+        await deleteRecurringRule(rule.id, false);
+        await loadRecurringRules();
+        setConfirmState(null);
+        pushToast("循环规则已删除", "info");
+      },
+      onSecondary: async () => {
+        await deleteRecurringRule(rule.id, true);
+        await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+        setConfirmState(null);
+        pushToast("规则和未来实例已删除", "info");
+      },
+    });
+  }
+
+  async function handleToggleRecurring(rule: RecurringRule) {
+    await setRecurringRuleEnabled(rule.id, !rule.enabled);
+    await loadRecurringRules();
+    pushToast(rule.enabled ? "循环任务已暂停" : "循环任务已恢复", "info");
+  }
+
+  async function handleSkipRecurring(rule: RecurringRule) {
+    await skipNextRecurringOccurrence(rule.id);
+    await loadRecurringRules();
+    pushToast("下一次循环已跳过", "info");
+  }
+
+  async function handleGenerateRecurring(rule: RecurringRule) {
+    await generateNextRecurringOccurrence(rule.id);
+    await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+    pushToast("下一次任务已生成", "success");
   }
 
   function requestDeleteTask(task: Task) {
@@ -267,6 +432,13 @@ function App() {
     pushToast("已完成选中任务", "success");
   }
 
+  async function handleBatchUpdate(
+    patch: Parameters<typeof batchUpdate>[0],
+  ) {
+    await batchUpdate(patch);
+    pushToast("已更新选中任务", "success");
+  }
+
   async function handleSortChange(nextSort: typeof sortBy) {
     await setSortBy(nextSort);
     setMenuOpen(false);
@@ -294,6 +466,9 @@ function App() {
           onAddList={openAddListDialog}
           onEditList={openEditListDialog}
           onDeleteList={requestDeleteList}
+          recurringActive={recurringViewActive}
+          recurringCount={recurringRules.length}
+          onOpenRecurring={openRecurringView}
         />
 
         <main className="main">
@@ -310,6 +485,9 @@ function App() {
             menuOpen={menuOpen}
             onSortChange={(nextSort) => void handleSortChange(nextSort)}
             onShowCompletedChange={() => void handleShowCompletedChange()}
+            onOpenSettings={openSettingsDialog}
+            onOpenStats={openStatsDialog}
+            showLayoutControls={!recurringViewActive}
           />
 
           {displayError && (
@@ -334,7 +512,23 @@ function App() {
               key={contentKey}
               className={`content-motion content-motion-${layout}`}
             >
-              {layout === "list" ? (
+              {recurringViewActive ? (
+                <RecurringRulesView
+                  rules={recurringRules}
+                  lists={lists}
+                  loading={recurringLoading}
+                  onCreate={openNewRecurringDialog}
+                  onEdit={(rule) => {
+                    setEditingRecurringRule(rule);
+                    setRecurringSourceTask(null);
+                    setRecurringDialogOpen(true);
+                  }}
+                  onToggle={(rule) => void handleToggleRecurring(rule)}
+                  onSkip={(rule) => void handleSkipRecurring(rule)}
+                  onGenerate={(rule) => void handleGenerateRecurring(rule)}
+                  onDelete={requestDeleteRecurring}
+                />
+              ) : layout === "list" ? (
                 <TaskListView
                   tasks={tasks}
                   lists={lists}
@@ -353,6 +547,7 @@ function App() {
                   onToggleBatchSelected={toggleBatchSelected}
                   onBatchComplete={() => void handleBatchComplete()}
                   onBatchDelete={requestBatchDelete}
+                  onBatchEdit={() => setBatchEditOpen(true)}
                   onExitBatch={clearBatchSelection}
                 />
               ) : layout === "board" ? (
@@ -386,6 +581,7 @@ function App() {
           presence={createPresence.phase}
           onClose={() => setCreateOpen(false)}
           onSubmit={(input) => void handleCreateTask(input)}
+          onSubmitRecurring={(input) => void handleCreateRecurring(input)}
         />
       )}
 
@@ -397,7 +593,21 @@ function App() {
         onSave={handleSaveTask}
         onToggle={(task) => void handleToggleTask(task)}
         onDelete={requestDeleteTask}
+        onOpenRecurring={openTaskRecurring}
       />
+
+      {recurringDialogPresence.rendered && (
+        <RecurringRuleDialog
+          rule={editingRecurringRule}
+          sourceTask={recurringSourceTask}
+          lists={lists}
+          defaultListId={defaultListId}
+          presence={recurringDialogPresence.phase}
+          onClose={() => setRecurringDialogOpen(false)}
+          onCreate={(input) => void handleCreateRecurring(input)}
+          onUpdate={(input) => void handleUpdateRecurring(input)}
+        />
+      )}
 
       {listDialogPresence.rendered && (
         <ListDialog
@@ -412,6 +622,35 @@ function App() {
         <ShortcutsDialog
           presence={shortcutsPresence.phase}
           onClose={() => setShortcutsOpen(false)}
+        />
+      )}
+
+      {settingsPresence.rendered && (
+        <SettingsDialog
+          autoBackup={autoBackup}
+          presence={settingsPresence.phase}
+          onClose={() => setSettingsOpen(false)}
+          onAutoBackupChange={setAutoBackup}
+          onToast={pushToast}
+        />
+      )}
+
+      {statsPresence.rendered && (
+        <StatsDialog
+          tasks={allTasks}
+          lists={lists}
+          presence={statsPresence.phase}
+          onClose={() => setStatsOpen(false)}
+        />
+      )}
+
+      {batchEditPresence.rendered && (
+        <BatchEditDialog
+          lists={lists}
+          count={batchSelectedIds.length}
+          presence={batchEditPresence.phase}
+          onClose={() => setBatchEditOpen(false)}
+          onSubmit={(patch) => void handleBatchUpdate(patch)}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Pencil, Trash2 } from "lucide-react";
 import type { Task, TaskList, TaskScope } from "../../types/database";
 import { EmptyState } from "../common/EmptyState";
 import { SectionHeader } from "../common/SectionHeader";
@@ -24,6 +24,7 @@ export function TaskListView({
   onToggleBatchSelected,
   onBatchComplete,
   onBatchDelete,
+  onBatchEdit,
   onExitBatch,
 }: {
   tasks: Task[];
@@ -43,6 +44,7 @@ export function TaskListView({
   onToggleBatchSelected: (id: string) => void;
   onBatchComplete: () => void;
   onBatchDelete: () => void;
+  onBatchEdit: () => void;
   onExitBatch: () => void;
 }) {
   const animatedTasks = useAnimatedTasks(tasks);
@@ -93,6 +95,10 @@ export function TaskListView({
           <button type="button" onClick={onBatchComplete} disabled={batchSelectedIds.length === 0}>
             <Check aria-hidden="true" className="icon-sm" />
             完成
+          </button>
+          <button type="button" onClick={onBatchEdit} disabled={batchSelectedIds.length === 0}>
+            <Pencil aria-hidden="true" className="icon-sm" />
+            编辑
           </button>
           <button type="button" onClick={onBatchDelete} disabled={batchSelectedIds.length === 0}>
             <Trash2 aria-hidden="true" className="icon-sm" />

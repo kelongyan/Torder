@@ -31,6 +31,15 @@ export function ConfirmDialog({
           <button type="button" className="btn-secondary" onClick={onClose}>
             取消
           </button>
+          {state.secondaryText && state.onSecondary && (
+            <button
+              type="button"
+              className="btn-danger-solid"
+              onClick={() => void state.onSecondary?.()}
+            >
+              {state.secondaryText}
+            </button>
+          )}
           <button
             type="button"
             className={state.danger ? "btn-danger-solid" : "btn-primary"}

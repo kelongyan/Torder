@@ -29,8 +29,8 @@ impl<'database> TaskRepository<'database> {
             r#"
             INSERT INTO tasks (
                 id, title, note, priority, list_id, due_at, sort_order,
-                remind_before, remind_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                remind_before, remind_at, repeat_rule
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
             "#,
             params![
                 id,
@@ -42,6 +42,7 @@ impl<'database> TaskRepository<'database> {
                 input.sort_order.unwrap_or(0),
                 input.remind_before,
                 remind_at,
+                input.repeat_rule,
             ],
         )?;
 
@@ -56,6 +57,18 @@ impl<'database> TaskRepository<'database> {
             map_task,
         );
         map_not_found(result, "task")
+    }
+
+    pub fn export_all(&self) -> RepositoryResult<Vec<Task>> {
+        let connection = self.database.connect()?;
+        let mut statement = connection.prepare(&format!(
+            "{} ORDER BY list_id, sort_order, created_at",
+            select_tasks()
+        ))?;
+        let tasks = statement
+            .query_map(params![], map_task)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(tasks)
     }
 
     pub fn query(&self, input: TaskQueryInput) -> RepositoryResult<Vec<Task>> {
@@ -139,6 +152,7 @@ impl<'database> TaskRepository<'database> {
                 sort_order = ?8,
                 remind_before = ?9,
                 remind_at = ?10,
+                repeat_rule = ?11,
                 reminded_at = CASE
                     WHEN ?7 IS NOT NULL AND ?7 != due_at THEN NULL
                     ELSE reminded_at
@@ -157,6 +171,7 @@ impl<'database> TaskRepository<'database> {
                 input.sort_order,
                 input.remind_before,
                 remind_at,
+                input.repeat_rule,
             ],
         )?;
 
@@ -205,6 +220,7 @@ impl<'database> TaskRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("task"));
         }
+
         self.get(id)
     }
 }
@@ -229,6 +245,15 @@ fn push_view_scope(
             .to_owned(),
         ),
         "planned" => clauses.push("t.status = 'todo' AND t.due_at IS NOT NULL".to_owned()),
+        "overdue" => clauses.push(
+            r#"
+            t.status = 'todo'
+            AND t.due_at IS NOT NULL
+            AND date(t.due_at, 'localtime') < date('now', 'localtime')
+            "#
+            .to_owned(),
+        ),
+        "no-date" => clauses.push("t.status = 'todo' AND t.due_at IS NULL".to_owned()),
         "important" => clauses.push("t.status = 'todo' AND t.priority = 2".to_owned()),
         "completed" => clauses.push("t.status = 'done'".to_owned()),
         _ => return Err(RepositoryError::Validation("invalid task view")),
@@ -240,6 +265,7 @@ fn select_tasks() -> &'static str {
     r#"
     SELECT id, title, note, status, priority, list_id, due_at,
            completed_at, sort_order, remind_before, remind_at, reminded_at,
+           repeat_rule, recurring_rule_id, occurrence_at,
            created_at, updated_at, deleted_at
     FROM tasks
     "#
@@ -249,6 +275,7 @@ fn select_tasks_aliased() -> &'static str {
     r#"
     SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.due_at,
            t.completed_at, t.sort_order, t.remind_before, t.remind_at, t.reminded_at,
+           t.repeat_rule, t.recurring_rule_id, t.occurrence_at,
            t.created_at, t.updated_at, t.deleted_at
     FROM tasks t
     "#
@@ -294,9 +321,12 @@ fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
         remind_before: row.get(9)?,
         remind_at: row.get(10)?,
         reminded_at: row.get(11)?,
-        created_at: row.get(12)?,
-        updated_at: row.get(13)?,
-        deleted_at: row.get(14)?,
+        repeat_rule: row.get(12)?,
+        recurring_rule_id: row.get(13)?,
+        occurrence_at: row.get(14)?,
+        created_at: row.get(15)?,
+        updated_at: row.get(16)?,
+        deleted_at: row.get(17)?,
     })
 }
 
@@ -304,7 +334,7 @@ fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
 /// Returns `None` if `due_at` is missing, or if the computed time is in the past.
 fn compute_remind_at(due_at: Option<&str>, remind_before: Option<i64>) -> Option<String> {
     let due_at = due_at?;
-    let minutes = remind_before.unwrap_or(1440); // default 1 day (24h)
+    let minutes = remind_before?;
     if minutes <= 0 {
         return Some(due_at.to_owned());
     }
@@ -313,118 +343,13 @@ fn compute_remind_at(due_at: Option<&str>, remind_before: Option<i64>) -> Option
 
 /// Offset an RFC 3339 timestamp by ±minutes.
 fn offset_rfc3339(rfc3339: &str, offset_minutes: i64) -> Option<String> {
-    // Parse "2024-03-15T14:30:00Z" or "2024-03-15T14:30:00.123Z"
-    let rest = rfc3339.strip_suffix('Z')?;
-    let (date_part, time_part) = rest.split_once('T')?;
-    let time_clean = time_part.split('.').next().unwrap_or(time_part);
-
-    let (year_str, month_str, day_str) = split_date(date_part)?;
-    let (hour_str, minute_str, second_str) = split_time(time_clean)?;
-
-    let year = year_str.parse::<i64>().ok()?;
-    let month = month_str.parse::<i64>().ok()?;
-    let day = day_str.parse::<i64>().ok()?;
-    let hour = hour_str.parse::<i64>().ok()?;
-    let minute = minute_str.parse::<i64>().ok()?;
-    let second = second_str.parse::<i64>().ok()?;
-
-    // Convert to total minutes since epoch (approximately)
-    let total = to_epoch_minutes(year, month, day, hour, minute) + offset_minutes;
-
-    // Check if the result is in the past
-    let now_approx = to_epoch_minutes_approx();
-    if total <= now_approx {
-        return None;
-    }
-
-    let (nyear, nmonth, nday, nhour, nminute) = from_epoch_minutes(total);
-    format_date_time(nyear, nmonth, nday, nhour, nminute, second)
-}
-
-fn split_date(s: &str) -> Option<(&str, &str, &str)> {
-    let mut parts = s.split('-');
-    Some((parts.next()?, parts.next()?, parts.next()?))
-}
-
-fn split_time(s: &str) -> Option<(&str, &str, &str)> {
-    let mut parts = s.split(':');
-    Some((parts.next()?, parts.next()?, parts.next()?))
-}
-
-fn is_leap(year: i64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
-}
-
-fn days_in_month(year: i64, month: i64) -> i64 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => {
-            if is_leap(year) {
-                29
-            } else {
-                28
-            }
-        }
-        _ => 30,
-    }
-}
-
-fn to_epoch_minutes(year: i64, month: i64, day: i64, hour: i64, minute: i64) -> i64 {
-    // Approximate: count days from 1970-01-01
-    let mut days = 0;
-    for y in 1970..year {
-        days += if is_leap(y) { 366 } else { 365 };
-    }
-    for m in 1..month {
-        days += days_in_month(year, m);
-    }
-    days += day - 1;
-    days * 1440 + hour * 60 + minute
-}
-
-fn to_epoch_minutes_approx() -> i64 {
-    // Rough current time using std::time — not perfect but good enough for the guard.
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    (now.as_secs() / 60) as i64
-}
-
-fn from_epoch_minutes(total: i64) -> (i64, i64, i64, i64, i64) {
-    let mut remaining = total;
-    let minute = remaining.rem_euclid(60);
-    remaining /= 60;
-    let hour = remaining.rem_euclid(24);
-    remaining /= 24;
-
-    let mut year = 1970;
-    loop {
-        let days = if is_leap(year) { 366 } else { 365 };
-        if remaining < days {
-            break;
-        }
-        remaining -= days;
-        year += 1;
-    }
-    let mut month = 1;
-    loop {
-        let dim = days_in_month(year, month);
-        if remaining < dim {
-            break;
-        }
-        remaining -= dim;
-        month += 1;
-    }
-    let day = remaining + 1;
-    (year, month, day, hour, minute)
-}
-
-fn format_date_time(year: i64, month: i64, day: i64, hour: i64, minute: i64, second: i64) -> Option<String> {
-    Some(format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hour, minute, second
-    ))
+    let date = chrono::DateTime::parse_from_rfc3339(rfc3339).ok()?;
+    let result = date + chrono::Duration::minutes(offset_minutes);
+    (result.with_timezone(&chrono::Utc) > chrono::Utc::now()).then(|| {
+        result
+            .with_timezone(&chrono::Utc)
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    })
 }
 
 fn validate_title(title: &str) -> RepositoryResult<String> {

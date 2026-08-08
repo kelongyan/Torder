@@ -15,9 +15,80 @@ pub struct Task {
     pub remind_before: Option<i64>,
     pub remind_at: Option<String>,
     pub reminded_at: Option<String>,
+    pub repeat_rule: Option<String>,
+    pub recurring_rule_id: Option<String>,
+    pub occurrence_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub deleted_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurringRule {
+    pub id: String,
+    pub title: String,
+    pub note: Option<String>,
+    pub priority: i64,
+    pub list_id: String,
+    pub frequency: String,
+    pub interval_count: i64,
+    pub weekdays: Vec<i64>,
+    pub month_day: Option<i64>,
+    pub first_due_at: String,
+    pub next_due_at: Option<String>,
+    pub timezone: String,
+    pub generate_ahead_minutes: i64,
+    pub remind_before: Option<i64>,
+    pub end_at: Option<String>,
+    pub enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+    pub deleted_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateRecurringRuleInput {
+    pub source_task_id: Option<String>,
+    pub title: String,
+    pub note: Option<String>,
+    pub priority: i64,
+    pub list_id: String,
+    pub frequency: String,
+    pub interval_count: i64,
+    pub weekdays: Vec<i64>,
+    pub month_day: Option<i64>,
+    pub first_due_at: String,
+    pub timezone: String,
+    pub generate_ahead_minutes: i64,
+    pub remind_before: Option<i64>,
+    pub end_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateRecurringRuleInput {
+    pub id: String,
+    pub title: String,
+    pub note: Option<String>,
+    pub priority: i64,
+    pub list_id: String,
+    pub frequency: String,
+    pub interval_count: i64,
+    pub weekdays: Vec<i64>,
+    pub month_day: Option<i64>,
+    pub first_due_at: String,
+    pub timezone: String,
+    pub generate_ahead_minutes: i64,
+    pub remind_before: Option<i64>,
+    pub end_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurringGenerationResult {
+    pub generated_count: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,6 +101,7 @@ pub struct CreateTaskInput {
     pub due_at: Option<String>,
     pub sort_order: Option<i64>,
     pub remind_before: Option<i64>,
+    pub repeat_rule: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +116,7 @@ pub struct UpdateTaskInput {
     pub due_at: Option<String>,
     pub sort_order: i64,
     pub remind_before: Option<i64>,
+    pub repeat_rule: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

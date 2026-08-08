@@ -21,11 +21,13 @@
   will-change: transform;
 }
 
-.btn-primary:hover,
-.btn-secondary:hover,
-.btn-danger:hover,
-.btn-danger-solid:hover {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .btn-danger:hover,
+  .btn-danger-solid:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .btn-primary:active,
@@ -104,11 +106,13 @@
   will-change: transform;
 }
 
-.btn-complete:hover {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 30%, transparent);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .btn-complete:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 30%, transparent);
+    transform: translateY(-1px);
+  }
 }
 
 .btn-complete:active {

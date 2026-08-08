@@ -59,7 +59,21 @@ function matchesSystemView(
   if (task.status !== "todo") return false;
   if (view === "important") return task.priority === 2;
   if (view === "planned") return task.dueAt !== null;
+  if (view === "overdue") return Boolean(task.dueAt && isOverdue(task.dueAt));
+  if (view === "no-date") return task.dueAt === null;
   return Boolean(task.dueAt && isSameLocalDay(new Date(task.dueAt), new Date()));
+}
+
+function isOverdue(dueAt: string): boolean {
+  const due = new Date(dueAt);
+  const now = new Date();
+  return (
+    due.getFullYear() < now.getFullYear() ||
+    due.getMonth() < now.getMonth() ||
+    (due.getFullYear() === now.getFullYear() &&
+      due.getMonth() === now.getMonth() &&
+      due.getDate() < now.getDate())
+  );
 }
 
 function compareTasks(left: Task, right: Task, sortBy: TaskSortBy): number {

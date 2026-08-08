@@ -18,6 +18,9 @@ export function MainHeader({
   menuOpen,
   onSortChange,
   onShowCompletedChange,
+  onOpenSettings,
+  onOpenStats,
+  showLayoutControls = true,
 }: {
   title: string;
   taskCount: number;
@@ -31,6 +34,9 @@ export function MainHeader({
   menuOpen: boolean;
   onSortChange: (sortBy: import("../../types/database").TaskSortBy) => void;
   onShowCompletedChange: () => void;
+  onOpenSettings: () => void;
+  onOpenStats: () => void;
+  showLayoutControls?: boolean;
 }) {
   const menuPresence = usePresence(menuOpen, 180);
   const menuAnchorRef = useRef<HTMLDivElement>(null);
@@ -67,7 +73,7 @@ export function MainHeader({
     <header className="main-header">
       <div className="main-header-left" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>{title}</h1>
-        <div className="layout-tabs" aria-label="布局切换">
+        {showLayoutControls && <div className="layout-tabs" aria-label="布局切换">
           {layoutOptions.map((item) => {
             const Icon = item.icon;
             return (
@@ -82,7 +88,7 @@ export function MainHeader({
               </button>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       <div className="header-actions">
@@ -117,6 +123,8 @@ export function MainHeader({
               presence={menuPresence.phase}
               onSortChange={handleSortSelect}
               onShowCompletedChange={handleShowCompletedToggle}
+              onOpenSettings={onOpenSettings}
+              onOpenStats={onOpenStats}
             />
           )}
         </div>

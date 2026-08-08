@@ -292,19 +292,37 @@
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    /* 仅杀掉 keyframe 动画（入场/循环），保留 opacity/color 过渡以帮助理解 */
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
 
+  /* 中和位移/缩放类运动，但保留淡入等 opacity 过渡（更温和而非归零） */
   .task-item,
   .board-card,
   .board-column,
   .calendar-group,
   .dialog-card,
+  .dialog-overlay,
   .view-menu,
+  .select-panel,
+  .detail-more-menu,
   .date-picker-panel,
-  .toast {
+  .quick-add-date-panel,
+  .detail-dialog,
+  .toast,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-danger-solid,
+  .btn-complete,
+  .choice-pill,
+  .color-picker-dot,
+  .date-time-trigger,
+  .quick-add-chip,
+  .batch-bar,
+  .alert-banner,
+  .empty-state {
     transform: none !important;
   }
 }

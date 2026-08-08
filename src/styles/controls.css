@@ -72,14 +72,24 @@
     0 0 0 1px rgba(255, 255, 255, 0.05);
   transform-origin: top center;
   will-change: opacity, transform;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--motion-soft) var(--ease-out),
+    transform var(--motion-soft) var(--ease-out);
 }
 
-.select-panel.is-entering {
-  animation: menu-in var(--motion-soft) var(--ease-out) both;
+/* 进入：@starting-style 替代 keyframes，可中断、从触发源顶部平滑展开 */
+@starting-style {
+  .select-panel {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
 }
 
 .select-panel.is-exiting {
-  animation: menu-out var(--motion-fast) var(--ease-standard) both;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.985);
   pointer-events: none;
 }
 

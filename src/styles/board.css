@@ -92,6 +92,10 @@
   transform: translateY(-2px);
 }
 
+.board-card:active {
+  transform: scale(0.99);
+}
+
 .board-card.completed h3 {
   color: var(--text-muted);
   text-decoration: line-through;

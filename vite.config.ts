@@ -30,4 +30,9 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    // dist 由构建脚本在 build 前清理,避免 vite 清空目录时触发
+    // WorkBuddy 注入的 genie-safe-delete shim(其 genie-trash 会超时)
+    emptyOutDir: false,
+  },
 }));
