@@ -2,6 +2,7 @@ use std::path::Path;
 
 use uuid::Uuid;
 
+use torder_lib::db::calendar_event_repository::CalendarEventRepository;
 use torder_lib::db::list_repository::ListRepository;
 use torder_lib::db::migrations::CURRENT_SCHEMA_VERSION;
 use torder_lib::db::recurring_repository::RecurringRuleRepository;
@@ -10,8 +11,8 @@ use torder_lib::db::task_repository::TaskRepository;
 use torder_lib::db::Database;
 use torder_lib::error::{RepositoryError, RepositoryResult};
 use torder_lib::models::{
-    CreateRecurringRuleInput, CreateTaskInput, TaskQueryInput, UpdateRecurringRuleInput,
-    UpdateTaskInput, UpsertSettingInput,
+    CreateCalendarEventInput, CreateRecurringRuleInput, CreateTaskInput, TaskQueryInput,
+    UpdateCalendarEventInput, UpdateRecurringRuleInput, UpdateTaskInput, UpsertSettingInput,
 };
 
 #[test]
@@ -464,6 +465,80 @@ fn recurring_edits_preserve_progress_and_deleted_occurrences_regenerate(
         regenerated[0].occurrence_at.as_deref(),
         Some("2024-03-10T01:00:00Z")
     );
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn calendar_events_support_multi_day_ranges_and_soft_delete() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-calendar-events-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let repository = CalendarEventRepository::new(&database);
+
+    let trip = repository.create(CreateCalendarEventInput {
+        title: "  领导出差  ".to_owned(),
+        event_type: "trip".to_owned(),
+        start_date: "2026-08-17".to_owned(),
+        end_date: "2026-08-21".to_owned(),
+        note: Some("上海客户拜访".to_owned()),
+    })?;
+    assert_eq!(trip.title, "领导出差");
+    assert_eq!(trip.start_date, "2026-08-17");
+    assert_eq!(trip.end_date, "2026-08-21");
+
+    let leave = repository.create(CreateCalendarEventInput {
+        title: "领导休假".to_owned(),
+        event_type: "leave".to_owned(),
+        start_date: "2026-09-01".to_owned(),
+        end_date: "2026-09-01".to_owned(),
+        note: None,
+    })?;
+    assert_eq!(leave.event_type, "leave");
+
+    let listed = repository.list()?;
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0].id, trip.id, "list 应按 start_date 升序");
+
+    let updated = repository.update(UpdateCalendarEventInput {
+        id: trip.id.clone(),
+        title: "领导出差（改期）".to_owned(),
+        event_type: "trip".to_owned(),
+        start_date: "2026-08-18".to_owned(),
+        end_date: "2026-08-21".to_owned(),
+        note: trip.note.clone(),
+    })?;
+    assert_eq!(updated.start_date, "2026-08-18");
+
+    repository.soft_delete(&leave.id)?;
+    assert!(matches!(
+        repository.get(&leave.id),
+        Err(RepositoryError::NotFound("calendar event"))
+    ));
+    assert_eq!(repository.list()?.len(), 1);
+
+    assert!(matches!(
+        repository.create(CreateCalendarEventInput {
+            title: "区间倒置".to_owned(),
+            event_type: "trip".to_owned(),
+            start_date: "2026-08-21".to_owned(),
+            end_date: "2026-08-17".to_owned(),
+            note: None,
+        }),
+        Err(RepositoryError::Validation(_))
+    ));
+    assert!(matches!(
+        repository.create(CreateCalendarEventInput {
+            title: "非法类型".to_owned(),
+            event_type: "meeting".to_owned(),
+            start_date: "2026-08-17".to_owned(),
+            end_date: "2026-08-17".to_owned(),
+            note: None,
+        }),
+        Err(RepositoryError::Validation(_))
+    ));
 
     drop(database);
     cleanup_database_files(&database_path);

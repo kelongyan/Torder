@@ -299,6 +299,27 @@ const MIGRATIONS: &[Migration] = &[
               AND deleted_at IS NULL;
         "#,
     },
+    Migration {
+        version: 9,
+        name: "add_calendar_events",
+        sql: r#"
+        CREATE TABLE calendar_events (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+            event_type TEXT NOT NULL CHECK (event_type IN ('leave', 'trip')),
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL CHECK (end_date >= start_date),
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            deleted_at TEXT
+        );
+
+        CREATE INDEX idx_calendar_events_dates
+            ON calendar_events(start_date, end_date)
+            WHERE deleted_at IS NULL;
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。

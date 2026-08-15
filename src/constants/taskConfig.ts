@@ -2,6 +2,7 @@ import {
   Calendar,
   CalendarClock,
   CalendarDays,
+  CalendarRange,
   CheckCircle2,
   Clock,
   Flag,
@@ -27,10 +28,15 @@ export const systemNav: Array<{
   { view: "completed", icon: CheckCircle2 },
 ];
 
-export const layoutOptions: Array<{ value: TaskLayout; label: string; icon: LucideIcon }> = [
+export const layoutOptions: Array<{
+  value: TaskLayout;
+  label: string;
+  icon: LucideIcon;
+}> = [
   { value: "list", label: "列表", icon: List },
   { value: "board", label: "看板", icon: Kanban },
   { value: "calendar", label: "日历", icon: Calendar },
+  { value: "month", label: "月历", icon: CalendarRange },
 ];
 
 export const sortOptions: Array<{
@@ -43,7 +49,10 @@ export const sortOptions: Array<{
   { value: "created", label: "按创建时间", icon: Clock },
 ];
 
-export const priorityCopy: Record<0 | 1 | 2, { label: string; className: string }> = {
+export const priorityCopy: Record<
+  0 | 1 | 2,
+  { label: string; className: string }
+> = {
   2: { label: "高", className: "priority-high" },
   1: { label: "中", className: "priority-medium" },
   0: { label: "低", className: "priority-low" },

@@ -1,3 +1,4 @@
+pub mod calendar_event_repository;
 pub mod list_repository;
 pub mod migrations;
 pub mod recurring_repository;

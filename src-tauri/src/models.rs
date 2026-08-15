@@ -181,3 +181,38 @@ pub struct DatabaseStatus {
     pub list_count: i64,
     pub task_count: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarEvent {
+    pub id: String,
+    pub title: String,
+    pub event_type: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub note: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub deleted_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateCalendarEventInput {
+    pub title: String,
+    pub event_type: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCalendarEventInput {
+    pub id: String,
+    pub title: String,
+    pub event_type: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub note: Option<String>,
+}

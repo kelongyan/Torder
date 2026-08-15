@@ -964,3 +964,10 @@
   line-height: 18px;
   text-align: right;
 }
+
+.dialog-delete-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+}

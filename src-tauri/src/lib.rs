@@ -77,6 +77,10 @@ pub fn run() {
             commands::settings::list_settings,
             commands::settings::get_setting,
             commands::settings::upsert_setting,
+            commands::calendar_event::list_calendar_events,
+            commands::calendar_event::create_calendar_event,
+            commands::calendar_event::update_calendar_event,
+            commands::calendar_event::delete_calendar_event,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Torder");

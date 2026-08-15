@@ -66,6 +66,15 @@ import {
   skipNextRecurringOccurrence,
   updateRecurringRule,
 } from "../services/recurringService";
+import {
+  createCalendarEvent,
+  deleteCalendarEvent,
+  listCalendarEvents,
+  updateCalendarEvent,
+} from "../services/calendarEventService";
+import { MonthCalendar } from "../components/task/MonthCalendar";
+import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
+import type { CalendarEvent } from "../types/database";
 
 function App() {
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -87,7 +96,16 @@ function App() {
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [editingRecurringRule, setEditingRecurringRule] =
     useState<RecurringRule | null>(null);
-  const [recurringSourceTask, setRecurringSourceTask] = useState<Task | null>(null);
+  const [recurringSourceTask, setRecurringSourceTask] = useState<Task | null>(
+    null,
+  );
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarEventDialogOpen, setCalendarEventDialogOpen] = useState(false);
+  const [editingCalendarEvent, setEditingCalendarEvent] =
+    useState<CalendarEvent | null>(null);
+  const [eventDialogDefaultDate, setEventDialogDefaultDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
 
   const { toasts, pushToast } = useToast();
 
@@ -162,6 +180,7 @@ function App() {
   const batchEditPresence = usePresence(batchEditOpen, 280);
   const confirmPresence = usePresence(confirmState, 280);
   const recurringDialogPresence = usePresence(recurringDialogOpen, 280);
+  const calendarEventDialogPresence = usePresence(calendarEventDialogOpen, 280);
 
   const openCreateDialog = useCallback(() => setCreateOpen(true), []);
   const loadRecurringRules = useCallback(async () => {
@@ -215,12 +234,27 @@ function App() {
     setRecurringDialogOpen(false);
     setEditingRecurringRule(null);
     setRecurringSourceTask(null);
+    setCalendarEventDialogOpen(false);
+    setEditingCalendarEvent(null);
     setRecurringViewActive(false);
     selectTask(null);
     clearBatchSelection();
   }, [clearBatchSelection, selectTask]);
 
   useAppInit(setSettings, setLists, setAppError, setAutoBackup);
+  useEffect(() => {
+    let cancelled = false;
+    void listCalendarEvents()
+      .then((events) => {
+        if (!cancelled) setCalendarEvents(events);
+      })
+      .catch((nextError: unknown) => {
+        if (!cancelled) setAppError(String(nextError));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   useEffect(() => {
     let cancelled = false;
     void listRecurringRules()
@@ -323,7 +357,10 @@ function App() {
 
   async function handleCreateRecurring(input: CreateRecurringRuleInput) {
     await createRecurringRule(input);
-    await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+    await Promise.all([
+      loadRecurringRules(),
+      useTaskStore.getState().loadTasks(),
+    ]);
     setCreateOpen(false);
     setRecurringDialogOpen(false);
     pushToast("循环任务已创建", "success");
@@ -331,7 +368,10 @@ function App() {
 
   async function handleUpdateRecurring(input: UpdateRecurringRuleInput) {
     await updateRecurringRule(input);
-    await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+    await Promise.all([
+      loadRecurringRules(),
+      useTaskStore.getState().loadTasks(),
+    ]);
     setRecurringDialogOpen(false);
     pushToast("循环规则已更新", "success");
   }
@@ -351,7 +391,8 @@ function App() {
     setRecurringSourceTask(task.recurringRuleId ? null : task);
     setEditingRecurringRule(
       task.recurringRuleId
-        ? recurringRules.find((rule) => rule.id === task.recurringRuleId) ?? null
+        ? (recurringRules.find((rule) => rule.id === task.recurringRuleId) ??
+            null)
         : null,
     );
     setRecurringDialogOpen(true);
@@ -372,7 +413,10 @@ function App() {
       },
       onSecondary: async () => {
         await deleteRecurringRule(rule.id, true);
-        await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+        await Promise.all([
+          loadRecurringRules(),
+          useTaskStore.getState().loadTasks(),
+        ]);
         setConfirmState(null);
         pushToast("规则和未来实例已删除", "info");
       },
@@ -393,8 +437,57 @@ function App() {
 
   async function handleGenerateRecurring(rule: RecurringRule) {
     await generateNextRecurringOccurrence(rule.id);
-    await Promise.all([loadRecurringRules(), useTaskStore.getState().loadTasks()]);
+    await Promise.all([
+      loadRecurringRules(),
+      useTaskStore.getState().loadTasks(),
+    ]);
     pushToast("下一次任务已生成", "success");
+  }
+
+  function openNewCalendarEvent(date: string) {
+    setEditingCalendarEvent(null);
+    setEventDialogDefaultDate(date);
+    setCalendarEventDialogOpen(true);
+  }
+
+  function openEditCalendarEvent(event: CalendarEvent) {
+    setEditingCalendarEvent(event);
+    setCalendarEventDialogOpen(true);
+  }
+
+  async function handleSaveCalendarEvent(data: {
+    id?: string;
+    title: string;
+    eventType: CalendarEvent["eventType"];
+    startDate: string;
+    endDate: string;
+    note: string | null;
+  }) {
+    if (data.id) {
+      await updateCalendarEvent({ ...data, id: data.id });
+      pushToast("日程事件已更新", "success");
+    } else {
+      await createCalendarEvent(data);
+      pushToast("日程事件已创建", "success");
+    }
+    setCalendarEvents(await listCalendarEvents());
+    setCalendarEventDialogOpen(false);
+  }
+
+  function requestDeleteCalendarEvent(event: CalendarEvent) {
+    setCalendarEventDialogOpen(false);
+    setConfirmState({
+      title: "确认删除日程事件",
+      body: `确定要删除"${event.title}"吗？此操作不可撤销。`,
+      confirmText: "删除",
+      danger: true,
+      onConfirm: async () => {
+        await deleteCalendarEvent(event.id);
+        setCalendarEvents(await listCalendarEvents());
+        setConfirmState(null);
+        pushToast("日程事件已删除", "info");
+      },
+    });
   }
 
   function requestDeleteTask(task: Task) {
@@ -432,9 +525,7 @@ function App() {
     pushToast("已完成选中任务", "success");
   }
 
-  async function handleBatchUpdate(
-    patch: Parameters<typeof batchUpdate>[0],
-  ) {
+  async function handleBatchUpdate(patch: Parameters<typeof batchUpdate>[0]) {
     await batchUpdate(patch);
     pushToast("已更新选中任务", "success");
   }
@@ -559,6 +650,14 @@ function App() {
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                 />
+              ) : layout === "month" ? (
+                <MonthCalendar
+                  tasks={tasks}
+                  events={calendarEvents}
+                  onOpenTask={(task) => selectTask(task.id)}
+                  onCreateEvent={openNewCalendarEvent}
+                  onEditEvent={openEditCalendarEvent}
+                />
               ) : (
                 <TaskCalendar
                   tasks={tasks}
@@ -606,6 +705,17 @@ function App() {
           onClose={() => setRecurringDialogOpen(false)}
           onCreate={(input) => void handleCreateRecurring(input)}
           onUpdate={(input) => void handleUpdateRecurring(input)}
+        />
+      )}
+
+      {calendarEventDialogPresence.rendered && (
+        <CalendarEventDialog
+          event={editingCalendarEvent}
+          defaultDate={eventDialogDefaultDate}
+          presence={calendarEventDialogPresence.phase}
+          onClose={() => setCalendarEventDialogOpen(false)}
+          onSubmit={(data) => void handleSaveCalendarEvent(data)}
+          onDelete={requestDeleteCalendarEvent}
         />
       )}
 

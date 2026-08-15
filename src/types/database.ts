@@ -13,12 +13,11 @@ export type SystemView =
   | "no-date"
   | "important"
   | "completed";
-export type TaskLayout = "list" | "board" | "calendar";
+export type TaskLayout = "list" | "board" | "calendar" | "month";
 export type TaskSortBy = "priority" | "date" | "created";
 
 export type TaskScope =
-  | { kind: "view"; view: SystemView }
-  | { kind: "list"; listId: string };
+  { kind: "view"; view: SystemView } | { kind: "list"; listId: string };
 
 export interface Task {
   id: string;
@@ -116,7 +115,10 @@ export interface CreateRecurringRuleInput {
   endAt: string | null;
 }
 
-export interface UpdateRecurringRuleInput extends Omit<CreateRecurringRuleInput, "sourceTaskId"> {
+export interface UpdateRecurringRuleInput extends Omit<
+  CreateRecurringRuleInput,
+  "sourceTaskId"
+> {
   id: string;
 }
 
@@ -128,4 +130,35 @@ export interface Setting {
   key: string;
   value: string;
   updatedAt: string;
+}
+
+export type CalendarEventType = "leave" | "trip";
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  eventType: CalendarEventType;
+  startDate: string;
+  endDate: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface CreateCalendarEventInput {
+  title: string;
+  eventType: CalendarEventType;
+  startDate: string;
+  endDate: string;
+  note?: string | null;
+}
+
+export interface UpdateCalendarEventInput {
+  id: string;
+  title: string;
+  eventType: CalendarEventType;
+  startDate: string;
+  endDate: string;
+  note: string | null;
 }
