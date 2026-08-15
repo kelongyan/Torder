@@ -22,19 +22,28 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .btn-primary:hover,
-  .btn-secondary:hover,
-  .btn-danger:hover,
-  .btn-danger-solid:hover {
+  .btn-primary:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled),
+  .btn-danger-solid:hover:not(:disabled) {
     transform: translateY(-1px);
   }
 }
 
-.btn-primary:active,
-.btn-secondary:active,
-.btn-danger:active,
-.btn-danger-solid:active {
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled),
+.btn-danger:active:not(:disabled),
+.btn-danger-solid:active:not(:disabled) {
   transform: scale(0.985);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-danger:disabled,
+.btn-danger-solid:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-primary {
@@ -107,7 +116,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .btn-complete:hover {
+  .btn-complete:hover:not(:disabled) {
     border-color: var(--accent-hover);
     background: var(--accent-hover);
     box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 30%, transparent);

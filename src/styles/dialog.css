@@ -52,7 +52,7 @@
   align-items: flex-start;
   gap: 13px;
   border-bottom: 1px solid var(--border);
-  padding: 19px;
+  padding: 20px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -101,7 +101,7 @@
 .shortcut-list {
   display: grid;
   gap: 19px;
-  padding: 19px;
+  padding: 20px;
 }
 
 .form-title-field {
@@ -968,6 +968,4 @@
 .dialog-delete-btn {
   width: 100%;
   margin-top: 12px;
-  padding: 8px 14px;
-  font-size: 13px;
 }
