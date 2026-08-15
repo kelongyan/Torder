@@ -36,7 +36,7 @@
   --shadow-lift: 0 10px 32px rgba(0, 0, 0, 0.45);
   --shadow-floating: 0 20px 54px rgba(0, 0, 0, 0.55);
   --radius: 10px;
-  --radius-sm: 6px;
+  --radius-sm: 8px;
   --motion-micro: 120ms;
   --motion-fast: 160ms;
   --motion-base: 220ms;
