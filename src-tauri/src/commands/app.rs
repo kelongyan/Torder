@@ -36,8 +36,8 @@ pub fn set_window_material_theme(window: tauri::WebviewWindow, dark: bool) -> Re
 
 /// 更新清单地址。方案 B 的发布约定：GitHub Pages（gh-pages 分支）上放
 /// `latest.json` 与对应安装包，发布新版本时更新清单里的 version / notes /
-/// downloadUrl / sha256。
-const UPDATE_MANIFEST_URL: &str = "https://kelongyan.github.io/torder/latest.json";
+/// downloadUrl / sha256。注意 Pages 路径大小写敏感：仓库名是 `Torder`。
+const UPDATE_MANIFEST_URL: &str = "https://kelongyan.github.io/Torder/latest.json";
 const UPDATE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 #[derive(Debug, Deserialize)]
