@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
 import { applyThemePreference } from "./theme";
 import { saveAppSetting } from "../services/settingsService";
+import { checkForUpdate } from "../services/appService";
 import { useTaskStore } from "../stores/taskStore";
 import type {
   CreateTaskInput,
@@ -288,6 +289,27 @@ function App() {
   });
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const KEY = "torder-update-notified";
+    void checkForUpdate()
+      .then((info) => {
+        if (cancelled || !info.hasUpdate) return;
+        if (localStorage.getItem(KEY) === info.latestVersion) return;
+        localStorage.setItem(KEY, info.latestVersion);
+        pushToast(
+          `发现新版本 v${info.latestVersion},可在设置中查看更新`,
+          "info",
+        );
+      })
+      .catch(() => {
+        // 启动静默检查失败不打扰用户，可到设置里手动检查。
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pushToast]);
 
   async function handleSaveList(data: {
     id?: string;

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { DatabaseBackup, Download, HardDrive, RefreshCw } from "lucide-react";
+import {
+  DatabaseBackup,
+  Download,
+  ExternalLink,
+  HardDrive,
+  Info,
+  RefreshCw,
+} from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { ToastKind } from "../../types/ui";
@@ -11,6 +18,12 @@ import {
   type ExportFormat,
 } from "../../services/backupService";
 import { upsertSetting } from "../../services/settingsService";
+import {
+  checkForUpdate,
+  getAppInfo,
+  openDownloadPage,
+} from "../../services/appService";
+import type { AppInfo, UpdateInfo } from "../../types/settings";
 
 export function SettingsDialog({
   autoBackup,
@@ -28,10 +41,48 @@ export function SettingsDialog({
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState<string[]>([]);
   const [pendingRestore, setPendingRestore] = useState<string | null>(null);
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [updateState, setUpdateState] = useState<
+    | { state: "idle" }
+    | { state: "checking" }
+    | { state: "none" }
+    | { state: "found"; info: UpdateInfo }
+    | { state: "error"; message: string }
+  >({ state: "idle" });
 
   useEffect(() => {
     void listBackups().then(setBackups);
+    void getAppInfo()
+      .then(setAppInfo)
+      .catch(() => setAppInfo(null));
   }, []);
+
+  async function handleCheckUpdate() {
+    setUpdateState({ state: "checking" });
+    try {
+      const info = await checkForUpdate();
+      setUpdateState(
+        info.hasUpdate ? { state: "found", info } : { state: "none" },
+      );
+      onToast(
+        info.hasUpdate
+          ? `发现新版本 v${info.latestVersion}`
+          : "当前已是最新版本",
+        info.hasUpdate ? "info" : "success",
+      );
+    } catch (error) {
+      setUpdateState({ state: "error", message: String(error) });
+      onToast(`检查更新失败: ${String(error)}`, "error");
+    }
+  }
+
+  async function handleOpenDownload(info: UpdateInfo) {
+    try {
+      await openDownloadPage(info.downloadUrl);
+    } catch (error) {
+      onToast(`打开下载页失败: ${String(error)}`, "error");
+    }
+  }
 
   async function handleBackup() {
     setBusy(true);
@@ -197,6 +248,63 @@ export function SettingsDialog({
                 导出 CSV
               </button>
             </div>
+          </section>
+
+          <section className="settings-section">
+            <h3 className="settings-section-title">
+              <Info aria-hidden="true" className="icon-sm" />
+              关于与更新
+            </h3>
+            <p className="settings-section-hint">
+              Torder（今序）是本地优先的桌面待办应用,数据仅保存在本机。
+            </p>
+            <div className="settings-row">
+              <span className="settings-version">
+                {appInfo ? `当前版本 v${appInfo.version}` : ""}
+              </span>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={busy || updateState.state === "checking"}
+                onClick={() => void handleCheckUpdate()}
+              >
+                <RefreshCw
+                  aria-hidden="true"
+                  className={`icon-sm ${
+                    updateState.state === "checking" ? "is-spinning" : ""
+                  }`}
+                />
+                {updateState.state === "checking" ? "检查中…" : "检查更新"}
+              </button>
+            </div>
+            {updateState.state === "none" && (
+              <p className="settings-section-hint">当前已是最新版本。</p>
+            )}
+            {updateState.state === "found" && (
+              <div className="settings-update-card">
+                <div className="settings-list-label">
+                  发现新版本 v{updateState.info.latestVersion}
+                </div>
+                {updateState.info.notes && (
+                  <p className="settings-update-notes">
+                    {updateState.info.notes}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  onClick={() => void handleOpenDownload(updateState.info)}
+                >
+                  <ExternalLink aria-hidden="true" className="icon-xs" />
+                  打开下载页
+                </button>
+              </div>
+            )}
+            {updateState.state === "error" && (
+              <p className="settings-section-hint">
+                检查更新失败,请稍后重试（{updateState.message}）。
+              </p>
+            )}
           </section>
         </div>
 

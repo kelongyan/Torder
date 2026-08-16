@@ -15,3 +15,11 @@ export interface AppInfo {
   version: string;
   platform: string;
 }
+
+export interface UpdateInfo {
+  hasUpdate: boolean;
+  latestVersion: string;
+  notes: string | null;
+  downloadUrl: string;
+  sha256: string | null;
+}

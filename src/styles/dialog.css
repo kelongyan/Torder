@@ -796,12 +796,52 @@
   white-space: nowrap;
 }
 
+.settings-version {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.is-spinning {
+  animation: settings-spin 1s linear infinite;
+}
+
+.settings-update-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  border: 1px solid var(--accent-border, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  padding: 10px 12px;
+}
+
+.settings-update-card .settings-list-label {
+  margin-top: 0;
+  color: var(--accent-hover);
+}
+
+.settings-update-notes {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 19px;
+  white-space: pre-wrap;
+}
+
+@keyframes settings-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* 恢复确认浮层 */
 .restore-confirm-overlay {
   z-index: 60;
-}
-
-.restore-confirm-card {
+}.restore-confirm-card {
   width: min(92vw, 420px);
   border: 1px solid var(--border-light);
   border-radius: 16px;
