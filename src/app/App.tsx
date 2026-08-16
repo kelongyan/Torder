@@ -291,24 +291,28 @@ function App() {
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
 
   useEffect(() => {
-    let cancelled = false;
-    const KEY = "torder-update-notified";
-    void checkForUpdate()
-      .then((info) => {
-        if (cancelled || !info.hasUpdate) return;
-        if (localStorage.getItem(KEY) === info.latestVersion) return;
-        localStorage.setItem(KEY, info.latestVersion);
-        pushToast(
-          `发现新版本 v${info.latestVersion},可在设置中查看更新`,
-          "info",
-        );
-      })
-      .catch(() => {
-        // 启动静默检查失败不打扰用户，可到设置里手动检查。
-      });
-    return () => {
-      cancelled = true;
-    };
+    // 启动后延迟 3s 再检查：让首屏渲染和任务加载先完成，检查失败也完全静默。
+    const timer = window.setTimeout(() => {
+      let cancelled = false;
+      const KEY = "torder-update-notified";
+      void checkForUpdate()
+        .then((info) => {
+          if (cancelled || !info.hasUpdate) return;
+          if (localStorage.getItem(KEY) === info.latestVersion) return;
+          localStorage.setItem(KEY, info.latestVersion);
+          pushToast(
+            `发现新版本 v${info.latestVersion},可在设置中查看更新`,
+            "info",
+          );
+        })
+        .catch(() => {
+          // 启动静默检查失败不打扰用户，可到设置里手动检查。
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, 3000);
+    return () => window.clearTimeout(timer);
   }, [pushToast]);
 
   async function handleSaveList(data: {

@@ -1,6 +1,6 @@
 [package]
 name = "torder"
-version = "2.3.0"
+version = "2.3.1"
 description = "Torder（今序）本地优先待办桌面应用"
 authors = ["Zhaxideler"]
 edition = "2021"
@@ -26,9 +26,6 @@ uuid = { version = "1.24.0", features = ["v4"] }
 window-vibrancy = "0.6"
 chrono = { version = "0.4", features = ["clock", "serde"] }
 chrono-tz = "0.10"
-# 检查更新用的同步 HTTP 客户端；native-tls 在 Windows 上走系统 schannel，
-# 不引入 rustls/ring 的大依赖树，对低内存机的编译压力最小。
-ureq = { version = "3", default-features = false, features = ["native-tls"] }
 
 [dev-dependencies]
 rusqlite = { version = "0.40.1", features = ["bundled"] }
