@@ -3,6 +3,7 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
+  CalendarX2,
   CheckCircle2,
   Clock,
   Flag,
@@ -11,6 +12,7 @@ import {
   List,
   ListTodo,
   Star,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import type { SystemView, TaskLayout, TaskSortBy } from "../types/database";
@@ -26,6 +28,7 @@ export const systemNav: Array<{
   { view: "no-date", icon: Inbox },
   { view: "important", icon: Star },
   { view: "completed", icon: CheckCircle2 },
+  { view: "deleted", icon: Trash2 },
 ];
 
 export const layoutOptions: Array<{
@@ -37,6 +40,7 @@ export const layoutOptions: Array<{
   { value: "board", label: "看板", icon: Kanban },
   { value: "calendar", label: "日历", icon: Calendar },
   { value: "month", label: "月历", icon: CalendarRange },
+  { value: "week", label: "周视图", icon: CalendarX2 },
 ];
 
 export const sortOptions: Array<{

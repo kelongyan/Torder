@@ -324,6 +324,26 @@ kbd {
   text-decoration: line-through;
 }
 
+/* 回收站视图：整行弱化，占位勾位置留空 */
+.task-item.deleted {
+  opacity: 0.72;
+  background: color-mix(in srgb, var(--bg-tertiary) 55%, transparent);
+}
+
+.task-item.deleted:hover {
+  opacity: 1;
+}
+
+.task-item.deleted .task-content h3 {
+  color: var(--text-secondary);
+}
+
+.deleted-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
 .timeline-node {
   position: absolute;
   top: 18px;

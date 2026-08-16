@@ -7,8 +7,10 @@ import type {
 import {
   addBrowserTask,
   findBrowserTask,
+  findBrowserTaskIncludingDeleted,
   getBrowserTasksSnapshot,
   updateBrowserTask,
+  updateBrowserTaskIncludingDeleted,
 } from "./browserTaskMock";
 import {
   filterAndSortBrowserTasks,
@@ -108,6 +110,18 @@ export function deleteTask(id: string): Promise<void> {
   }
 
   return invoke<void>("delete_task", { id });
+}
+
+export function restoreTask(id: string): Promise<Task> {
+  if (!isTauri()) {
+    const task = findBrowserTaskIncludingDeleted(id);
+    if (!task) return Promise.reject(new Error("任务不存在"));
+    const next: Task = { ...task, deletedAt: null, updatedAt: new Date().toISOString() };
+    updateBrowserTaskIncludingDeleted(id, () => next);
+    return Promise.resolve({ ...next });
+  }
+
+  return invoke<Task>("restore_task", { id });
 }
 
 export function setTaskCompleted(

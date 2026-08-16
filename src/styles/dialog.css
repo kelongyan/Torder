@@ -702,57 +702,145 @@
 }
 
 /* --- 设置对话框 --- */
+.settings-dialog .dialog-form {
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+
+.settings-dialog .dialog-footer {
+  padding: 12px 18px;
+}
+
+/* 设置内按钮紧凑化：30px 高 / 12.5px 字，与列表页 36px 主按钮区分开 */
+.settings-dialog .btn-secondary,
+.settings-dialog .btn-primary,
+.settings-dialog .btn-danger-solid {
+  min-height: 30px;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.settings-dialog .btn-secondary .icon-sm,
+.settings-dialog .btn-primary .icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+/* 区块扁平分组：去掉卡片盒子，用分隔线与间距表达分组 */
 .settings-section {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-tertiary);
-  padding: 14px 16px;
+  padding: 0;
+}
+
+.settings-section + .settings-section {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
 }
 
 .settings-section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 6px;
+  gap: 7px;
+  margin: 0 0 4px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 22px;
+  line-height: 20px;
 }
 
 .settings-section-title .icon-sm {
+  width: 14px;
+  height: 14px;
   color: var(--accent-hover);
 }
 
 .settings-section-hint {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: var(--text-muted);
   font-size: 12px;
-  line-height: 19px;
+  line-height: 18px;
 }
 
 .settings-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
+.settings-export-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 开关（switch）样式：隐藏原生 checkbox，绘制胶囊轨道 + 滑块 */
 .settings-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12.5px;
+  line-height: 18px;
   cursor: pointer;
+  user-select: none;
 }
 
 .settings-toggle input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 19px;
+  margin: 0;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-hover);
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.settings-toggle input::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition:
+    transform var(--motion-fast) var(--ease-spring),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.settings-toggle input:hover:not(:disabled) {
+  border-color: var(--border-light);
+}
+
+.settings-toggle input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.settings-toggle input:checked::after {
+  transform: translateX(15px);
+  background: var(--on-accent);
+  box-shadow: none;
+}
+
+.settings-toggle input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.settings-toggle input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-sm {
@@ -762,17 +850,18 @@
 }
 
 .settings-list-label {
-  margin-top: 12px;
+  margin-top: 10px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  line-height: 18px;
+  line-height: 16px;
+  letter-spacing: 0.02em;
 }
 
 .settings-backup-list {
   display: grid;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .settings-backup-item {
@@ -783,7 +872,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  padding: 6px 8px 6px 12px;
+  padding: 4px 6px 4px 10px;
 }
 
 .settings-backup-item > span {
@@ -798,8 +887,9 @@
 
 .settings-version {
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12.5px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
 }
 
 .is-spinning {
@@ -808,12 +898,12 @@
 
 .settings-update-card {
   display: grid;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 6px;
   border: 1px solid var(--accent-border, var(--border));
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .settings-update-card .settings-list-label {
@@ -825,7 +915,7 @@
   margin: 0;
   color: var(--text-secondary);
   font-size: 12px;
-  line-height: 19px;
+  line-height: 18px;
   white-space: pre-wrap;
 }
 
@@ -841,7 +931,9 @@
 /* 恢复确认浮层 */
 .restore-confirm-overlay {
   z-index: 60;
-}.restore-confirm-card {
+}
+
+.restore-confirm-card {
   width: min(92vw, 420px);
   border: 1px solid var(--border-light);
   border-radius: 16px;

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Check, Pencil, Trash2 } from "lucide-react";
+import { Check, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";
 import { HighlightedText } from "../common/HighlightedText";
@@ -15,9 +15,11 @@ export function TaskRow({
   leaving = false,
   motionIndex = 0,
   searchQuery,
+  deleted = false,
   onOpen,
   onToggle,
   onDelete,
+  onRestore,
   onToggleBatchSelected,
 }: {
   task: Task;
@@ -29,9 +31,12 @@ export function TaskRow({
   leaving?: boolean;
   motionIndex?: number;
   searchQuery: string;
+  /** 回收站视图：任务已软删除，行内操作变为恢复。 */
+  deleted?: boolean;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onRestore?: (task: Task) => void;
   onToggleBatchSelected: (id: string) => void;
 }) {
   const completed = task.status === "done";
@@ -39,14 +44,14 @@ export function TaskRow({
 
   function handleRowClick() {
     if (batchMode) onToggleBatchSelected(task.id);
-    else onOpen(task);
+    else if (!deleted) onOpen(task);
   }
 
   return (
     <article
       className={`task-item ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
         leaving ? "is-leaving" : ""
-      }`}
+      } ${deleted ? "deleted" : ""}`}
       style={{ "--item-index": motionIndex } as CSSProperties}
       onClick={handleRowClick}
     >
@@ -71,6 +76,8 @@ export function TaskRow({
         >
           {batchSelected && <Check aria-hidden="true" />}
         </button>
+      ) : deleted ? (
+        <span className="task-check deleted-check" aria-hidden="true" />
       ) : (
         <button
           type="button"
@@ -99,26 +106,42 @@ export function TaskRow({
 
       {!batchMode && (
         <div className="task-actions">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpen(task);
-            }}
-            aria-label="编辑任务"
-          >
-            <Pencil aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete(task);
-            }}
-            aria-label="删除任务"
-          >
-            <Trash2 aria-hidden="true" />
-          </button>
+          {deleted ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRestore?.(task);
+              }}
+              aria-label="恢复任务"
+              title="恢复到原清单"
+            >
+              <RotateCcw aria-hidden="true" />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpen(task);
+                }}
+                aria-label="编辑任务"
+              >
+                <Pencil aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(task);
+                }}
+                aria-label="删除任务"
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       )}
     </article>

@@ -7,7 +7,7 @@ mod recurrence;
 mod recurring_scheduler;
 mod tray;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use db::Database;
 
@@ -24,7 +24,27 @@ fn run_startup_backup_if_enabled(app: tauri::AppHandle) {
     if !enabled {
         return;
     }
-    let _ = commands::backup::backup_database_impl(&app);
+    let _ = commands::backup::backup_database_impl(&app, &database);
+}
+
+fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
+    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+    let quick_add = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyT);
+    app.handle().plugin(
+        tauri_plugin_global_shortcut::Builder::new()
+            .with_handler(move |app, shortcut, event| {
+                if shortcut == &quick_add && event.state() == ShortcutState::Pressed {
+                    tray::show_main_window(app);
+                    let _ = app.emit("tray-quick-add", ());
+                }
+            })
+            .build(),
+    )?;
+    app.global_shortcut()
+        .register(quick_add)
+        .unwrap_or_else(|error| eprintln!("global shortcut register failed: {error}"));
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -44,6 +64,7 @@ pub fn run() {
             app.manage(database);
             notifier::start_notifier(app.handle().clone(), database_path);
             tray::setup(app)?;
+            setup_global_quick_add(app)?;
 
             run_startup_backup_if_enabled(app.handle().clone());
             Ok(())
@@ -63,6 +84,7 @@ pub fn run() {
             commands::task::update_task,
             commands::task::delete_task,
             commands::task::set_task_completed,
+            commands::task::restore_task,
             commands::recurring::list_recurring_rules,
             commands::recurring::create_recurring_rule,
             commands::recurring::update_recurring_rule,

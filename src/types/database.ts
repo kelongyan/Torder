@@ -12,8 +12,9 @@ export type SystemView =
   | "overdue"
   | "no-date"
   | "important"
-  | "completed";
-export type TaskLayout = "list" | "board" | "calendar" | "month";
+  | "completed"
+  | "deleted";
+export type TaskLayout = "list" | "board" | "calendar" | "month" | "week";
 export type TaskSortBy = "priority" | "date" | "created";
 
 export type TaskScope =

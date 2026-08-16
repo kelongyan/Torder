@@ -5,7 +5,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { applyThemePreference } from "./theme";
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
-import { useTaskStore } from "../stores/taskStore";
+import { useTaskStore, viewScope } from "../stores/taskStore";
 import type {
   CreateTaskInput,
   CreateRecurringRuleInput,
@@ -74,6 +74,7 @@ import {
   updateCalendarEvent,
 } from "../services/calendarEventService";
 import { MonthCalendar } from "../components/task/MonthCalendar";
+import { WeekCalendar } from "../components/task/WeekCalendar";
 import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
 import type { CalendarEvent } from "../types/database";
 
@@ -132,6 +133,7 @@ function App() {
     saveTask,
     toggleTask,
     removeTask,
+    restoreTask,
     batchComplete,
     batchDelete,
     batchUpdate,
@@ -243,6 +245,12 @@ function App() {
   }, [clearBatchSelection, selectTask]);
 
   useAppInit(setSettings, setLists, setAppError, setAutoBackup);
+  // 持久化恢复的 scope 可能指向已删除的清单，失效时回退到「全部任务」。
+  useEffect(() => {
+    if (scope.kind !== "list") return;
+    if (lists.some((list) => list.id === scope.listId)) return;
+    void setScope(viewScope("all"));
+  }, [lists, scope, setScope]);
   useEffect(() => {
     let cancelled = false;
     void listCalendarEvents()
@@ -519,15 +527,20 @@ function App() {
   function requestDeleteTask(task: Task) {
     setConfirmState({
       title: "确认删除任务",
-      body: `确定要删除"${task.title}"吗？此操作不可撤销。`,
+      body: `确定要删除"${task.title}"吗？可到回收站恢复。`,
       confirmText: "删除",
       danger: true,
       onConfirm: async () => {
         await removeTask(task.id);
         setConfirmState(null);
-        pushToast("任务已删除", "info");
+        pushToast("任务已移入回收站", "info");
       },
     });
+  }
+
+  async function handleRestoreTask(task: Task) {
+    await restoreTask(task.id);
+    pushToast(`已恢复"${task.title}"`, "success");
   }
 
   function requestBatchDelete() {
@@ -661,6 +674,7 @@ function App() {
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                   onDelete={requestDeleteTask}
+                  onRestore={(task) => void handleRestoreTask(task)}
                   onToggleBatchSelected={toggleBatchSelected}
                   onBatchComplete={() => void handleBatchComplete()}
                   onBatchDelete={requestBatchDelete}
@@ -678,6 +692,14 @@ function App() {
                 />
               ) : layout === "month" ? (
                 <MonthCalendar
+                  tasks={tasks}
+                  events={calendarEvents}
+                  onOpenTask={(task) => selectTask(task.id)}
+                  onCreateEvent={openNewCalendarEvent}
+                  onEditEvent={openEditCalendarEvent}
+                />
+              ) : layout === "week" ? (
+                <WeekCalendar
                   tasks={tasks}
                   events={calendarEvents}
                   onOpenTask={(task) => selectTask(task.id)}

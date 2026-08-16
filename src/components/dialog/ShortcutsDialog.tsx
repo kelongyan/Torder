@@ -20,6 +20,7 @@ export function ShortcutsDialog({
     >
       <div className="shortcut-list">
         <ShortcutRow keys="Ctrl+N" label="新建任务" />
+        <ShortcutRow keys="Ctrl+Shift+T" label="全局唤起快速新建（应用在后台也生效）" />
         <ShortcutRow keys="Ctrl+Enter" label="提交表单" />
         <ShortcutRow keys="Esc" label="关闭弹窗" />
         <ShortcutRow keys="?" label="快捷键面板" />

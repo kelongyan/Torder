@@ -55,6 +55,27 @@
   min-height: 0;
 }
 
+/* 周视图：单行 7 列，列更高，任务显示更多 */
+.week-grid {
+  grid-template-rows: 1fr;
+}
+
+.week-cell-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.week-cell-empty {
+  flex: 1;
+}
+
+.week-view .month-cell-date {
+  font-size: 12px;
+}
+
 .month-cell {
   display: flex;
   flex-direction: column;

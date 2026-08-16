@@ -52,3 +52,10 @@ pub fn set_task_completed(
         .set_completed(&id, completed)
         .map_err(|error| error.to_string())
 }
+
+#[tauri::command]
+pub fn restore_task(database: State<'_, Database>, id: String) -> Result<Task, String> {
+    TaskRepository::new(&database)
+        .restore(&id)
+        .map_err(|error| error.to_string())
+}

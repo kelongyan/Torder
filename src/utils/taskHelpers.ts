@@ -65,6 +65,8 @@ export function buildCounts(
     important: tasks.filter((task) => matchesViewCount(task, "important"))
       .length,
     completed: tasks.filter((task) => task.status === "done").length,
+    // allTasks 不含已软删除的任务，回收站角标恒为 0（侧栏对其隐藏角标）。
+    deleted: 0,
   };
   const listCounts: Record<string, number> = {};
   for (const list of lists) {
@@ -203,6 +205,127 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return Boolean(
     target.closest("input, textarea, select, [contenteditable='true']"),
   );
+}
+
+export interface QuickAddParsed {
+  title: string;
+  priority?: 0 | 1 | 2;
+  listId?: string;
+  dueAt: string | null;
+}
+
+const weekdayNumber: Record<string, number> = {
+  一: 1,
+  二: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  日: 7,
+  天: 7,
+};
+
+/**
+ * 自然语言快速添加解析：`#清单` `!高|!中|!低` `今天/明天/后天/周X/下周X` `HH:MM`。
+ * 其余文本拼成标题。未识别的 token 一律保留在标题里，不打断输入。
+ */
+export function parseQuickAddText(
+  text: string,
+  lists: TaskList[],
+): QuickAddParsed {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  let priority: 0 | 1 | 2 | undefined;
+  let listId: string | undefined;
+  let dateToken: string | undefined;
+  let timeToken: string | undefined;
+  const titleParts: string[] = [];
+
+  for (const token of tokens) {
+    if (token.startsWith("#")) {
+      const name = token.slice(1);
+      const list = lists.find((item) => item.name === name);
+      if (list) {
+        listId = list.id;
+        continue;
+      }
+    }
+    if (token.startsWith("!")) {
+      const value = token.slice(1);
+      if (value === "高") {
+        priority = 2;
+        continue;
+      }
+      if (value === "中") {
+        priority = 1;
+        continue;
+      }
+      if (value === "低") {
+        priority = 0;
+        continue;
+      }
+    }
+    if (/^(今天|明天|后天)$/.test(token) || /^(下?周|星期)[一二三四五六日天]$/.test(token)) {
+      dateToken ??= token;
+      continue;
+    }
+    if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(token)) {
+      timeToken ??= token;
+      continue;
+    }
+    titleParts.push(token);
+  }
+
+  return {
+    title: titleParts.join(" "),
+    priority,
+    listId,
+    dueAt: resolveQuickAddDue(dateToken, timeToken),
+  };
+}
+
+/** 日期词 + 时间词 → ISO；无日期词时时间已过顺延到明天。 */
+function resolveQuickAddDue(
+  dateToken: string | undefined,
+  timeToken: string | undefined,
+): string | null {
+  if (!dateToken && !timeToken) return null;
+
+  const date = new Date();
+  const today = new Date();
+  if (dateToken) {
+    if (dateToken === "今天") {
+      // 保持当天
+    } else if (dateToken === "明天") {
+      date.setDate(date.getDate() + 1);
+    } else if (dateToken === "后天") {
+      date.setDate(date.getDate() + 2);
+    } else {
+      const match = dateToken.match(/^(下?周|星期)([一二三四五六日天])$/);
+      if (match) {
+        const target = weekdayNumber[match[2]];
+        const isNextWeek = match[1] === "下周";
+        let diff = target - (today.getDay() || 7);
+        if (isNextWeek) diff += 7;
+        else if (diff <= 0) diff += 7;
+        date.setDate(today.getDate() + diff);
+      }
+    }
+  }
+
+  if (timeToken) {
+    const [hour, minute] = timeToken.split(":").map(Number);
+    date.setHours(hour, minute, 0, 0);
+    // 没写日期、时间已过 → 顺延到明天同一时间
+    if (!dateToken && date.getTime() < Date.now()) {
+      date.setDate(date.getDate() + 1);
+    }
+  } else {
+    // 只写了日期没写时间：默认当天 9:00，已过则 23:59
+    date.setHours(9, 0, 0, 0);
+    if (date.getTime() < Date.now()) date.setHours(23, 59, 0, 0);
+  }
+
+  return date.toISOString();
 }
 
 export function normalizeError(error: unknown): string {

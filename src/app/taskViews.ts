@@ -39,4 +39,9 @@ export const taskViewCopy: Record<
     emptyTitle: "还没有完成记录",
     emptyBody: "完成一条任务后，它会出现在这里。",
   },
+  deleted: {
+    title: "回收站",
+    emptyTitle: "回收站是空的",
+    emptyBody: "删除的任务会暂时留在这里，可以恢复或彻底清除。",
+  },
 };

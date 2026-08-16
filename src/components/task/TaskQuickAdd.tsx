@@ -8,6 +8,7 @@ import {
 import { Calendar, MoreHorizontal, Plus, X } from "lucide-react";
 import type { CreateTaskInput, TaskList } from "../../types/database";
 import { reminderPresets } from "../../constants/reminderConfig";
+import { parseQuickAddText } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
 
@@ -76,8 +77,11 @@ export function TaskQuickAdd({
   const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && title.trim()) {
       e.preventDefault();
+      // 标题去掉已生效的指令词（#清单/!优先级/日期/时间）
+      const parsedTitle = parseQuickAddText(title, lists).title;
+      if (!parsedTitle.trim()) return;
       await onInlineCreate({
-        title: title.trim(),
+        title: parsedTitle.trim(),
         priority,
         listId: activeListId,
         dueAt: dueValue ? new Date(dueValue).toISOString() : null,
@@ -87,6 +91,18 @@ export function TaskQuickAdd({
       setDueValue("");
     }
   };
+
+  // 自然语言快速录入：输入时实时解析 `#清单 !优先级 日期 时间` 并回填控件，
+  // 输入框保持原文；Enter 时指令词已被控件吸收，标题取解析后的纯文本。
+  function handleTitleChange(value: string) {
+    setTitle(value);
+    const parsed = parseQuickAddText(value, lists);
+    if (parsed.priority !== undefined) setPriority(parsed.priority);
+    if (parsed.listId !== undefined) setListId(parsed.listId);
+    if (parsed.dueAt !== null) {
+      setDueValue(toLocalDateTime(new Date(parsed.dueAt)));
+    }
+  }
 
   const pickDateChip = (key: (typeof dateChips)[number]["key"]) => {
     const chip = dateChips.find((c) => c.key === key);
@@ -141,10 +157,10 @@ export function TaskQuickAdd({
         <input
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => handleTitleChange(e.target.value)}
           onFocus={() => setActive(true)}
           onKeyDown={handleKeyDown}
-          placeholder="添加任务（按 Enter 快速录入）..."
+          placeholder="添加任务，支持 #清单 !高 明天 14:00"
         />
         {onOpenDialog && (
           <button

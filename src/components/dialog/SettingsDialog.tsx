@@ -6,6 +6,7 @@ import {
   HardDrive,
   Info,
   RefreshCw,
+  Settings,
 } from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
@@ -150,11 +151,11 @@ export function SettingsDialog({
   }
 
   return (
-    <div className="dialog-overlay">
+    <div className="dialog-overlay settings-dialog">
       <DialogShell
         title="设置"
-        subtitle="数据备份与恢复"
-        icon={DatabaseBackup}
+        subtitle="备份 · 导出 · 更新"
+        icon={Settings}
         width="520px"
         presence={presence}
         onClose={onClose}
@@ -166,8 +167,7 @@ export function SettingsDialog({
               数据库备份
             </h3>
             <p className="settings-section-hint">
-              备份会生成一份完整的数据快照(含所有清单与任务),保存在应用数据目录的
-              backups 文件夹中。
+              生成完整数据快照，保存在应用数据目录的 backups 文件夹。
             </p>
             <div className="settings-row">
               <button
@@ -217,12 +217,12 @@ export function SettingsDialog({
               导出数据
             </h3>
             <p className="settings-section-hint">
-              将任务数据导出为可读文件,方便迁移或备份到其他位置。
+              将任务数据导出为可读文件，方便迁移备份。
             </p>
             <div className="settings-row">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary settings-export-btn"
                 disabled={busy}
                 onClick={() => void handleExport("json")}
               >
@@ -231,7 +231,7 @@ export function SettingsDialog({
               </button>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary settings-export-btn"
                 disabled={busy}
                 onClick={() => void handleExport("markdown")}
               >
@@ -240,7 +240,7 @@ export function SettingsDialog({
               </button>
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary settings-export-btn"
                 disabled={busy}
                 onClick={() => void handleExport("csv")}
               >
@@ -256,7 +256,7 @@ export function SettingsDialog({
               关于与更新
             </h3>
             <p className="settings-section-hint">
-              Torder（今序）是本地优先的桌面待办应用,数据仅保存在本机。
+              本地优先的桌面待办应用，数据仅保存在本机。
             </p>
             <div className="settings-row">
               <span className="settings-version">

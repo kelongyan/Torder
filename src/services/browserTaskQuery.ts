@@ -1,3 +1,4 @@
+import { getBrowserListsSnapshot } from "./listService";
 import type {
   SystemView,
   Task,
@@ -23,16 +24,92 @@ export function filterAndSortBrowserTasks(
 }
 
 function matchesQuery(task: Task, input: QueryTasksInput): boolean {
-  if (task.deletedAt) return false;
+  // 回收站视图下允许已软删除的任务进入后续匹配。
+  if (task.deletedAt && !(input.scope.kind === "view" && input.scope.view === "deleted")) {
+    return false;
+  }
   if (!matchesScope(task, input.scope, input.showCompleted)) return false;
 
-  const query = input.query.trim().toLocaleLowerCase("zh-CN");
-  if (!query) return true;
+  const parsed = parseSearchQuery(input.query);
+  if (parsed.text) {
+    const query = parsed.text.toLocaleLowerCase("zh-CN");
+    if (![task.title, task.note ?? ""]
+      .join("\n")
+      .toLocaleLowerCase("zh-CN")
+      .includes(query)) {
+      return false;
+    }
+  }
+  if (parsed.priority !== null && task.priority !== parsed.priority) return false;
+  // l: 匹配清单名称（与 Rust 侧 name 子查询语义一致），解析为 ID 比较。
+  if (parsed.listName !== null) {
+    const list = getBrowserListsSnapshot().find(
+      (item) =>
+        item.name.toLocaleLowerCase("zh-CN") ===
+        parsed.listName!.toLocaleLowerCase("zh-CN"),
+    );
+    if (!list || task.listId !== list.id) return false;
+  }
+  if (parsed.due !== null) {
+    if (task.status !== "todo") return false;
+    if (parsed.due === "none") {
+      if (task.dueAt !== null) return false;
+    } else if (!task.dueAt) {
+      return false;
+    } else if (parsed.due === "today" && !isSameLocalDay(new Date(task.dueAt), new Date())) {
+      return false;
+    } else if (parsed.due === "overdue" && !isOverdue(task.dueAt)) {
+      return false;
+    }
+  }
+  return true;
+}
 
-  return [task.title, task.note ?? ""]
-    .join("\n")
-    .toLocaleLowerCase("zh-CN")
-    .includes(query);
+interface ParsedSearchQuery {
+  text: string | null;
+  priority: number | null;
+  listName: string | null;
+  due: "today" | "overdue" | "none" | null;
+}
+
+/** 与 task_repository.rs::parse_search_query 保持同一语义。 */
+function parseSearchQuery(query: string): ParsedSearchQuery {
+  const textParts: string[] = [];
+  let priority: number | null = null;
+  let listName: string | null = null;
+  let due: "today" | "overdue" | "none" | null = null;
+
+  for (const token of query.split(/\s+/)) {
+    if (token.startsWith("p:")) {
+      const value = Number.parseInt(token.slice(2), 10);
+      if (value >= 0 && value <= 2) {
+        priority = value;
+        continue;
+      }
+    }
+    if (token.startsWith("l:")) {
+      const name = token.slice(2).trim();
+      if (name) {
+        listName = name;
+        continue;
+      }
+    }
+    if (token.startsWith("due:")) {
+      const value = token.slice(4);
+      if (value === "今天" || value === "today") due = "today";
+      else if (value === "过期" || value === "overdue") due = "overdue";
+      else if (value === "无" || value === "none") due = "none";
+      if (due !== null) continue;
+    }
+    textParts.push(token);
+  }
+
+  return {
+    text: textParts.length > 0 ? textParts.join(" ") : null,
+    priority,
+    listName,
+    due,
+  };
 }
 
 function matchesScope(
@@ -53,6 +130,9 @@ function matchesSystemView(
   view: SystemView,
   showCompleted: boolean,
 ): boolean {
+  // 回收站视图只看已软删除的任务，其余过滤全部跳过。
+  if (view === "deleted") return task.deletedAt !== null;
+  if (task.deletedAt) return false;
   if (view === "completed") return task.status === "done";
   if (!showCompleted && task.status === "done") return false;
   if (view === "all") return true;

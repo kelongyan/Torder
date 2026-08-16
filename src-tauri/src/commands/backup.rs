@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::db::migrations::CURRENT_SCHEMA_VERSION;
 use crate::db::recurring_repository::RecurringRuleRepository;
+use crate::db::settings_repository::SettingsRepository;
 use crate::db::task_repository::TaskRepository;
 use crate::db::Database;
 use crate::error::{RepositoryError, RepositoryResult};
@@ -13,13 +14,20 @@ use crate::models::{RecurringRule, Task, TaskList};
 
 const BACKUP_DIR_NAME: &str = "backups";
 const DB_FILE_NAME: &str = "torder.sqlite";
+const BACKUP_RETENTION_DEFAULT: i64 = 20;
 
 #[tauri::command]
-pub fn backup_database(app: AppHandle) -> Result<String, String> {
-    backup_database_impl(&app).map_err(|error| error.to_string())
+pub fn backup_database(
+    app: AppHandle,
+    database: State<'_, Database>,
+) -> Result<String, String> {
+    backup_database_impl(&app, &database).map_err(|error| error.to_string())
 }
 
-pub fn backup_database_impl(app: &AppHandle) -> RepositoryResult<String> {
+pub fn backup_database_impl(
+    app: &AppHandle,
+    database: &Database,
+) -> RepositoryResult<String> {
     let data_dir = app.path().app_data_dir()?;
     let db_path = data_dir.join(DB_FILE_NAME);
     let backup_dir = data_dir.join(BACKUP_DIR_NAME);
@@ -38,7 +46,54 @@ pub fn backup_database_impl(app: &AppHandle) -> RepositoryResult<String> {
     let connection = rusqlite::Connection::open(&db_path)?;
     connection.execute_batch(&format!("VACUUM INTO '{quoted}'"))?;
 
+    // 备份会越积越多，按保留策略清理最旧的几份，防止 AppData 无声膨胀。
+    let retention = SettingsRepository::new(database)
+        .get(BACKUP_RETENTION_KEY)?
+        .map(|setting| setting.value);
+    prune_backup_files(&backup_dir, parse_retention(retention))?;
+
     Ok(backup_path.display().to_string())
+}
+
+const BACKUP_RETENTION_KEY: &str = "backupRetentionCount";
+
+/// 解析保留份数：非法/缺失回退默认值，至少保留 1 份。
+fn parse_retention(value: Option<String>) -> i64 {
+    value
+        .as_deref()
+        .and_then(|value| value.trim().parse::<i64>().ok())
+        .filter(|count| *count > 0)
+        .unwrap_or(BACKUP_RETENTION_DEFAULT)
+}
+
+/// 只保留最新的 `retention` 份 `torder-backup-*.sqlite`；
+/// 恢复前的安全快照（`torder-prerestore-*`）不参与清理。
+/// 备份文件名是固定格式时间戳，字典序即时间序。
+fn prune_backup_files(backup_dir: &Path, retention: i64) -> RepositoryResult<()> {
+    if retention <= 0 {
+        return Ok(());
+    }
+    let mut backups: Vec<PathBuf> = fs::read_dir(backup_dir)?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| {
+                    name.starts_with("torder-backup-") && name.ends_with(".sqlite")
+                })
+                .unwrap_or(false)
+        })
+        .collect();
+    backups.sort();
+
+    let keep = retention as usize;
+    if backups.len() > keep {
+        for old in backups.iter().take(backups.len() - keep) {
+            let _ = fs::remove_file(old);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -313,6 +368,70 @@ fn escape_csv(field: &str) -> String {
         format!("\"{}\"", field.replace('"', "\"\""))
     } else {
         field.to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn touch(path: &Path) {
+        fs::write(path, b"snapshot").unwrap();
+    }
+
+    #[test]
+    fn prune_keeps_latest_backups_and_skips_safety_snapshots() {
+        let dir = std::env::temp_dir().join(format!("torder-prune-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        for index in 0..25 {
+            touch(&dir.join(format!("torder-backup-2026081{index:02}-000000.sqlite")));
+        }
+        touch(&dir.join("torder-prerestore-20260816-000000.sqlite"));
+        touch(&dir.join("unrelated.txt"));
+
+        prune_backup_files(&dir, 20).unwrap();
+
+        let remaining: Vec<String> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with("torder-backup-"))
+            .collect();
+        assert_eq!(remaining.len(), 20);
+        // 最早的 5 份（index 0..5）被清理，最新的 20 份（index 5..25）保留
+        assert!(!remaining.contains(&"torder-backup-202608100-000000.sqlite".to_owned()));
+        assert!(!remaining.contains(&"torder-backup-202608104-000000.sqlite".to_owned()));
+        assert!(remaining.contains(&"torder-backup-202608105-000000.sqlite".to_owned()));
+        assert!(remaining.contains(&"torder-backup-202608124-000000.sqlite".to_owned()));
+
+        // 安全快照与无关文件不受影响
+        assert!(dir.join("torder-prerestore-20260816-000000.sqlite").exists());
+        assert!(dir.join("unrelated.txt").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn prune_keeps_everything_below_retention() {
+        let dir = std::env::temp_dir().join(format!("torder-prune-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        for index in 0..3 {
+            touch(&dir.join(format!("torder-backup-2026081{index}-000000.sqlite")));
+        }
+
+        prune_backup_files(&dir, 20).unwrap();
+
+        let remaining = fs::read_dir(&dir).unwrap().count();
+        assert_eq!(remaining, 3);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn retention_parsing_falls_back_to_default() {
+        assert_eq!(parse_retention(None), 20);
+        assert_eq!(parse_retention(Some("not-a-number".to_owned())), 20);
+        assert_eq!(parse_retention(Some("0".to_owned())), 20);
+        assert_eq!(parse_retention(Some("5".to_owned())), 5);
+        assert_eq!(parse_retention(Some(" 12 ".to_owned())), 12);
     }
 }
 

@@ -21,6 +21,7 @@ export function TaskListView({
   onOpen,
   onToggle,
   onDelete,
+  onRestore,
   onToggleBatchSelected,
   onBatchComplete,
   onBatchDelete,
@@ -41,12 +42,14 @@ export function TaskListView({
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onRestore: (task: Task) => void;
   onToggleBatchSelected: (id: string) => void;
   onBatchComplete: () => void;
   onBatchDelete: () => void;
   onBatchEdit: () => void;
   onExitBatch: () => void;
 }) {
+  const deletedView = scope.kind === "view" && scope.view === "deleted";
   const animatedTasks = useAnimatedTasks(tasks);
   const activeTasks = animatedTasks.filter((item) => item.task.status !== "done");
   const completedTasks = animatedTasks.filter(
@@ -58,12 +61,14 @@ export function TaskListView({
   if (loading && tasks.length === 0) {
     return (
       <div className="list-container">
-        <TaskQuickAdd
-  lists={lists}
-  defaultListId={defaultListId}
-  onInlineCreate={onInlineCreate}
-  onOpenDialog={onQuickAdd}
-/>
+        {!deletedView && (
+          <TaskQuickAdd
+            lists={lists}
+            defaultListId={defaultListId}
+            onInlineCreate={onInlineCreate}
+            onOpenDialog={onQuickAdd}
+          />
+        )}
         <div className="skeleton-list" aria-label="任务加载中">
           <span />
           <span />
@@ -76,12 +81,14 @@ export function TaskListView({
   if (tasks.length === 0) {
     return (
       <div className="list-container">
-        <TaskQuickAdd
-  lists={lists}
-  defaultListId={defaultListId}
-  onInlineCreate={onInlineCreate}
-  onOpenDialog={onQuickAdd}
-/>
+        {!deletedView && (
+          <TaskQuickAdd
+            lists={lists}
+            defaultListId={defaultListId}
+            onInlineCreate={onInlineCreate}
+            onOpenDialog={onQuickAdd}
+          />
+        )}
         <EmptyState scope={scope} searchQuery={searchQuery} />
       </div>
     );
@@ -89,7 +96,7 @@ export function TaskListView({
 
   return (
     <div className={`list-container ${batchMode ? "batching" : ""}`}>
-      {batchMode && (
+      {batchMode && !deletedView && (
         <div className="batch-bar">
           <span>已选 {batchSelectedIds.length} 项</span>
           <button type="button" onClick={onBatchComplete} disabled={batchSelectedIds.length === 0}>
@@ -107,56 +114,88 @@ export function TaskListView({
           <button type="button" onClick={onExitBatch}>退出</button>
         </div>
       )}
-      <TaskQuickAdd
-  lists={lists}
-  defaultListId={defaultListId}
-  onInlineCreate={onInlineCreate}
-  onOpenDialog={onQuickAdd}
-/>
-      {activeTasks.length > 0 && (
+      {!deletedView && (
+        <TaskQuickAdd
+          lists={lists}
+          defaultListId={defaultListId}
+          onInlineCreate={onInlineCreate}
+          onOpenDialog={onQuickAdd}
+        />
+      )}
+      {deletedView ? (
         <>
-          <SectionHeader label={`进行中 · ${activeCount}`} />
-          {activeTasks.map((item, index) => (
+          <SectionHeader label={`回收站 · ${animatedTasks.length}`} />
+          {animatedTasks.map((item, index) => (
             <TaskRow
               key={item.task.id}
               task={item.task}
               lists={lists}
-              selected={item.task.id === selectedTaskId}
-              last={index === activeTasks.length - 1 && completedTasks.length === 0}
-              batchMode={batchMode}
-              batchSelected={batchSelectedIds.includes(item.task.id)}
+              selected={false}
+              last={index === animatedTasks.length - 1}
+              batchMode={false}
+              batchSelected={false}
               leaving={item.leaving}
               motionIndex={index}
               searchQuery={searchQuery}
+              deleted
               onOpen={onOpen}
               onToggle={onToggle}
               onDelete={onDelete}
+              onRestore={onRestore}
               onToggleBatchSelected={onToggleBatchSelected}
             />
           ))}
         </>
-      )}
-      {completedTasks.length > 0 && (
+      ) : (
         <>
-          <SectionHeader label={`已完成 · ${completedCount}`} />
-          {completedTasks.map((item, index) => (
-            <TaskRow
-              key={item.task.id}
-              task={item.task}
-              lists={lists}
-              selected={item.task.id === selectedTaskId}
-              last={index === completedTasks.length - 1}
-              batchMode={batchMode}
-              batchSelected={batchSelectedIds.includes(item.task.id)}
-              leaving={item.leaving}
-              motionIndex={activeTasks.length + index}
-              searchQuery={searchQuery}
-              onOpen={onOpen}
-              onToggle={onToggle}
-              onDelete={onDelete}
-              onToggleBatchSelected={onToggleBatchSelected}
-            />
-          ))}
+          {activeTasks.length > 0 && (
+            <>
+              <SectionHeader label={`进行中 · ${activeCount}`} />
+              {activeTasks.map((item, index) => (
+                <TaskRow
+                  key={item.task.id}
+                  task={item.task}
+                  lists={lists}
+                  selected={item.task.id === selectedTaskId}
+                  last={index === activeTasks.length - 1 && completedTasks.length === 0}
+                  batchMode={batchMode}
+                  batchSelected={batchSelectedIds.includes(item.task.id)}
+                  leaving={item.leaving}
+                  motionIndex={index}
+                  searchQuery={searchQuery}
+                  onOpen={onOpen}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                  onRestore={onRestore}
+                  onToggleBatchSelected={onToggleBatchSelected}
+                />
+              ))}
+            </>
+          )}
+          {completedTasks.length > 0 && (
+            <>
+              <SectionHeader label={`已完成 · ${completedCount}`} />
+              {completedTasks.map((item, index) => (
+                <TaskRow
+                  key={item.task.id}
+                  task={item.task}
+                  lists={lists}
+                  selected={item.task.id === selectedTaskId}
+                  last={index === completedTasks.length - 1}
+                  batchMode={batchMode}
+                  batchSelected={batchSelectedIds.includes(item.task.id)}
+                  leaving={item.leaving}
+                  motionIndex={activeTasks.length + index}
+                  searchQuery={searchQuery}
+                  onOpen={onOpen}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                  onRestore={onRestore}
+                  onToggleBatchSelected={onToggleBatchSelected}
+                />
+              ))}
+            </>
+          )}
         </>
       )}
     </div>

@@ -13,7 +13,8 @@ export function SidebarItem({
   icon?: LucideIcon;
   color?: string;
   label: string;
-  count: number;
+  /** 传 undefined 时隐藏角标（如回收站视图，列表数据不含已删任务）。 */
+  count?: number;
   active: boolean;
   onClick: () => void;
   onEdit?: () => void;
@@ -76,7 +77,7 @@ export function SidebarItem({
             )}
           </div>
         )}
-        <span className="nav-badge">{count}</span>
+        {count !== undefined && <span className="nav-badge">{count}</span>}
       </div>
     </div>
   );

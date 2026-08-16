@@ -23,8 +23,25 @@ export function updateBrowserTask(id: string, updater: (task: Task) => Task): bo
   return true;
 }
 
+/** 与 updateBrowserTask 相同，但不排除已软删除的任务（回收站恢复用）。 */
+export function updateBrowserTaskIncludingDeleted(
+  id: string,
+  updater: (task: Task) => Task,
+): boolean {
+  const index = browserTasks.findIndex((task) => task.id === id);
+  if (index < 0) return false;
+  browserTasks = browserTasks.map((task, taskIndex) =>
+    taskIndex === index ? updater(task) : task,
+  );
+  return true;
+}
+
 export function findBrowserTask(id: string): Task | undefined {
   return browserTasks.find((item) => item.id === id && !item.deletedAt);
+}
+
+export function findBrowserTaskIncludingDeleted(id: string): Task | undefined {
+  return browserTasks.find((item) => item.id === id);
 }
 
 function createBrowserTasks(): Task[] {

@@ -72,10 +72,16 @@ impl<'database> TaskRepository<'database> {
     }
 
     pub fn query(&self, input: TaskQueryInput) -> RepositoryResult<Vec<Task>> {
-        let mut clauses = vec![
-            "t.deleted_at IS NULL".to_owned(),
-            "t.status != 'archived'".to_owned(),
-        ];
+        let deleted_view = input.scope_kind == "view" && input.scope_value == "deleted";
+        let mut clauses = if deleted_view {
+            // 回收站视图：只列出软删除的任务，其余视图一律排除已删除。
+            vec!["t.deleted_at IS NOT NULL".to_owned()]
+        } else {
+            vec![
+                "t.deleted_at IS NULL".to_owned(),
+                "t.status != 'archived'".to_owned(),
+            ]
+        };
         let mut values = Vec::<Value>::new();
 
         match input.scope_kind.as_str() {
@@ -99,18 +105,44 @@ impl<'database> TaskRepository<'database> {
 
         if let Some(query) = input.query.map(|query| query.trim().to_owned()) {
             if !query.is_empty() {
-                let pattern = format!("%{}%", escape_like(&query));
-                clauses.push(
-                    r#"
-                    (
-                        t.title LIKE ? ESCAPE '\'
-                        OR COALESCE(t.note, '') LIKE ? ESCAPE '\'
-                    )
-                    "#
-                    .to_owned(),
-                );
-                values.push(Value::Text(pattern.clone()));
-                values.push(Value::Text(pattern));
+                let parsed = parse_search_query(&query);
+                if let Some(text) = parsed.text {
+                    let pattern = format!("%{}%", escape_like(&text));
+                    clauses.push(
+                        r#"
+                        (
+                            t.title LIKE ? ESCAPE '\'
+                            OR COALESCE(t.note, '') LIKE ? ESCAPE '\'
+                        )
+                        "#
+                        .to_owned(),
+                    );
+                    values.push(Value::Text(pattern.clone()));
+                    values.push(Value::Text(pattern));
+                }
+                if let Some(priority) = parsed.priority {
+                    clauses.push("t.priority = ?".to_owned());
+                    values.push(Value::Integer(priority));
+                }
+                if let Some(list_name) = parsed.list_name {
+                    clauses.push(
+                        "t.list_id IN (SELECT id FROM lists WHERE name = ? COLLATE NOCASE)"
+                            .to_owned(),
+                    );
+                    values.push(Value::Text(list_name));
+                }
+                match parsed.due {
+                    Some(DueFilter::Today) => clauses.push(
+                        "t.status = 'todo' AND t.due_at IS NOT NULL AND date(t.due_at, 'localtime') = date('now', 'localtime')"
+                            .to_owned(),
+                    ),
+                    Some(DueFilter::Overdue) => clauses.push(
+                        "t.status = 'todo' AND t.due_at IS NOT NULL AND date(t.due_at, 'localtime') < date('now', 'localtime')"
+                            .to_owned(),
+                    ),
+                    Some(DueFilter::None) => clauses.push("t.due_at IS NULL".to_owned()),
+                    None => {}
+                }
             }
         }
 
@@ -223,6 +255,25 @@ impl<'database> TaskRepository<'database> {
 
         self.get(id)
     }
+
+    /// 从回收站恢复任务：清空删除时间戳。
+    pub fn restore(&self, id: &str) -> RepositoryResult<Task> {
+        let connection = self.database.connect()?;
+        let updated = connection.execute(
+            r#"
+            UPDATE tasks
+            SET deleted_at = NULL,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ?1 AND deleted_at IS NOT NULL
+            "#,
+            params![id],
+        )?;
+        if updated == 0 {
+            return Err(RepositoryError::NotFound("task"));
+        }
+
+        self.get(id)
+    }
 }
 
 fn push_view_scope(
@@ -256,6 +307,8 @@ fn push_view_scope(
         "no-date" => clauses.push("t.status = 'todo' AND t.due_at IS NULL".to_owned()),
         "important" => clauses.push("t.status = 'todo' AND t.priority = 2".to_owned()),
         "completed" => clauses.push("t.status = 'done'".to_owned()),
+        // 回收站视图的过滤条件已在 query() 里按 deleted_view 处理，这里不再追加。
+        "deleted" => {}
         _ => return Err(RepositoryError::Validation("invalid task view")),
     }
     Ok(())
@@ -305,6 +358,110 @@ fn escape_like(value: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_")
+}
+
+/// 前缀指令搜索：`p:2` / `l:工作` / `due:今天` / `due:过期` / `due:无`。
+/// 其余文本作为标题/备注的全文匹配。指令以空格分隔，指令写法不合法时
+/// 整段按原文匹配（宽松处理，不打断已有搜索习惯）。
+struct ParsedSearchQuery {
+    text: Option<String>,
+    priority: Option<i64>,
+    list_name: Option<String>,
+    due: Option<DueFilter>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DueFilter {
+    Today,
+    Overdue,
+    None,
+}
+
+fn parse_search_query(query: &str) -> ParsedSearchQuery {
+    let mut text_parts: Vec<&str> = Vec::new();
+    let mut priority: Option<i64> = None;
+    let mut list_name: Option<String> = None;
+    let mut due: Option<DueFilter> = None;
+
+    for token in query.split_whitespace() {
+        if let Some(value) = token.strip_prefix("p:") {
+            if let Ok(number) = value.parse::<i64>() {
+                if (0..=2).contains(&number) {
+                    priority = Some(number);
+                    continue;
+                }
+            }
+        }
+        if let Some(value) = token.strip_prefix("l:") {
+            let name = value.trim();
+            if !name.is_empty() {
+                list_name = Some(name.to_owned());
+                continue;
+            }
+        }
+        if let Some(value) = token.strip_prefix("due:") {
+            let filter = match value {
+                "今天" | "today" => Some(DueFilter::Today),
+                "过期" | "overdue" => Some(DueFilter::Overdue),
+                "无" | "none" => Some(DueFilter::None),
+                _ => None,
+            };
+            if let Some(filter) = filter {
+                due = Some(filter);
+                continue;
+            }
+        }
+        text_parts.push(token);
+    }
+
+    let text = if text_parts.is_empty() {
+        None
+    } else {
+        Some(text_parts.join(" "))
+    };
+    ParsedSearchQuery {
+        text,
+        priority,
+        list_name,
+        due,
+    }
+}
+
+#[cfg(test)]
+mod search_query_tests {
+    use super::*;
+
+    #[test]
+    fn parses_priority_and_list_and_due_directives() {
+        let parsed = parse_search_query("p:2 l:工作 due:今天");
+        assert_eq!(parsed.text, None);
+        assert_eq!(parsed.priority, Some(2));
+        assert_eq!(parsed.list_name.as_deref(), Some("工作"));
+        assert_eq!(parsed.due, Some(DueFilter::Today));
+    }
+
+    #[test]
+    fn keeps_remaining_text_as_fulltext() {
+        let parsed = parse_search_query("提交报告 p:1");
+        assert_eq!(parsed.text.as_deref(), Some("提交报告"));
+        assert_eq!(parsed.priority, Some(1));
+        assert_eq!(parsed.list_name, None);
+        assert_eq!(parsed.due, None);
+    }
+
+    #[test]
+    fn invalid_directives_fall_back_to_fulltext() {
+        let parsed = parse_search_query("p:9 due:明天");
+        assert_eq!(parsed.text.as_deref(), Some("p:9 due:明天"));
+        assert_eq!(parsed.priority, None);
+        assert_eq!(parsed.due, None);
+    }
+
+    #[test]
+    fn due_none_maps_to_null_due_filter() {
+        let parsed = parse_search_query("due:无");
+        assert_eq!(parsed.due, Some(DueFilter::None));
+    }
 }
 
 fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
