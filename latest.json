@@ -1,0 +1,6 @@
+﻿{
+  "version": "2.4.0",
+  "notes": "回收站、搜索指令、自然语言快速添加、周视图、全局热键 Ctrl+Shift+T、UI 状态记忆、备份自动清理。",
+  "downloadUrl": "https://kelongyan.github.io/Torder/Torder_2.4.0_x64-setup.exe",
+  "sha256": "f30dd5b26df0733840ccd21551d371d386ee617d36ea341ecdae1d7b55e7b17a"
+}
