@@ -19,7 +19,8 @@
 <br />
 
 <p align="center">
-  <img src="./src/assets/readme-preview.png" width="920" alt="今序精修宽屏首页" />
+  <img src="./src/assets/night.png" width="460" alt="今序暗色主题" />
+  <img src="./src/assets/light.png" width="460" alt="今序浅色主题" />
 </p>
 
 <br />
