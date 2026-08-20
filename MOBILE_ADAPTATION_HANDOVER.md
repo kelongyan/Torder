@@ -135,10 +135,11 @@
 
 ### P2 — 清理/优化
 
-9. `Cargo.toml:21,26`：`tauri` 的 `tray-icon` feature、`window-vibrancy` 为无条件依赖，Android 上是死代码，可 cfg-gate。
-10. `src-tauri/gen/android/app/src/main/assets/WebView2Loader.dll`：Windows DLL 被无差别打进 Android assets（~150KB 浪费）。
-11. `capabilities/mobile.json:6`：`windows: ["main"]` 在移动端通常省略。
-12. 全部改动尚未提交，建议尽快按功能拆分提交，避免工作区漂移。
+9. ✅ `window-vibrancy` 无条件依赖 → 已修复：移入 `[target.'cfg(target_os = "windows")'.dependencies]`（`Cargo.toml`），引用均带 cfg 保护。
+   - `tauri` 的 `tray-icon` feature **保留**：Cargo feature 无法按 target 条件化，且 Android 编译已验证无影响。
+10. ✅ `WebView2Loader.dll` 混入 Android APK → 已修复：`tauri.android.conf.json` 覆盖 `bundle.resources: []`（合并后配置确认 `resources: []`），删除残留 assets 文件后 APK 内无 DLL（`unzip -l | grep webview2` 无输出）。
+11. ✅ `capabilities/mobile.json` 的 `windows: ["main"]` → 保留（P0 实测确认**不可省略**，省略会导致 capability 匹配失败、`event.listen` 被拒）。
+12. ✅ 改动提交 → P0+P1 已提交（`e79da48`），P2 改动单独提交。
 
 ---
 

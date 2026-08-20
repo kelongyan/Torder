@@ -6,5 +6,8 @@
         "transparent": false
       }
     ]
+  },
+  "bundle": {
+    "resources": []
   }
 }
