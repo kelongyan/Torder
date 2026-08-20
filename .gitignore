@@ -49,3 +49,6 @@ procs.txt
 
 # Tauri generated mobile project (init/build artifacts, contains 2.5GB gradle+APK)
 src-tauri/gen/
+
+# Android release signing keystore (never commit credentials)
+src-tauri/*.keystore
