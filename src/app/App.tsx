@@ -58,6 +58,7 @@ import { usePresence } from "../hooks/usePresence";
 import { useTaskReminder } from "../hooks/useTaskReminder";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
+import { isMobile } from "../utils/platform";
 import {
   createRecurringRule,
   deleteRecurringRule,
@@ -299,6 +300,8 @@ function App() {
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
 
   useEffect(() => {
+    // 移动端无桌面安装包更新机制，跳过启动静默检查
+    if (isMobile()) return;
     // 启动后延迟 3s 再检查：让首屏渲染和任务加载先完成，检查失败也完全静默。
     const timer = window.setTimeout(() => {
       let cancelled = false;
@@ -580,10 +583,11 @@ function App() {
   }
 
   const displayError = error ?? appError;
+  const mobile = isMobile();
 
   return (
-    <div className="window-frame">
-      <WindowTitleBar />
+    <div className={mobile ? "window-frame mobile" : "window-frame"}>
+      {!mobile && <WindowTitleBar />}
 
       <div className="app-shell">
         <Sidebar
@@ -776,7 +780,8 @@ function App() {
         />
       )}
 
-      {shortcutsPresence.rendered && (
+      {/* 移动端无物理键盘入口，不渲染快捷键说明弹窗 */}
+      {!isMobile() && shortcutsPresence.rendered && (
         <ShortcutsDialog
           presence={shortcutsPresence.phase}
           onClose={() => setShortcutsOpen(false)}

@@ -46,3 +46,6 @@ output/playwright/阶段7-托盘菜单实机.png
 # Local-only build artifacts and process snapshots (never commit)
 dist-*/
 procs.txt
+
+# Tauri generated mobile project (init/build artifacts, contains 2.5GB gradle+APK)
+src-tauri/gen/

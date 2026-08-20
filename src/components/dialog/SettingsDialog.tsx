@@ -25,6 +25,7 @@ import {
   openDownloadPage,
 } from "../../services/appService";
 import type { AppInfo, UpdateInfo } from "../../types/settings";
+import { isMobile } from "../../utils/platform";
 
 export function SettingsDialog({
   autoBackup,
@@ -39,6 +40,7 @@ export function SettingsDialog({
   onAutoBackupChange: (enabled: boolean) => void;
   onToast: (message: string, type: ToastKind) => void;
 }) {
+  const mobile = isMobile();
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState<string[]>([]);
   const [pendingRestore, setPendingRestore] = useState<string | null>(null);
@@ -154,13 +156,14 @@ export function SettingsDialog({
     <div className="dialog-overlay settings-dialog">
       <DialogShell
         title="设置"
-        subtitle="备份 · 导出 · 更新"
+        subtitle={mobile ? "关于与更新" : "备份 · 导出 · 更新"}
         icon={Settings}
         width="520px"
         presence={presence}
         onClose={onClose}
       >
         <div className="dialog-form">
+          {!mobile && (
           <section className="settings-section">
             <h3 className="settings-section-title">
               <DatabaseBackup aria-hidden="true" className="icon-sm" />
@@ -210,7 +213,9 @@ export function SettingsDialog({
               </div>
             )}
           </section>
+          )}
 
+          {!mobile && (
           <section className="settings-section">
             <h3 className="settings-section-title">
               <Download aria-hidden="true" className="icon-sm" />
@@ -249,6 +254,7 @@ export function SettingsDialog({
               </button>
             </div>
           </section>
+          )}
 
           <section className="settings-section">
             <h3 className="settings-section-title">

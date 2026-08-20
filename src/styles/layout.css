@@ -2,6 +2,8 @@
   display: grid;
   width: 100vw;
   height: 100vh;
+  /* dvh：移动端 WebView 弹软键盘时视口收缩，100vh 会被遮挡（P1-4） */
+  height: 100dvh;
   grid-template-rows: 38px minmax(0, 1fr);
   overflow: hidden;
   background: var(--bg-primary);

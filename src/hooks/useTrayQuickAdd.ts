@@ -2,13 +2,15 @@ import { useEffect } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { normalizeError } from "../utils/taskHelpers";
+import { isMobile } from "../utils/platform";
 
 export function useTrayQuickAdd(
   onQuickAdd: () => void,
   setAppError: (error: string | null) => void,
 ) {
   useEffect(() => {
-    if (!isTauri()) return;
+    // 托盘仅桌面存在，移动端无此事件
+    if (!isTauri() || isMobile()) return;
 
     let cancelled = false;
     let unlisten: (() => void) | undefined;

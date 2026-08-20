@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { isTypingTarget } from "../utils/taskHelpers";
+import { isMobile } from "../utils/platform";
 
 interface KeyboardShortcutsHandlers {
   onOpenCreateDialog: () => void;
@@ -15,6 +16,9 @@ export function useKeyboardShortcuts({
   onEscape,
 }: KeyboardShortcutsHandlers) {
   useEffect(() => {
+    // 移动端无物理键盘，整组快捷键禁用
+    if (isMobile()) return;
+
     function handleKeydown(event: KeyboardEvent) {
       const key = event.key.toLowerCase();
       const typing = isTypingTarget(event.target);

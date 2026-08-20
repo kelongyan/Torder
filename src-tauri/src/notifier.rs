@@ -16,6 +16,15 @@ pub struct ReminderEvent {
 }
 
 pub fn start_notifier(app_handle: AppHandle, database_path: PathBuf) {
+    // 启动时立即补扫一次：Android 后台进程会被系统冻结，恢复打开时
+    // 借此补发冻结期间错过的提醒；桌面端也能避免启动后 60s 的空窗。
+    if let Err(error) = check_and_notify(&app_handle, &database_path) {
+        eprintln!("notifier startup scan error: {error}");
+    }
+
+    // 移动端不启动轮询线程（后台会被冻结，线程无意义且耗电），
+    // 提醒降级为「每次打开应用时补发」。
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(60));
         if let Err(error) = check_and_notify(&app_handle, &database_path) {

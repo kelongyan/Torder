@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { getBrowserListsSnapshot } from "./listService";
 import { getBrowserTasksSnapshot } from "./taskService";
 import type { DatabaseStatus } from "../types/database";
@@ -63,12 +64,13 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   }
 }
 
-export function openDownloadPage(url: string): Promise<void> {
+export async function openDownloadPage(url: string): Promise<void> {
   if (!isTauri()) {
     window.open(url, "_blank", "noopener,noreferrer");
-    return Promise.resolve();
+    return;
   }
-  return invoke<void>("open_download_page", { url });
+  // 跨平台打开外链：桌面用默认浏览器，Android/iOS 用系统 intent
+  await openUrl(url);
 }
 
 async function currentVersion(): Promise<string> {

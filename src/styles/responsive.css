@@ -4,6 +4,224 @@
   }
 }
 
+/* 移动端（Android/iOS Tauri）：无窗口标题栏，grid 改为单行；规避刘海/手势条 */
+.window-frame.mobile {
+  grid-template-rows: minmax(0, 1fr);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 移动端布局与宽度解耦：平板/横屏（viewport > 720px）也必须走紧凑布局，
+   不能只依赖下方 @media (max-width: 720px)。以下规则与 720px 断点内保持一致，
+   修改任何一条时两边需同步。 */
+.window-frame.mobile .app-shell {
+  flex-direction: column;
+}
+
+.window-frame.mobile .sidebar {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.window-frame.mobile .brand {
+  display: none;
+}
+
+.window-frame.mobile .search-box {
+  height: 38px;
+  margin: 9px 12px 8px;
+  border-radius: var(--radius-sm);
+  padding: 0 11px;
+}
+
+.window-frame.mobile .sidebar-nav {
+  display: flex;
+  flex: none;
+  gap: 5px;
+  overscroll-behavior-x: contain;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 10px 9px;
+  scrollbar-width: none;
+}
+
+.window-frame.mobile .sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.window-frame.mobile .nav-group-label,
+.window-frame.mobile .sidebar-divider {
+  display: none;
+}
+
+.window-frame.mobile .nav-item {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 8px;
+}
+
+.window-frame.mobile .nav-item::before {
+  inset: auto 11px 4px;
+  width: auto;
+  height: 3px;
+  transform: scaleX(0.38);
+}
+
+.window-frame.mobile .nav-item.active::before {
+  transform: scaleX(1);
+}
+
+.window-frame.mobile .nav-item .icon-sm {
+  width: 15px;
+  height: 15px;
+}
+
+.window-frame.mobile .nav-item span:nth-child(2),
+.window-frame.mobile .nav-item .nav-badge {
+  display: none;
+}
+
+.window-frame.mobile .main {
+  min-height: 0;
+}
+
+.window-frame.mobile .main-header {
+  min-height: auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px 12px 11px;
+}
+
+.window-frame.mobile .main-header > div:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.window-frame.mobile .main-header h1 {
+  min-width: 0;
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.window-frame.mobile .main-header p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.window-frame.mobile .header-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px 38px;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-frame.mobile .layout-tabs {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+}
+
+.window-frame.mobile .layout-tabs button {
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 8px 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.window-frame.mobile .icon-button {
+  width: 38px;
+  height: 38px;
+}
+
+.window-frame.mobile .content-panel {
+  padding: 12px;
+}
+
+.window-frame.mobile .quick-add {
+  min-height: 44px;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 9px;
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+}
+
+.window-frame.mobile .quick-add span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.window-frame.mobile .empty-state {
+  min-height: clamp(190px, 42vh, 280px);
+  gap: 9px;
+  padding: 10px 0 20px;
+}
+
+.window-frame.mobile .empty-state svg {
+  width: 34px;
+  height: 34px;
+}
+
+.window-frame.mobile .empty-state h2 {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.window-frame.mobile .empty-state p {
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.window-frame.mobile .task-item {
+  padding-right: 8px;
+}
+
+.window-frame.mobile .task-actions {
+  opacity: 1;
+  transform: none;
+}
+
+.window-frame.mobile .dialog-footer,
+.window-frame.mobile .detail-footer {
+  flex-wrap: wrap;
+}
+
+/* P1-2 触摸屏无 hover：侧栏清单编辑/删除按钮常显，并加大触控目标 */
+.window-frame.mobile .sidebar-item-actions {
+  opacity: 1;
+  transform: none;
+}
+
+.window-frame.mobile .sidebar-action-btn {
+  width: 28px;
+  height: 28px;
+}
+
+/* P1-5 触控目标 ≥40px；移动端无物理键盘，隐藏快捷键提示 */
+.window-frame.mobile .task-actions button {
+  width: 40px;
+  height: 40px;
+}
+
+.window-frame.mobile .quick-add kbd {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .window-frame {
     grid-template-rows: 36px minmax(0, 1fr);

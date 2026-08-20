@@ -5,6 +5,7 @@ pub mod models;
 mod notifier;
 mod recurrence;
 mod recurring_scheduler;
+#[cfg(desktop)]
 mod tray;
 
 use tauri::{Emitter, Manager};
@@ -27,6 +28,7 @@ fn run_startup_backup_if_enabled(app: tauri::AppHandle) {
     let _ = commands::backup::backup_database_impl(&app, &database);
 }
 
+#[cfg(desktop)]
 fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
     use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -50,6 +52,8 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
@@ -63,7 +67,9 @@ pub fn run() {
             recurring_scheduler::start(app.handle().clone(), database.clone());
             app.manage(database);
             notifier::start_notifier(app.handle().clone(), database_path);
+            #[cfg(desktop)]
             tray::setup(app)?;
+            #[cfg(desktop)]
             setup_global_quick_add(app)?;
 
             run_startup_backup_if_enabled(app.handle().clone());
@@ -71,7 +77,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_info,
-            commands::app::open_download_page,
             commands::app::set_window_material_theme,
             commands::database::get_database_status,
             commands::backup::backup_database,
