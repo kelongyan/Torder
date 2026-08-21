@@ -12,9 +12,9 @@
     },
     "android": {
       "version": "1.0.1",
-      "notes": "Android v1.0.1：修复设置页误显示桌面版本号。",
-      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_Android_1.0.1_universal-release-debug-signed.apk",
-      "sha256": "f042c226305a2812e47a0817f3b7a020db52ee38dc3483c02c7b1726ae0821aa"
+      "notes": "Android v1.0.1：修复设置页误显示桌面版本号，改用正式签名包。",
+      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_Android_1.0.1_universal-release.apk",
+      "sha256": "e2fa0c06d7568363df3f81a37521ae70ef15fb40348774b786d6e52e275470ab"
     }
   }
 }
