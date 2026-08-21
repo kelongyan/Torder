@@ -1378,6 +1378,11 @@
   }
 }
 
+.window-frame:not(.mobile) .mobile-nav-toggle,
+.window-frame:not(.mobile) .mobile-create-button {
+  display: none;
+}
+
 @keyframes mobile-menu-drop {
   0% {
     opacity: 0;

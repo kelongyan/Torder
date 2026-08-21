@@ -66,7 +66,7 @@ export function Sidebar({
         <input
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索任务，支持 p:2 l:工作 due:今天"
+          placeholder="搜索任务"
           aria-label="搜索任务"
         />
         {searchQuery && (

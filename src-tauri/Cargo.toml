@@ -1,6 +1,6 @@
 [package]
 name = "torder"
-version = "2.4.1"
+version = "2.4.2"
 description = "Torder（今序）本地优先待办桌面应用"
 authors = ["Zhaxideler"]
 edition = "2021"
@@ -15,6 +15,7 @@ name = "torder_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
+serde_json = "1"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]

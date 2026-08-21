@@ -36,6 +36,14 @@ interface UpdateManifest {
   notes?: string | null;
   downloadUrl: string;
   sha256?: string | null;
+  platforms?: Partial<Record<string, UpdateTarget>>;
+}
+
+interface UpdateTarget {
+  version: string;
+  notes?: string | null;
+  downloadUrl: string;
+  sha256?: string | null;
 }
 
 // 检查更新走 webview 的 fetch（异步、不阻塞 UI 线程；失败只产生 JS 错误，
@@ -52,12 +60,14 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
       throw new Error(`清单请求失败（HTTP ${response.status}）`);
     }
     const manifest = (await response.json()) as UpdateManifest;
+    const appInfo = await getAppInfo();
+    const target = updateTargetForPlatform(manifest, appInfo.platform);
     return {
-      hasUpdate: compareSemver(manifest.version, await currentVersion()) > 0,
-      latestVersion: manifest.version,
-      notes: manifest.notes ?? null,
-      downloadUrl: manifest.downloadUrl,
-      sha256: manifest.sha256 ?? null,
+      hasUpdate: compareSemver(target.version, appInfo.version) > 0,
+      latestVersion: target.version,
+      notes: target.notes ?? null,
+      downloadUrl: target.downloadUrl,
+      sha256: target.sha256 ?? null,
     };
   } finally {
     window.clearTimeout(timeout);
@@ -73,12 +83,12 @@ export async function openDownloadPage(url: string): Promise<void> {
   await openUrl(url);
 }
 
-async function currentVersion(): Promise<string> {
-  if (isTauri()) {
-    const info = await invoke<AppInfo>("get_app_info");
-    return info.version;
-  }
-  return "0.1.0";
+function updateTargetForPlatform(
+  manifest: UpdateManifest,
+  platform: string,
+): UpdateTarget {
+  const target = manifest.platforms?.[platform];
+  return target ?? manifest;
 }
 
 /** 比较 "major.minor.patch" 三段数字；忽略预发布后缀（如 -beta.1）。 */
