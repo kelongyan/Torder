@@ -21,6 +21,7 @@ export function Sidebar({
   recurringActive,
   recurringCount,
   onOpenRecurring,
+  onClose,
 }: {
   lists: TaskList[];
   scope: TaskScope;
@@ -37,6 +38,7 @@ export function Sidebar({
   recurringActive: boolean;
   recurringCount: number;
   onOpenRecurring: () => void;
+  onClose?: () => void;
 }) {
   return (
     <aside className="sidebar">
@@ -46,6 +48,17 @@ export function Sidebar({
           <div className="brand-title">Torder</div>
           <div className="brand-subtitle">待办清单</div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            className="drawer-close"
+            onClick={onClose}
+            aria-label="关闭导航"
+            title="关闭导航"
+          >
+            <X aria-hidden="true" className="icon-sm" />
+          </button>
+        )}
       </div>
 
       <div className="search-box">

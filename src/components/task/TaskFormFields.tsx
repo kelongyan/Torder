@@ -2,6 +2,7 @@ import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import { reminderPresets } from "../../constants/reminderConfig";
 import type { RecurrenceFrequency, TaskList } from "../../types/database";
+import { isMobile } from "../../utils/platform";
 import type { TaskDraft } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
@@ -60,12 +61,13 @@ export function TaskFormFields({
   recurrenceRequired?: boolean;
 }) {
   const frequency = draft.recurrenceFrequency;
+  const shouldAutoFocus = !isMobile();
 
   return (
     <>
       <div className="form-title-field">
         <input
-          autoFocus
+          autoFocus={shouldAutoFocus}
           value={draft.title}
           onChange={(event) => onChange({ ...draft, title: event.target.value })}
           onKeyDown={(event) => {

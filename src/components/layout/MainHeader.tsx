@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
-import { MoreHorizontal, Moon, Sun } from "lucide-react";
+import { Menu, MoreHorizontal, Moon, Plus, Sun } from "lucide-react";
+import logoUrl from "../../assets/torder-logo.png";
 import { layoutOptions } from "../../constants/taskConfig";
 import { usePresence } from "../../hooks/usePresence";
 import type { TaskLayout } from "../../types/database";
@@ -8,10 +9,13 @@ import { ViewMenu } from "../common/ViewMenu";
 
 export function MainHeader({
   title,
+  taskCount,
   layout,
   theme,
   sortBy,
   showCompleted,
+  onOpenSidebar,
+  onOpenCreate,
   onLayoutChange,
   onThemeToggle,
   onMenuToggle,
@@ -28,6 +32,8 @@ export function MainHeader({
   theme: ThemePreference;
   sortBy: import("../../types/database").TaskSortBy;
   showCompleted: boolean;
+  onOpenSidebar?: () => void;
+  onOpenCreate?: () => void;
   onLayoutChange: (layout: TaskLayout) => void;
   onThemeToggle: () => void;
   onMenuToggle: () => void;
@@ -38,7 +44,7 @@ export function MainHeader({
   onOpenStats: () => void;
   showLayoutControls?: boolean;
 }) {
-  const menuPresence = usePresence(menuOpen, 180);
+  const menuPresence = usePresence(menuOpen, 280);
   const menuAnchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +65,9 @@ export function MainHeader({
     };
   }, [menuOpen, onMenuToggle]);
 
-  const handleSortSelect = (newSortBy: import("../../types/database").TaskSortBy) => {
+  const handleSortSelect = (
+    newSortBy: import("../../types/database").TaskSortBy,
+  ) => {
     onSortChange(newSortBy);
     onMenuToggle();
   };
@@ -69,29 +77,74 @@ export function MainHeader({
     onMenuToggle();
   };
 
+  const handleLayoutSelect = (nextLayout: TaskLayout) => {
+    onLayoutChange(nextLayout);
+    onMenuToggle();
+  };
+
+  const currentLayoutLabel =
+    layoutOptions.find((item) => item.value === layout)?.label ?? "列表";
+
   return (
-    <header className="main-header">
-      <div className="main-header-left" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>{title}</h1>
-        {showLayoutControls && <div className="layout-tabs" aria-label="布局切换">
-          {layoutOptions.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.value}
-                type="button"
-                className={layout === item.value ? "active" : ""}
-                onClick={() => onLayoutChange(item.value)}
-              >
-                <Icon aria-hidden="true" className="tab-icon" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>}
+    <header
+      className={`main-header ${showLayoutControls ? "" : "no-layout-tabs"}`}
+    >
+      <button
+        type="button"
+        className="icon-button mobile-nav-toggle"
+        onClick={onOpenSidebar}
+        aria-label="打开导航"
+        title="打开导航"
+      >
+        <Menu aria-hidden="true" className="menu-icon" />
+      </button>
+
+      <div className="main-header-left">
+        <img src={logoUrl} alt="" className="main-header-logo" />
+        <div className="main-header-copy">
+          <h1>{title}</h1>
+          <p>
+            {taskCount} 项 · {currentLayoutLabel}
+          </p>
+        </div>
       </div>
 
-      <div className="header-actions">
+      {onOpenCreate && (
+        <button
+          type="button"
+          className="icon-button mobile-create-button"
+          onClick={onOpenCreate}
+          aria-label="新建任务"
+          title="新建任务"
+        >
+          <Plus aria-hidden="true" className="menu-icon" />
+        </button>
+      )}
+
+      <div
+        className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"}`}
+      >
+        {showLayoutControls && (
+          <div className="layout-tabs" aria-label="布局切换">
+            {layoutOptions.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={layout === item.value ? "active" : ""}
+                  onClick={() => onLayoutChange(item.value)}
+                  aria-label={`切换到${item.label}`}
+                  title={item.label}
+                >
+                  <Icon aria-hidden="true" className="tab-icon" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <button
           type="button"
           className="icon-button theme-toggle-btn"
@@ -118,9 +171,13 @@ export function MainHeader({
           </button>
           {menuPresence.rendered && (
             <ViewMenu
+              layout={showLayoutControls ? layout : undefined}
               sortBy={sortBy}
               showCompleted={showCompleted}
               presence={menuPresence.phase}
+              onLayoutChange={
+                showLayoutControls ? handleLayoutSelect : undefined
+              }
               onSortChange={handleSortSelect}
               onShowCompletedChange={handleShowCompletedToggle}
               onOpenSettings={onOpenSettings}

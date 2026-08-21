@@ -89,6 +89,8 @@ export function TaskQuickAdd({
       });
       setTitle("");
       setDueValue("");
+      setDueOpen(false);
+      setActive(false);
     }
   };
 

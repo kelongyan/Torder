@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::time::Duration;
 
 use rusqlite::{params, Connection, TransactionBehavior};
 use serde::Serialize;
@@ -26,7 +25,7 @@ pub fn start_notifier(app_handle: AppHandle, database_path: PathBuf) {
     // 提醒降级为「每次打开应用时补发」。
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_secs(60));
+        std::thread::sleep(std::time::Duration::from_secs(60));
         if let Err(error) = check_and_notify(&app_handle, &database_path) {
             eprintln!("notifier error: {error}");
         }

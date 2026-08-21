@@ -3,15 +3,15 @@
 .btn-danger,
 .btn-danger-solid {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   border-radius: var(--radius-sm);
-  padding: 0 14px;
-  font-size: 14px;
+  padding: 0 13px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 19px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
@@ -93,15 +93,15 @@
 /* 主操作按钮(标记完成/恢复) */
 .btn-complete {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   border-radius: var(--radius-sm);
-  padding: 0 16px;
-  font-size: 14px;
+  padding: 0 14px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 19px;
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);

@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use tauri::{AppHandle, Emitter};
 
 use crate::db::recurring_repository::RecurringRuleRepository;
@@ -26,6 +24,6 @@ pub fn start(app_handle: AppHandle, database: Database) {
             Ok(_) => {}
             Err(error) => eprintln!("recurring scheduler error: {error}"),
         }
-        std::thread::sleep(Duration::from_secs(60));
+        std::thread::sleep(std::time::Duration::from_secs(60));
     });
 }

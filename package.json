@@ -1,7 +1,7 @@
 {
   "name": "torder",
   "private": true,
-  "version": "2.4.0",
+  "version": "2.4.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview",
+    "sync:android-icons": "node scripts/sync-android-icons.mjs",
     "tauri": "tauri"
   },
   "packageManager": "pnpm@11.1.3",

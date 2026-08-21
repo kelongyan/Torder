@@ -25,7 +25,7 @@
 }
 
 .dialog-card {
-  width: min(100%, 580px);
+  width: min(100%, 540px);
   max-height: min(720px, calc(100vh - 36px));
   overflow: auto;
   border: 1px solid var(--border-light);
@@ -50,9 +50,9 @@
 .dialog-header {
   display: flex;
   align-items: flex-start;
-  gap: 13px;
+  gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding: 20px;
+  padding: 18px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -64,24 +64,24 @@
 .dialog-header h2 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
-  line-height: 26px;
+  line-height: 24px;
   letter-spacing: 0;
 }
 
 .dialog-header p {
   margin: 3px 0 0;
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 21px;
+  font-size: 12.5px;
+  line-height: 19px;
 }
 
 .dialog-icon {
   display: grid;
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
   place-items: center;
   border-radius: var(--radius);
   background: var(--accent-bg);
@@ -100,8 +100,8 @@
 .dialog-form,
 .shortcut-list {
   display: grid;
-  gap: 19px;
-  padding: 20px;
+  gap: 16px;
+  padding: 18px;
 }
 
 .form-title-field {
@@ -116,10 +116,10 @@
   outline: none;
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 24px;
-  padding: 9px 15px;
+  line-height: 22px;
+  padding: 7px 13px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard),
@@ -145,12 +145,12 @@
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px 19px;
+  gap: 14px 16px;
   align-items: start;
 }
 
 .form-grid .form-field {
-  gap: 8px;
+  gap: 7px;
 }
 
 @media (max-width: 560px) {
@@ -161,7 +161,7 @@
 
 .form-field {
   display: grid;
-  gap: 9px;
+  gap: 7px;
 }
 
 .form-field input,
@@ -172,8 +172,8 @@
   outline: none;
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 20px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard),
@@ -181,14 +181,49 @@
 }
 
 .form-field input {
-  min-height: 40px;
-  padding: 0 13px;
+  min-height: 36px;
+  padding: 0 11px;
 }
 
 .form-field textarea {
   resize: vertical;
-  min-height: 98px;
-  padding: 10px 13px;
+  height: 84px;
+  min-height: 84px;
+  padding: 8px 11px;
+}
+
+.dialog-card .select-trigger {
+  min-height: 34px;
+  gap: 7px;
+  padding: 0 10px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.dialog-card .select-option {
+  min-height: 32px;
+  gap: 7px;
+  padding: 0 9px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.dialog-card .segmented-control {
+  padding: 2px;
+}
+
+.dialog-card .segmented-option {
+  min-height: 28px;
+  gap: 5px;
+  padding: 0 7px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.dialog-card .segmented-dot {
+  width: 7px;
+  min-width: 7px;
+  height: 7px;
 }
 
 .form-field input:focus,
@@ -286,20 +321,20 @@
 
 .date-time-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 6px;
 }
 
 .date-time-trigger {
   display: flex;
-  min-height: 48px;
+  min-height: 38px;
   width: 100%;
   align-items: center;
-  gap: 11px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
-  padding: 7px 12px;
+  padding: 4px 9px;
   color: var(--text-primary);
   text-align: left;
   transition:
@@ -321,28 +356,33 @@
 .date-time-trigger > span {
   display: grid;
   min-width: 0;
-  gap: 1px;
+  gap: 0;
+}
+
+.date-time-trigger .icon-sm {
+  width: 14px;
+  height: 14px;
 }
 
 .date-time-trigger strong {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 17px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .date-time-trigger small {
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 17px;
+  font-size: 10.5px;
+  line-height: 13px;
 }
 
 .date-time-clear {
   display: grid;
-  min-height: 48px;
+  min-height: 38px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -363,8 +403,8 @@
 }
 
 .date-time-clear svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .date-picker-panel {
@@ -600,9 +640,9 @@
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 9px;
   border-top: 1px solid var(--border);
-  padding: 15px 19px;
+  padding: 13px 18px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -1100,4 +1140,211 @@
 .dialog-delete-btn {
   width: 100%;
   margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .dialog-overlay {
+    display: flex;
+    height: var(--app-viewport-height, 100dvh);
+    align-items: center;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top) + 12px) 14px
+      calc(env(safe-area-inset-bottom) + 12px);
+  }
+
+  .window-frame.mobile .dialog-overlay {
+    inset: var(--app-viewport-offset-top, 0px) 0 auto;
+  }
+
+  .dialog-overlay:focus-within {
+    align-items: center;
+    padding-top: calc(env(safe-area-inset-top) + 12px);
+  }
+
+  .dialog-card {
+    display: flex;
+    width: min(90vw, 380px);
+    max-height: min(82dvh, calc(var(--app-viewport-height, 100dvh) - 28px));
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 15px;
+  }
+
+  .dialog-overlay:focus-within .dialog-card {
+    max-height: calc(var(--app-viewport-height, 100dvh) - 28px);
+  }
+
+  .dialog-header {
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .dialog-icon {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+  }
+
+  .dialog-header h2 {
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .dialog-header p {
+    margin-top: 1px;
+    font-size: 11.5px;
+    line-height: 16px;
+  }
+
+  .dialog-header .icon-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .dialog-form,
+  .shortcut-list {
+    min-height: 0;
+    overflow-y: auto;
+    gap: 8px;
+    padding: 10px 12px 0;
+  }
+
+  .form-title-field {
+    gap: 5px;
+  }
+
+  .form-title-field input {
+    min-height: 34px;
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .form-field {
+    gap: 5px;
+  }
+
+  .form-grid .form-field {
+    gap: 5px;
+  }
+
+  .form-field > span {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 17px;
+  }
+
+  .form-field input {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 12.5px;
+    line-height: 18px;
+  }
+
+  .form-field textarea {
+    height: 54px;
+    min-height: 54px;
+    padding: 6px 9px;
+    font-size: 12.5px;
+    line-height: 18px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 8px;
+  }
+
+  .date-time-field,
+  .recurrence-config,
+  .form-grid-full {
+    grid-column: 1 / -1;
+  }
+
+  .date-time-control {
+    grid-template-columns: minmax(0, 1fr) 30px;
+    gap: 5px;
+  }
+
+  .date-time-trigger {
+    min-height: 32px;
+    gap: 6px;
+    padding: 3px 7px;
+  }
+
+  .date-time-trigger .icon-sm {
+    width: 13px;
+    height: 13px;
+  }
+
+  .date-time-trigger strong {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .date-time-trigger small {
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .date-time-clear {
+    min-height: 32px;
+  }
+
+  .dialog-card .select-trigger {
+    min-height: 30px;
+    gap: 5px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .dialog-card .select-option {
+    min-height: 30px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .segmented-control {
+    padding: 2px;
+  }
+
+  .dialog-card .segmented-option {
+    min-height: 24px;
+    gap: 4px;
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .dialog-card .segmented-dot {
+    width: 6px;
+    min-width: 6px;
+    height: 6px;
+  }
+
+  .dialog-footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    margin: 2px -12px 0;
+    background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
+    padding: 8px 12px;
+    backdrop-filter: blur(12px);
+  }
+
+  .dialog-footer .btn-primary,
+  .dialog-footer .btn-secondary,
+  .dialog-footer .btn-danger,
+  .dialog-footer .btn-danger-solid {
+    width: 100%;
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 12.5px;
+    line-height: 18px;
+  }
 }

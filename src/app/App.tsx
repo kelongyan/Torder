@@ -92,6 +92,7 @@ function App() {
   const [batchEditOpen, setBatchEditOpen] = useState(false);
   const [autoBackup, setAutoBackup] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [recurringLoading, setRecurringLoading] = useState(false);
@@ -111,6 +112,41 @@ function App() {
   );
 
   const { toasts, pushToast } = useToast();
+  const mobile = isMobile();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!mobile) {
+      root.style.removeProperty("--app-viewport-height");
+      root.style.removeProperty("--app-viewport-offset-top");
+      return;
+    }
+
+    const updateViewportVars = () => {
+      const viewport = window.visualViewport;
+      root.style.setProperty(
+        "--app-viewport-height",
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+      root.style.setProperty(
+        "--app-viewport-offset-top",
+        `${viewport?.offsetTop ?? 0}px`,
+      );
+    };
+
+    updateViewportVars();
+    window.addEventListener("resize", updateViewportVars);
+    window.visualViewport?.addEventListener("resize", updateViewportVars);
+    window.visualViewport?.addEventListener("scroll", updateViewportVars);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportVars);
+      window.visualViewport?.removeEventListener("resize", updateViewportVars);
+      window.visualViewport?.removeEventListener("scroll", updateViewportVars);
+      root.style.removeProperty("--app-viewport-height");
+      root.style.removeProperty("--app-viewport-offset-top");
+    };
+  }, [mobile]);
 
   const {
     scope,
@@ -187,6 +223,11 @@ function App() {
   const calendarEventDialogPresence = usePresence(calendarEventDialogOpen, 280);
 
   const openCreateDialog = useCallback(() => setCreateOpen(true), []);
+  const openMobileSidebar = useCallback(() => {
+    setMenuOpen(false);
+    setMobileSidebarOpen(true);
+  }, []);
+  const closeMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
   const loadRecurringRules = useCallback(async () => {
     setRecurringLoading(true);
     try {
@@ -197,17 +238,21 @@ function App() {
   }, []);
   const openSettingsDialog = useCallback(() => {
     setMenuOpen(false);
+    setMobileSidebarOpen(false);
     setSettingsOpen(true);
   }, []);
   const openStatsDialog = useCallback(() => {
     setMenuOpen(false);
+    setMobileSidebarOpen(false);
     setStatsOpen(true);
   }, []);
   const openAddListDialog = useCallback(() => {
+    setMobileSidebarOpen(false);
     setEditingList(null);
     setListDialogOpen(true);
   }, []);
   const openEditListDialog = useCallback((listToEdit: TaskList) => {
+    setMobileSidebarOpen(false);
     setEditingList(listToEdit);
     setListDialogOpen(true);
   }, []);
@@ -215,6 +260,7 @@ function App() {
   const openRecurringView = useCallback(() => {
     setRecurringViewActive(true);
     setMenuOpen(false);
+    setMobileSidebarOpen(false);
     selectTask(null);
     clearBatchSelection();
     void loadRecurringRules();
@@ -228,6 +274,7 @@ function App() {
 
   const closeEverything = useCallback(() => {
     setMenuOpen(false);
+    setMobileSidebarOpen(false);
     setShortcutsOpen(false);
     setCreateOpen(false);
     setListDialogOpen(false);
@@ -374,6 +421,7 @@ function App() {
   async function handleSelectScope(nextScope: TaskScope) {
     setRecurringViewActive(false);
     setMenuOpen(false);
+    setMobileSidebarOpen(false);
     selectTask(null);
     if (searchQuery.trim()) await setSearchQuery("");
     await setScope(nextScope);
@@ -583,13 +631,28 @@ function App() {
   }
 
   const displayError = error ?? appError;
-  const mobile = isMobile();
 
   return (
-    <div className={mobile ? "window-frame mobile" : "window-frame"}>
+    <div
+      className={[
+        "window-frame",
+        mobile ? "mobile" : "",
+        mobileSidebarOpen ? "sidebar-open" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {!mobile && <WindowTitleBar />}
 
       <div className="app-shell">
+        {mobileSidebarOpen && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            onClick={closeMobileSidebar}
+            aria-label="关闭导航"
+          />
+        )}
         <Sidebar
           lists={lists}
           scope={scope}
@@ -603,6 +666,7 @@ function App() {
           recurringActive={recurringViewActive}
           recurringCount={recurringRules.length}
           onOpenRecurring={openRecurringView}
+          onClose={closeMobileSidebar}
         />
 
         <main className="main">
@@ -613,6 +677,8 @@ function App() {
             theme={settings.theme}
             sortBy={sortBy}
             showCompleted={showCompleted}
+            onOpenSidebar={openMobileSidebar}
+            onOpenCreate={openCreateDialog}
             onLayoutChange={setLayout}
             onThemeToggle={() => void handleThemeToggle()}
             onMenuToggle={() => setMenuOpen((open) => !open)}

@@ -8,18 +8,18 @@
 
 .select-trigger {
   display: flex;
-  min-height: 40px;
+  min-height: 36px;
   width: 100%;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   outline: none;
   background: var(--bg-tertiary);
-  padding: 0 12px;
+  padding: 0 11px;
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 13px;
+  line-height: 19px;
   text-align: left;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
@@ -41,8 +41,8 @@
 }
 
 .select-chevron {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   margin-left: auto;
   flex-shrink: 0;
   color: var(--text-muted);
@@ -96,16 +96,16 @@
 .select-option {
   display: flex;
   width: 100%;
-  min-height: 36px;
+  min-height: 33px;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  padding: 0 10px;
+  padding: 0 9px;
   color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 13px;
+  line-height: 19px;
   text-align: left;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -143,25 +143,25 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
-  padding: 3px;
+  padding: 2px;
   width: 100%;
 }
 
 .segmented-option {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 30px;
   flex: 1;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   border: 0;
   border-radius: calc(var(--radius-sm) - 1px);
   background: transparent;
-  padding: 0 10px;
+  padding: 0 8px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 19px;
   white-space: nowrap;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -185,9 +185,9 @@
 }
 
 .segmented-dot {
-  width: 8px;
-  height: 8px;
-  min-width: 8px;
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
   border-radius: 50%;
   flex-shrink: 0;
   transition: opacity var(--motion-fast) var(--ease-standard);

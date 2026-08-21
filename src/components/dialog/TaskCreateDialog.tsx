@@ -83,7 +83,7 @@ export function TaskCreateDialog({
       icon={Plus}
       presence={presence}
       onClose={onClose}
-      width="580px"
+      width="540px"
     >
       <form
         className="dialog-form"
