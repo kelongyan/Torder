@@ -1,6 +1,20 @@
 {
-  "version": "2.4.1",
-  "notes": "Windows v2.4.1：移动端与桌面 UI 精修，顶部菜单与弹窗尺寸优化，Android 图标与版本配置更新。",
-  "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.1/Torder_2.4.1_x64-setup.exe",
-  "sha256": "31c50a8156896a0883640328ccdeb8433687f3b9456351e82afd5af88b38edb3"
+  "version": "2.4.2",
+  "notes": "Windows v2.4.2：修复 Android 设置页版本显示，精简搜索框提示并修复桌面顶部错位；新版本按平台选择更新包。",
+  "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_2.4.2_x64-setup.exe",
+  "sha256": "e0f916c1562544cc710cb0b334e43c8b0bf0c2ef9e25c35c4f48dbcb8c06360f",
+  "platforms": {
+    "windows": {
+      "version": "2.4.2",
+      "notes": "Windows v2.4.2：修复 Android 设置页版本显示，精简搜索框提示并修复桌面顶部错位。",
+      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_2.4.2_x64-setup.exe",
+      "sha256": "e0f916c1562544cc710cb0b334e43c8b0bf0c2ef9e25c35c4f48dbcb8c06360f"
+    },
+    "android": {
+      "version": "1.0.1",
+      "notes": "Android v1.0.1：修复设置页误显示桌面版本号。",
+      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_Android_1.0.1_universal-release-debug-signed.apk",
+      "sha256": "f042c226305a2812e47a0817f3b7a020db52ee38dc3483c02c7b1726ae0821aa"
+    }
+  }
 }
