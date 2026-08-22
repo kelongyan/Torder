@@ -34,8 +34,7 @@ output/playwright/UI微调-Tauri手动拉宽.png
 output/playwright/阶段7-托盘菜单实机.png
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea
 .workbuddy/
 .agents/
@@ -49,6 +48,11 @@ output/playwright/阶段7-托盘菜单实机.png
 # Local-only build artifacts and process snapshots (never commit)
 dist-*/
 procs.txt
+AGENTS.md
+CLAUDE.md
+RULE.md
+codex-note/
+codex-notes/
 
 # Tauri generated mobile project (init/build artifacts, contains 2.5GB gradle+APK)
 src-tauri/gen/
