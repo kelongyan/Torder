@@ -90,7 +90,7 @@ src-tauri/src/
 
 ### 数据库
 
-- 当前 schema version **9**。迁移在 `db/migrations.rs` 的 `MIGRATIONS` 常量数组里，启动时按 `version >` 当前值顺序执行，每条一个事务并写入 `schema_migrations`。**只追加，永不改历史迁移**。版本号从 `CURRENT_SCHEMA_VERSION`（= 数组最后一项）派生，测试与备份校验都引用它，所以加迁移不需要改断言里的字面量。
+- 当前 schema version 以 `db/migrations.rs` 的 `CURRENT_SCHEMA_VERSION` 为准（即 `MIGRATIONS` 数组最后一项）。启动时按 `version >` 当前值顺序执行，每条一个事务并写入 `schema_migrations`。**只追加，永不改历史迁移**。测试与备份校验都引用该常量，所以加迁移不需要改断言里的字面量。
 - 迁移脉络：1 建表 → 2 写入默认设置 → 3 对齐原型（重建 tasks、丢掉 tags、固化三个默认清单）→ 4 Dracula 配色 → 5 提醒列 → 6 `repeat_rule` → 7 循环规则表（并把存量 `repeat_rule` 任务迁成 `legacy-<id>` 规则）→ 8 收窄循环实例唯一索引到未删除任务 → 9 日程事件表 `calendar_events`（假期/出差，多日闭区间）。
 - 三个默认清单 `work`/`personal`/`study` 由 `Database::initialize_default_lists` 用 `INSERT OR IGNORE` 保证存在，`is_default = 1` 不可删除。
 - 软删除：`tasks.deleted_at` / `recurring_rules.deleted_at`，所有查询都带 `deleted_at IS NULL`。
@@ -104,7 +104,7 @@ src-tauri/src/
 - `generate_due_at()` 从 `next_due_at` 开始往前走，`due - generate_ahead_minutes <= now` 的 occurrence 才生成，**只落最新一条**，然后把游标写回 `next_due_at`；越过 `end_at` 就把 `next_due_at` 置空并 `enabled = 0`。循环上限 10000 次防死循环。
 - `update()` 只在**排期字段**（frequency / interval / weekdays / monthDay / firstDueAt / timezone）变化时才重排 `next_due_at`，改标题、备注、优先级、清单、提醒不会把进度倒回首次到期时间——否则用户之前的「跳过」会被静默作废。
 - 删除规则分两档：`deleteFutureTasks = false` 只软删规则，`true` 会连带软删该规则下 `due_at >= now` 的未完成任务（`ConfirmDialog` 的主/次按钮对应这两条）。
-- 前端 `generateDueRecurringTasks()` 目前没有调用点，是给 mock 模式补生成用的备用出口。
+- 前端只保留当前 UI 会调用的循环规则 service；无入口的 mock 备用生成出口已清理。后端 `generate_due_recurring_tasks` command 仍由 Tauri 调度/命令层使用。
 
 ### 提醒机制
 

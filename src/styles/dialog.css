@@ -237,84 +237,6 @@
   box-shadow: 0 0 0 3px var(--danger-bg);
 }
 
-.pill-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pill-group.wrap {
-  flex-wrap: wrap;
-}
-
-.choice-pill {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
-  padding: 0 13px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 20px;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-spring);
-}
-
-.choice-pill:hover {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-  transform: translateY(-1px);
-}
-
-.choice-pill:active {
-  transform: scale(0.98);
-}
-
-.choice-pill.selected {
-  border-color: var(--priority-color, var(--accent));
-  background: color-mix(
-    in srgb,
-    var(--priority-color, var(--accent)) 14%,
-    transparent
-  );
-  color: var(--priority-color, var(--accent-hover));
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--priority-color, var(--accent)) 10%, transparent);
-}
-
-.color-row {
-  display: flex;
-  gap: 10px;
-}
-
-.color-row button {
-  width: 32px;
-  height: 32px;
-  border: 3px solid transparent;
-  border-radius: 50%;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-spring);
-}
-
-.color-row button.selected {
-  border-color: var(--text-primary);
-  box-shadow: 0 0 0 4px var(--focus-ring);
-  transform: scale(1.06);
-}
-
-.color-row button:hover {
-  transform: scale(1.08);
-}
-
 .date-time-field {
   position: relative;
 }
@@ -675,14 +597,6 @@
     padding-top: 14px;
     padding-left: 0;
   }
-}
-
-.list-dialog-card {
-  width: min(92vw, 440px);
-  border: 1px solid var(--border-light);
-  box-shadow:
-    var(--shadow-floating),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dialog-error-msg {

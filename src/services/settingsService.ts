@@ -48,7 +48,10 @@ export async function loadAppSettings(): Promise<AppSettings> {
   );
   return {
     theme: parseTheme(settings.get("theme")),
-    defaultReminderMinutes: parseNumber(settings.get("defaultReminderMinutes"), 1440),
+    defaultReminderMinutes: parseNumber(
+      settings.get("defaultReminderMinutes"),
+      1440,
+    ),
   };
 }
 
@@ -61,10 +64,6 @@ export async function saveAppSetting<K extends keyof AppSettings>(
 
 export function getBrowserSettingsSnapshot(): Setting[] {
   return browserSettings.map((setting) => ({ ...setting }));
-}
-
-export function replaceBrowserSettings(settings: Setting[]): void {
-  browserSettings = settings.map((setting) => ({ ...setting }));
 }
 
 function createBrowserSettings(): Setting[] {

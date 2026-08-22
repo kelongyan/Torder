@@ -26,19 +26,6 @@ export interface SyncStatus {
   encryptionKeyId: string | null;
 }
 
-export interface SyncChange {
-  id: string;
-  entity: string;
-  objectId: string;
-  operation: "upsert" | "delete";
-  baseRevision: number;
-  revision: number;
-  payloadJson: string;
-  createdAt: string;
-  uploadedAt: string | null;
-  remoteSequence: number | null;
-}
-
 export interface SyncConflict {
   id: string;
   entity: string;

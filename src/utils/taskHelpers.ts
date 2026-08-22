@@ -60,8 +60,7 @@ export function buildCounts(
     today: tasks.filter((task) => matchesViewCount(task, "today")).length,
     planned: tasks.filter((task) => matchesViewCount(task, "planned")).length,
     overdue: tasks.filter((task) => matchesViewCount(task, "overdue")).length,
-    "no-date": tasks.filter((task) => matchesViewCount(task, "no-date"))
-      .length,
+    "no-date": tasks.filter((task) => matchesViewCount(task, "no-date")).length,
     important: tasks.filter((task) => matchesViewCount(task, "important"))
       .length,
     completed: tasks.filter((task) => task.status === "done").length,
@@ -81,30 +80,27 @@ function matchesViewCount(task: Task, view: SystemView): boolean {
   if (task.status === "done" || task.status === "archived") return false;
   if (view === "today") {
     if (!task.dueAt) return false;
-    const due = new Date(task.dueAt);
-    const now = new Date();
-    return (
-      due.getFullYear() === now.getFullYear() &&
-      due.getMonth() === now.getMonth() &&
-      due.getDate() === now.getDate()
-    );
+    return isSameLocalDay(new Date(task.dueAt), new Date());
   }
   if (view === "planned") return task.dueAt !== null;
   if (view === "overdue") {
     if (!task.dueAt) return false;
-    const due = new Date(task.dueAt);
-    const now = new Date();
-    return (
-      due.getFullYear() < now.getFullYear() ||
-      due.getMonth() < now.getMonth() ||
-      (due.getFullYear() === now.getFullYear() &&
-        due.getMonth() === now.getMonth() &&
-        due.getDate() < now.getDate())
-    );
+    return localDateKey(new Date(task.dueAt)) < localDateKey(new Date());
   }
   if (view === "no-date") return task.dueAt === null;
   if (view === "important") return task.priority === 2;
   return true;
+}
+
+function isSameLocalDay(left: Date, right: Date): boolean {
+  return localDateKey(left) === localDateKey(right);
+}
+
+function localDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function pickDefaultListId(scope: TaskScope, lists: TaskList[]): string {
@@ -264,7 +260,10 @@ export function parseQuickAddText(
         continue;
       }
     }
-    if (/^(今天|明天|后天)$/.test(token) || /^(下?周|星期)[一二三四五六日天]$/.test(token)) {
+    if (
+      /^(今天|明天|后天)$/.test(token) ||
+      /^(下?周|星期)[一二三四五六日天]$/.test(token)
+    ) {
       dateToken ??= token;
       continue;
     }

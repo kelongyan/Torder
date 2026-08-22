@@ -24,8 +24,11 @@ export function filterAndSortBrowserTasks(
 }
 
 function matchesQuery(task: Task, input: QueryTasksInput): boolean {
-  // 回收站视图下允许已软删除的任务进入后续匹配。
-  if (task.deletedAt && !(input.scope.kind === "view" && input.scope.view === "deleted")) {
+  const deletedView =
+    input.scope.kind === "view" && input.scope.view === "deleted";
+  if (deletedView) {
+    if (!task.deletedAt) return false;
+  } else if (task.deletedAt || task.status === "archived") {
     return false;
   }
   if (!matchesScope(task, input.scope, input.showCompleted)) return false;
@@ -33,14 +36,17 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
   const parsed = parseSearchQuery(input.query);
   if (parsed.text) {
     const query = parsed.text.toLocaleLowerCase("zh-CN");
-    if (![task.title, task.note ?? ""]
-      .join("\n")
-      .toLocaleLowerCase("zh-CN")
-      .includes(query)) {
+    if (
+      ![task.title, task.note ?? ""]
+        .join("\n")
+        .toLocaleLowerCase("zh-CN")
+        .includes(query)
+    ) {
       return false;
     }
   }
-  if (parsed.priority !== null && task.priority !== parsed.priority) return false;
+  if (parsed.priority !== null && task.priority !== parsed.priority)
+    return false;
   // l: 匹配清单名称（与 Rust 侧 name 子查询语义一致），解析为 ID 比较。
   if (parsed.listName !== null) {
     const list = getBrowserListsSnapshot().find(
@@ -51,12 +57,16 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
     if (!list || task.listId !== list.id) return false;
   }
   if (parsed.due !== null) {
-    if (task.status !== "todo") return false;
     if (parsed.due === "none") {
       if (task.dueAt !== null) return false;
     } else if (!task.dueAt) {
       return false;
-    } else if (parsed.due === "today" && !isSameLocalDay(new Date(task.dueAt), new Date())) {
+    } else if (task.status !== "todo") {
+      return false;
+    } else if (
+      parsed.due === "today" &&
+      !isSameLocalDay(new Date(task.dueAt), new Date())
+    ) {
       return false;
     } else if (parsed.due === "overdue" && !isOverdue(task.dueAt)) {
       return false;
@@ -81,9 +91,9 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
 
   for (const token of query.split(/\s+/)) {
     if (token.startsWith("p:")) {
-      const value = Number.parseInt(token.slice(2), 10);
-      if (value >= 0 && value <= 2) {
-        priority = value;
+      const value = token.slice(2);
+      if (/^[0-2]$/.test(value)) {
+        priority = Number(value);
         continue;
       }
     }
@@ -130,9 +140,8 @@ function matchesSystemView(
   view: SystemView,
   showCompleted: boolean,
 ): boolean {
-  // 回收站视图只看已软删除的任务，其余过滤全部跳过。
-  if (view === "deleted") return task.deletedAt !== null;
-  if (task.deletedAt) return false;
+  // 回收站视图的 deletedAt 过滤已在 matchesQuery() 中完成。
+  if (view === "deleted") return true;
   if (view === "completed") return task.status === "done";
   if (!showCompleted && task.status === "done") return false;
   if (view === "all") return true;
@@ -141,29 +150,30 @@ function matchesSystemView(
   if (view === "planned") return task.dueAt !== null;
   if (view === "overdue") return Boolean(task.dueAt && isOverdue(task.dueAt));
   if (view === "no-date") return task.dueAt === null;
-  return Boolean(task.dueAt && isSameLocalDay(new Date(task.dueAt), new Date()));
+  return Boolean(
+    task.dueAt && isSameLocalDay(new Date(task.dueAt), new Date()),
+  );
 }
 
 function isOverdue(dueAt: string): boolean {
-  const due = new Date(dueAt);
-  const now = new Date();
-  return (
-    due.getFullYear() < now.getFullYear() ||
-    due.getMonth() < now.getMonth() ||
-    (due.getFullYear() === now.getFullYear() &&
-      due.getMonth() === now.getMonth() &&
-      due.getDate() < now.getDate())
-  );
+  return localDateKey(new Date(dueAt)) < localDateKey(new Date());
 }
 
 function compareTasks(left: Task, right: Task, sortBy: TaskSortBy): number {
   if (sortBy === "priority") {
     if (left.priority !== right.priority) return right.priority - left.priority;
-    return compareDueDates(left, right) || right.createdAt.localeCompare(left.createdAt);
+    return (
+      compareDueDates(left, right) ||
+      right.createdAt.localeCompare(left.createdAt)
+    );
   }
 
   if (sortBy === "date") {
-    return compareDueDates(left, right) || right.priority - left.priority;
+    return (
+      compareDueDates(left, right) ||
+      right.priority - left.priority ||
+      right.createdAt.localeCompare(left.createdAt)
+    );
   }
 
   return left.createdAt.localeCompare(right.createdAt);
@@ -177,11 +187,14 @@ function compareDueDates(left: Task, right: Task): number {
 }
 
 function isSameLocalDay(left: Date, right: Date): boolean {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
+  return localDateKey(left) === localDateKey(right);
+}
+
+function localDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function cloneTask(task: Task): Task {

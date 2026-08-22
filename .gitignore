@@ -11,8 +11,11 @@ node_modules
 dist
 dist-ssr
 .playwright-cli
+.playwright-mcp/
 docs/
 output/
+outputs/
+android-test-*.png
 *.local
 .env
 .env.*

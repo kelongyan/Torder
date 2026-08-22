@@ -6,16 +6,17 @@ export function getBrowserTasksSnapshot(): Task[] {
   return browserTasks.map(cloneTask);
 }
 
-export function setBrowserTasks(tasks: Task[]): void {
-  browserTasks = tasks;
-}
-
 export function addBrowserTask(task: Task): void {
   browserTasks = [task, ...browserTasks];
 }
 
-export function updateBrowserTask(id: string, updater: (task: Task) => Task): boolean {
-  const index = browserTasks.findIndex((task) => task.id === id && !task.deletedAt);
+export function updateBrowserTask(
+  id: string,
+  updater: (task: Task) => Task,
+): boolean {
+  const index = browserTasks.findIndex(
+    (task) => task.id === id && !task.deletedAt,
+  );
   if (index < 0) return false;
   browserTasks = browserTasks.map((task, taskIndex) =>
     taskIndex === index ? updater(task) : task,
@@ -86,12 +87,16 @@ function createBrowserTasks(): Task[] {
       listId: "personal",
       dueAt: makeDate(7, 10, 0),
     }),
-    browserTask("preview-ddia", "读《Designing Data-Intensive Applications》第5章", {
-      note: "Replication 章节，做笔记",
-      priority: 0,
-      listId: "study",
-      dueAt: makeDate(9, 21, 0),
-    }),
+    browserTask(
+      "preview-ddia",
+      "读《Designing Data-Intensive Applications》第5章",
+      {
+        note: "Replication 章节，做笔记",
+        priority: 0,
+        listId: "study",
+        dueAt: makeDate(9, 21, 0),
+      },
+    ),
     browserTask("preview-ci", "配置 CI/CD 流水线", {
       note: "GitHub Actions + Docker 多阶段构建",
       priority: 2,

@@ -112,10 +112,6 @@
   line-height: 19px;
 }
 
-.window-frame.mobile .search-kbd {
-  display: none;
-}
-
 .window-frame.mobile .sidebar-nav {
   min-height: 0;
   flex: 1;
@@ -616,10 +612,6 @@
   .search-box input {
     font-size: 13px;
     line-height: 19px;
-  }
-
-  .search-kbd {
-    display: none;
   }
 
   .sidebar-nav {
@@ -1466,7 +1458,6 @@
   .btn-danger,
   .btn-danger-solid,
   .btn-complete,
-  .choice-pill,
   .color-picker-dot,
   .date-time-trigger,
   .quick-add-chip,

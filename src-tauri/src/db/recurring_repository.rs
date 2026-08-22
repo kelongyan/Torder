@@ -7,7 +7,7 @@ use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{
     CreateRecurringRuleInput, RecurringGenerationResult, RecurringRule, UpdateRecurringRuleInput,
 };
-use crate::recurrence::{next_occurrence, parse_utc, validate_schedule};
+use crate::recurrence::{next_occurrence, parse_utc, validate_schedule, ScheduleValidation};
 
 use super::{sync_repository, Database};
 
@@ -49,19 +49,21 @@ impl<'database> RecurringRuleRepository<'database> {
     }
 
     pub fn create(&self, input: CreateRecurringRuleInput) -> RepositoryResult<RecurringRule> {
-        validate_input(
-            &input.title,
-            input.priority,
-            &input.frequency,
-            input.interval_count,
-            &input.weekdays,
-            input.month_day,
-            &input.first_due_at,
-            &input.timezone,
-            input.generate_ahead_minutes,
-            input.remind_before,
-            input.end_at.as_deref(),
-        )?;
+        validate_input(RecurringRuleValidation {
+            title: &input.title,
+            priority: input.priority,
+            schedule: ScheduleValidation {
+                frequency: &input.frequency,
+                interval_count: input.interval_count,
+                weekdays: &input.weekdays,
+                month_day: input.month_day,
+                first_due_at: &input.first_due_at,
+                timezone: &input.timezone,
+                generate_ahead_minutes: input.generate_ahead_minutes,
+                remind_before: input.remind_before,
+                end_at: input.end_at.as_deref(),
+            },
+        })?;
         let id = Uuid::new_v4().to_string();
         let title = input.title.trim();
         let note = normalize_note(input.note.clone());
@@ -149,19 +151,21 @@ impl<'database> RecurringRuleRepository<'database> {
     }
 
     pub fn update(&self, input: UpdateRecurringRuleInput) -> RepositoryResult<RecurringRule> {
-        validate_input(
-            &input.title,
-            input.priority,
-            &input.frequency,
-            input.interval_count,
-            &input.weekdays,
-            input.month_day,
-            &input.first_due_at,
-            &input.timezone,
-            input.generate_ahead_minutes,
-            input.remind_before,
-            input.end_at.as_deref(),
-        )?;
+        validate_input(RecurringRuleValidation {
+            title: &input.title,
+            priority: input.priority,
+            schedule: ScheduleValidation {
+                frequency: &input.frequency,
+                interval_count: input.interval_count,
+                weekdays: &input.weekdays,
+                month_day: input.month_day,
+                first_due_at: &input.first_due_at,
+                timezone: &input.timezone,
+                generate_ahead_minutes: input.generate_ahead_minutes,
+                remind_before: input.remind_before,
+                end_at: input.end_at.as_deref(),
+            },
+        })?;
         let existing = self.get(&input.id)?;
         let title = input.title.trim();
         let note = normalize_note(input.note.clone());
@@ -618,40 +622,24 @@ fn within_end(rule: &RecurringRule, occurrence: &str) -> RepositoryResult<bool> 
     }
 }
 
-fn validate_input(
-    title: &str,
+struct RecurringRuleValidation<'a> {
+    title: &'a str,
     priority: i64,
-    frequency: &str,
-    interval_count: i64,
-    weekdays: &[i64],
-    month_day: Option<i64>,
-    first_due_at: &str,
-    timezone: &str,
-    generate_ahead_minutes: i64,
-    remind_before: Option<i64>,
-    end_at: Option<&str>,
-) -> RepositoryResult<()> {
-    if title.trim().is_empty() {
+    schedule: ScheduleValidation<'a>,
+}
+
+fn validate_input(input: RecurringRuleValidation<'_>) -> RepositoryResult<()> {
+    if input.title.trim().is_empty() {
         return Err(RepositoryError::Validation(
             "recurring task title cannot be empty",
         ));
     }
-    if !(0..=2).contains(&priority) {
+    if !(0..=2).contains(&input.priority) {
         return Err(RepositoryError::Validation(
             "priority must be between 0 and 2",
         ));
     }
-    validate_schedule(
-        frequency,
-        interval_count,
-        weekdays,
-        month_day,
-        first_due_at,
-        timezone,
-        generate_ahead_minutes,
-        remind_before,
-        end_at,
-    )
+    validate_schedule(input.schedule)
 }
 
 fn normalize_weekdays(weekdays: &[i64]) -> Vec<i64> {

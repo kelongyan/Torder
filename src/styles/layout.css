@@ -260,20 +260,6 @@
   color: var(--text-muted);
 }
 
-.search-kbd {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  padding: 1px 5px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  letter-spacing: 0.3px;
-  opacity: 0.85;
-}
-
 .sidebar-nav {
   min-height: 0;
   flex: 1;

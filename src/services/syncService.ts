@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
-  SyncChange,
+  SyncCleanupResult,
   SyncConflict,
   SyncDevice,
   SyncRemoteInspection,
@@ -31,11 +31,6 @@ export function getSyncStatus(): Promise<SyncStatus> {
   return invoke<SyncStatus>("get_sync_status");
 }
 
-export function listPendingSyncChanges(limit = 500): Promise<SyncChange[]> {
-  if (!isTauri()) return Promise.resolve([]);
-  return invoke<SyncChange[]>("list_pending_sync_changes", { limit });
-}
-
 export function listSyncConflicts(limit = 100): Promise<SyncConflict[]> {
   if (!isTauri()) return Promise.resolve([]);
   return invoke<SyncConflict[]>("list_sync_conflicts", { limit });
@@ -52,13 +47,10 @@ export function revokeSyncDevice(deviceId: string): Promise<void> {
   return invoke("revoke_sync_device", { deviceId });
 }
 
-export function cleanupSyncHistory(): Promise<{
-  changesRemoved: number;
-  tombstonesRemoved: number;
-}> {
+export function cleanupSyncHistory(): Promise<SyncCleanupResult> {
   if (!isTauri())
     return Promise.reject(new Error("浏览器演示模式不支持历史清理"));
-  return invoke("cleanup_sync_history");
+  return invoke<SyncCleanupResult>("cleanup_sync_history");
 }
 
 export function exportSyncDiagnostics(): Promise<string> {

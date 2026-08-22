@@ -1,4 +1,4 @@
-/* ===== 通用控件体系 (Select / SegmentedControl / FieldRow) ===== */
+/* ===== 通用控件体系 (Select / SegmentedControl) ===== */
 
 /* --- Select:毛玻璃下拉 --- */
 .select-root {
@@ -191,77 +191,4 @@
   border-radius: 50%;
   flex-shrink: 0;
   transition: opacity var(--motion-fast) var(--ease-standard);
-}
-
-/* --- FieldRow:就地编辑字段行 --- */
-.field-row {
-  display: flex;
-  min-height: 42px;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--border);
-  padding: 5px 4px;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-theme) var(--ease-standard);
-}
-
-.field-row:last-child {
-  border-bottom: 0;
-}
-
-.field-row.editable:hover {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
-}
-
-.field-row-label {
-  width: 76px;
-  min-width: 76px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
-}
-
-.field-row-value {
-  min-width: 0;
-  flex: 1;
-  overflow-wrap: anywhere;
-  color: var(--text-primary);
-  font-size: 14px;
-  line-height: 22px;
-}
-
-.field-row-edit {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  opacity: 0;
-  transition:
-    opacity var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-spring);
-}
-
-.field-row:hover .field-row-edit,
-.field-row:focus-within .field-row-edit {
-  opacity: 1;
-}
-
-.field-row-edit:hover {
-  background: var(--accent-bg);
-  color: var(--accent-hover);
-  transform: scale(1.05);
-}
-
-.field-row-edit svg {
-  width: 14px;
-  height: 14px;
 }

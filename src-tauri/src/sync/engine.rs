@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_test_module)]
+
 use chrono::{SecondsFormat, Utc};
 use flate2::{read::GzDecoder, Compression, GzBuilder};
 use rusqlite::OptionalExtension;

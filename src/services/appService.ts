@@ -1,8 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { getBrowserListsSnapshot } from "./listService";
-import { getBrowserTasksSnapshot } from "./taskService";
-import type { DatabaseStatus } from "../types/database";
+import packageJson from "../../package.json";
 import type { AppInfo, UpdateInfo } from "../types/settings";
 
 const UPDATE_MANIFEST_URL = "https://kelongyan.github.io/Torder/latest.json";
@@ -11,24 +9,11 @@ export function getAppInfo(): Promise<AppInfo> {
   if (!isTauri()) {
     return Promise.resolve({
       name: "Torder（今序）",
-      version: "0.1.0",
+      version: packageJson.version,
       platform: "browser-preview",
     });
   }
   return invoke<AppInfo>("get_app_info");
-}
-
-export function getDatabaseStatus(): Promise<DatabaseStatus> {
-  if (!isTauri()) {
-    return Promise.resolve({
-      databasePath: "浏览器内存预览（不会写入正式数据库）",
-      schemaVersion: 7,
-      listCount: getBrowserListsSnapshot().length,
-      taskCount: getBrowserTasksSnapshot().filter((task) => !task.deletedAt)
-        .length,
-    });
-  }
-  return invoke<DatabaseStatus>("get_database_status");
 }
 
 interface UpdateManifest {
@@ -100,7 +85,11 @@ function compareSemver(left: string, right: string): number {
       .map((segment) => Number.parseInt(segment, 10) || 0);
   const leftParts = parts(left);
   const rightParts = parts(right);
-  for (let index = 0; index < Math.max(leftParts.length, rightParts.length); index += 1) {
+  for (
+    let index = 0;
+    index < Math.max(leftParts.length, rightParts.length);
+    index += 1
+  ) {
     const leftValue = leftParts[index] ?? 0;
     const rightValue = rightParts[index] ?? 0;
     if (leftValue !== rightValue) return leftValue - rightValue;

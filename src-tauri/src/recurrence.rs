@@ -6,46 +6,53 @@ use chrono_tz::Tz;
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::RecurringRule;
 
-pub fn validate_schedule(
-    frequency: &str,
-    interval_count: i64,
-    weekdays: &[i64],
-    month_day: Option<i64>,
-    first_due_at: &str,
-    timezone: &str,
-    generate_ahead_minutes: i64,
-    remind_before: Option<i64>,
-    end_at: Option<&str>,
-) -> RepositoryResult<()> {
-    if !matches!(frequency, "daily" | "weekly" | "monthly" | "quarterly") {
+pub struct ScheduleValidation<'a> {
+    pub frequency: &'a str,
+    pub interval_count: i64,
+    pub weekdays: &'a [i64],
+    pub month_day: Option<i64>,
+    pub first_due_at: &'a str,
+    pub timezone: &'a str,
+    pub generate_ahead_minutes: i64,
+    pub remind_before: Option<i64>,
+    pub end_at: Option<&'a str>,
+}
+
+pub fn validate_schedule(input: ScheduleValidation<'_>) -> RepositoryResult<()> {
+    if !matches!(
+        input.frequency,
+        "daily" | "weekly" | "monthly" | "quarterly"
+    ) {
         return Err(RepositoryError::Validation("invalid recurring frequency"));
     }
-    if !(1..=365).contains(&interval_count) {
+    if !(1..=365).contains(&input.interval_count) {
         return Err(RepositoryError::Validation(
             "recurring interval must be between 1 and 365",
         ));
     }
-    if frequency == "weekly"
-        && (weekdays.is_empty() || weekdays.iter().any(|day| !(0..=6).contains(day)))
+    if input.frequency == "weekly"
+        && (input.weekdays.is_empty() || input.weekdays.iter().any(|day| !(0..=6).contains(day)))
     {
         return Err(RepositoryError::Validation(
             "weekly recurring rules require valid weekdays",
         ));
     }
-    if matches!(frequency, "monthly" | "quarterly") && !matches!(month_day, Some(1..=31)) {
+    if matches!(input.frequency, "monthly" | "quarterly")
+        && !matches!(input.month_day, Some(1..=31))
+    {
         return Err(RepositoryError::Validation(
             "monthly recurring rules require a month day",
         ));
     }
-    if generate_ahead_minutes < 0 || remind_before.is_some_and(|minutes| minutes < 0) {
+    if input.generate_ahead_minutes < 0 || input.remind_before.is_some_and(|minutes| minutes < 0) {
         return Err(RepositoryError::Validation(
             "recurring offsets cannot be negative",
         ));
     }
 
-    let first_due = parse_utc(first_due_at)?;
-    parse_timezone(timezone)?;
-    if let Some(end_at) = end_at {
+    let first_due = parse_utc(input.first_due_at)?;
+    parse_timezone(input.timezone)?;
+    if let Some(end_at) = input.end_at {
         if parse_utc(end_at)? < first_due {
             return Err(RepositoryError::Validation(
                 "recurring end must not precede first due date",

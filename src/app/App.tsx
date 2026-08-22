@@ -373,9 +373,9 @@ function App() {
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查
     if (isMobile()) return;
+    let cancelled = false;
     // 启动后延迟 3s 再检查：让首屏渲染和任务加载先完成，检查失败也完全静默。
     const timer = window.setTimeout(() => {
-      let cancelled = false;
       const KEY = "torder-update-notified";
       void checkForUpdate()
         .then((info) => {
@@ -390,11 +390,11 @@ function App() {
         .catch(() => {
           // 启动静默检查失败不打扰用户，可到设置里手动检查。
         });
-      return () => {
-        cancelled = true;
-      };
     }, 3000);
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [pushToast]);
 
   async function handleSaveList(data: {

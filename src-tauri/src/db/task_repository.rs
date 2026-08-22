@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_test_module)]
+
 use chrono::{SecondsFormat, Utc};
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Row};

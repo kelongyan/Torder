@@ -53,8 +53,11 @@ impl Database {
             [],
             |row| row.get(0),
         )?;
-        let list_count =
-            connection.query_row("SELECT COUNT(*) FROM lists", [], |row| row.get(0))?;
+        let list_count = connection.query_row(
+            "SELECT COUNT(*) FROM lists WHERE deleted_at IS NULL",
+            [],
+            |row| row.get(0),
+        )?;
         let task_count = connection.query_row(
             "SELECT COUNT(*) FROM tasks WHERE deleted_at IS NULL",
             [],

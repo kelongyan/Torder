@@ -17,7 +17,9 @@ let browserRules: RecurringRule[] = [];
 
 export function listRecurringRules(): Promise<RecurringRule[]> {
   if (!isTauri()) {
-    return Promise.resolve(browserRules.filter((rule) => !rule.deletedAt).map(cloneRule));
+    return Promise.resolve(
+      browserRules.filter((rule) => !rule.deletedAt).map(cloneRule),
+    );
   }
   return invoke<RecurringRule[]>("list_recurring_rules");
 }
@@ -25,7 +27,8 @@ export function listRecurringRules(): Promise<RecurringRule[]> {
 export async function createRecurringRule(
   input: CreateRecurringRuleInput,
 ): Promise<RecurringRule> {
-  if (isTauri()) return invoke<RecurringRule>("create_recurring_rule", { input });
+  if (isTauri())
+    return invoke<RecurringRule>("create_recurring_rule", { input });
 
   const now = new Date().toISOString();
   const rule: RecurringRule = {
@@ -36,7 +39,7 @@ export async function createRecurringRule(
     listId: input.listId,
     frequency: input.frequency,
     intervalCount: input.intervalCount,
-    weekdays: [...input.weekdays].sort(),
+    weekdays: normalizeWeekdays(input.weekdays),
     monthDay: input.monthDay,
     firstDueAt: input.firstDueAt,
     nextDueAt: input.firstDueAt,
@@ -68,14 +71,28 @@ export async function createRecurringRule(
 export async function updateRecurringRule(
   input: UpdateRecurringRuleInput,
 ): Promise<RecurringRule> {
-  if (isTauri()) return invoke<RecurringRule>("update_recurring_rule", { input });
+  if (isTauri())
+    return invoke<RecurringRule>("update_recurring_rule", { input });
   const rule = findBrowserRule(input.id);
+  const weekdays = normalizeWeekdays(input.weekdays);
+  const scheduleChanged =
+    rule.frequency !== input.frequency ||
+    rule.intervalCount !== input.intervalCount ||
+    !sameNumberArray(rule.weekdays, weekdays) ||
+    rule.monthDay !== input.monthDay ||
+    rule.firstDueAt !== input.firstDueAt ||
+    rule.timezone !== input.timezone;
+  const nextDueAt = boundNextDueAt(
+    scheduleChanged ? input.firstDueAt : rule.nextDueAt,
+    input.endAt,
+  );
   Object.assign(rule, {
     ...input,
     title: input.title.trim(),
     note: input.note?.trim() || null,
-    weekdays: [...input.weekdays].sort(),
-    nextDueAt: input.firstDueAt,
+    weekdays,
+    nextDueAt,
+    enabled: nextDueAt === null ? false : rule.enabled,
     updatedAt: new Date().toISOString(),
   });
   generateBrowserRule(rule, false);
@@ -86,15 +103,19 @@ export function setRecurringRuleEnabled(
   id: string,
   enabled: boolean,
 ): Promise<RecurringRule> {
-  if (isTauri()) return invoke<RecurringRule>("set_recurring_rule_enabled", { id, enabled });
+  if (isTauri())
+    return invoke<RecurringRule>("set_recurring_rule_enabled", { id, enabled });
   const rule = findBrowserRule(id);
   rule.enabled = enabled;
   rule.updatedAt = new Date().toISOString();
   return Promise.resolve(cloneRule(rule));
 }
 
-export function skipNextRecurringOccurrence(id: string): Promise<RecurringRule> {
-  if (isTauri()) return invoke<RecurringRule>("skip_next_recurring_occurrence", { id });
+export function skipNextRecurringOccurrence(
+  id: string,
+): Promise<RecurringRule> {
+  if (isTauri())
+    return invoke<RecurringRule>("skip_next_recurring_occurrence", { id });
   const rule = findBrowserRule(id);
   if (!rule.nextDueAt) return Promise.reject(new Error("循环任务已经结束"));
   const next = nextOccurrence(rule, rule.nextDueAt);
@@ -107,23 +128,22 @@ export function skipNextRecurringOccurrence(id: string): Promise<RecurringRule> 
 export function generateNextRecurringOccurrence(
   id: string,
 ): Promise<RecurringGenerationResult> {
-  if (isTauri()) return invoke<RecurringGenerationResult>("generate_next_recurring_occurrence", { id });
-  return Promise.resolve({ generatedCount: generateBrowserRule(findBrowserRule(id), true) });
-}
-
-export function generateDueRecurringTasks(): Promise<RecurringGenerationResult> {
-  if (isTauri()) return invoke<RecurringGenerationResult>("generate_due_recurring_tasks");
-  const generatedCount = browserRules
-    .filter((rule) => rule.enabled && !rule.deletedAt)
-    .reduce((count, rule) => count + generateBrowserRule(rule, false), 0);
-  return Promise.resolve({ generatedCount });
+  if (isTauri())
+    return invoke<RecurringGenerationResult>(
+      "generate_next_recurring_occurrence",
+      { id },
+    );
+  return Promise.resolve({
+    generatedCount: generateBrowserRule(findBrowserRule(id), true),
+  });
 }
 
 export function deleteRecurringRule(
   id: string,
   deleteFutureTasks: boolean,
 ): Promise<void> {
-  if (isTauri()) return invoke<void>("delete_recurring_rule", { id, deleteFutureTasks });
+  if (isTauri())
+    return invoke<void>("delete_recurring_rule", { id, deleteFutureTasks });
   const rule = findBrowserRule(id);
   const now = new Date().toISOString();
   rule.enabled = false;
@@ -160,7 +180,8 @@ function generateBrowserRule(rule: RecurringRule, force: boolean): number {
       rule.enabled = false;
       break;
     }
-    const creationTime = new Date(occurrence).getTime() - rule.generateAheadMinutes * 60_000;
+    const creationTime =
+      new Date(occurrence).getTime() - rule.generateAheadMinutes * 60_000;
     if (!force && creationTime > now.getTime()) break;
     selected = occurrence;
     occurrence = nextOccurrence(rule, occurrence);
@@ -172,13 +193,18 @@ function generateBrowserRule(rule: RecurringRule, force: boolean): number {
   if (!rule.nextDueAt) rule.enabled = false;
   rule.updatedAt = now.toISOString();
   const exists = getBrowserTasksSnapshot().some(
-    (task) => task.recurringRuleId === rule.id && task.occurrenceAt === selected,
+    (task) =>
+      task.recurringRuleId === rule.id &&
+      task.occurrenceAt === selected &&
+      !task.deletedAt,
   );
   if (exists) return 0;
 
-  const remindAt = rule.remindBefore === null
-    ? null
-    : new Date(new Date(selected).getTime() - rule.remindBefore * 60_000).toISOString();
+  const remindAt = computeOccurrenceRemindAt(
+    selected,
+    rule.remindBefore,
+    now.getTime(),
+  );
   const task: Task = {
     id: `browser-recurring-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title: rule.title,
@@ -215,8 +241,14 @@ function nextOccurrence(rule: RecurringRule, currentIso: string): string {
     const candidate = new Date(current);
     for (let index = 0; index < rule.intervalCount * 7 + 7; index += 1) {
       candidate.setDate(candidate.getDate() + 1);
-      const weekDelta = Math.floor((startOfWeek(candidate).getTime() - anchorMonday) / 604_800_000);
-      if (weekDelta >= 0 && weekDelta % rule.intervalCount === 0 && rule.weekdays.includes(candidate.getDay())) {
+      const weekDelta = Math.floor(
+        (startOfWeek(candidate).getTime() - anchorMonday) / 604_800_000,
+      );
+      if (
+        weekDelta >= 0 &&
+        weekDelta % rule.intervalCount === 0 &&
+        rule.weekdays.includes(candidate.getDay())
+      ) {
         return candidate.toISOString();
       }
     }
@@ -227,7 +259,11 @@ function nextOccurrence(rule: RecurringRule, currentIso: string): string {
   const target = new Date(current);
   target.setDate(1);
   target.setMonth(target.getMonth() + months);
-  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  const lastDay = new Date(
+    target.getFullYear(),
+    target.getMonth() + 1,
+    0,
+  ).getDate();
   target.setDate(Math.min(day, lastDay));
   return target.toISOString();
 }
@@ -238,6 +274,43 @@ function startOfWeek(date: Date): Date {
   value.setHours(0, 0, 0, 0);
   value.setDate(value.getDate() - offset);
   return value;
+}
+
+function normalizeWeekdays(weekdays: number[]): number[] {
+  return [...new Set(weekdays)].sort((left, right) => left - right);
+}
+
+function sameNumberArray(left: number[], right: number[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function boundNextDueAt(
+  nextDueAt: string | null,
+  endAt: string | null,
+): string | null {
+  if (!nextDueAt || !endAt) return nextDueAt;
+  return new Date(nextDueAt).getTime() <= new Date(endAt).getTime()
+    ? nextDueAt
+    : null;
+}
+
+function computeOccurrenceRemindAt(
+  occurrenceAt: string,
+  remindBefore: number | null,
+  nowTime: number,
+): string | null {
+  if (remindBefore === null) return null;
+  const occurrenceTime = new Date(occurrenceAt).getTime();
+  if (Number.isNaN(occurrenceTime)) return null;
+  const remindTime = occurrenceTime - remindBefore * 60_000;
+  return remindTime > nowTime ? toRfc3339Seconds(new Date(remindTime)) : null;
+}
+
+function toRfc3339Seconds(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function findBrowserRule(id: string): RecurringRule {

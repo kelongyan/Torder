@@ -249,6 +249,7 @@ pub async fn test_sync_connection(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_sync_config(
     database: State<'_, Database>,
     server_url: String,
@@ -542,6 +543,7 @@ pub async fn rotate_sync_encryption(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn run_sync(
     app: AppHandle,
     database: State<'_, Database>,

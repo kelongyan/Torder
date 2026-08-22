@@ -1,10 +1,3 @@
-export interface DatabaseStatus {
-  databasePath: string;
-  schemaVersion: number;
-  listCount: number;
-  taskCount: number;
-}
-
 export type SystemView =
   | "all"
   | "today"

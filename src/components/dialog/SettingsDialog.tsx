@@ -556,11 +556,10 @@ export function SettingsDialog({
   async function handleBackup() {
     setBusy(true);
     try {
-      const path = await backupDatabase();
+      await backupDatabase();
       const backups = await listBackups();
       setBackups(backups);
       onToast("数据库备份完成", "success");
-      console.info("backup saved at:", path);
     } catch (error) {
       onToast(`备份失败: ${String(error)}`, "error");
     } finally {
@@ -571,7 +570,7 @@ export function SettingsDialog({
   async function handleExport(format: ExportFormat) {
     setBusy(true);
     try {
-      const path = await exportTasks(format);
+      await exportTasks(format);
       onToast(
         format === "json"
           ? "已导出 JSON"
@@ -580,7 +579,6 @@ export function SettingsDialog({
             : "已导出 CSV",
         "success",
       );
-      console.info("export saved at:", path);
     } catch (error) {
       onToast(`导出失败: ${String(error)}`, "error");
     } finally {

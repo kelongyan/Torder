@@ -1,11 +1,3 @@
-export const draculaListColors = {
-  purple: "#6366f1",
-  green: "#10b981",
-  cyan: "#06b6d4",
-  pink: "#ec4899",
-  orange: "#f59e0b",
-} as const;
-
 export const DEFAULT_LIST_COLOR = "#6366f1";
 
 export const defaultListColors = {

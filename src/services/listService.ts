@@ -85,10 +85,6 @@ export function getBrowserListsSnapshot(): TaskList[] {
   return browserLists.map((list) => ({ ...list }));
 }
 
-export function replaceBrowserLists(lists: TaskList[]): void {
-  browserLists = lists.map((list) => ({ ...list }));
-}
-
 function defaultList(
   id: string,
   name: string,
