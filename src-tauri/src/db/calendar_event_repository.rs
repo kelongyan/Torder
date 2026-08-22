@@ -1,10 +1,11 @@
 use rusqlite::{params, Row};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{CalendarEvent, CreateCalendarEventInput, UpdateCalendarEventInput};
 
-use super::Database;
+use super::{sync_repository, Database};
 
 pub struct CalendarEventRepository<'database> {
     database: &'database Database,
@@ -51,8 +52,10 @@ impl<'database> CalendarEventRepository<'database> {
             &input.end_date,
         )?;
         let id = Uuid::new_v4().to_string();
-        let connection = self.database.connect()?;
-        connection.execute(
+        let note = normalize_note(input.note.clone());
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
             r#"
             INSERT INTO calendar_events (id, title, event_type, start_date, end_date, note)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -63,9 +66,25 @@ impl<'database> CalendarEventRepository<'database> {
                 input.event_type,
                 input.start_date,
                 input.end_date,
-                normalize_note(input.note),
+                note,
             ],
         )?;
+        sync_repository::record_change(
+            &transaction,
+            "calendarEvent",
+            &id,
+            "upsert",
+            json!({
+                "id": id,
+                "title": input.title.trim(),
+                "eventType": input.event_type,
+                "startDate": input.start_date,
+                "endDate": input.end_date,
+                "note": note,
+                "deletedAt": null,
+            }),
+        )?;
+        transaction.commit()?;
         self.get(&id)
     }
 
@@ -76,8 +95,10 @@ impl<'database> CalendarEventRepository<'database> {
             &input.start_date,
             &input.end_date,
         )?;
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
+        let note = normalize_note(input.note.clone());
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
             r#"
             UPDATE calendar_events
             SET title = ?2,
@@ -94,29 +115,54 @@ impl<'database> CalendarEventRepository<'database> {
                 input.event_type,
                 input.start_date,
                 input.end_date,
-                normalize_note(input.note),
+                note,
             ],
         )?;
         if updated == 0 {
             return Err(RepositoryError::NotFound("calendar event"));
         }
+        sync_repository::record_change(
+            &transaction,
+            "calendarEvent",
+            &input.id,
+            "upsert",
+            json!({
+                "id": input.id,
+                "title": input.title.trim(),
+                "eventType": input.event_type,
+                "startDate": input.start_date,
+                "endDate": input.end_date,
+                "note": note,
+            }),
+        )?;
+        transaction.commit()?;
         self.get(&input.id)
     }
 
     pub fn soft_delete(&self, id: &str) -> RepositoryResult<()> {
-        let connection = self.database.connect()?;
-        let deleted = connection.execute(
+        let now = chrono::Utc::now().to_rfc3339();
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let deleted = transaction.execute(
             r#"
             UPDATE calendar_events
-            SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            SET deleted_at = ?2,
+                updated_at = ?2
             WHERE id = ?1 AND deleted_at IS NULL
             "#,
-            params![id],
+            params![id, now],
         )?;
         if deleted == 0 {
             return Err(RepositoryError::NotFound("calendar event"));
         }
+        sync_repository::record_change(
+            &transaction,
+            "calendarEvent",
+            id,
+            "delete",
+            json!({ "id": id, "deletedAt": now }),
+        )?;
+        transaction.commit()?;
         Ok(())
     }
 }

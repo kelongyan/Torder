@@ -670,6 +670,50 @@
   transition: transform var(--motion-fast) var(--ease-spring);
 }
 
+.sync-status-button {
+  position: relative;
+  flex: 0 0 36px;
+}
+
+.sync-status-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.sync-status-button.state-success {
+  color: var(--green);
+}
+
+.sync-status-button.state-error,
+.sync-status-button.state-needsAuth,
+.sync-status-button.state-needsConflict,
+.sync-status-button.state-incompatible {
+  border-color: var(--danger-border);
+  color: var(--red);
+}
+
+.sync-status-button.state-syncing {
+  color: var(--accent-hover);
+}
+
+.sync-status-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 2px solid var(--bg-primary);
+  border-radius: 999px;
+  background: var(--red);
+  padding: 0 3px;
+  color: var(--on-danger);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+}
+
 .icon-button:hover .menu-icon {
   transform: scale(1.12);
 }

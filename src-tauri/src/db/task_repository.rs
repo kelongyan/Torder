@@ -1,11 +1,13 @@
+use chrono::{SecondsFormat, Utc};
 use rusqlite::types::Value;
 use rusqlite::{params, params_from_iter, Row};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{CreateTaskInput, Task, TaskQueryInput, UpdateTaskInput};
 
-use super::Database;
+use super::{sync_repository, Database};
 
 pub struct TaskRepository<'database> {
     database: &'database Database,
@@ -23,9 +25,10 @@ impl<'database> TaskRepository<'database> {
         let id = Uuid::new_v4().to_string();
         let list_id = input.list_id.unwrap_or_else(|| "work".to_owned());
         let remind_at = compute_remind_at(input.due_at.as_deref(), input.remind_before);
-        let connection = self.database.connect()?;
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
 
-        connection.execute(
+        transaction.execute(
             r#"
             INSERT INTO tasks (
                 id, title, note, priority, list_id, due_at, sort_order,
@@ -45,6 +48,31 @@ impl<'database> TaskRepository<'database> {
                 input.repeat_rule,
             ],
         )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            &id,
+            "upsert",
+            json!({
+                "id": id,
+                "title": title,
+                "note": input.note,
+                "status": "todo",
+                "priority": priority,
+                "listId": list_id,
+                "dueAt": input.due_at,
+                "sortOrder": input.sort_order.unwrap_or(0),
+                "remindBefore": input.remind_before,
+                "remindAt": remind_at,
+                "remindedAt": null,
+                "repeatRule": input.repeat_rule,
+                "recurringRuleId": null,
+                "occurrenceAt": null,
+                "completedAt": null,
+                "deletedAt": null,
+            }),
+        )?;
+        transaction.commit()?;
 
         self.get(&id)
     }
@@ -165,8 +193,9 @@ impl<'database> TaskRepository<'database> {
         validate_status(&input.status)?;
         validate_priority(input.priority)?;
         let remind_at = compute_remind_at(input.due_at.as_deref(), input.remind_before);
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
             r#"
             UPDATE tasks
             SET title = ?2,
@@ -210,33 +239,62 @@ impl<'database> TaskRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("task"));
         }
+        let changed_task = transaction.query_row(
+            &format!("{} WHERE id = ?1", select_tasks()),
+            params![input.id],
+            map_task,
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            &input.id,
+            "upsert",
+            serde_json::to_value(changed_task)?,
+        )?;
+        transaction.commit()?;
 
         self.get(&input.id)
     }
 
     pub fn soft_delete(&self, id: &str) -> RepositoryResult<()> {
-        let connection = self.database.connect()?;
-        let deleted = connection.execute(
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let deleted = transaction.execute(
             r#"
             UPDATE tasks
-            SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            SET deleted_at = ?2,
+                updated_at = ?2
             WHERE id = ?1 AND deleted_at IS NULL
             "#,
-            params![id],
+            params![id, now],
         )?;
 
         if deleted == 0 {
             return Err(RepositoryError::NotFound("task"));
         }
+        let changed_task = transaction.query_row(
+            &format!("{} WHERE id = ?1", select_tasks()),
+            params![id],
+            map_task,
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            id,
+            "delete",
+            serde_json::to_value(changed_task)?,
+        )?;
+        transaction.commit()?;
 
         Ok(())
     }
 
     pub fn set_completed(&self, id: &str, completed: bool) -> RepositoryResult<Task> {
-        let connection = self.database.connect()?;
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
         let status = if completed { "done" } else { "todo" };
-        let updated = connection.execute(
+        let updated = transaction.execute(
             r#"
             UPDATE tasks
             SET status = ?2,
@@ -252,14 +310,28 @@ impl<'database> TaskRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("task"));
         }
+        let changed_task = transaction.query_row(
+            &format!("{} WHERE id = ?1", select_tasks()),
+            params![id],
+            map_task,
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            id,
+            "upsert",
+            serde_json::to_value(changed_task)?,
+        )?;
+        transaction.commit()?;
 
         self.get(id)
     }
 
     /// 从回收站恢复任务：清空删除时间戳。
     pub fn restore(&self, id: &str) -> RepositoryResult<Task> {
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
             r#"
             UPDATE tasks
             SET deleted_at = NULL,
@@ -271,6 +343,19 @@ impl<'database> TaskRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("task"));
         }
+        let changed_task = transaction.query_row(
+            &format!("{} WHERE id = ?1", select_tasks()),
+            params![id],
+            map_task,
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            id,
+            "upsert",
+            serde_json::to_value(changed_task)?,
+        )?;
+        transaction.commit()?;
 
         self.get(id)
     }

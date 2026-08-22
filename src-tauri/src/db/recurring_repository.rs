@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use rusqlite::{params, OptionalExtension, Row, Transaction};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::error::{RepositoryError, RepositoryResult};
@@ -8,7 +9,7 @@ use crate::models::{
 };
 use crate::recurrence::{next_occurrence, parse_utc, validate_schedule};
 
-use super::Database;
+use super::{sync_repository, Database};
 
 pub struct RecurringRuleRepository<'database> {
     database: &'database Database,
@@ -63,9 +64,11 @@ impl<'database> RecurringRuleRepository<'database> {
         )?;
         let id = Uuid::new_v4().to_string();
         let title = input.title.trim();
+        let note = normalize_note(input.note.clone());
         let weekdays = serde_json::to_string(&normalize_weekdays(&input.weekdays))?;
-        let connection = self.database.connect()?;
-        connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
             r#"
             INSERT INTO recurring_rules (
                 id, title, note, priority, list_id, frequency, interval_count,
@@ -78,7 +81,7 @@ impl<'database> RecurringRuleRepository<'database> {
             params![
                 id,
                 title,
-                normalize_note(input.note),
+                note,
                 input.priority,
                 input.list_id,
                 input.frequency,
@@ -93,7 +96,7 @@ impl<'database> RecurringRuleRepository<'database> {
             ],
         )?;
         if let Some(source_task_id) = input.source_task_id {
-            let linked = connection.execute(
+            let linked = transaction.execute(
                 r#"
                 UPDATE tasks
                 SET recurring_rule_id = ?2,
@@ -105,10 +108,43 @@ impl<'database> RecurringRuleRepository<'database> {
                 params![source_task_id, id, input.first_due_at],
             )?;
             if linked == 0 {
-                connection.execute("DELETE FROM recurring_rules WHERE id = ?1", params![id])?;
+                transaction.execute("DELETE FROM recurring_rules WHERE id = ?1", params![id])?;
                 return Err(RepositoryError::NotFound("source task"));
             }
+            sync_repository::record_change(
+                &transaction,
+                "task",
+                &source_task_id,
+                "upsert",
+                current_task_payload(&transaction, &source_task_id)?,
+            )?;
         }
+        sync_repository::record_change(
+            &transaction,
+            "recurringRule",
+            &id,
+            "upsert",
+            json!({
+                "id": id,
+                "title": title,
+                "note": note,
+                "priority": input.priority,
+                "listId": input.list_id,
+                "frequency": input.frequency,
+                "intervalCount": input.interval_count,
+                "weekdays": normalize_weekdays(&input.weekdays),
+                "monthDay": input.month_day,
+                "firstDueAt": input.first_due_at,
+                "nextDueAt": input.first_due_at,
+                "timezone": input.timezone,
+                "generateAheadMinutes": input.generate_ahead_minutes,
+                "remindBefore": input.remind_before,
+                "endAt": input.end_at,
+                "enabled": true,
+                "deletedAt": null,
+            }),
+        )?;
+        transaction.commit()?;
         self.get(&id)
     }
 
@@ -128,6 +164,7 @@ impl<'database> RecurringRuleRepository<'database> {
         )?;
         let existing = self.get(&input.id)?;
         let title = input.title.trim();
+        let note = normalize_note(input.note.clone());
         let normalized_weekdays = normalize_weekdays(&input.weekdays);
         let weekdays = serde_json::to_string(&normalized_weekdays)?;
 
@@ -157,8 +194,9 @@ impl<'database> RecurringRuleRepository<'database> {
             None => None,
         };
 
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
             r#"
             UPDATE recurring_rules
             SET title = ?2,
@@ -182,7 +220,7 @@ impl<'database> RecurringRuleRepository<'database> {
             params![
                 input.id,
                 title,
-                normalize_note(input.note),
+                note,
                 input.priority,
                 input.list_id,
                 input.frequency,
@@ -200,12 +238,43 @@ impl<'database> RecurringRuleRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("recurring rule"));
         }
+        let enabled = transaction.query_row(
+            "SELECT enabled FROM recurring_rules WHERE id = ?1",
+            params![input.id],
+            |row| row.get::<_, i64>(0),
+        )? != 0;
+        sync_repository::record_change(
+            &transaction,
+            "recurringRule",
+            &input.id,
+            "upsert",
+            json!({
+                "id": input.id,
+                "title": title,
+                "note": note,
+                "priority": input.priority,
+                "listId": input.list_id,
+                "frequency": input.frequency,
+                "intervalCount": input.interval_count,
+                "weekdays": normalized_weekdays,
+                "monthDay": input.month_day,
+                "firstDueAt": input.first_due_at,
+                "nextDueAt": next_due_at,
+                "timezone": input.timezone,
+                "generateAheadMinutes": input.generate_ahead_minutes,
+                "remindBefore": input.remind_before,
+                "endAt": input.end_at,
+                "enabled": enabled,
+            }),
+        )?;
+        transaction.commit()?;
         self.get(&input.id)
     }
 
     pub fn set_enabled(&self, id: &str, enabled: bool) -> RepositoryResult<RecurringRule> {
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
             r#"
             UPDATE recurring_rules
             SET enabled = ?2,
@@ -217,6 +286,14 @@ impl<'database> RecurringRuleRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("recurring rule"));
         }
+        sync_repository::record_change(
+            &transaction,
+            "recurringRule",
+            id,
+            "upsert",
+            json!({ "id": id, "enabled": enabled }),
+        )?;
+        transaction.commit()?;
         self.get(id)
     }
 
@@ -228,8 +305,9 @@ impl<'database> RecurringRuleRepository<'database> {
             .ok_or(RepositoryError::Validation("recurring rule has ended"))?;
         let next = next_occurrence(&rule, current)?;
         let next = within_end(&rule, &next)?.then_some(next);
-        let connection = self.database.connect()?;
-        connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
             r#"
             UPDATE recurring_rules
             SET next_due_at = ?2,
@@ -239,6 +317,14 @@ impl<'database> RecurringRuleRepository<'database> {
             "#,
             params![id, next],
         )?;
+        sync_repository::record_change(
+            &transaction,
+            "recurringRule",
+            id,
+            "upsert",
+            next_due_change_payload(&transaction, id, next.as_deref())?,
+        )?;
+        transaction.commit()?;
         self.get(id)
     }
 
@@ -259,19 +345,53 @@ impl<'database> RecurringRuleRepository<'database> {
             return Err(RepositoryError::NotFound("recurring rule"));
         }
         if delete_future_tasks {
+            let future_task_ids = {
+                let mut statement = transaction.prepare(
+                    r#"SELECT id FROM tasks
+                       WHERE recurring_rule_id = ?1
+                         AND status = 'todo'
+                         AND deleted_at IS NULL
+                         AND due_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"#,
+                )?;
+                let ids = statement
+                    .query_map(params![id], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                ids
+            };
+            let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
             transaction.execute(
                 r#"
                 UPDATE tasks
-                SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                SET deleted_at = ?2,
+                    updated_at = ?2
                 WHERE recurring_rule_id = ?1
                   AND status = 'todo'
                   AND deleted_at IS NULL
                   AND due_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                 "#,
-                params![id],
+                params![id, now],
             )?;
+            for task_id in future_task_ids {
+                sync_repository::record_change(
+                    &transaction,
+                    "task",
+                    &task_id,
+                    "delete",
+                    json!({ "id": task_id, "deletedAt": now }),
+                )?;
+            }
         }
+        sync_repository::record_change(
+            &transaction,
+            "recurringRule",
+            id,
+            "delete",
+            json!({
+                "id": id,
+                "deletedAt": Utc::now().to_rfc3339(),
+                "enabled": false,
+            }),
+        )?;
         transaction.commit()?;
         Ok(())
     }
@@ -322,8 +442,8 @@ impl<'database> RecurringRuleRepository<'database> {
                 update_next_due(&transaction, &rule.id, next_due.as_deref())?;
                 transaction.commit()?;
             } else if next_due.is_none() {
-                let connection = self.database.connect()?;
-                update_next_due_connection(&connection, &rule.id, None)?;
+                let mut connection = self.database.connect()?;
+                update_next_due_connection(&mut connection, &rule.id, None)?;
             }
         }
         Ok(RecurringGenerationResult { generated_count })
@@ -361,7 +481,7 @@ fn insert_occurrence(
         let value = parse_utc(occurrence).ok()? - Duration::minutes(minutes);
         (value > now).then(|| value.to_rfc3339_opts(SecondsFormat::Secs, true))
     });
-    Ok(transaction.execute(
+    let inserted = transaction.execute(
         r#"
         INSERT OR IGNORE INTO tasks (
             id, title, note, status, priority, list_id, due_at, sort_order,
@@ -379,7 +499,30 @@ fn insert_occurrence(
             remind_at,
             rule.id,
         ],
-    )?)
+    )?;
+    if inserted > 0 {
+        sync_repository::record_change(
+            transaction,
+            "task",
+            &id,
+            "upsert",
+            json!({
+                "id": id,
+                "title": rule.title,
+                "note": rule.note,
+                "status": "todo",
+                "priority": rule.priority,
+                "listId": rule.list_id,
+                "dueAt": occurrence,
+                "remindBefore": rule.remind_before,
+                "remindAt": remind_at,
+                "recurringRuleId": rule.id,
+                "occurrenceAt": occurrence,
+                "deletedAt": null,
+            }),
+        )?;
+    }
+    Ok(inserted)
 }
 
 fn update_next_due(
@@ -397,15 +540,23 @@ fn update_next_due(
         "#,
         params![id, next_due_at],
     )?;
+    sync_repository::record_change(
+        transaction,
+        "recurringRule",
+        id,
+        "upsert",
+        next_due_change_payload(transaction, id, next_due_at)?,
+    )?;
     Ok(())
 }
 
 fn update_next_due_connection(
-    connection: &rusqlite::Connection,
+    connection: &mut rusqlite::Connection,
     id: &str,
     next_due_at: Option<&str>,
 ) -> RepositoryResult<()> {
-    connection.execute(
+    let transaction = connection.transaction()?;
+    transaction.execute(
         r#"
         UPDATE recurring_rules
         SET next_due_at = ?2,
@@ -415,7 +566,49 @@ fn update_next_due_connection(
         "#,
         params![id, next_due_at],
     )?;
+    sync_repository::record_change(
+        &transaction,
+        "recurringRule",
+        id,
+        "upsert",
+        next_due_change_payload(&transaction, id, next_due_at)?,
+    )?;
+    transaction.commit()?;
     Ok(())
+}
+
+fn next_due_change_payload(
+    transaction: &Transaction<'_>,
+    id: &str,
+    next_due_at: Option<&str>,
+) -> RepositoryResult<serde_json::Value> {
+    let enabled = transaction.query_row(
+        "SELECT enabled FROM recurring_rules WHERE id = ?1",
+        params![id],
+        |row| row.get::<_, i64>(0),
+    )? != 0;
+    Ok(json!({
+        "id": id,
+        "nextDueAt": next_due_at,
+        "enabled": enabled,
+    }))
+}
+
+fn current_task_payload(transaction: &Transaction<'_>, task_id: &str) -> RepositoryResult<Value> {
+    let encoded = transaction.query_row(
+        r#"SELECT json_object(
+            'id', id, 'title', title, 'note', note, 'status', status,
+            'priority', priority, 'listId', list_id, 'dueAt', due_at,
+            'completedAt', completed_at, 'sortOrder', sort_order,
+            'remindBefore', remind_before, 'remindAt', remind_at,
+            'repeatRule', repeat_rule, 'recurringRuleId', recurring_rule_id,
+            'occurrenceAt', occurrence_at, 'createdAt', created_at,
+            'updatedAt', updated_at, 'deletedAt', deleted_at
+        ) FROM tasks WHERE id = ?1"#,
+        params![task_id],
+        |row| row.get::<_, String>(0),
+    )?;
+    Ok(serde_json::from_str(&encoded)?)
 }
 
 fn within_end(rule: &RecurringRule, occurrence: &str) -> RepositoryResult<bool> {

@@ -56,6 +56,7 @@ import { useAppInit } from "../hooks/useAppInit";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { usePresence } from "../hooks/usePresence";
 import { useTaskReminder } from "../hooks/useTaskReminder";
+import { useSyncLifecycle } from "../hooks/useSyncLifecycle";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
 import { isMobile } from "../utils/platform";
@@ -78,6 +79,7 @@ import { MonthCalendar } from "../components/task/MonthCalendar";
 import { WeekCalendar } from "../components/task/WeekCalendar";
 import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
 import type { CalendarEvent } from "../types/database";
+import type { SyncStatus } from "../types/sync";
 
 function App() {
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -91,6 +93,9 @@ function App() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [batchEditOpen, setBatchEditOpen] = useState(false);
   const [autoBackup, setAutoBackup] = useState(false);
+  const [syncAutoEnabled, setSyncAutoEnabled] = useState(true);
+  const [syncWifiOnly, setSyncWifiOnly] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -292,7 +297,14 @@ function App() {
     clearBatchSelection();
   }, [clearBatchSelection, selectTask]);
 
-  useAppInit(setSettings, setLists, setAppError, setAutoBackup);
+  useAppInit(
+    setSettings,
+    setLists,
+    setAppError,
+    setAutoBackup,
+    setSyncAutoEnabled,
+    setSyncWifiOnly,
+  );
   // 持久化恢复的 scope 可能指向已删除的清单，失效时回退到「全部任务」。
   useEffect(() => {
     if (scope.kind !== "list") return;
@@ -336,6 +348,15 @@ function App() {
     return () => unlisten?.();
   }, []);
   useTrayQuickAdd(openCreateDialog, setAppError);
+  useSyncLifecycle({
+    setLists,
+    setRecurringRules,
+    setCalendarEvents,
+    setAppError,
+    autoSyncEnabled: syncAutoEnabled,
+    wifiOnly: syncWifiOnly,
+    onStatusChange: setSyncStatus,
+  });
   useTaskReminder();
   useKeyboardShortcuts({
     onOpenCreateDialog: openCreateDialog,
@@ -687,6 +708,7 @@ function App() {
             onShowCompletedChange={() => void handleShowCompletedChange()}
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}
+            syncStatus={syncStatus}
             showLayoutControls={!recurringViewActive}
           />
 
@@ -857,9 +879,15 @@ function App() {
       {settingsPresence.rendered && (
         <SettingsDialog
           autoBackup={autoBackup}
+          syncAutoEnabled={syncAutoEnabled}
+          syncWifiOnly={syncWifiOnly}
+          externalSyncStatus={syncStatus}
           presence={settingsPresence.phase}
           onClose={() => setSettingsOpen(false)}
           onAutoBackupChange={setAutoBackup}
+          onSyncAutoEnabledChange={setSyncAutoEnabled}
+          onSyncWifiOnlyChange={setSyncWifiOnly}
+          onSyncStatusChange={setSyncStatus}
           onToast={pushToast}
         />
       )}

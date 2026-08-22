@@ -183,6 +183,11 @@
   grid-template-areas: "nav title create theme menu";
 }
 
+.window-frame.mobile .main-header.has-sync-status {
+  grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px 34px;
+  grid-template-areas: "nav title create sync theme menu";
+}
+
 .window-frame.mobile .mobile-nav-toggle {
   grid-area: nav;
   display: grid;
@@ -260,6 +265,10 @@
 
 .window-frame.mobile .theme-toggle-btn {
   grid-area: theme;
+}
+
+.window-frame.mobile .sync-status-button {
+  grid-area: sync;
 }
 
 .window-frame.mobile .menu-anchor {
@@ -468,6 +477,11 @@
 
   .window-frame.mobile .main-header.no-layout-tabs {
     grid-template-areas: "title create theme menu";
+  }
+
+  .window-frame.mobile .main-header.has-sync-status {
+    grid-template-columns: minmax(0, 1fr) 40px 40px 40px 40px;
+    grid-template-areas: "title create sync theme menu";
   }
 
   .window-frame.mobile .content-panel {
@@ -920,6 +934,10 @@
     grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
     gap: 7px 5px;
     padding: 8px 10px;
+  }
+
+  .window-frame.mobile .main-header.has-sync-status {
+    grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px 34px;
   }
 
   .main-header h1,

@@ -73,6 +73,7 @@ export interface TaskList {
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }
 
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "quarterly";

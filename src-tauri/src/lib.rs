@@ -2,6 +2,7 @@ pub mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
+pub mod sync;
 mod notifier;
 mod recurrence;
 mod recurring_scheduler;
@@ -67,6 +68,7 @@ pub fn run() {
             let database = Database::initialize(database_path.clone())?;
             recurring_scheduler::start(app.handle().clone(), database.clone());
             app.manage(database);
+            app.manage(sync::SyncRuntime::default());
             notifier::start_notifier(app.handle().clone(), database_path);
             #[cfg(desktop)]
             tray::setup(app)?;
@@ -106,6 +108,19 @@ pub fn run() {
             commands::settings::list_settings,
             commands::settings::get_setting,
             commands::settings::upsert_setting,
+            commands::sync::get_sync_status,
+            commands::sync::list_pending_sync_changes,
+            commands::sync::list_sync_conflicts,
+            commands::sync::list_sync_devices,
+            commands::sync::revoke_sync_device,
+            commands::sync::cleanup_sync_history,
+            commands::sync::export_sync_diagnostics,
+            commands::sync::resolve_sync_conflict,
+            commands::sync::test_sync_connection,
+            commands::sync::save_sync_config,
+            commands::sync::remove_sync_config,
+            commands::sync::rotate_sync_encryption,
+            commands::sync::run_sync,
             commands::calendar_event::list_calendar_events,
             commands::calendar_event::create_calendar_event,
             commands::calendar_event::update_calendar_event,

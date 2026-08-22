@@ -47,6 +47,35 @@ const mainActivityPath = path.join(
   "torder",
   "MainActivity.kt",
 );
+const keyringPath = path.join(
+  root,
+  "src-tauri",
+  "gen",
+  "android",
+  "app",
+  "src",
+  "main",
+  "java",
+  "io",
+  "crates",
+  "keyring",
+  "Keyring.kt",
+);
+
+const keyringSource = `package io.crates.keyring
+
+import android.content.Context
+
+class Keyring {
+  companion object {
+    init {
+      System.loadLibrary("torder_lib")
+    }
+
+    external fun initializeNdkContext(context: Context)
+  }
+}
+`;
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -150,10 +179,24 @@ function patchMainActivity(source) {
     );
   }
 
+  if (!patched.includes("import io.crates.keyring.Keyring")) {
+    patched = patched.replace(
+      /(import androidx\.activity\.enableEdgeToEdge\r?\n)/,
+      "$1import io.crates.keyring.Keyring\n",
+    );
+  }
+
   if (!patched.includes("SOFT_INPUT_ADJUST_RESIZE")) {
     patched = patched.replace(
       /( {4}enableEdgeToEdge\(\)\r?\n)/,
       "$1    window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)\n",
+    );
+  }
+
+  if (!patched.includes("Keyring.initializeNdkContext")) {
+    patched = patched.replace(
+      /( {4}enableEdgeToEdge\(\)\r?\n)/,
+      "$1    Keyring.initializeNdkContext(applicationContext)\n",
     );
   }
 
@@ -189,5 +232,8 @@ if (existsSync(mainActivityPath)) {
     writeFileSync(mainActivityPath, patched);
   }
 }
+
+mkdirSync(path.dirname(keyringPath), { recursive: true });
+writeFileSync(keyringPath, keyringSource);
 
 log(`[sync-android-icons] Synced ${copied} Android launcher icon files.`);

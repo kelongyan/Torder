@@ -10,6 +10,8 @@ export function useAppInit(
   setLists: (lists: import("../types/database").TaskList[]) => void,
   setAppError: (error: string | null) => void,
   setAutoBackup: (enabled: boolean) => void,
+  setSyncAutoEnabled: (enabled: boolean) => void,
+  setSyncWifiOnly: (enabled: boolean) => void,
 ) {
   const loadTasks = useTaskStore((state) => state.loadTasks);
 
@@ -18,15 +20,25 @@ export function useAppInit(
 
     async function initialize() {
       try {
-        const [nextSettings, nextLists, autoBackupSetting] = await Promise.all([
+        const [
+          nextSettings,
+          nextLists,
+          autoBackupSetting,
+          syncAutoSetting,
+          syncWifiSetting,
+        ] = await Promise.all([
           loadAppSettings(),
           listLists(),
           getSetting("autoBackup"),
+          getSetting("syncAutoEnabled"),
+          getSetting("syncWifiOnly"),
         ]);
         if (cancelled) return;
         setSettings(nextSettings);
         setLists(nextLists);
         setAutoBackup(autoBackupSetting?.value === "true");
+        setSyncAutoEnabled(syncAutoSetting?.value !== "false");
+        setSyncWifiOnly(syncWifiSetting?.value === "true");
         await loadTasks();
       } catch (nextError) {
         if (!cancelled) setAppError(normalizeError(nextError));
@@ -37,7 +49,15 @@ export function useAppInit(
     return () => {
       cancelled = true;
     };
-  }, [loadTasks, setSettings, setLists, setAppError, setAutoBackup]);
+  }, [
+    loadTasks,
+    setSettings,
+    setLists,
+    setAppError,
+    setAutoBackup,
+    setSyncAutoEnabled,
+    setSyncWifiOnly,
+  ]);
 }
 
 export { defaultAppSettings };

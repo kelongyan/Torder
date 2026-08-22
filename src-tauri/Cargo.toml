@@ -26,12 +26,29 @@ rusqlite = { version = "0.40.1", features = ["bundled"] }
 uuid = { version = "1.24.0", features = ["v4"] }
 chrono = { version = "0.4", features = ["clock", "serde"] }
 chrono-tz = "0.10"
+argon2 = "0.5"
+base64 = "0.22"
+chacha20poly1305 = "0.10"
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "json"] }
+quick-xml = "0.38"
+flate2 = "1"
+rand = "0.8"
+tokio = { version = "1", features = ["sync", "time"] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-notification = "2.3.3"
 
 # 托盘/全局快捷键仅桌面平台可用（Android/iOS 无对应系统 API）
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+keyring = "4.1.6"
 tauri-plugin-global-shortcut = "2"
+
+[target.'cfg(target_os = "android")'.dependencies]
+keyring-core = "1"
+android-native-keyring-store = "1"
+
+[target.'cfg(target_os = "ios")'.dependencies]
+keyring-core = "1"
+apple-native-keyring-store = { version = "1.0.2", features = ["protected"] }
 
 # Mica 毛玻璃仅 Windows 生效（lib.rs / app.rs 引用均带 cfg(target_os="windows") 保护）
 [target.'cfg(target_os = "windows")'.dependencies]

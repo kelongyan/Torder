@@ -1,10 +1,21 @@
 import { useRef, useEffect } from "react";
-import { Menu, MoreHorizontal, Moon, Plus, Sun } from "lucide-react";
+import {
+  Cloud,
+  CloudAlert,
+  CloudOff,
+  Menu,
+  MoreHorizontal,
+  Moon,
+  Plus,
+  RefreshCw,
+  Sun,
+} from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { layoutOptions } from "../../constants/taskConfig";
 import { usePresence } from "../../hooks/usePresence";
 import type { TaskLayout } from "../../types/database";
 import type { ThemePreference } from "../../types/settings";
+import type { SyncStatus } from "../../types/sync";
 import { ViewMenu } from "../common/ViewMenu";
 
 export function MainHeader({
@@ -24,6 +35,7 @@ export function MainHeader({
   onShowCompletedChange,
   onOpenSettings,
   onOpenStats,
+  syncStatus,
   showLayoutControls = true,
 }: {
   title: string;
@@ -42,6 +54,7 @@ export function MainHeader({
   onShowCompletedChange: () => void;
   onOpenSettings: () => void;
   onOpenStats: () => void;
+  syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
 }) {
   const menuPresence = usePresence(menuOpen, 280);
@@ -84,10 +97,30 @@ export function MainHeader({
 
   const currentLayoutLabel =
     layoutOptions.find((item) => item.value === layout)?.label ?? "列表";
+  const SyncIcon =
+    syncStatus?.state === "syncing"
+      ? RefreshCw
+      : syncStatus?.state === "error" ||
+          syncStatus?.state === "needsAuth" ||
+          syncStatus?.state === "incompatible" ||
+          syncStatus?.state === "needsConflict"
+        ? CloudAlert
+        : syncStatus?.state === "disabled"
+          ? CloudOff
+          : Cloud;
+  const syncLabel = syncStatus
+    ? syncStatus.conflictCount > 0
+      ? `${syncStatus.conflictCount} 个同步冲突待处理`
+      : syncStatus.state === "syncing"
+        ? "正在同步"
+        : syncStatus.state === "success"
+          ? "同步正常"
+          : syncStatus.lastError || "查看同步设置"
+    : "查看同步设置";
 
   return (
     <header
-      className={`main-header ${showLayoutControls ? "" : "no-layout-tabs"}`}
+      className={`main-header ${showLayoutControls ? "" : "no-layout-tabs"} ${syncStatus?.configured ? "has-sync-status" : ""}`}
     >
       <button
         type="button"
@@ -143,6 +176,26 @@ export function MainHeader({
               );
             })}
           </div>
+        )}
+
+        {syncStatus?.configured && (
+          <button
+            type="button"
+            className={`icon-button sync-status-button state-${syncStatus.state}`}
+            onClick={onOpenSettings}
+            aria-label={syncLabel}
+            title={syncLabel}
+          >
+            <SyncIcon
+              aria-hidden="true"
+              className={`sync-status-icon ${syncStatus.state === "syncing" ? "is-spinning" : ""}`}
+            />
+            {syncStatus.conflictCount > 0 && (
+              <span className="sync-status-count">
+                {Math.min(syncStatus.conflictCount, 99)}
+              </span>
+            )}
+          </button>
         )}
 
         <button

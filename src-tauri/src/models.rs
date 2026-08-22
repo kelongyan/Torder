@@ -139,6 +139,7 @@ pub struct TaskList {
     pub is_default: bool,
     pub created_at: String,
     pub updated_at: String,
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -180,6 +181,85 @@ pub struct DatabaseStatus {
     pub schema_version: i64,
     pub list_count: i64,
     pub task_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncStatus {
+    pub state: String,
+    pub configured: bool,
+    pub has_credential: bool,
+    pub server_url: Option<String>,
+    pub remote_path: Option<String>,
+    pub username: Option<String>,
+    pub device_name: Option<String>,
+    pub pending_changes: i64,
+    pub conflict_count: i64,
+    pub phase: Option<String>,
+    pub last_sync_at: Option<String>,
+    pub last_error: Option<String>,
+    pub encryption_enabled: bool,
+    pub encryption_key_available: bool,
+    pub encryption_key_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncChange {
+    pub id: String,
+    pub entity: String,
+    pub object_id: String,
+    pub operation: String,
+    pub base_revision: i64,
+    pub revision: i64,
+    pub payload_json: String,
+    pub created_at: String,
+    pub uploaded_at: Option<String>,
+    pub remote_sequence: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncConflict {
+    pub id: String,
+    pub entity: String,
+    pub object_id: String,
+    pub local_revision: i64,
+    pub remote_revision: i64,
+    pub local_payload_json: String,
+    pub remote_payload_json: String,
+    pub detected_at: String,
+    pub resolved_at: Option<String>,
+    pub resolution: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncDevice {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub last_sync_at: Option<String>,
+    pub last_remote_sequence: i64,
+    pub enabled: bool,
+    pub current: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncCleanupResult {
+    pub changes_removed: i64,
+    pub tombstones_removed: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncRemoteInspection {
+    pub initialized: bool,
+    pub requires_confirmation: bool,
+    pub unknown_entries: Vec<String>,
+    pub encryption_enabled: bool,
+    pub encryption_key_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

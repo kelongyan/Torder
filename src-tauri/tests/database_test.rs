@@ -7,6 +7,7 @@ use torder_lib::db::list_repository::ListRepository;
 use torder_lib::db::migrations::CURRENT_SCHEMA_VERSION;
 use torder_lib::db::recurring_repository::RecurringRuleRepository;
 use torder_lib::db::settings_repository::SettingsRepository;
+use torder_lib::db::sync_repository;
 use torder_lib::db::task_repository::TaskRepository;
 use torder_lib::db::Database;
 use torder_lib::error::{RepositoryError, RepositoryResult};
@@ -55,6 +56,8 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
     })?;
     assert_eq!(task.title, "数据层测试任务");
     assert_eq!(task.status, "todo");
+    let connection = database.connect()?;
+    assert_eq!(sync_repository::pending_count(&connection)?, 1);
 
     let updated = task_repository.update(UpdateTaskInput {
         id: task.id.clone(),
@@ -72,6 +75,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
     assert!(updated.completed_at.is_some());
 
     task_repository.soft_delete(&task.id)?;
+    assert_eq!(sync_repository::pending_count(&database.connect()?)?, 3);
     assert!(matches!(
         task_repository.get(&task.id),
         Err(RepositoryError::NotFound("task"))
@@ -113,6 +117,40 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
     );
 
     drop(reopened_database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn sync_change_log_tracks_revision_and_rolls_back_with_business_transaction() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-sync-log-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let repository = TaskRepository::new(&database);
+    let task = repository.create(task_input("变更日志", 1, None, None, 0))?;
+    let connection = database.connect()?;
+    let revisions: Vec<i64> = {
+        let mut statement = connection.prepare(
+            "SELECT revision FROM sync_changes WHERE entity = 'task' AND object_id = ?1 ORDER BY revision",
+        )?;
+        let values = statement
+            .query_map(rusqlite::params![task.id], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        values
+    };
+    assert_eq!(revisions, vec![1]);
+
+    repository.set_completed(&task.id, true)?;
+    repository.soft_delete(&task.id)?;
+    repository.restore(&task.id)?;
+    let count: i64 = database.connect()?.query_row(
+        "SELECT COUNT(*) FROM sync_changes WHERE entity = 'task' AND object_id = ?1",
+        rusqlite::params![task.id],
+        |row| row.get(0),
+    )?;
+    assert_eq!(count, 4);
+
+    drop(database);
     cleanup_database_files(&database_path);
     Ok(())
 }
@@ -334,6 +372,103 @@ fn generates_only_latest_due_recurring_occurrence_idempotently() -> RepositoryRe
     Ok(())
 }
 
+#[test]
+fn ending_recurring_rule_records_terminal_sync_change() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-recurring-terminal-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let recurring = RecurringRuleRepository::new(&database);
+    let rule = recurring.create(CreateRecurringRuleInput {
+        source_task_id: None,
+        title: "一次性截止规则".to_owned(),
+        note: None,
+        priority: 1,
+        list_id: "work".to_owned(),
+        frequency: "daily".to_owned(),
+        interval_count: 1,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2024-01-01T09:00:00Z".to_owned(),
+        timezone: "Asia/Shanghai".to_owned(),
+        generate_ahead_minutes: 0,
+        remind_before: None,
+        end_at: Some("2024-01-01T09:00:00Z".to_owned()),
+    })?;
+
+    // 模拟旧数据/远端合并留下了超过 end_at 的游标，覆盖“未生成实例但需要终止规则”的分支。
+    let connection = database.connect()?;
+    connection.execute(
+        "UPDATE recurring_rules SET next_due_at = '2024-01-02T09:00:00Z', enabled = 1 WHERE id = ?1",
+        rusqlite::params![rule.id],
+    )?;
+    drop(connection);
+
+    let now =
+        chrono::DateTime::parse_from_rfc3339("2024-01-03T09:00:00Z")?.with_timezone(&chrono::Utc);
+    assert_eq!(recurring.generate_due_at(now)?.generated_count, 0);
+    let ended = recurring.get(&rule.id)?;
+    assert!(ended.next_due_at.is_none());
+    assert!(!ended.enabled);
+
+    let connection = database.connect()?;
+    let change: String = connection.query_row(
+        "SELECT payload_json FROM sync_changes WHERE entity = 'recurringRule' AND object_id = ?1 ORDER BY revision DESC LIMIT 1",
+        rusqlite::params![rule.id],
+        |row| row.get(0),
+    )?;
+    let payload: serde_json::Value = serde_json::from_str(&change)?;
+    assert_eq!(payload["id"], rule.id);
+    assert!(payload["nextDueAt"].is_null());
+    assert_eq!(payload["enabled"], false);
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn linking_a_source_task_records_the_task_sync_change() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-recurring-link-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let tasks = TaskRepository::new(&database);
+    let source = tasks.create(task_input("来源任务", 1, None, Some("work"), 0))?;
+    let recurring = RecurringRuleRepository::new(&database);
+
+    recurring.create(CreateRecurringRuleInput {
+        source_task_id: Some(source.id.clone()),
+        title: "来源任务规则".to_owned(),
+        note: None,
+        priority: 1,
+        list_id: "work".to_owned(),
+        frequency: "daily".to_owned(),
+        interval_count: 1,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2026-08-21T09:00:00Z".to_owned(),
+        timezone: "Asia/Shanghai".to_owned(),
+        generate_ahead_minutes: 0,
+        remind_before: None,
+        end_at: None,
+    })?;
+
+    let connection = database.connect()?;
+    let payload: String = connection.query_row(
+        "SELECT payload_json FROM sync_changes WHERE entity = 'task' AND object_id = ?1 ORDER BY revision DESC LIMIT 1",
+        rusqlite::params![source.id],
+        |row| row.get(0),
+    )?;
+    let payload: serde_json::Value = serde_json::from_str(&payload)?;
+    assert!(payload["recurringRuleId"].as_str().is_some());
+    assert_eq!(payload["repeatRule"], serde_json::Value::Null);
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
 /// 回归：编辑非排期字段不得倒回进度，删除实例后必须能重新生成。
 #[test]
 fn recurring_edits_preserve_progress_and_deleted_occurrences_regenerate(
@@ -540,6 +675,58 @@ fn calendar_events_support_multi_day_ranges_and_soft_delete() -> RepositoryResul
         Err(RepositoryError::Validation(_))
     ));
 
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn clearing_sync_metadata_preserves_business_data() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-sync-cleanup-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let task = TaskRepository::new(&database).create(task_input(
+        "同步清理后仍保留",
+        1,
+        None,
+        Some("work"),
+        0,
+    ))?;
+    let mut connection = database.connect()?;
+    connection.execute(
+        "INSERT INTO sync_devices (id, name, created_at) VALUES ('device-1', '测试设备', '2026-08-21T00:00:00Z')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO sync_objects (entity, object_id, last_changed_at) VALUES ('calendarEvent', 'event-1', '2026-08-21T00:00:00Z')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO sync_changes (id, entity, object_id, operation, base_revision, revision, payload_json, created_at) VALUES ('change-1', 'task', ?1, 'upsert', 0, 1, '{}', '2026-08-21T00:00:00Z')",
+        rusqlite::params![task.id],
+    )?;
+    connection.execute(
+        "INSERT INTO sync_conflicts (id, entity, object_id, local_revision, remote_revision, local_payload_json, remote_payload_json, detected_at) VALUES ('conflict-1', 'task', ?1, 1, 2, '{}', '{}', '2026-08-21T00:00:00Z')",
+        rusqlite::params![task.id],
+    )?;
+
+    sync_repository::clear_local_sync_data(&mut connection)?;
+    assert_eq!(sync_repository::pending_count(&connection)?, 0);
+    assert_eq!(
+        connection.query_row("SELECT COUNT(*) FROM sync_devices", [], |row| row.get::<_, i64>(0))?,
+        0
+    );
+    assert_eq!(
+        connection.query_row("SELECT COUNT(*) FROM sync_objects", [], |row| row.get::<_, i64>(0))?,
+        0
+    );
+    assert_eq!(
+        connection.query_row("SELECT COUNT(*) FROM sync_conflicts", [], |row| row.get::<_, i64>(0))?,
+        0
+    );
+    assert_eq!(TaskRepository::new(&database).get(&task.id)?.title, "同步清理后仍保留");
+
+    drop(connection);
     drop(database);
     cleanup_database_files(&database_path);
     Ok(())

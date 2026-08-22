@@ -1,10 +1,11 @@
 use rusqlite::{params, Row};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{CreateListInput, TaskList, UpdateListInput};
 
-use super::Database;
+use super::{sync_repository, Database};
 
 pub struct ListRepository<'database> {
     database: &'database Database,
@@ -19,8 +20,8 @@ impl<'database> ListRepository<'database> {
         let connection = self.database.connect()?;
         let mut statement = connection.prepare(
             r#"
-            SELECT id, name, color, sort_order, is_default, created_at, updated_at
-            FROM lists
+            SELECT id, name, color, sort_order, is_default, created_at, updated_at, deleted_at
+            FROM lists WHERE deleted_at IS NULL
             ORDER BY sort_order ASC, created_at ASC
             "#,
         )?;
@@ -33,29 +34,59 @@ impl<'database> ListRepository<'database> {
     pub fn create(&self, input: CreateListInput) -> RepositoryResult<TaskList> {
         let name = validate_name(&input.name)?;
         let id = Uuid::new_v4().to_string();
-        let connection = self.database.connect()?;
-        connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        transaction.execute(
             "INSERT INTO lists (id, name, color, sort_order) VALUES (?1, ?2, ?3, ?4)",
             params![id, name, input.color, input.sort_order.unwrap_or(0)],
         )?;
+        sync_repository::record_change(
+            &transaction,
+            "list",
+            &id,
+            "upsert",
+            json!({
+                "id": id,
+                "name": name,
+                "color": input.color,
+                "sortOrder": input.sort_order.unwrap_or(0),
+                "isDefault": false,
+                "deletedAt": null,
+            }),
+        )?;
+        transaction.commit()?;
         self.get(&id)
     }
 
     pub fn update(&self, input: UpdateListInput) -> RepositoryResult<TaskList> {
         let name = validate_name(&input.name)?;
-        let connection = self.database.connect()?;
-        let updated = connection.execute(
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
             r#"
             UPDATE lists
             SET name = ?2, color = ?3, sort_order = ?4,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1
+            WHERE id = ?1 AND deleted_at IS NULL
             "#,
             params![input.id, name, input.color, input.sort_order],
         )?;
         if updated == 0 {
             return Err(RepositoryError::NotFound("list"));
         }
+        sync_repository::record_change(
+            &transaction,
+            "list",
+            &input.id,
+            "upsert",
+            json!({
+                "id": input.id,
+                "name": name,
+                "color": input.color,
+                "sortOrder": input.sort_order,
+            }),
+        )?;
+        transaction.commit()?;
         self.get(&input.id)
     }
 
@@ -66,8 +97,21 @@ impl<'database> ListRepository<'database> {
                 "default lists cannot be deleted",
             ));
         }
-        let connection = self.database.connect()?;
-        connection.execute("DELETE FROM lists WHERE id = ?1", params![id])?;
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let deleted_at = chrono::Utc::now().to_rfc3339();
+        transaction.execute(
+            "UPDATE lists SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
+            params![id, deleted_at],
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "list",
+            id,
+            "delete",
+            json!({ "id": id, "deletedAt": deleted_at }),
+        )?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -75,8 +119,8 @@ impl<'database> ListRepository<'database> {
         let connection = self.database.connect()?;
         let result = connection.query_row(
             r#"
-            SELECT id, name, color, sort_order, is_default, created_at, updated_at
-            FROM lists WHERE id = ?1
+            SELECT id, name, color, sort_order, is_default, created_at, updated_at, deleted_at
+            FROM lists WHERE id = ?1 AND deleted_at IS NULL
             "#,
             params![id],
             map_list,
@@ -98,6 +142,7 @@ fn map_list(row: &Row<'_>) -> rusqlite::Result<TaskList> {
         is_default: row.get::<_, i64>(4)? == 1,
         created_at: row.get(5)?,
         updated_at: row.get(6)?,
+        deleted_at: row.get(7)?,
     })
 }
 

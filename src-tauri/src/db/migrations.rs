@@ -320,6 +320,72 @@ const MIGRATIONS: &[Migration] = &[
             WHERE deleted_at IS NULL;
         "#,
     },
+    Migration {
+        version: 10,
+        name: "add_sync_metadata",
+        sql: r#"
+        ALTER TABLE lists ADD COLUMN deleted_at TEXT;
+
+        CREATE INDEX idx_lists_active_order
+            ON lists(sort_order, created_at) WHERE deleted_at IS NULL;
+
+        CREATE TABLE sync_devices (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            last_sync_at TEXT,
+            last_remote_sequence INTEGER NOT NULL DEFAULT 0,
+            enabled INTEGER NOT NULL DEFAULT 1
+        );
+
+        CREATE TABLE sync_objects (
+            entity TEXT NOT NULL,
+            object_id TEXT NOT NULL,
+            revision INTEGER NOT NULL DEFAULT 0,
+            last_changed_at TEXT NOT NULL,
+            last_source_device TEXT,
+            deleted_at TEXT,
+            PRIMARY KEY (entity, object_id)
+        );
+
+        CREATE TABLE sync_changes (
+            id TEXT PRIMARY KEY,
+            entity TEXT NOT NULL,
+            object_id TEXT NOT NULL,
+            operation TEXT NOT NULL CHECK (operation IN ('upsert', 'delete')),
+            base_revision INTEGER NOT NULL,
+            revision INTEGER NOT NULL,
+            payload_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            uploaded_at TEXT,
+            remote_sequence INTEGER
+        );
+
+        CREATE INDEX idx_sync_changes_pending
+            ON sync_changes(uploaded_at, created_at);
+        CREATE INDEX idx_sync_changes_object
+            ON sync_changes(entity, object_id, revision);
+
+        CREATE TABLE sync_conflicts (
+            id TEXT PRIMARY KEY,
+            entity TEXT NOT NULL,
+            object_id TEXT NOT NULL,
+            local_revision INTEGER NOT NULL,
+            remote_revision INTEGER NOT NULL,
+            local_payload_json TEXT NOT NULL,
+            remote_payload_json TEXT NOT NULL,
+            detected_at TEXT NOT NULL,
+            resolved_at TEXT,
+            resolution TEXT
+        );
+
+        CREATE TABLE sync_state (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。

@@ -41,6 +41,7 @@ export function createList(input: CreateListInput): Promise<TaskList> {
       isDefault: false,
       createdAt: timestamp,
       updatedAt: timestamp,
+      deletedAt: null,
     };
     browserLists = [...browserLists, list].sort(compareLists);
     return Promise.resolve({ ...list });
@@ -103,6 +104,7 @@ function defaultList(
     isDefault: true,
     createdAt: timestamp,
     updatedAt: timestamp,
+    deletedAt: null,
   };
 }
 
