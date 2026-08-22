@@ -146,8 +146,6 @@ export function setTaskCompleted(
   return invoke<Task>("set_task_completed", { id, completed });
 }
 
-export { getBrowserTasksSnapshot };
-
 function computeRemindAt(
   dueAt: string | null | undefined,
   remindBefore: number | null | undefined,

@@ -12,9 +12,6 @@ dist
 dist-ssr
 .playwright-cli
 .playwright-mcp/
-docs/
-output/
-outputs/
 android-test-*.png
 *.local
 .env
@@ -23,15 +20,6 @@ android-test-*.png
 *.sqlite
 *.sqlite3
 *.db
-
-# Prototype design drafts (local only, do not commit)
-原型图设计稿/
-
-# Local-only screenshots that may expose desktop or development context
-output/playwright/Logo更新-Tauri实机.png
-output/playwright/UI微调-Tauri默认窄窗.png
-output/playwright/UI微调-Tauri手动拉宽.png
-output/playwright/阶段7-托盘菜单实机.png
 
 # Editor directories and files
 .vscode/
@@ -47,12 +35,9 @@ output/playwright/阶段7-托盘菜单实机.png
 
 # Local-only build artifacts and process snapshots (never commit)
 dist-*/
-procs.txt
 AGENTS.md
 CLAUDE.md
 RULE.md
-codex-note/
-codex-notes/
 
 # Tauri generated mobile project (init/build artifacts, contains 2.5GB gradle+APK)
 src-tauri/gen/

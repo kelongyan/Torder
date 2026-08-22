@@ -7,16 +7,12 @@ import {
 } from "react";
 import { Calendar, MoreHorizontal, Plus, X } from "lucide-react";
 import type { CreateTaskInput, TaskList } from "../../types/database";
-import { reminderPresets } from "../../constants/reminderConfig";
+import { reminderOptions } from "../../constants/reminderConfig";
+import { priorityOptions } from "../../constants/taskConfig";
 import { parseQuickAddText } from "../../utils/taskHelpers";
+import { toLocalDateTimeValue } from "../../utils/taskDates";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
-
-const priorityOptions = [
-  { value: 2 as const, label: "高", color: "var(--red)" },
-  { value: 1 as const, label: "中", color: "var(--amber)" },
-  { value: 0 as const, label: "低", color: "var(--blue)" },
-];
 
 const dateChips = [
   { key: "today", label: "今天", hour: 20, minute: 0 },
@@ -26,14 +22,6 @@ const dateChips = [
 ] as const;
 
 const timeChips = ["09:00", "14:00", "18:00", "21:00"];
-
-const reminderOptions = [
-  { value: -1, label: "不提醒" },
-  ...reminderPresets.map((preset) => ({
-    value: preset.value,
-    label: preset.label,
-  })),
-];
 
 export function TaskQuickAdd({
   lists,
@@ -102,7 +90,7 @@ export function TaskQuickAdd({
     if (parsed.priority !== undefined) setPriority(parsed.priority);
     if (parsed.listId !== undefined) setListId(parsed.listId);
     if (parsed.dueAt !== null) {
-      setDueValue(toLocalDateTime(new Date(parsed.dueAt)));
+      setDueValue(toLocalDateTimeValue(new Date(parsed.dueAt)));
     }
   }
 
@@ -121,7 +109,7 @@ export function TaskQuickAdd({
       date.setDate(date.getDate() + diff);
     }
     date.setHours(chip.hour, chip.minute, 0, 0);
-    setDueValue(toLocalDateTime(date));
+    setDueValue(toLocalDateTimeValue(date));
     setDueOpen(false);
   };
 
@@ -129,7 +117,7 @@ export function TaskQuickAdd({
     const [hour, minute] = value.split(":").map(Number);
     const date = dueValue ? new Date(dueValue) : new Date();
     date.setHours(hour, minute, 0, 0);
-    setDueValue(toLocalDateTime(date));
+    setDueValue(toLocalDateTimeValue(date));
   };
 
   const dueLabel = useMemo(() => {
@@ -264,11 +252,6 @@ export function TaskQuickAdd({
       )}
     </div>
   );
-}
-
-function toLocalDateTime(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function isTimeMatch(dueValue: string, chip: string): boolean {

@@ -8,6 +8,7 @@ import {
   setTaskCompleted,
   updateTask,
 } from "../services/taskService";
+import { normalizeError } from "../utils/normalizeError";
 import type {
   CreateTaskInput,
   SystemView,
@@ -283,6 +284,3 @@ async function runMutation<T>(
   }
 }
 
-function normalizeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

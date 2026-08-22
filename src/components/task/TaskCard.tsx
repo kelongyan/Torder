@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Check } from "lucide-react";
-import { formatTaskDateTime } from "../../app/taskDates";
+import { formatTaskDateTime } from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";

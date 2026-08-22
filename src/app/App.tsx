@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { AlertCircle, Plus, X } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
-import { applyThemePreference } from "./theme";
+import { applyThemePreference } from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
 import { useTaskStore, viewScope } from "../stores/taskStore";
@@ -54,8 +54,9 @@ import { ToastHost } from "../components/common/ToastHost";
 import { WindowTitleBar } from "../components/layout/WindowTitleBar";
 
 import { useAppInit } from "../hooks/useAppInit";
+import { useAppDataLoaders } from "../hooks/useAppDataLoaders";
+import { useDialogManager } from "../hooks/useDialogManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { usePresence } from "../hooks/usePresence";
 import { useTaskReminder } from "../hooks/useTaskReminder";
 import { useSyncLifecycle } from "../hooks/useSyncLifecycle";
 import { useToast } from "../hooks/useToast";
@@ -65,7 +66,6 @@ import {
   createRecurringRule,
   deleteRecurringRule,
   generateNextRecurringOccurrence,
-  listRecurringRules,
   setRecurringRuleEnabled,
   skipNextRecurringOccurrence,
   updateRecurringRule,
@@ -95,36 +95,64 @@ function App() {
   const [lists, setLists] = useState<TaskList[]>([]);
   const [settings, setSettings] = useState<AppSettings>(defaultAppSettings);
   const [appError, setAppError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [listDialogOpen, setListDialogOpen] = useState(false);
-  const [editingList, setEditingList] = useState<TaskList | null>(null);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [statsOpen, setStatsOpen] = useState(false);
-  const [batchEditOpen, setBatchEditOpen] = useState(false);
   const [autoBackup, setAutoBackup] = useState(false);
   const [syncAutoEnabled, setSyncAutoEnabled] = useState(true);
   const [syncWifiOnly, setSyncWifiOnly] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
-  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
-  const [recurringLoading, setRecurringLoading] = useState(false);
   const [recurringViewActive, setRecurringViewActive] = useState(false);
-  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
-  const [editingRecurringRule, setEditingRecurringRule] =
-    useState<RecurringRule | null>(null);
-  const [recurringSourceTask, setRecurringSourceTask] = useState<Task | null>(
-    null,
-  );
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
-  const [calendarEventDialogOpen, setCalendarEventDialogOpen] = useState(false);
-  const [editingCalendarEvent, setEditingCalendarEvent] =
-    useState<CalendarEvent | null>(null);
-  const [eventDialogDefaultDate, setEventDialogDefaultDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
+
+  const dialog = useDialogManager();
+  const {
+    menuOpen,
+    mobileSidebarOpen,
+    editingList,
+    editingRecurringRule,
+    recurringSourceTask,
+    editingCalendarEvent,
+    eventDialogDefaultDate,
+    createPresence,
+    listDialogPresence,
+    shortcutsPresence,
+    settingsPresence,
+    statsPresence,
+    batchEditPresence,
+    confirmPresence,
+    recurringDialogPresence,
+    calendarEventDialogPresence,
+    setMenuOpen,
+    setMobileSidebarOpen,
+    setCreateOpen,
+    setListDialogOpen,
+    setShortcutsOpen,
+    setSettingsOpen,
+    setStatsOpen,
+    setBatchEditOpen,
+    setConfirmState,
+    setRecurringDialogOpen,
+    setEditingRecurringRule,
+    setRecurringSourceTask,
+    setCalendarEventDialogOpen,
+    openCreateDialog,
+    openSettingsDialog,
+    openStatsDialog,
+    openAddListDialog,
+    openEditListDialog,
+    openNewRecurringDialog,
+    openNewCalendarEvent,
+    openEditCalendarEvent,
+    openMobileSidebar,
+    closeMobileSidebar,
+    closeDialogs,
+  } = dialog;
+
+  const {
+    calendarEvents,
+    setCalendarEvents,
+    recurringRules,
+    setRecurringRules,
+    recurringLoading,
+    loadRecurringRules,
+  } = useAppDataLoaders((nextError) => setAppError(nextError));
 
   const { toasts, pushToast } = useToast();
   const mobile = isMobile();
@@ -230,51 +258,6 @@ function App() {
       ].join(":"),
     [effectiveLayout, recurringViewActive, scope, sortBy, showCompleted],
   );
-  const createPresence = usePresence(createOpen, 280);
-  const listDialogPresence = usePresence(listDialogOpen, 280);
-  const shortcutsPresence = usePresence(shortcutsOpen, 280);
-  const settingsPresence = usePresence(settingsOpen, 280);
-  const statsPresence = usePresence(statsOpen, 280);
-  const batchEditPresence = usePresence(batchEditOpen, 280);
-  const confirmPresence = usePresence(confirmState, 280);
-  const recurringDialogPresence = usePresence(recurringDialogOpen, 280);
-  const calendarEventDialogPresence = usePresence(calendarEventDialogOpen, 280);
-
-  const openCreateDialog = useCallback(() => setCreateOpen(true), []);
-  const openMobileSidebar = useCallback(() => {
-    setMenuOpen(false);
-    setMobileSidebarOpen(true);
-  }, []);
-  const closeMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
-  const loadRecurringRules = useCallback(async () => {
-    setRecurringLoading(true);
-    try {
-      setRecurringRules(await listRecurringRules());
-    } finally {
-      setRecurringLoading(false);
-    }
-  }, []);
-  const openSettingsDialog = useCallback(() => {
-    setMenuOpen(false);
-    setMobileSidebarOpen(false);
-    setSettingsOpen(true);
-  }, []);
-  const openStatsDialog = useCallback(() => {
-    setMenuOpen(false);
-    setMobileSidebarOpen(false);
-    setStatsOpen(true);
-  }, []);
-  const openAddListDialog = useCallback(() => {
-    setMobileSidebarOpen(false);
-    setEditingList(null);
-    setListDialogOpen(true);
-  }, []);
-  const openEditListDialog = useCallback((listToEdit: TaskList) => {
-    setMobileSidebarOpen(false);
-    setEditingList(listToEdit);
-    setListDialogOpen(true);
-  }, []);
-
   const openRecurringView = useCallback(() => {
     setRecurringViewActive(true);
     setMenuOpen(false);
@@ -282,33 +265,14 @@ function App() {
     selectTask(null);
     clearBatchSelection();
     void loadRecurringRules();
-  }, [clearBatchSelection, loadRecurringRules, selectTask]);
-
-  const openNewRecurringDialog = useCallback(() => {
-    setEditingRecurringRule(null);
-    setRecurringSourceTask(null);
-    setRecurringDialogOpen(true);
-  }, []);
+  }, [clearBatchSelection, loadRecurringRules, selectTask, setMenuOpen, setMobileSidebarOpen]);
 
   const closeEverything = useCallback(() => {
-    setMenuOpen(false);
-    setMobileSidebarOpen(false);
-    setShortcutsOpen(false);
-    setCreateOpen(false);
-    setListDialogOpen(false);
-    setSettingsOpen(false);
-    setStatsOpen(false);
-    setBatchEditOpen(false);
-    setConfirmState(null);
-    setRecurringDialogOpen(false);
-    setEditingRecurringRule(null);
-    setRecurringSourceTask(null);
-    setCalendarEventDialogOpen(false);
-    setEditingCalendarEvent(null);
+    closeDialogs();
     setRecurringViewActive(false);
     selectTask(null);
     clearBatchSelection();
-  }, [clearBatchSelection, selectTask]);
+  }, [closeDialogs, clearBatchSelection, selectTask, setRecurringViewActive]);
 
   useAppInit(
     setSettings,
@@ -324,32 +288,6 @@ function App() {
     if (lists.some((list) => list.id === scope.listId)) return;
     void setScope(viewScope("all"));
   }, [lists, scope, setScope]);
-  useEffect(() => {
-    let cancelled = false;
-    void listCalendarEvents()
-      .then((events) => {
-        if (!cancelled) setCalendarEvents(events);
-      })
-      .catch((nextError: unknown) => {
-        if (!cancelled) setAppError(String(nextError));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  useEffect(() => {
-    let cancelled = false;
-    void listRecurringRules()
-      .then((rules) => {
-        if (!cancelled) setRecurringRules(rules);
-      })
-      .catch((nextError: unknown) => {
-        if (!cancelled) setAppError(String(nextError));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   useEffect(() => {
     if (!isTauri()) return;
     let unlisten: (() => void) | undefined;
@@ -577,17 +515,6 @@ function App() {
       useTaskStore.getState().loadTasks(),
     ]);
     pushToast("下一次任务已生成", "success");
-  }
-
-  function openNewCalendarEvent(date: string) {
-    setEditingCalendarEvent(null);
-    setEventDialogDefaultDate(date);
-    setCalendarEventDialogOpen(true);
-  }
-
-  function openEditCalendarEvent(event: CalendarEvent) {
-    setEditingCalendarEvent(event);
-    setCalendarEventDialogOpen(true);
   }
 
   async function handleSaveCalendarEvent(data: {
@@ -957,7 +884,7 @@ function App() {
       )}
 
       <ConfirmDialog
-        state={confirmPresence.value}
+        state={confirmPresence.value as ConfirmState | null}
         presence={confirmPresence.phase}
         onClose={() => setConfirmState(null)}
       />

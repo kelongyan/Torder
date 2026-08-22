@@ -3,6 +3,4 @@ node_modules
 .playwright-cli
 src-tauri/target
 src-tauri/gen
-docs
-output
 README.md

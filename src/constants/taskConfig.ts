@@ -61,3 +61,9 @@ export const priorityCopy: Record<
   1: { label: "中", className: "priority-medium" },
   0: { label: "低", className: "priority-low" },
 };
+
+export const priorityOptions = [
+  { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
+  { value: 1 as const, label: priorityCopy[1].label, color: "var(--amber)" },
+  { value: 0 as const, label: priorityCopy[0].label, color: "var(--blue)" },
+];

@@ -1,5 +1,5 @@
 import { Calendar } from "lucide-react";
-import { formatTaskDate, isOverdue } from "../../app/taskDates";
+import { formatTaskDate, isOverdue } from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";

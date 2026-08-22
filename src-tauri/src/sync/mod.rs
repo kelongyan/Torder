@@ -2,6 +2,7 @@ pub mod credentials;
 pub mod crypto;
 pub mod engine;
 pub mod manifest;
+pub mod service;
 pub mod webdav;
 
 #[derive(Default)]

@@ -5,7 +5,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_notification::NotificationExt;
 
+use super::spawn_poller;
 use crate::db::sync_repository;
+use crate::db::task_repository;
 use crate::models::Task;
 
 #[derive(Debug, Clone, Serialize)]
@@ -26,8 +28,7 @@ pub fn start_notifier(app_handle: AppHandle, database_path: PathBuf) {
     // 移动端不启动轮询线程（后台会被冻结，线程无意义且耗电），
     // 提醒降级为「每次打开应用时补发」。
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    std::thread::spawn(move || loop {
-        std::thread::sleep(std::time::Duration::from_secs(60));
+    spawn_poller(true, move || {
         if let Err(error) = check_and_notify(&app_handle, &database_path) {
             eprintln!("notifier error: {error}");
         }
@@ -60,24 +61,18 @@ fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(
 
 fn due_reminder_tasks(connection: &Connection) -> Result<Vec<Task>, String> {
     let mut statement = connection
-        .prepare(
-            r#"
-            SELECT id, title, note, status, priority, list_id, due_at,
-                   completed_at, sort_order, remind_before, remind_at, reminded_at,
-                   repeat_rule, recurring_rule_id, occurrence_at,
-                   created_at, updated_at, deleted_at
-            FROM tasks
-            WHERE remind_at IS NOT NULL
+        .prepare(&format!(
+            "{} WHERE remind_at IS NOT NULL
               AND reminded_at IS NULL
               AND deleted_at IS NULL
               AND status = 'todo'
-              AND julianday(remind_at) <= julianday('now')
-            "#,
-        )
+              AND julianday(remind_at) <= julianday('now')",
+            task_repository::select_tasks()
+        ))
         .map_err(|e| format!("prepare: {e}"))?;
 
     let tasks = statement
-        .query_map([], map_task)
+        .query_map([], task_repository::map_task)
         .map_err(|e| format!("query_map: {e}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("collect: {e}"))?;
@@ -116,16 +111,9 @@ fn mark_task_reminded(connection: &mut Connection, task_id: &str) -> Result<bool
 
     let changed_task = transaction
         .query_row(
-            r#"
-            SELECT id, title, note, status, priority, list_id, due_at,
-                   completed_at, sort_order, remind_before, remind_at, reminded_at,
-                   repeat_rule, recurring_rule_id, occurrence_at,
-                   created_at, updated_at, deleted_at
-            FROM tasks
-            WHERE id = ?1
-            "#,
+            &format!("{} WHERE id = ?1", task_repository::select_tasks()),
             params![task_id],
-            map_task,
+            task_repository::map_task,
         )
         .map_err(|e| format!("reload task: {e}"))?;
     sync_repository::record_change(
@@ -150,29 +138,6 @@ fn open_connection(database_path: &PathBuf) -> Result<Connection, rusqlite::Erro
         "#,
     )?;
     Ok(connection)
-}
-
-fn map_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
-    Ok(Task {
-        id: row.get(0)?,
-        title: row.get(1)?,
-        note: row.get(2)?,
-        status: row.get(3)?,
-        priority: row.get(4)?,
-        list_id: row.get(5)?,
-        due_at: row.get(6)?,
-        completed_at: row.get(7)?,
-        sort_order: row.get(8)?,
-        remind_before: row.get(9)?,
-        remind_at: row.get(10)?,
-        reminded_at: row.get(11)?,
-        repeat_rule: row.get(12)?,
-        recurring_rule_id: row.get(13)?,
-        occurrence_at: row.get(14)?,
-        created_at: row.get(15)?,
-        updated_at: row.get(16)?,
-        deleted_at: row.get(17)?,
-    })
 }
 
 #[cfg(test)]

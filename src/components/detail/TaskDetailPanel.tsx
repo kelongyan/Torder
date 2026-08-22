@@ -7,12 +7,16 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { formatTaskDateTime, fromDateTimeLocal } from "../../app/taskDates";
+import {
+  formatTaskDateTime,
+  fromDateTimeLocal,
+  toDateTimeLocal,
+} from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
-import { priorityCopy } from "../../constants/taskConfig";
+import { priorityCopy, priorityOptions } from "../../constants/taskConfig";
 import {
   describeReminder,
-  reminderPresets,
+  reminderOptions,
 } from "../../constants/reminderConfig";
 import { usePresence, type PresencePhase } from "../../hooks/usePresence";
 import type { Task, TaskList, UpdateTaskInput } from "../../types/database";
@@ -22,20 +26,6 @@ import { TaskDateTimeField } from "../task/TaskDateTimeField";
 
 type EditingField =
   "title" | "note" | "listId" | "priority" | "dueAt" | "remindBefore";
-
-const priorityOptions = [
-  { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
-  { value: 1 as const, label: priorityCopy[1].label, color: "var(--amber)" },
-  { value: 0 as const, label: priorityCopy[0].label, color: "var(--blue)" },
-];
-
-const reminderOptions = [
-  { value: -1, label: "不提醒" },
-  ...reminderPresets.map((preset) => ({
-    value: preset.value,
-    label: preset.label,
-  })),
-];
 
 export function TaskDetailPanel({
   task,
@@ -337,7 +327,7 @@ function TaskDetailContent({
             <div className="detail-attr-cell detail-attr-editing">
               <span className="detail-attr-label">截止时间</span>
               <TaskDateTimeField
-                value={task.dueAt ? toLocal(task.dueAt) : ""}
+                value={task.dueAt ? toDateTimeLocal(task.dueAt) : ""}
                 onChange={(dueAt) => {
                   void patchAndSave({ dueAt: fromDateTimeLocal(dueAt) });
                 }}
@@ -462,8 +452,3 @@ function TaskDetailContent({
   );
 }
 
-function toLocal(iso: string): string {
-  const date = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { normalizeError } from "../utils/taskHelpers";
+import { normalizeError } from "../utils/normalizeError";
 import { isMobile } from "../utils/platform";
 
 export function useTrayQuickAdd(

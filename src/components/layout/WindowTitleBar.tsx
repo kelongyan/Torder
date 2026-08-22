@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Minus, Square, X } from "lucide-react";
+import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import logoUrl from "../../assets/torder-logo.png";
 
-function isTauriRuntime(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
-
 export function WindowTitleBar() {
   const appWindow = useMemo(
-    () => (isTauriRuntime() ? getCurrentWindow() : null),
+    () => (isTauri() ? getCurrentWindow() : null),
     [],
   );
   const [maximized, setMaximized] = useState(false);

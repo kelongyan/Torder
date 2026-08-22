@@ -1,10 +1,10 @@
+pub mod backup;
 pub mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
-mod notifier;
+pub mod runtime;
 mod recurrence;
-mod recurring_scheduler;
 pub mod sync;
 #[cfg(desktop)]
 mod tray;
@@ -26,7 +26,7 @@ fn run_startup_backup_if_enabled(app: tauri::AppHandle) {
     if !enabled {
         return;
     }
-    let _ = commands::backup::backup_database_impl(&app, &database);
+    let _ = backup::backup_database(&app, &database);
 }
 
 #[cfg(desktop)]
@@ -68,10 +68,10 @@ pub fn run() {
 
             let database_path = app.path().app_data_dir()?.join("torder.sqlite");
             let database = Database::initialize(database_path.clone())?;
-            recurring_scheduler::start(app.handle().clone(), database.clone());
+            runtime::scheduler::start(app.handle().clone(), database.clone());
             app.manage(database);
             app.manage(sync::SyncRuntime::default());
-            notifier::start_notifier(app.handle().clone(), database_path);
+            runtime::notifier::start_notifier(app.handle().clone(), database_path);
             #[cfg(desktop)]
             tray::setup(app)?;
             #[cfg(desktop)]

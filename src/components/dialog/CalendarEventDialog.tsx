@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { CalendarDays, Plane, Sun } from "lucide-react";
+import { calendarEventTypeCopy } from "../../constants/calendarEventConfig";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { CalendarEvent, CalendarEventType } from "../../types/database";
 import { SegmentedControl } from "../common/SegmentedControl";
@@ -104,8 +105,18 @@ export function CalendarEventDialog({
             onChange={setEventType}
             ariaLabel="事件类型"
             options={[
-              { value: "leave", label: "休假", color: "#50fa7b", icon: Sun },
-              { value: "trip", label: "出差", color: "#8be9fd", icon: Plane },
+              {
+                value: "leave",
+                label: calendarEventTypeCopy.leave.label,
+                color: calendarEventTypeCopy.leave.color,
+                icon: Sun,
+              },
+              {
+                value: "trip",
+                label: calendarEventTypeCopy.trip.label,
+                color: calendarEventTypeCopy.trip.color,
+                icon: Plane,
+              },
             ]}
           />
         </div>

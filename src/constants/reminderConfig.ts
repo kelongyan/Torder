@@ -7,6 +7,14 @@ export const reminderPresets = [
   { value: 10080, label: "提前 1 周" },
 ] as const;
 
+export const reminderOptions = [
+  { value: -1, label: "不提醒" },
+  ...reminderPresets.map((preset) => ({
+    value: preset.value,
+    label: preset.label,
+  })),
+];
+
 export function describeReminder(minutes: number | null): string {
   if (minutes === null) return "不提醒";
   const preset = reminderPresets.find((p) => p.value === minutes);

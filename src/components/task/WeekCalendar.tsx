@@ -1,24 +1,15 @@
 import { useMemo, useState } from "react";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Plane,
-  Sun,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { CalendarEvent, Task } from "../../types/database";
 import { priorityCopy } from "../../constants/taskConfig";
 import { calendarEventTypeCopy } from "../../constants/calendarEventConfig";
-
-const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
-
-function toDateKey(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
+import {
+  WEEKDAY_LABELS,
+  buildEventsByDate,
+  buildTasksByDate,
+  toDateKey,
+} from "../../utils/calendarGrid";
+import { CalendarLegend } from "./CalendarLegend";
 
 function startOfWeek(anchor: Date): Date {
   const date = new Date(
@@ -49,38 +40,12 @@ export function WeekCalendar({
   const today = new Date();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
 
-  const tasksByDate = useMemo(() => {
-    const map = new Map<string, Task[]>();
-    for (const task of tasks) {
-      if (
-        !task.dueAt ||
-        task.status === "archived" ||
-        (!showCompleted && task.status === "done")
-      ) {
-        continue;
-      }
-      const key = toDateKey(new Date(task.dueAt));
-      const bucket = map.get(key) ?? [];
-      bucket.push(task);
-      map.set(key, bucket);
-    }
-    return map;
-  }, [showCompleted, tasks]);
+  const tasksByDate = useMemo(
+    () => buildTasksByDate(tasks, showCompleted),
+    [showCompleted, tasks],
+  );
 
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
-    for (const event of events) {
-      const start = new Date(`${event.startDate}T00:00:00`);
-      const end = new Date(`${event.endDate}T00:00:00`);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const key = toDateKey(d);
-        const bucket = map.get(key) ?? [];
-        bucket.push(event);
-        map.set(key, bucket);
-      }
-    }
-    return map;
-  }, [events]);
+  const eventsByDate = useMemo(() => buildEventsByDate(events), [events]);
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, index) => {
@@ -218,16 +183,7 @@ export function WeekCalendar({
         })}
       </div>
 
-      <footer className="month-legend">
-        <span className="month-legend-item">
-          <Sun aria-hidden="true" className="month-legend-icon leave" />
-          休假
-        </span>
-        <span className="month-legend-item">
-          <Plane aria-hidden="true" className="month-legend-icon trip" />
-          出差
-        </span>
-      </footer>
+      <CalendarLegend />
     </div>
   );
 }

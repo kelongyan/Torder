@@ -401,7 +401,7 @@ fn push_view_scope(
     Ok(())
 }
 
-fn select_tasks() -> &'static str {
+pub(crate) fn select_tasks() -> &'static str {
     r#"
     SELECT id, title, note, status, priority, list_id, due_at,
            completed_at, sort_order, remind_before, remind_at, reminded_at,
@@ -551,7 +551,7 @@ mod search_query_tests {
     }
 }
 
-fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
+pub(crate) fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
     Ok(Task {
         id: row.get(0)?,
         title: row.get(1)?,

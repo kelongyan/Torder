@@ -5,8 +5,8 @@ import {
   Star,
   type LucideIcon,
 } from "lucide-react";
-import { getDefaultDueAtLocal, toDateTimeLocal } from "../app/taskDates";
-import { taskViewCopy } from "../app/taskViews";
+import { getDefaultDueAtLocal, toDateTimeLocal } from "./taskDates";
+import { taskViewCopy } from "../constants/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
 import type {
   RecurrenceFrequency,
@@ -109,7 +109,7 @@ export function pickDefaultListId(scope: TaskScope, lists: TaskList[]): string {
   return lists[0]?.id ?? "work";
 }
 
-export function findList(lists: TaskList[], id: string): TaskList | null {
+function findList(lists: TaskList[], id: string): TaskList | null {
   return lists.find((list) => list.id === id) ?? null;
 }
 
@@ -325,8 +325,4 @@ function resolveQuickAddDue(
   }
 
   return date.toISOString();
-}
-
-export function normalizeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

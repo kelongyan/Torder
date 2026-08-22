@@ -1,5 +1,5 @@
 import type { Task } from "../types/database";
-import { formatCalendarDate } from "../app/taskDates";
+import { formatCalendarDate } from "./taskDates";
 
 export function groupCalendarTasks(tasks: Task[]) {
   const map = new Map<

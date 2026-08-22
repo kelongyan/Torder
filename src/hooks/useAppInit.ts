@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { getSetting, loadAppSettings } from "../services/settingsService";
 import { listLists } from "../services/listService";
 import { useTaskStore } from "../stores/taskStore";
-import { defaultAppSettings, type AppSettings } from "../types/settings";
-import { normalizeError } from "../utils/taskHelpers";
+import { type AppSettings } from "../types/settings";
+import { normalizeError } from "../utils/normalizeError";
 
 export function useAppInit(
   setSettings: (settings: AppSettings) => void,
@@ -59,5 +59,3 @@ export function useAppInit(
     setSyncWifiOnly,
   ]);
 }
-
-export { defaultAppSettings };

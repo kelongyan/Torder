@@ -1,26 +1,12 @@
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
-import { priorityCopy } from "../../constants/taskConfig";
-import { reminderPresets } from "../../constants/reminderConfig";
+import { priorityOptions } from "../../constants/taskConfig";
+import { reminderOptions } from "../../constants/reminderConfig";
 import type { RecurrenceFrequency, TaskList } from "../../types/database";
 import { isMobile } from "../../utils/platform";
 import type { TaskDraft } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
 import { TaskDateTimeField } from "./TaskDateTimeField";
-
-const priorityOptions = [
-  { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
-  { value: 1 as const, label: priorityCopy[1].label, color: "var(--amber)" },
-  { value: 0 as const, label: priorityCopy[0].label, color: "var(--blue)" },
-];
-
-const reminderOptions = [
-  { value: -1, label: "不提醒" },
-  ...reminderPresets.map((preset) => ({
-    value: preset.value,
-    label: preset.label,
-  })),
-];
 
 const repeatOptions = [
   { value: "none", label: "不重复" },

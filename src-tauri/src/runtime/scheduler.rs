@@ -1,5 +1,6 @@
 use tauri::{AppHandle, Emitter};
 
+use super::spawn_poller;
 use crate::db::recurring_repository::RecurringRuleRepository;
 use crate::db::Database;
 
@@ -16,7 +17,7 @@ pub fn start(app_handle: AppHandle, database: Database) {
 
     // 移动端不启动轮询线程（后台会被系统冻结），依赖启动补扫。
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    std::thread::spawn(move || loop {
+    spawn_poller(false, move || {
         match RecurringRuleRepository::new(&database).generate_due() {
             Ok(result) if result.generated_count > 0 => {
                 let _ = app_handle.emit("recurring-tasks-generated", result);
@@ -24,6 +25,5 @@ pub fn start(app_handle: AppHandle, database: Database) {
             Ok(_) => {}
             Err(error) => eprintln!("recurring scheduler error: {error}"),
         }
-        std::thread::sleep(std::time::Duration::from_secs(60));
     });
 }

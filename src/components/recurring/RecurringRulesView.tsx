@@ -7,7 +7,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { formatTaskDateTime } from "../../app/taskDates";
+import { formatTaskDateTime } from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import type { RecurringRule, TaskList } from "../../types/database";
 import {

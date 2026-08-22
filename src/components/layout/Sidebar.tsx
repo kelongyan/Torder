@@ -2,7 +2,7 @@ import { Plus, Repeat2, Search, X } from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
-import { taskViewCopy } from "../../app/taskViews";
+import { taskViewCopy } from "../../constants/taskViews";
 import { isScopeActive } from "../../utils/taskHelpers";
 import { listScope, viewScope } from "../../stores/taskStore";
 import type { TaskList, TaskScope } from "../../types/database";

@@ -2,17 +2,11 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
-import { priorityCopy } from "../../constants/taskConfig";
+import { priorityOptions } from "../../constants/taskConfig";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import type { TaskList, UpdateTaskInput } from "../../types/database";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
-
-const priorityOptions = [
-  { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
-  { value: 1 as const, label: priorityCopy[1].label, color: "var(--amber)" },
-  { value: 0 as const, label: priorityCopy[0].label, color: "var(--blue)" },
-];
 
 export function BatchEditDialog({
   lists,
