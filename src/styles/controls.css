@@ -36,6 +36,14 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+.select-trigger:disabled {
+  border-color: var(--border);
+  background: var(--bg-tertiary);
+  box-shadow: none;
+  color: var(--text-muted);
+  transform: none;
+}
+
 .select-trigger .placeholder {
   color: var(--text-muted);
 }

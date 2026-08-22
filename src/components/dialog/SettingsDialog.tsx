@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Cloud,
   DatabaseBackup,
   Download,
   ExternalLink,
+  FileJson,
+  FileText,
   HardDrive,
   Info,
   RefreshCw,
   Settings,
-  Cloud,
+  Table2,
 } from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { ToastKind } from "../../types/ui";
+import { Select, type SelectOption } from "../common/Select";
 import {
   backupDatabase,
   exportTasks,
@@ -50,6 +54,18 @@ import type {
   SyncStatus,
 } from "../../types/sync";
 
+const exportFormatOptions: SelectOption<ExportFormat>[] = [
+  { value: "json", label: "JSON", icon: FileJson },
+  { value: "markdown", label: "Markdown", icon: FileText },
+  { value: "csv", label: "CSV", icon: Table2 },
+];
+
+const exportDoneCopy: Record<ExportFormat, string> = {
+  json: "已导出 JSON",
+  markdown: "已导出 Markdown",
+  csv: "已导出 CSV",
+};
+
 export function SettingsDialog({
   autoBackup,
   syncAutoEnabled,
@@ -77,6 +93,7 @@ export function SettingsDialog({
 }) {
   const mobile = isMobile();
   const [busy, setBusy] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("json");
   const [backups, setBackups] = useState<string[]>([]);
   const [pendingRestore, setPendingRestore] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -571,14 +588,7 @@ export function SettingsDialog({
     setBusy(true);
     try {
       await exportTasks(format);
-      onToast(
-        format === "json"
-          ? "已导出 JSON"
-          : format === "markdown"
-            ? "已导出 Markdown"
-            : "已导出 CSV",
-        "success",
-      );
+      onToast(exportDoneCopy[format], "success");
     } catch (error) {
       onToast(`导出失败: ${String(error)}`, "error");
     } finally {
@@ -748,7 +758,7 @@ export function SettingsDialog({
             <p className="settings-section-hint">
               生成完整数据快照，保存在应用数据目录的 backups 文件夹。
             </p>
-            <div className="settings-row">
+            <div className="settings-row settings-action-row">
               <button
                 type="button"
                 className="btn-secondary"
@@ -821,9 +831,9 @@ export function SettingsDialog({
             </div>
           )}
           {!isTauri() ? (
-            <p className="settings-section-hint">
+            <div className="settings-status-note">
               浏览器演示模式不支持 WebDAV 同步。
-            </p>
+            </div>
           ) : (
             <div className="sync-config-grid">
               {!syncStatus?.configured && (
@@ -1407,34 +1417,27 @@ export function SettingsDialog({
             <p className="settings-section-hint">
               将任务数据导出为可读文件，方便迁移备份。
             </p>
-            <div className="settings-row">
-              <button
-                type="button"
-                className="btn-secondary settings-export-btn"
-                disabled={busy}
-                onClick={() => void handleExport("json")}
-              >
-                <Download aria-hidden="true" className="icon-sm" />
-                导出 JSON
-              </button>
-              <button
-                type="button"
-                className="btn-secondary settings-export-btn"
-                disabled={busy}
-                onClick={() => void handleExport("markdown")}
-              >
-                <Download aria-hidden="true" className="icon-sm" />
-                导出 Markdown
-              </button>
-              <button
-                type="button"
-                className="btn-secondary settings-export-btn"
-                disabled={busy}
-                onClick={() => void handleExport("csv")}
-              >
-                <Download aria-hidden="true" className="icon-sm" />
-                导出 CSV
-              </button>
+            <div className="settings-export-panel">
+              <span className="settings-export-label">导出格式</span>
+              <div className="settings-export-control">
+                <Select<ExportFormat>
+                  value={exportFormat}
+                  options={exportFormatOptions}
+                  onChange={setExportFormat}
+                  ariaLabel="选择导出格式"
+                  className="settings-export-select"
+                  disabled={busy}
+                />
+                <button
+                  type="button"
+                  className="btn-primary settings-export-btn"
+                  disabled={busy}
+                  onClick={() => void handleExport(exportFormat)}
+                >
+                  <Download aria-hidden="true" className="icon-sm" />
+                  导出
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -1447,7 +1450,7 @@ export function SettingsDialog({
           <p className="settings-section-hint">
             本地优先的桌面待办应用，数据仅保存在本机。
           </p>
-          <div className="settings-row">
+          <div className="settings-row settings-action-row settings-about-row">
             <span className="settings-version">
               {appInfo ? `当前版本 v${appInfo.version}` : ""}
             </span>
@@ -1467,7 +1470,7 @@ export function SettingsDialog({
             </button>
           </div>
           {updateState.state === "none" && (
-            <p className="settings-section-hint">当前已是最新版本。</p>
+            <p className="settings-status-note success">当前已是最新版本。</p>
           )}
           {updateState.state === "found" && (
             <div className="settings-update-card">
@@ -1490,7 +1493,7 @@ export function SettingsDialog({
             </div>
           )}
           {updateState.state === "error" && (
-            <p className="settings-section-hint">
+            <p className="settings-status-note danger">
               检查更新失败,请稍后重试（{updateState.message}）。
             </p>
           )}

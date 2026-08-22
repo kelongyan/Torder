@@ -723,9 +723,75 @@
   gap: 8px;
 }
 
+.settings-action-row {
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+
+.settings-action-row .settings-toggle {
+  margin-left: auto;
+}
+
+.settings-status-note {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  margin: 0 0 2px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
+  padding: 6px 9px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.settings-status-note.success {
+  border-left-color: var(--green);
+  background: color-mix(in srgb, var(--success-bg) 72%, var(--bg-secondary));
+}
+
+.settings-status-note.danger {
+  border-left-color: var(--red);
+  background: color-mix(in srgb, var(--danger-bg) 72%, var(--bg-secondary));
+  color: var(--red);
+}
+
+.settings-export-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
+  padding: 9px;
+}
+
+.settings-export-label {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 17px;
+  white-space: nowrap;
+}
+
+.settings-export-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-export-select .select-panel {
+  right: 0;
+  left: auto;
+  max-width: 240px;
+}
+
 .settings-export-btn {
-  flex: 1;
-  min-width: 0;
+  min-width: 74px;
 }
 
 .sync-config-grid {
@@ -1035,12 +1101,28 @@
 
 @media (max-width: 720px) {
   .settings-dialog .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    grid-template-columns: none;
     margin-right: 0;
     margin-left: 0;
   }
 
+  .settings-dialog .dialog-footer .btn-secondary {
+    width: auto;
+    min-width: 92px;
+  }
+
   .settings-dialog .sync-actions button {
     min-height: 44px;
+  }
+
+  .settings-export-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .settings-export-control {
+    grid-template-columns: minmax(0, 1fr) 74px;
   }
 
   .sync-conflict-diff-head {

@@ -22,6 +22,7 @@ export function Select<T extends string | number>({
   placeholder = "请选择",
   ariaLabel,
   className = "",
+  disabled = false,
 }: {
   value: T | null;
   options: SelectOption<T>[];
@@ -29,16 +30,24 @@ export function Select<T extends string | number>({
   placeholder?: string;
   ariaLabel?: string;
   className?: string;
+  disabled?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
-  const presence = usePresence(open, 180);
+  const activeOpen = open && !disabled;
+  const presence = usePresence(activeOpen, 180);
 
   const selected = options.find((option) => option.value === value) ?? null;
 
   useEffect(() => {
-    if (!open) return;
+    if (!disabled || !open) return;
+    const timer = window.setTimeout(() => setOpen(false), 0);
+    return () => window.clearTimeout(timer);
+  }, [disabled, open]);
+
+  useEffect(() => {
+    if (!activeOpen) return;
 
     function handlePointerDown(event: MouseEvent) {
       if (!containerRef.current?.contains(event.target as Node)) {
@@ -48,9 +57,10 @@ export function Select<T extends string | number>({
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
+  }, [activeOpen]);
 
   function toggle() {
+    if (disabled) return;
     setOpen((current) => !current);
     setHighlight(
       Math.max(
@@ -61,7 +71,8 @@ export function Select<T extends string | number>({
   }
 
   function handleKeyDown(event: ReactKeyboardEvent) {
-    if (!open) {
+    if (disabled) return;
+    if (!activeOpen) {
       if (
         event.key === "Enter" ||
         event.key === " " ||
@@ -124,15 +135,16 @@ export function Select<T extends string | number>({
   return (
     <div
       ref={containerRef}
-      className={`select-root ${className}`}
+      className={`select-root ${disabled ? "disabled" : ""} ${className}`}
       onKeyDown={handleKeyDown}
     >
       <button
         type="button"
-        className={`select-trigger ${open ? "active" : ""}`}
+        className={`select-trigger ${activeOpen ? "active" : ""}`}
         onClick={toggle}
+        disabled={disabled}
         aria-haspopup="listbox"
-        aria-expanded={open}
+        aria-expanded={activeOpen}
         aria-label={ariaLabel}
       >
         {renderTriggerIcon(selected)}
@@ -163,7 +175,7 @@ export function Select<T extends string | number>({
                 className={[
                   "select-option",
                   isSelected ? "selected" : "",
-                  index === highlight && open ? "highlighted" : "",
+                  index === highlight && activeOpen ? "highlighted" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
