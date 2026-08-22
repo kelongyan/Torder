@@ -3,6 +3,7 @@ name = "torder"
 version = "2.4.3"
 description = "Torder（今序）本地优先待办桌面应用"
 authors = ["Zhaxideler"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
