@@ -79,4 +79,4 @@ pnpm tauri android build --apk
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+本项目采用 MIT 许可证开源，详情见 [LICENSE](./LICENSE)。
