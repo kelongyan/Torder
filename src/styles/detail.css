@@ -57,7 +57,7 @@
   padding: 20px 20px 14px;
 }
 
-/* --- 标题(点击重命名) --- */
+/* --- 标题 --- */
 .detail-title {
   display: flex;
   width: 100%;
@@ -79,20 +79,6 @@
 .detail-title > span:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.detail-title-hint {
-  flex-shrink: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 18px;
-  opacity: 0;
-  transition: opacity var(--motion-fast) var(--ease-standard);
-}
-
-.detail-title:hover .detail-title-hint {
-  opacity: 1;
 }
 
 /* --- 描述(灰底卡片块) --- */

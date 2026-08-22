@@ -63,12 +63,7 @@ export function ListDialog({
 
   return (
     <DialogShell
-      title={isEditing ? "编辑清单" : "新建自定义清单"}
-      subtitle={
-        isEditing
-          ? "修改清单名称与专属标识颜色"
-          : "创建属于你的专属任务归类清单"
-      }
+      title={isEditing ? "编辑清单" : "新建清单"}
       icon={FolderPlus}
       presence={presence}
       onClose={onClose}
@@ -87,7 +82,7 @@ export function ListDialog({
               setName(e.target.value);
               if (error) setError(null);
             }}
-            placeholder="例如：健身计划、项目待办..."
+            placeholder="清单名称"
             autoFocus
             maxLength={24}
           />
@@ -96,7 +91,7 @@ export function ListDialog({
         <div className="form-field">
           <label style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <Palette className="icon-sm" />
-            <span>选择标识颜色</span>
+            <span>颜色</span>
           </label>
           <div className="color-picker-grid">
             {presetListColors.map((c) => (

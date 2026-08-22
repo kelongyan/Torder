@@ -31,18 +31,18 @@
 
 .empty-state {
   display: grid;
-  min-height: 280px;
+  min-height: 240px;
   place-items: center;
   align-content: center;
-  gap: 11px;
+  gap: 9px;
   color: var(--text-muted);
   text-align: center;
   animation: empty-state-in var(--motion-panel) var(--ease-out) both;
 }
 
 .empty-state svg {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   color: var(--accent);
   animation: empty-icon-in 420ms var(--ease-out) both;
 }
@@ -168,7 +168,6 @@
   }
 }
 
-
 @keyframes content-reveal {
   from {
     opacity: 0;
@@ -201,7 +200,6 @@
     transform: translateY(0) scale(1);
   }
 }
-
 
 @keyframes column-in {
   from {
@@ -368,4 +366,3 @@
     transform: scale(1);
   }
 }
-

@@ -191,8 +191,8 @@ export function getEmptyCopy(scope: TaskScope): {
   }
   return {
     icon: ListTodo,
-    title: "这个清单还没有任务",
-    body: "点击添加新任务，把它放进当前清单。",
+    title: "清单为空",
+    body: "",
   };
 }
 

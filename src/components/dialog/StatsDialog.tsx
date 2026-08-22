@@ -30,7 +30,6 @@ export function StatsDialog({
   return (
     <DialogShell
       title="统计洞察"
-      subtitle="任务完成情况一览"
       icon={BarChart3}
       width="560px"
       presence={presence}

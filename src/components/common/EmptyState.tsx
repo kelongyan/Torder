@@ -14,8 +14,8 @@ export function EmptyState({
     searchQuery.trim().length > 0
       ? {
           icon: Search as LucideIcon,
-          title: `没有匹配"${searchQuery.trim()}"的任务`,
-          body: "换个关键词试试，或者直接创建一条新任务。",
+          title: `无匹配结果`,
+          body: "",
         }
       : getEmptyCopy(scope);
   const Icon = copy.icon;
@@ -24,7 +24,7 @@ export function EmptyState({
     <div className="empty-state">
       <Icon aria-hidden="true" />
       <h2>{copy.title}</h2>
-      <p>{copy.body}</p>
+      {copy.body && <p>{copy.body}</p>}
     </div>
   );
 }

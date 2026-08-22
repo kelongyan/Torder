@@ -20,6 +20,7 @@ import { ViewMenu } from "../common/ViewMenu";
 
 export function MainHeader({
   title,
+  meta,
   taskCount,
   layout,
   theme,
@@ -39,6 +40,7 @@ export function MainHeader({
   showLayoutControls = true,
 }: {
   title: string;
+  meta?: string | null;
   taskCount: number;
   layout: TaskLayout;
   theme: ThemePreference;
@@ -97,6 +99,8 @@ export function MainHeader({
 
   const currentLayoutLabel =
     layoutOptions.find((item) => item.value === layout)?.label ?? "列表";
+  const headerMeta =
+    meta === undefined ? `${taskCount} 项 · ${currentLayoutLabel}` : meta;
   const SyncIcon =
     syncStatus?.state === "syncing"
       ? RefreshCw
@@ -136,9 +140,7 @@ export function MainHeader({
         <img src={logoUrl} alt="" className="main-header-logo" />
         <div className="main-header-copy">
           <h1>{title}</h1>
-          <p>
-            {taskCount} 项 · {currentLayoutLabel}
-          </p>
+          {headerMeta && <p>{headerMeta}</p>}
         </div>
       </div>
 
@@ -203,7 +205,7 @@ export function MainHeader({
           className="icon-button theme-toggle-btn"
           onClick={onThemeToggle}
           aria-label="切换主题"
-          title={`当前主题: ${theme === "dark" ? "暗色" : "亮色"}，点击切换`}
+          title="切换主题"
         >
           {theme === "dark" ? (
             <Sun aria-hidden="true" className="theme-icon sun" />

@@ -88,11 +88,6 @@ export function TaskCreateDialog({
   return (
     <DialogShell
       title="新建任务"
-      subtitle={
-        draft.recurrenceFrequency
-          ? "设置周期后，任务会在合适的时间自动出现"
-          : "把下一件事放进合适的清单"
-      }
       icon={Plus}
       presence={presence}
       onClose={onClose}

@@ -41,7 +41,6 @@ export function RecurringRulesView({
       <div className="recurring-toolbar">
         <div>
           <strong>{rules.length} 条循环规则</strong>
-          <span>暂停规则不会影响已经生成的任务</span>
         </div>
         <button type="button" className="primary-action" onClick={onCreate}>
           <Plus aria-hidden="true" className="icon-sm" />
@@ -52,13 +51,12 @@ export function RecurringRulesView({
       {loading ? (
         <div className="recurring-empty" role="status">
           <Repeat2 aria-hidden="true" />
-          <span>正在读取循环任务...</span>
+          <span>读取中...</span>
         </div>
       ) : rules.length === 0 ? (
         <div className="recurring-empty">
           <Repeat2 aria-hidden="true" />
           <strong>还没有循环任务</strong>
-          <span>适合账单、周报、复盘和周期性维护工作。</span>
           <button type="button" className="primary-action" onClick={onCreate}>
             <Plus aria-hidden="true" className="icon-sm" />
             新建循环任务
@@ -80,13 +78,15 @@ export function RecurringRulesView({
                   />
                   <div>
                     <strong>{rule.title}</strong>
-                    <span>{rule.note || "暂无描述"}</span>
+                    {rule.note && <span>{rule.note}</span>}
                   </div>
                 </div>
 
                 <div className="recurring-rule-schedule">
                   <span>{describeRecurringRule(rule)}</span>
-                  <small>{describeGenerationLead(rule.generateAheadMinutes)}</small>
+                  <small>
+                    {describeGenerationLead(rule.generateAheadMinutes)}
+                  </small>
                 </div>
 
                 <div className="recurring-rule-next">
@@ -94,7 +94,9 @@ export function RecurringRulesView({
                   <div>
                     <span>下次截止</span>
                     <strong>
-                      {rule.nextDueAt ? formatTaskDateTime(rule.nextDueAt) : "已结束"}
+                      {rule.nextDueAt
+                        ? formatTaskDateTime(rule.nextDueAt)
+                        : "已结束"}
                     </strong>
                   </div>
                 </div>
@@ -104,12 +106,17 @@ export function RecurringRulesView({
                 </div>
 
                 <div className="recurring-rule-actions">
-                  <label className="rule-switch" title={rule.enabled ? "暂停" : "恢复"}>
+                  <label
+                    className="rule-switch"
+                    title={rule.enabled ? "暂停" : "恢复"}
+                  >
                     <input
                       type="checkbox"
                       checked={rule.enabled}
                       onChange={() => onToggle(rule)}
-                      aria-label={rule.enabled ? "暂停循环任务" : "恢复循环任务"}
+                      aria-label={
+                        rule.enabled ? "暂停循环任务" : "恢复循环任务"
+                      }
                     />
                     <span />
                   </label>

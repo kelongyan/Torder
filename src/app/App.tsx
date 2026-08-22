@@ -382,10 +382,7 @@ function App() {
           if (cancelled || !info.hasUpdate) return;
           if (localStorage.getItem(KEY) === info.latestVersion) return;
           localStorage.setItem(KEY, info.latestVersion);
-          pushToast(
-            `发现新版本 v${info.latestVersion},可在设置中查看更新`,
-            "info",
-          );
+          pushToast(`发现新版本 v${info.latestVersion}`, "info");
         })
         .catch(() => {
           // 启动静默检查失败不打扰用户，可到设置里手动检查。
@@ -426,7 +423,7 @@ function App() {
     if (listToDelete.isDefault) return;
     setConfirmState({
       title: "确认删除清单",
-      body: `确定要删除清单"${listToDelete.name}"吗？关联的任务仍将保留在全集中。`,
+      body: `删除“${listToDelete.name}”？任务保留。`,
       confirmText: "删除清单",
       danger: true,
       onConfirm: async () => {
@@ -510,7 +507,7 @@ function App() {
   function requestDeleteRecurring(rule: RecurringRule) {
     setConfirmState({
       title: "删除循环规则",
-      body: `删除“${rule.title}”后不会再生成新任务。已生成的任务默认保留。`,
+      body: `删除“${rule.title}”。已生成任务保留。`,
       confirmText: "仅删除规则",
       secondaryText: "删除未来实例",
       danger: true,
@@ -587,7 +584,7 @@ function App() {
     setCalendarEventDialogOpen(false);
     setConfirmState({
       title: "确认删除日程事件",
-      body: `确定要删除"${event.title}"吗？此操作不可撤销。`,
+      body: `删除“${event.title}”？不可撤销。`,
       confirmText: "删除",
       danger: true,
       onConfirm: async () => {
@@ -602,7 +599,7 @@ function App() {
   function requestDeleteTask(task: Task) {
     setConfirmState({
       title: "确认删除任务",
-      body: `确定要删除"${task.title}"吗？可到回收站恢复。`,
+      body: `删除“${task.title}”？可恢复。`,
       confirmText: "删除",
       danger: true,
       onConfirm: async () => {
@@ -622,7 +619,7 @@ function App() {
     if (batchSelectedIds.length === 0) return;
     setConfirmState({
       title: "确认批量删除",
-      body: `确定要删除已选的 ${batchSelectedIds.length} 项任务吗？此操作不可撤销。`,
+      body: `删除已选 ${batchSelectedIds.length} 项？不可撤销。`,
       confirmText: "删除",
       danger: true,
       onConfirm: async () => {
@@ -696,6 +693,7 @@ function App() {
         <main className="main">
           <MainHeader
             title={currentTitle}
+            meta={recurringViewActive ? null : undefined}
             taskCount={tasks.length}
             layout={effectiveLayout}
             theme={settings.theme}

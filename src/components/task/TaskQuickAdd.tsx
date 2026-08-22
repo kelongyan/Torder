@@ -162,7 +162,7 @@ export function TaskQuickAdd({
           onChange={(e) => handleTitleChange(e.target.value)}
           onFocus={() => setActive(true)}
           onKeyDown={handleKeyDown}
-          placeholder="添加任务，支持 #清单 !高 明天 14:00"
+          placeholder="添加任务"
         />
         {onOpenDialog && (
           <button
@@ -170,7 +170,7 @@ export function TaskQuickAdd({
             className="quick-add-more"
             onMouseDown={(e) => e.preventDefault()}
             onClick={onOpenDialog}
-            title="打开完整新建表单 (Ctrl+N)"
+            title="新建任务"
           >
             <MoreHorizontal aria-hidden="true" />
           </button>

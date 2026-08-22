@@ -53,7 +53,7 @@ export function BatchEditDialog({
   return (
     <DialogShell
       title="批量编辑"
-      subtitle={`将应用到已选的 ${count} 项任务`}
+      subtitle={`已选 ${count} 项`}
       icon={Pencil}
       width="460px"
       presence={presence}

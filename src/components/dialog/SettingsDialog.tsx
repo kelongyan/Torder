@@ -351,11 +351,11 @@ export function SettingsDialog({
 
   function validateSyncForm(): boolean {
     if (!syncServerUrl.trim() || !syncRemotePath.trim()) {
-      onToast("请填写 WebDAV 地址和远端目录", "error");
+      onToast("填写地址和目录", "error");
       return false;
     }
     if (!syncServerUrl.trim().startsWith("https://")) {
-      onToast("WebDAV 地址必须使用 HTTPS", "error");
+      onToast("WebDAV 需使用 HTTPS", "error");
       return false;
     }
     return true;
@@ -369,19 +369,19 @@ export function SettingsDialog({
     const confirmation = syncEncryptionPasswordConfirm;
     const keyAvailable = syncStatus?.encryptionKeyAvailable === true;
     if (!keyAvailable && !password) {
-      onToast("请输入同步加密密码", "error");
+      onToast("输入加密密码", "error");
       return false;
     }
     if (password && password.length < 8) {
-      onToast("同步加密密码至少需要 8 个字符", "error");
+      onToast("加密密码至少 8 位", "error");
       return false;
     }
     if (password && password !== confirmation) {
-      onToast("两次输入的同步加密密码不一致", "error");
+      onToast("两次密码不一致", "error");
       return false;
     }
     if (!password && confirmation) {
-      onToast("请输入同步加密密码后再确认", "error");
+      onToast("先输入加密密码", "error");
       return false;
     }
     return true;
@@ -389,15 +389,15 @@ export function SettingsDialog({
 
   function handleSyncServerNext() {
     if (!syncServerUrl.trim() || !syncRemotePath.trim()) {
-      onToast("请填写 WebDAV 地址和远端目录", "error");
+      onToast("填写地址和目录", "error");
       return;
     }
     if (!syncServerUrl.trim().startsWith("https://")) {
-      onToast("WebDAV 地址必须使用 HTTPS", "error");
+      onToast("WebDAV 需使用 HTTPS", "error");
       return;
     }
     if (!syncDeviceName.trim()) {
-      onToast("请填写当前设备名称", "error");
+      onToast("填写设备名称", "error");
       return;
     }
     setSyncSetupStep(2);
@@ -421,7 +421,7 @@ export function SettingsDialog({
       }
       setSyncInitialMode(inspection.initialized ? "merge" : "upload");
       if (!syncStatus?.configured) setSyncSetupStep(3);
-      onToast("WebDAV 连接与目录检查通过", "success");
+      onToast("连接检查通过", "success");
     } catch (error) {
       onToast(`连接测试失败: ${String(error)}`, "error");
     } finally {
@@ -434,11 +434,11 @@ export function SettingsDialog({
     if (!validateSyncEncryptionForm()) return;
     const formChanged = syncInspectionKey !== currentSyncFormKey();
     if (formChanged || !syncInspection) {
-      onToast("请先测试当前 WebDAV 地址和远端目录", "error");
+      onToast("先测试连接", "error");
       return;
     }
     if (syncInspection?.requiresConfirmation && !syncRemoteConfirmed) {
-      onToast("请确认远端目录后再保存", "error");
+      onToast("先确认目录", "error");
       return;
     }
     setSyncBusy("save");
@@ -462,7 +462,7 @@ export function SettingsDialog({
       setSyncEncryptionEnabled(status.encryptionEnabled);
       applySyncStatus(status);
     } catch (error) {
-      onToast(`保存同步配置失败: ${String(error)}`, "error");
+      onToast(`保存同步失败: ${String(error)}`, "error");
       setSyncBusy(null);
       return;
     }
@@ -486,10 +486,10 @@ export function SettingsDialog({
         );
       } catch (error) {
         await refreshSyncStatus().catch(() => undefined);
-        onToast(`配置已保存，但首次同步失败: ${String(error)}`, "error");
+        onToast(`配置已保存，同步失败: ${String(error)}`, "error");
       }
     } else {
-      onToast("同步配置已安全保存", "success");
+      onToast("同步配置已保存", "success");
     }
     setSyncBusy(null);
   }
@@ -514,7 +514,7 @@ export function SettingsDialog({
       await runSync();
       const status = await refreshSyncStatus();
       onToast(
-        status.conflictCount > 0 ? "同步完成，存在待处理冲突" : "同步完成",
+        status.conflictCount > 0 ? "同步完成，有冲突" : "同步完成",
         status.conflictCount > 0 ? "info" : "success",
       );
     } catch (error) {
@@ -535,7 +535,7 @@ export function SettingsDialog({
       setSyncEncryptionPasswordConfirm("");
       setSyncEncryptionEnabled(false);
       await refreshSyncStatus(true);
-      onToast("已移除同步配置和本机凭据", "info");
+      onToast("已移除同步配置", "info");
     } catch (error) {
       onToast(`移除同步配置失败: ${String(error)}`, "error");
     } finally {
@@ -558,7 +558,7 @@ export function SettingsDialog({
       );
     } catch (error) {
       setUpdateState({ state: "error", message: String(error) });
-      onToast(`检查更新失败: ${String(error)}`, "error");
+      onToast(`检查失败: ${String(error)}`, "error");
     }
   }
 
@@ -576,7 +576,7 @@ export function SettingsDialog({
       await backupDatabase();
       const backups = await listBackups();
       setBackups(backups);
-      onToast("数据库备份完成", "success");
+      onToast("备份完成", "success");
     } catch (error) {
       onToast(`备份失败: ${String(error)}`, "error");
     } finally {
@@ -600,7 +600,7 @@ export function SettingsDialog({
     try {
       await upsertSetting("autoBackup", enabled);
       onAutoBackupChange(enabled);
-      onToast(enabled ? "已开启启动自动备份" : "已关闭自动备份", "info");
+      onToast(enabled ? "已开启自动备份" : "已关闭自动备份", "info");
     } catch (error) {
       onToast(`设置保存失败: ${String(error)}`, "error");
     }
@@ -620,10 +620,7 @@ export function SettingsDialog({
     try {
       await upsertSetting("syncWifiOnly", enabled);
       onSyncWifiOnlyChange(enabled);
-      onToast(
-        enabled ? "仅 Wi-Fi 时自动同步" : "已允许蜂窝网络自动同步",
-        "info",
-      );
+      onToast(enabled ? "仅 Wi-Fi 自动同步" : "已允许蜂窝同步", "info");
     } catch (error) {
       onToast(`设置保存失败: ${String(error)}`, "error");
     }
@@ -636,7 +633,7 @@ export function SettingsDialog({
       await revokeSyncDevice(pendingDeviceRevoke.id);
       setPendingDeviceRevoke(null);
       await refreshSyncStatus();
-      onToast("已撤销设备，下次同步将拒绝该设备", "info");
+      onToast("设备已撤销", "info");
     } catch (error) {
       onToast(`撤销设备失败: ${String(error)}`, "error");
     } finally {
@@ -651,11 +648,11 @@ export function SettingsDialog({
       setPendingSyncCleanup(false);
       await refreshSyncStatus();
       onToast(
-        `已清理 ${result.changesRemoved} 条历史变更和 ${result.tombstonesRemoved} 个墓碑`,
+        `已清理 ${result.changesRemoved} 条历史 · ${result.tombstonesRemoved} 个墓碑`,
         "info",
       );
     } catch (error) {
-      onToast(`清理同步历史失败: ${String(error)}`, "error");
+      onToast(`清理历史失败: ${String(error)}`, "error");
     } finally {
       setSyncBusy(null);
     }
@@ -664,15 +661,15 @@ export function SettingsDialog({
   async function handleRotateSyncEncryption() {
     if (!syncStatus?.configured) return;
     if (syncStatus.pendingChanges > 0) {
-      onToast("请先完成待上传变更，再轮换同步密钥", "error");
+      onToast("先完成待上传变更", "error");
       return;
     }
     if (syncRotationPassword.length < 8) {
-      onToast("新同步加密密码至少需要 8 个字符", "error");
+      onToast("新密码至少 8 位", "error");
       return;
     }
     if (syncRotationPassword !== syncRotationPasswordConfirm) {
-      onToast("两次输入的新同步加密密码不一致", "error");
+      onToast("两次密码不一致", "error");
       return;
     }
     setSyncBusy("rotate");
@@ -682,9 +679,9 @@ export function SettingsDialog({
       setSyncRotationPassword("");
       setSyncRotationPasswordConfirm("");
       await refreshSyncStatus();
-      onToast("同步加密密钥已轮换", "success");
+      onToast("密钥已轮换", "success");
     } catch (error) {
-      onToast("轮换同步加密密钥失败: " + String(error), "error");
+      onToast("密钥轮换失败: " + String(error), "error");
     } finally {
       setSyncBusy(null);
     }
@@ -694,7 +691,7 @@ export function SettingsDialog({
     setSyncBusy("run");
     try {
       const path = await exportSyncDiagnostics();
-      onToast(`已导出脱敏诊断：${path}`, "success");
+      onToast(`诊断已导出：${path}`, "success");
     } catch (error) {
       onToast(`导出诊断失败: ${String(error)}`, "error");
     } finally {
@@ -741,7 +738,6 @@ export function SettingsDialog({
   return (
     <DialogShell
       title="设置"
-      subtitle={mobile ? "同步 · 关于与更新" : "备份 · 导出 · 更新"}
       icon={Settings}
       width="520px"
       presence={presence}
@@ -753,11 +749,8 @@ export function SettingsDialog({
           <section className="settings-section">
             <h3 className="settings-section-title">
               <DatabaseBackup aria-hidden="true" className="icon-sm" />
-              数据库备份
+              备份
             </h3>
-            <p className="settings-section-hint">
-              生成完整数据快照，保存在应用数据目录的 backups 文件夹。
-            </p>
             <div className="settings-row settings-action-row">
               <button
                 type="button"
@@ -804,13 +797,14 @@ export function SettingsDialog({
         <section className="settings-section">
           <h3 className="settings-section-title">
             <Cloud aria-hidden="true" className="icon-sm" />
-            跨设备同步
+            同步
           </h3>
-          <p className="settings-section-hint">
-            {syncStatus?.configured
-              ? `待上传 ${syncStatus.pendingChanges} 项，冲突 ${syncStatus.conflictCount} 项。`
-              : "通过 WebDAV 合并多台设备的数据，不会上传本地 SQLite 文件。"}
-          </p>
+          {syncStatus?.configured && (
+            <p className="settings-section-hint">
+              待上传 {syncStatus.pendingChanges} · 冲突{" "}
+              {syncStatus.conflictCount}
+            </p>
+          )}
           {syncStatus?.state === "syncing" && (
             <div className="sync-progress" aria-label="同步阶段">
               <strong>{syncPhaseLabel(syncStatus.phase)}</strong>
@@ -831,9 +825,7 @@ export function SettingsDialog({
             </div>
           )}
           {!isTauri() ? (
-            <div className="settings-status-note">
-              浏览器演示模式不支持 WebDAV 同步。
-            </div>
+            <div className="settings-status-note">浏览器模式不可用。</div>
           ) : (
             <div className="sync-config-grid">
               {!syncStatus?.configured && (
@@ -841,7 +833,7 @@ export function SettingsDialog({
                   className="sync-setup-steps form-grid-full"
                   aria-label="同步设置进度"
                 >
-                  {["服务器", "认证", "范围与确认"].map((label, index) => (
+                  {["服务器", "认证", "确认"].map((label, index) => (
                     <span
                       key={label}
                       className={
@@ -861,7 +853,7 @@ export function SettingsDialog({
                       type="url"
                       inputMode="url"
                       autoComplete="url"
-                      placeholder="https://dav.example.com/remote.php/dav/files/user/"
+                      placeholder="WebDAV 地址"
                       value={syncServerUrl}
                       onChange={(event) => {
                         setSyncServerUrl(event.target.value);
@@ -873,7 +865,7 @@ export function SettingsDialog({
                     <span>远端目录</span>
                     <input
                       type="text"
-                      placeholder=".torder"
+                      placeholder="远端目录"
                       value={syncRemotePath}
                       onChange={(event) => {
                         setSyncRemotePath(event.target.value);
@@ -882,11 +874,11 @@ export function SettingsDialog({
                     />
                   </label>
                   <label className="form-field">
-                    <span>当前设备名称</span>
+                    <span>设备名称</span>
                     <input
                       type="text"
                       maxLength={128}
-                      placeholder={mobile ? "我的手机" : "我的电脑"}
+                      placeholder="设备名称"
                       value={syncDeviceName}
                       onChange={(event) =>
                         setSyncDeviceName(event.target.value)
@@ -916,8 +908,8 @@ export function SettingsDialog({
                       <label className="form-field form-grid-full">
                         <span>
                           {syncStatus?.hasCredential
-                            ? "更新应用专用密码（可选）"
-                            : "应用专用密码"}
+                            ? "更新应用密码（可选）"
+                            : "应用密码"}
                         </span>
                         <input
                           type="password"
@@ -953,8 +945,8 @@ export function SettingsDialog({
                       <label className="form-field form-grid-full">
                         <span>
                           {syncStatus?.encryptionKeyAvailable
-                            ? "更新同步加密密码（可选）"
-                            : "同步加密密码"}
+                            ? "更新加密密码（可选）"
+                            : "加密密码"}
                         </span>
                         <input
                           type="password"
@@ -967,7 +959,7 @@ export function SettingsDialog({
                         />
                       </label>
                       <label className="form-field form-grid-full">
-                        <span>确认同步加密密码</span>
+                        <span>确认密码</span>
                         <input
                           type="password"
                           autoComplete="new-password"
@@ -979,7 +971,7 @@ export function SettingsDialog({
                         />
                       </label>
                       <p className="settings-section-hint form-grid-full">
-                        加密只保护远端变更和快照内容，密码不会上传或写入本地数据库。
+                        密码不会上传。
                       </p>
                     </>
                   )}
@@ -990,8 +982,8 @@ export function SettingsDialog({
                   <div className="sync-inspection form-grid-full" role="status">
                     <strong>
                       {syncInspection.initialized
-                        ? "已发现 Torder 同步集合"
-                        : "将初始化新的同步集合"}
+                        ? "已发现同步集合"
+                        : "将新建同步集合"}
                     </strong>
                     {syncInspection.unknownEntries.length > 0 && (
                       <span>
@@ -1007,7 +999,7 @@ export function SettingsDialog({
                             setSyncRemoteConfirmed(event.target.checked)
                           }
                         />
-                        <span>我确认使用此服务器和远端目录</span>
+                        <span>确认服务器和目录</span>
                       </label>
                     )}
                   </div>
@@ -1016,7 +1008,7 @@ export function SettingsDialog({
                 syncSetupStep === 3 &&
                 syncInspection && (
                   <fieldset className="sync-initial-mode-list form-grid-full">
-                    <legend>首次同步范围</legend>
+                    <legend>首次同步</legend>
                     <label className="sync-initial-mode">
                       <input
                         type="radio"
@@ -1027,7 +1019,7 @@ export function SettingsDialog({
                       />
                       <span>
                         <strong>安全合并</strong>
-                        <small>先拉取远端数据，再上传本机变更。</small>
+                        <small>推荐</small>
                       </span>
                     </label>
                     <label
@@ -1045,8 +1037,8 @@ export function SettingsDialog({
                         <strong>上传本机</strong>
                         <small>
                           {syncInspection.initialized
-                            ? "远端已有同步集合，需使用安全合并。"
-                            : "远端未初始化，将以本机数据建立同步集合。"}
+                            ? "远端已有数据"
+                            : "以本机建立远端"}
                         </small>
                       </span>
                     </label>
@@ -1065,8 +1057,8 @@ export function SettingsDialog({
                         <strong>下载远端</strong>
                         <small>
                           {(syncStatus?.pendingChanges ?? 0) > 0
-                            ? `本机有 ${syncStatus?.pendingChanges ?? 0} 项待上传变更，需使用安全合并。`
-                            : "本机无待上传变更，将同步远端数据。"}
+                            ? `待上传 ${syncStatus?.pendingChanges ?? 0} 项`
+                            : "以远端为准"}
                         </small>
                       </span>
                     </label>
@@ -1090,7 +1082,7 @@ export function SettingsDialog({
                       disabled={syncBusy !== null}
                       onClick={() => void handleSaveSync()}
                     >
-                      {syncBusy === "save" ? "保存中…" : "保存配置"}
+                      {syncBusy === "save" ? "保存中…" : "保存"}
                     </button>
                     <button
                       type="button"
@@ -1110,7 +1102,7 @@ export function SettingsDialog({
                       disabled={syncBusy !== null}
                       onClick={() => setPendingSyncRemoval(true)}
                     >
-                      {syncBusy === "remove" ? "移除中…" : "移除配置"}
+                      {syncBusy === "remove" ? "移除中…" : "移除"}
                     </button>
                   </>
                 ) : syncSetupStep === 1 ? (
@@ -1228,25 +1220,23 @@ export function SettingsDialog({
                   disabled={syncBusy !== null}
                   onClick={() => setPendingSyncCleanup(true)}
                 >
-                  清理已确认的历史
+                  清理历史
                 </button>
               )}
               {syncStatus?.configured && (
                 <div className="sync-device-item form-grid-full">
                   <div className="sync-device-copy">
                     <strong>
-                      {syncStatus.encryptionEnabled
-                        ? "同步加密密钥"
-                        : "启用端到端加密"}
+                      {syncStatus.encryptionEnabled ? "加密密钥" : "端到端加密"}
                     </strong>
                     <span>
                       {syncStatus.encryptionEnabled
                         ? syncStatus.encryptionKeyAvailable
-                          ? "当前密钥 " + (syncStatus.encryptionKeyId ?? "可用")
-                          : "本机缺少当前密钥，需要输入密码重新加入"
-                        : "远端仍是明文集合，使用新密码创建加密快照"}
+                          ? "密钥 " + (syncStatus.encryptionKeyId ?? "可用")
+                          : "缺少密钥，需输入密码"
+                        : "创建加密快照"}
                       {syncStatus.pendingChanges > 0
-                        ? " · 还有 " + syncStatus.pendingChanges + " 项待上传"
+                        ? " · 待上传 " + syncStatus.pendingChanges + " 项"
                         : ""}
                     </span>
                   </div>
@@ -1271,18 +1261,18 @@ export function SettingsDialog({
                 disabled={syncBusy !== null}
                 onClick={() => void handleExportSyncDiagnostics()}
               >
-                导出脱敏诊断
+                导出诊断
               </button>
             </div>
           )}
           {syncStatus?.lastError && (
             <p className="settings-section-hint">
-              上次同步失败：{syncStatus.lastError}
+              同步失败：{syncStatus.lastError}
             </p>
           )}
           {syncConflicts.length > 0 && (
             <div className="sync-conflict-list">
-              <div className="settings-list-label">待处理冲突</div>
+              <div className="settings-list-label">冲突</div>
               {syncConflicts.map((conflict) => (
                 <div key={conflict.id} className="sync-conflict-item">
                   <div className="sync-conflict-copy">
@@ -1351,8 +1341,7 @@ export function SettingsDialog({
                   <div className="sync-conflict-actions">
                     {conflict.id.startsWith("list-name-conflict:") ? (
                       <span className="settings-section-hint">
-                        两台设备的清单名称相同但 ID
-                        不同，请先重命名本地清单，再点击“立即同步”。
+                        清单名称冲突，先重命名本地清单。
                       </span>
                     ) : (
                       <>
@@ -1412,11 +1401,8 @@ export function SettingsDialog({
           <section className="settings-section">
             <h3 className="settings-section-title">
               <Download aria-hidden="true" className="icon-sm" />
-              导出数据
+              导出
             </h3>
-            <p className="settings-section-hint">
-              将任务数据导出为可读文件，方便迁移备份。
-            </p>
             <div className="settings-export-panel">
               <span className="settings-export-label">导出格式</span>
               <div className="settings-export-control">
@@ -1445,11 +1431,8 @@ export function SettingsDialog({
         <section className="settings-section">
           <h3 className="settings-section-title">
             <Info aria-hidden="true" className="icon-sm" />
-            关于与更新
+            关于
           </h3>
-          <p className="settings-section-hint">
-            本地优先的桌面待办应用，数据仅保存在本机。
-          </p>
           <div className="settings-row settings-action-row settings-about-row">
             <span className="settings-version">
               {appInfo ? `当前版本 v${appInfo.version}` : ""}
@@ -1494,7 +1477,7 @@ export function SettingsDialog({
           )}
           {updateState.state === "error" && (
             <p className="settings-status-note danger">
-              检查更新失败,请稍后重试（{updateState.message}）。
+              检查失败（{updateState.message}）。
             </p>
           )}
         </section>
@@ -1515,8 +1498,8 @@ export function SettingsDialog({
           >
             <h3>确认恢复备份?</h3>
             <p>
-              将用 <strong>{shortName(pendingRestore)}</strong>{" "}
-              覆盖当前全部任务数据,此操作不可撤销。
+              用 <strong>{shortName(pendingRestore)}</strong>{" "}
+              覆盖当前数据，不可撤销。
             </p>
             <div className="settings-row">
               <button
@@ -1547,9 +1530,7 @@ export function SettingsDialog({
             aria-modal="true"
           >
             <h3>确认移除同步配置?</h3>
-            <p>
-              将删除本机 WebDAV 凭据、服务器配置和同步游标，不会删除远端数据。
-            </p>
+            <p>删除本机同步配置，不影响远端数据。</p>
             <div className="settings-row">
               <button
                 type="button"
@@ -1580,8 +1561,7 @@ export function SettingsDialog({
           >
             <h3>确认撤销设备?</h3>
             <p>
-              撤销 <strong>{pendingDeviceRevoke.name}</strong>{" "}
-              后，该设备将不能继续参与同步。
+              撤销 <strong>{pendingDeviceRevoke.name}</strong> 后不能继续同步。
             </p>
             <div className="settings-row">
               <button
@@ -1613,15 +1593,12 @@ export function SettingsDialog({
           >
             <h3>
               {syncStatus?.encryptionEnabled
-                ? "轮换同步加密密钥?"
-                : "为同步集合启用端到端加密?"}
+                ? "轮换加密密钥?"
+                : "启用端到端加密?"}
             </h3>
-            <p>
-              将创建新的加密密钥并上传新的加密快照。其他设备需要使用新密码重新同步，
-              旧密钥会保留到历史清理完成。
-            </p>
+            <p>其他设备需要用新密码重新同步。</p>
             <label className="form-field">
-              <span>新同步加密密码</span>
+              <span>新加密密码</span>
               <input
                 type="password"
                 autoComplete="new-password"
@@ -1633,7 +1610,7 @@ export function SettingsDialog({
               />
             </label>
             <label className="form-field">
-              <span>确认新同步加密密码</span>
+              <span>确认新密码</span>
               <input
                 type="password"
                 autoComplete="new-password"
@@ -1677,10 +1654,7 @@ export function SettingsDialog({
             aria-modal="true"
           >
             <h3>确认清理同步历史?</h3>
-            <p>
-              只会删除超过 30
-              天且所有启用设备都已确认的变更和墓碑，冲突审计记录会保留。
-            </p>
+            <p>删除已确认的 30 天前历史，保留冲突记录。</p>
             <div className="settings-row">
               <button
                 type="button"

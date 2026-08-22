@@ -94,7 +94,6 @@ export function RecurringRuleDialog({
       title={
         rule ? "编辑循环任务" : sourceTask ? "设为循环任务" : "新建循环任务"
       }
-      subtitle="调整规则只影响未来生成的任务，已生成实例保持不变"
       icon={Repeat2}
       presence={presence}
       onClose={onClose}

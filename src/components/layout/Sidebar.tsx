@@ -66,7 +66,7 @@ export function Sidebar({
         <input
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索任务"
+          placeholder="搜索"
           aria-label="搜索任务"
         />
         {searchQuery && (
@@ -95,7 +95,9 @@ export function Sidebar({
               !recurringActive && isScopeActive(scope, viewScope(item.view))
             }
             count={
-              item.view === "deleted" ? undefined : (counts.views[item.view] ?? 0)
+              item.view === "deleted"
+                ? undefined
+                : (counts.views[item.view] ?? 0)
             }
             onClick={() => onScopeChange(viewScope(item.view))}
           />
@@ -126,7 +128,9 @@ export function Sidebar({
             key={list.id}
             color={list.color ?? DEFAULT_LIST_COLOR}
             label={list.name}
-            active={!recurringActive && isScopeActive(scope, listScope(list.id))}
+            active={
+              !recurringActive && isScopeActive(scope, listScope(list.id))
+            }
             count={counts.lists[list.id] ?? 0}
             onClick={() => onScopeChange(listScope(list.id))}
             onEdit={!list.isDefault ? () => onEditList(list) : undefined}

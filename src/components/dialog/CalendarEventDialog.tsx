@@ -89,7 +89,6 @@ export function CalendarEventDialog({
   return (
     <DialogShell
       title={isEditing ? "编辑日程事件" : "新建日程事件"}
-      subtitle="标记领导或团队的休假与出差日期"
       icon={CalendarDays}
       presence={presence}
       onClose={onClose}
@@ -121,7 +120,7 @@ export function CalendarEventDialog({
               setTitle(e.target.value);
               if (error) setError(null);
             }}
-            placeholder="例如：领导休假、上海出差..."
+            placeholder="标题"
             autoFocus
             maxLength={40}
           />
@@ -165,7 +164,7 @@ export function CalendarEventDialog({
               setNote(e.target.value);
               if (error) setError(null);
             }}
-            placeholder="可选，例如：上海客户拜访"
+            placeholder="备注"
             maxLength={100}
           />
         </div>

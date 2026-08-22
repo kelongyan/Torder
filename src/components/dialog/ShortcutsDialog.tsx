@@ -12,7 +12,6 @@ export function ShortcutsDialog({
   return (
     <DialogShell
       title="快捷键"
-      subtitle="常用操作可以直接从键盘触发"
       icon={Keyboard}
       presence={presence}
       onClose={onClose}
@@ -20,7 +19,7 @@ export function ShortcutsDialog({
     >
       <div className="shortcut-list">
         <ShortcutRow keys="Ctrl+N" label="新建任务" />
-        <ShortcutRow keys="Ctrl+Shift+T" label="全局唤起快速新建（应用在后台也生效）" />
+        <ShortcutRow keys="Ctrl+Shift+T" label="快速新建" />
         <ShortcutRow keys="Ctrl+Enter" label="提交表单" />
         <ShortcutRow keys="Esc" label="关闭弹窗" />
         <ShortcutRow keys="?" label="快捷键面板" />

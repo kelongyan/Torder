@@ -69,17 +69,25 @@ export function TaskFormFields({
         <input
           autoFocus={shouldAutoFocus}
           value={draft.title}
-          onChange={(event) => onChange({ ...draft, title: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...draft, title: event.target.value })
+          }
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing && onSubmit) {
+            if (
+              event.key === "Enter" &&
+              !event.nativeEvent.isComposing &&
+              onSubmit
+            ) {
               event.preventDefault();
               onSubmit();
             }
           }}
           className={titleInvalid ? "invalid" : ""}
-          placeholder="输入任务名称..."
+          placeholder="任务名称"
         />
-        {titleInvalid && <span className="form-title-error">任务名称不能为空</span>}
+        {titleInvalid && (
+          <span className="form-title-error">任务名称不能为空</span>
+        )}
       </div>
 
       <div className="form-field">
@@ -88,12 +96,16 @@ export function TaskFormFields({
           value={draft.note}
           onChange={(event) => onChange({ ...draft, note: event.target.value })}
           onKeyDown={(event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && onSubmit) {
+            if (
+              (event.ctrlKey || event.metaKey) &&
+              event.key === "Enter" &&
+              onSubmit
+            ) {
               event.preventDefault();
               onSubmit();
             }
           }}
-          placeholder="补充任务背景、要求或链接 (支持 Ctrl+Enter 保存)"
+          placeholder="描述"
           rows={4}
         />
       </div>
@@ -142,7 +154,9 @@ export function TaskFormFields({
           <span>重复</span>
           <Select<string>
             value={frequency ?? "none"}
-            options={recurrenceRequired ? repeatOptions.slice(1) : repeatOptions}
+            options={
+              recurrenceRequired ? repeatOptions.slice(1) : repeatOptions
+            }
             onChange={(value) => {
               const due = new Date(draft.dueAt || Date.now());
               onChange({
@@ -165,7 +179,6 @@ export function TaskFormFields({
             <div className="recurrence-config-header">
               <div>
                 <strong>循环计划</strong>
-                <span>按计划提前创建任务，不依赖上一次是否完成</span>
               </div>
             </div>
 
@@ -181,7 +194,10 @@ export function TaskFormFields({
                     onChange={(event) =>
                       onChange({
                         ...draft,
-                        recurrenceInterval: Math.max(1, Number(event.target.value) || 1),
+                        recurrenceInterval: Math.max(
+                          1,
+                          Number(event.target.value) || 1,
+                        ),
                       })
                     }
                     aria-label="循环间隔"
@@ -199,11 +215,15 @@ export function TaskFormFields({
                     max={365}
                     value={aheadValue(draft)}
                     onChange={(event) => {
-                      const value = Math.max(0, Number(event.target.value) || 0);
+                      const value = Math.max(
+                        0,
+                        Number(event.target.value) || 0,
+                      );
                       onChange({
                         ...draft,
                         generateAheadMinutes:
-                          value * (draft.generateAheadUnit === "days" ? 1440 : 60),
+                          value *
+                          (draft.generateAheadUnit === "days" ? 1440 : 60),
                       });
                     }}
                     aria-label="提前创建数值"
@@ -216,7 +236,8 @@ export function TaskFormFields({
                       onChange({
                         ...draft,
                         generateAheadUnit: unit,
-                        generateAheadMinutes: value * (unit === "days" ? 1440 : 60),
+                        generateAheadMinutes:
+                          value * (unit === "days" ? 1440 : 60),
                       });
                     }}
                     ariaLabel="提前创建单位"
@@ -227,16 +248,24 @@ export function TaskFormFields({
               {frequency === "weekly" && (
                 <div className="form-field recurrence-weekdays form-grid-full">
                   <span>执行星期</span>
-                  <div className="weekday-picker" role="group" aria-label="执行星期">
+                  <div
+                    className="weekday-picker"
+                    role="group"
+                    aria-label="执行星期"
+                  >
                     {weekdayOptions.map((day) => {
-                      const selected = draft.recurrenceWeekdays.includes(day.value);
+                      const selected = draft.recurrenceWeekdays.includes(
+                        day.value,
+                      );
                       return (
                         <button
                           key={day.value}
                           type="button"
                           className={selected ? "selected" : ""}
                           aria-pressed={selected}
-                          onClick={() => toggleWeekday(draft, day.value, onChange)}
+                          onClick={() =>
+                            toggleWeekday(draft, day.value, onChange)
+                          }
                         >
                           {day.label}
                         </button>
@@ -303,7 +332,7 @@ export function TaskFormFields({
 
             {(frequency === "monthly" || frequency === "quarterly") && (
               <p className="recurrence-month-end-note">
-                每月 29、30、31 日遇到短月份时，自动安排在当月最后一天。
+                短月份自动顺延至月底。
               </p>
             )}
           </div>
@@ -321,7 +350,10 @@ function frequencyUnit(frequency: RecurrenceFrequency): string {
 }
 
 function aheadValue(draft: TaskDraft): number {
-  return draft.generateAheadMinutes / (draft.generateAheadUnit === "days" ? 1440 : 60);
+  return (
+    draft.generateAheadMinutes /
+    (draft.generateAheadUnit === "days" ? 1440 : 60)
+  );
 }
 
 function toggleWeekday(

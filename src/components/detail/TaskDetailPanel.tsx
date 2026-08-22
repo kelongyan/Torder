@@ -21,12 +21,7 @@ import { Select } from "../common/Select";
 import { TaskDateTimeField } from "../task/TaskDateTimeField";
 
 type EditingField =
-  | "title"
-  | "note"
-  | "listId"
-  | "priority"
-  | "dueAt"
-  | "remindBefore";
+  "title" | "note" | "listId" | "priority" | "dueAt" | "remindBefore";
 
 const priorityOptions = [
   { value: 2 as const, label: priorityCopy[2].label, color: "var(--red)" },
@@ -228,7 +223,7 @@ function TaskDetailContent({
                 }
               }}
               onBlur={saveTitle}
-              placeholder="输入任务名称..."
+              placeholder="任务名称"
             />
           </div>
         ) : (
@@ -238,7 +233,6 @@ function TaskDetailContent({
             onClick={() => startEdit("title")}
           >
             <span>{task.title}</span>
-            <span className="detail-title-hint">点击重命名</span>
           </button>
         )}
 
@@ -256,7 +250,7 @@ function TaskDetailContent({
                 }
               }}
               onBlur={saveNote}
-              placeholder="补充任务背景、要求或链接..."
+              placeholder="描述"
               rows={3}
             />
           </div>
@@ -266,9 +260,7 @@ function TaskDetailContent({
             className="detail-note"
             onClick={() => startEdit("note")}
           >
-            {task.note || (
-              <span className="detail-empty">暂无描述,点击添加</span>
-            )}
+            {task.note || <span className="detail-empty">无描述</span>}
           </button>
         )}
 
@@ -395,7 +387,7 @@ function TaskDetailContent({
                 {task.dueAt ? (
                   describeReminder(task.remindBefore)
                 ) : (
-                  <span className="detail-empty">未设置截止时间时不可用</span>
+                  <span className="detail-empty">未设置</span>
                 )}
               </span>
             </button>
