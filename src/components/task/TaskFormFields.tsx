@@ -52,6 +52,7 @@ export function TaskFormFields({
   onSubmit,
   titleInvalid,
   recurrenceRequired = false,
+  compactDateTime = false,
 }: {
   draft: TaskDraft;
   lists: TaskList[];
@@ -59,6 +60,7 @@ export function TaskFormFields({
   onSubmit?: () => void;
   titleInvalid?: boolean;
   recurrenceRequired?: boolean;
+  compactDateTime?: boolean;
 }) {
   const frequency = draft.recurrenceFrequency;
   const shouldAutoFocus = !isMobile();
@@ -114,6 +116,7 @@ export function TaskFormFields({
         <TaskDateTimeField
           value={draft.dueAt}
           onChange={(dueAt) => onChange({ ...draft, dueAt })}
+          variant={compactDateTime ? "compact" : "default"}
         />
         {draft.dueAt && (
           <div className="form-field">

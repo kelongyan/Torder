@@ -91,7 +91,8 @@ export function TaskCreateDialog({
       icon={Plus}
       presence={presence}
       onClose={onClose}
-      width="540px"
+      width="500px"
+      overlayClassName="task-create-dialog"
     >
       <form
         className="dialog-form"
@@ -109,6 +110,7 @@ export function TaskCreateDialog({
           onChange={setDraft}
           onSubmit={() => void submit()}
           titleInvalid={touched && !draft.title.trim()}
+          compactDateTime
         />
         <DialogFooter
           onCancel={onClose}

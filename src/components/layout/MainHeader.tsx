@@ -144,39 +144,40 @@ export function MainHeader({
         </div>
       </div>
 
-      {onOpenCreate && (
-        <button
-          type="button"
-          className="icon-button mobile-create-button"
-          onClick={onOpenCreate}
-          aria-label="新建任务"
-          title="新建任务"
-        >
-          <Plus aria-hidden="true" className="menu-icon" />
-        </button>
-      )}
-
       <div
         className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"}`}
       >
         {showLayoutControls && (
-          <div className="layout-tabs" aria-label="布局切换">
-            {layoutOptions.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  className={layout === item.value ? "active" : ""}
-                  onClick={() => onLayoutChange(item.value)}
-                  aria-label={`切换到${item.label}`}
-                  title={item.label}
-                >
-                  <Icon aria-hidden="true" className="tab-icon" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
+          <div className="header-view-toolbar">
+            {onOpenCreate && (
+              <button
+                type="button"
+                className="header-create-button"
+                onClick={onOpenCreate}
+              >
+                <Plus aria-hidden="true" className="icon-sm" />
+                <span>新建</span>
+              </button>
+            )}
+
+            <div className="layout-tabs" aria-label="布局切换">
+              {layoutOptions.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={layout === item.value ? "active" : ""}
+                    onClick={() => onLayoutChange(item.value)}
+                    aria-label={`切换到${item.label}`}
+                    title={item.label}
+                  >
+                    <Icon aria-hidden="true" className="tab-icon" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

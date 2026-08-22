@@ -18,10 +18,12 @@ export function TaskDateTimeField({
   value,
   onChange,
   label = "截止日期时间",
+  variant = "default",
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  variant?: "default" | "compact";
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const selectedDate = useMemo(() => getSafeDate(value), [value]);
@@ -101,16 +103,31 @@ export function TaskDateTimeField({
       <div className="date-time-control">
         <button
           type="button"
-          className={`date-time-trigger ${open ? "active" : ""}`}
+          className={`date-time-trigger ${variant === "compact" ? "date-time-compact-trigger" : ""} ${open ? "active" : ""}`}
           onClick={togglePicker}
           aria-haspopup="dialog"
           aria-expanded={open}
         >
-          <CalendarDays aria-hidden="true" className="icon-sm" />
-          <span>
-            <strong>{formatDateTimeLabel(value)}</strong>
-            <small>{formatMonthHint(value)}</small>
-          </span>
+          {variant === "compact" ? (
+            <>
+              <span className="date-time-chip date-time-date-chip">
+                <CalendarDays aria-hidden="true" className="icon-sm" />
+                <span>{formatCompactDateLabel(value)}</span>
+              </span>
+              <span className="date-time-chip date-time-hour-chip">
+                <Clock3 aria-hidden="true" className="icon-sm" />
+                <span>{formatCompactTimeLabel(value)}</span>
+              </span>
+            </>
+          ) : (
+            <>
+              <CalendarDays aria-hidden="true" className="icon-sm" />
+              <span>
+                <strong>{formatDateTimeLabel(value)}</strong>
+                <small>{formatMonthHint(value)}</small>
+              </span>
+            </>
+          )}
         </button>
         {value && (
           <button
@@ -307,6 +324,23 @@ function formatMonthHint(value: string): string {
 
 function formatMonthTitle(date: Date): string {
   return `${date.getFullYear()}年${pad(date.getMonth() + 1)}月`;
+}
+
+function formatCompactDateLabel(value: string): string {
+  if (!value) return "日期";
+  const date = getSafeDate(value);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (isSameDate(date, today)) return "今天";
+  if (isSameDate(date, tomorrow)) return "明天";
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+}
+
+function formatCompactTimeLabel(value: string): string {
+  if (!value) return "时间";
+  const date = getSafeDate(value);
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function getDateKey(date: Date): string {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { flushSync } from "react-dom";
+import { AlertCircle, Plus, X } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
 import { applyThemePreference } from "./theme";
@@ -80,6 +81,15 @@ import { WeekCalendar } from "../components/task/WeekCalendar";
 import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
 import type { CalendarEvent } from "../types/database";
 import type { SyncStatus } from "../types/sync";
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => {
+    finished: Promise<void>;
+    ready: Promise<void>;
+    updateCallbackDone: Promise<void>;
+    skipTransition: () => void;
+  };
+};
 
 function App() {
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -452,7 +462,26 @@ function App() {
     const nextTheme: ThemePreference =
       settings.theme === "dark" ? "light" : "dark";
     await saveAppSetting("theme", nextTheme);
-    setSettings((current) => ({ ...current, theme: nextTheme }));
+    const applyNextTheme = () => {
+      const dark = nextTheme === "dark";
+      document.documentElement.classList.toggle("dark", dark);
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      setSettings((current) => ({ ...current, theme: nextTheme }));
+    };
+    const startViewTransition = (document as ViewTransitionDocument)
+      .startViewTransition;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (startViewTransition && !reduceMotion) {
+      startViewTransition.call(document, () => {
+        flushSync(applyNextTheme);
+      });
+      return;
+    }
+
+    applyNextTheme();
   }
 
   async function handleCreateTask(input: CreateTaskInput) {
@@ -761,9 +790,6 @@ function App() {
                   batchSelectedIds={batchSelectedIds}
                   searchQuery={searchQuery}
                   scope={scope}
-                  defaultListId={defaultListId}
-                  onInlineCreate={(input) => void addTask(input)}
-                  onQuickAdd={openCreateDialog}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                   onDelete={requestDeleteTask}
@@ -814,6 +840,21 @@ function App() {
               )}
             </div>
           </section>
+          {!createPresence.rendered &&
+            !selectedTask &&
+            !batchMode &&
+            !recurringViewActive &&
+            !deletedViewActive && (
+              <button
+                type="button"
+                className="mobile-create-fab"
+                onClick={openCreateDialog}
+                aria-label="新建任务"
+                title="新建任务"
+              >
+                <Plus aria-hidden="true" />
+              </button>
+            )}
         </main>
       </div>
 

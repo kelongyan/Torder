@@ -3,7 +3,6 @@ import { Check, Pencil, Trash2 } from "lucide-react";
 import type { Task, TaskList, TaskScope } from "../../types/database";
 import { EmptyState } from "../common/EmptyState";
 import { SectionHeader } from "../common/SectionHeader";
-import { TaskQuickAdd } from "./TaskQuickAdd";
 import { TaskRow } from "./TaskRow";
 
 export function TaskListView({
@@ -15,9 +14,6 @@ export function TaskListView({
   batchSelectedIds,
   searchQuery,
   scope,
-  defaultListId,
-  onInlineCreate,
-  onQuickAdd,
   onOpen,
   onToggle,
   onDelete,
@@ -36,9 +32,6 @@ export function TaskListView({
   batchSelectedIds: string[];
   searchQuery: string;
   scope: TaskScope;
-  defaultListId: string;
-  onInlineCreate: (input: import("../../types/database").CreateTaskInput) => Promise<void> | void;
-  onQuickAdd: () => void;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -51,7 +44,9 @@ export function TaskListView({
 }) {
   const deletedView = scope.kind === "view" && scope.view === "deleted";
   const animatedTasks = useAnimatedTasks(tasks);
-  const activeTasks = animatedTasks.filter((item) => item.task.status !== "done");
+  const activeTasks = animatedTasks.filter(
+    (item) => item.task.status !== "done",
+  );
   const completedTasks = animatedTasks.filter(
     (item) => item.task.status === "done",
   );
@@ -61,14 +56,6 @@ export function TaskListView({
   if (loading && tasks.length === 0) {
     return (
       <div className="list-container">
-        {!deletedView && (
-          <TaskQuickAdd
-            lists={lists}
-            defaultListId={defaultListId}
-            onInlineCreate={onInlineCreate}
-            onOpenDialog={onQuickAdd}
-          />
-        )}
         <div className="skeleton-list" aria-label="任务加载中">
           <span />
           <span />
@@ -81,14 +68,6 @@ export function TaskListView({
   if (tasks.length === 0) {
     return (
       <div className="list-container">
-        {!deletedView && (
-          <TaskQuickAdd
-            lists={lists}
-            defaultListId={defaultListId}
-            onInlineCreate={onInlineCreate}
-            onOpenDialog={onQuickAdd}
-          />
-        )}
         <EmptyState scope={scope} searchQuery={searchQuery} />
       </div>
     );
@@ -99,28 +78,34 @@ export function TaskListView({
       {batchMode && !deletedView && (
         <div className="batch-bar">
           <span>已选 {batchSelectedIds.length} 项</span>
-          <button type="button" onClick={onBatchComplete} disabled={batchSelectedIds.length === 0}>
+          <button
+            type="button"
+            onClick={onBatchComplete}
+            disabled={batchSelectedIds.length === 0}
+          >
             <Check aria-hidden="true" className="icon-sm" />
             完成
           </button>
-          <button type="button" onClick={onBatchEdit} disabled={batchSelectedIds.length === 0}>
+          <button
+            type="button"
+            onClick={onBatchEdit}
+            disabled={batchSelectedIds.length === 0}
+          >
             <Pencil aria-hidden="true" className="icon-sm" />
             编辑
           </button>
-          <button type="button" onClick={onBatchDelete} disabled={batchSelectedIds.length === 0}>
+          <button
+            type="button"
+            onClick={onBatchDelete}
+            disabled={batchSelectedIds.length === 0}
+          >
             <Trash2 aria-hidden="true" className="icon-sm" />
             删除
           </button>
-          <button type="button" onClick={onExitBatch}>退出</button>
+          <button type="button" onClick={onExitBatch}>
+            退出
+          </button>
         </div>
-      )}
-      {!deletedView && (
-        <TaskQuickAdd
-          lists={lists}
-          defaultListId={defaultListId}
-          onInlineCreate={onInlineCreate}
-          onOpenDialog={onQuickAdd}
-        />
       )}
       {deletedView ? (
         <>
@@ -157,7 +142,10 @@ export function TaskListView({
                   task={item.task}
                   lists={lists}
                   selected={item.task.id === selectedTaskId}
-                  last={index === activeTasks.length - 1 && completedTasks.length === 0}
+                  last={
+                    index === activeTasks.length - 1 &&
+                    completedTasks.length === 0
+                  }
                   batchMode={batchMode}
                   batchSelected={batchSelectedIds.includes(item.task.id)}
                   leaving={item.leaving}

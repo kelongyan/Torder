@@ -166,8 +166,8 @@
 .window-frame.mobile .main-header {
   display: grid;
   min-height: auto;
-  grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
-  grid-template-areas: "nav title create theme menu";
+  grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
+  grid-template-areas: "nav title theme menu";
   align-items: center;
   gap: 5px;
   border-bottom: 1px solid var(--border);
@@ -176,12 +176,12 @@
 }
 
 .window-frame.mobile .main-header.no-layout-tabs {
-  grid-template-areas: "nav title create theme menu";
+  grid-template-areas: "nav title theme menu";
 }
 
 .window-frame.mobile .main-header.has-sync-status {
-  grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px 34px;
-  grid-template-areas: "nav title create sync theme menu";
+  grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
+  grid-template-areas: "nav title sync theme menu";
 }
 
 .window-frame.mobile .mobile-nav-toggle {
@@ -228,13 +228,16 @@
   white-space: nowrap;
 }
 
-.window-frame.mobile .mobile-create-button {
-  grid-area: create;
-  display: grid;
-}
-
 .window-frame.mobile .header-actions {
   display: contents;
+}
+
+.window-frame.mobile .header-view-toolbar {
+  display: none;
+}
+
+.window-frame.mobile .header-create-button {
+  display: none;
 }
 
 .window-frame.mobile .layout-tabs {
@@ -275,6 +278,10 @@
 .window-frame.mobile .icon-button {
   width: 34px;
   height: 34px;
+}
+
+.window-frame.mobile .mobile-create-fab {
+  display: grid;
 }
 
 .window-frame.mobile .view-menu {
@@ -408,7 +415,7 @@
 }
 
 .window-frame.mobile .task-item {
-  min-height: 96px;
+  min-height: 72px;
   padding-right: 8px;
 }
 
@@ -466,18 +473,18 @@
   }
 
   .window-frame.mobile .main-header {
-    grid-template-columns: minmax(0, 1fr) 40px 40px 40px;
-    grid-template-areas: "title create theme menu";
+    grid-template-columns: minmax(0, 1fr) 40px 40px;
+    grid-template-areas: "title theme menu";
     padding: 14px 18px;
   }
 
   .window-frame.mobile .main-header.no-layout-tabs {
-    grid-template-areas: "title create theme menu";
+    grid-template-areas: "title theme menu";
   }
 
   .window-frame.mobile .main-header.has-sync-status {
-    grid-template-columns: minmax(0, 1fr) 40px 40px 40px 40px;
-    grid-template-areas: "title create sync theme menu";
+    grid-template-columns: minmax(0, 1fr) 40px 40px 40px;
+    grid-template-areas: "title sync theme menu";
   }
 
   .window-frame.mobile .content-panel {
@@ -672,15 +679,15 @@
   .main-header {
     display: grid;
     min-height: auto;
-    grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
-    grid-template-areas: "nav title create theme menu";
+    grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
+    grid-template-areas: "nav title theme menu";
     align-items: center;
     gap: 5px;
     padding: 8px 10px;
   }
 
   .main-header.no-layout-tabs {
-    grid-template-areas: "nav title create theme menu";
+    grid-template-areas: "nav title theme menu";
   }
 
   .mobile-nav-toggle {
@@ -710,13 +717,16 @@
     white-space: nowrap;
   }
 
-  .mobile-create-button {
-    grid-area: create;
-    display: grid;
-  }
-
   .header-actions {
     display: contents;
+  }
+
+  .header-view-toolbar {
+    display: none;
+  }
+
+  .header-create-button {
+    display: none;
   }
 
   .layout-tabs {
@@ -753,6 +763,10 @@
   .icon-button {
     width: 34px;
     height: 34px;
+  }
+
+  .mobile-create-fab {
+    display: grid;
   }
 
   .view-menu {
@@ -875,7 +889,7 @@
   }
 
   .task-item {
-    min-height: 96px;
+    min-height: 72px;
     padding-right: 8px;
   }
 
@@ -917,19 +931,19 @@
   }
 
   .main-header {
-    grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
+    grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
     gap: 7px 5px;
     padding: 8px 10px;
   }
 
   .window-frame.mobile .main-header {
-    grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
+    grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
     gap: 7px 5px;
     padding: 8px 10px;
   }
 
   .window-frame.mobile .main-header.has-sync-status {
-    grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px 34px;
+    grid-template-columns: 36px minmax(0, 1fr) 34px 34px 34px;
   }
 
   .main-header h1,
@@ -1077,29 +1091,37 @@
 }
 
 .window-frame.mobile .task-item {
-  min-height: 66px;
+  min-height: 58px;
   gap: 8px;
   border-radius: var(--radius-sm);
-  padding: 8px 40px 8px 34px;
+  padding: 7px 38px 7px 36px;
 }
 
 .window-frame.mobile .timeline-node {
-  top: 13px;
-  bottom: -10px;
+  top: -5px;
+  bottom: -6px;
   left: 12px;
-  width: 10px;
+  width: 22px;
 }
 
-.window-frame.mobile .timeline-dot {
-  top: 3px;
-  left: 0;
-  width: 10px;
+.window-frame.mobile .timeline-node::before {
+  top: calc(50% - 5px);
+  left: 3px;
+  width: 18px;
   height: 10px;
 }
 
+.window-frame.mobile .timeline-dot {
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 8px;
+}
+
 .window-frame.mobile .timeline-line {
-  top: 18px;
-  left: 4px;
+  top: calc(50% + 8px);
+  bottom: -11px;
+  left: 3px;
   width: 1px;
 }
 
@@ -1131,6 +1153,7 @@
 .window-frame.mobile .task-meta {
   gap: 5px;
   margin-top: 4px;
+  justify-content: flex-start;
 }
 
 .window-frame.mobile .list-badge,
@@ -1291,29 +1314,37 @@
   }
 
   .task-item {
-    min-height: 66px;
+    min-height: 58px;
     gap: 8px;
     border-radius: var(--radius-sm);
-    padding: 8px 40px 8px 34px;
+    padding: 7px 38px 7px 36px;
   }
 
   .timeline-node {
-    top: 13px;
-    bottom: -10px;
+    top: -5px;
+    bottom: -6px;
     left: 12px;
-    width: 10px;
+    width: 22px;
   }
 
-  .timeline-dot {
-    top: 3px;
-    left: 0;
-    width: 10px;
+  .timeline-node::before {
+    top: calc(50% - 5px);
+    left: 3px;
+    width: 18px;
     height: 10px;
   }
 
+  .timeline-dot {
+    top: 50%;
+    left: 0;
+    width: 8px;
+    height: 8px;
+  }
+
   .timeline-line {
-    top: 18px;
-    left: 4px;
+    top: calc(50% + 8px);
+    bottom: -11px;
+    left: 3px;
     width: 1px;
   }
 
@@ -1345,6 +1376,7 @@
   .task-meta {
     gap: 5px;
     margin-top: 4px;
+    justify-content: flex-start;
   }
 
   .list-badge,
@@ -1388,8 +1420,7 @@
   }
 }
 
-.window-frame:not(.mobile) .mobile-nav-toggle,
-.window-frame:not(.mobile) .mobile-create-button {
+.window-frame:not(.mobile) .mobile-nav-toggle {
   display: none;
 }
 

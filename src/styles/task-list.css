@@ -1,5 +1,5 @@
 .list-container {
-  width: min(100%, 1060px);
+  width: min(100%, 1000px);
   margin: 0 auto;
 }
 
@@ -18,7 +18,15 @@
     background-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
     padding var(--motion-soft) var(--ease-standard);
-  margin-bottom: 18px;
+  margin-bottom: 14px;
+}
+
+:root[data-theme="dark"] .quick-add-inline {
+  border-color: var(--border-light);
+  background: #1c1d25;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 34px rgba(0, 0, 0, 0.24);
 }
 
 .quick-add-inline.is-expanded {
@@ -253,7 +261,7 @@ kbd {
 }
 
 .section-header {
-  margin: 23px 0 11px;
+  margin: 16px 0 8px;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
@@ -261,42 +269,61 @@ kbd {
   animation: subtle-rise var(--motion-soft) var(--ease-out) both;
 }
 
+.list-container > .section-header:first-child {
+  margin-top: 0;
+}
+
 .task-item {
   position: relative;
   display: flex;
-  max-height: 180px;
-  min-height: 82px;
-  gap: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
-  padding: 13px 14px 13px 46px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  max-height: 132px;
+  min-height: 56px;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  margin-bottom: 5px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 48%, transparent);
+  padding: 7px 9px 7px 48px;
+  box-shadow: none;
   transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
+    border-color 180ms var(--ease-standard),
+    background-color 180ms var(--ease-standard),
+    box-shadow 180ms var(--ease-standard),
     max-height var(--motion-soft) var(--ease-standard),
     margin var(--motion-soft) var(--ease-standard),
     padding var(--motion-soft) var(--ease-standard),
     opacity var(--motion-soft) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-spring);
+    transform 180ms var(--ease-standard);
   animation: task-row-in var(--motion-panel) var(--ease-out)
-    calc(var(--item-index, 0) * 28ms) both;
-  will-change: opacity, transform;
+    calc(var(--item-index, 0) * 18ms) both;
+}
+
+:root[data-theme="dark"] .task-item {
+  border-color: rgba(226, 232, 240, 0.1);
+  background: color-mix(in srgb, #191a21 68%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .task-item:hover {
   border-color: var(--border-light);
   background: var(--bg-secondary);
   box-shadow:
-    0 6px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transform: translateY(-1px);
+    0 4px 14px color-mix(in srgb, var(--text-primary) 6%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme="dark"] .task-item:hover {
+  border-color: rgba(226, 232, 240, 0.24);
+  background: #20222a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.065),
+    0 10px 28px rgba(0, 0, 0, 0.22);
 }
 
 .task-item:active {
-  transform: scale(0.99);
+  transform: scale(0.997);
 }
 
 .task-item.selected {
@@ -316,7 +343,7 @@ kbd {
   padding-bottom: 0;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-6px) scale(0.985);
+  transform: translateY(-3px) scale(0.99);
 }
 
 .task-item.completed .task-content h3 {
@@ -346,19 +373,33 @@ kbd {
 
 .timeline-node {
   position: absolute;
-  top: 18px;
-  bottom: -18px;
-  left: 14px;
-  width: 14px;
+  top: -5px;
+  bottom: -6px;
+  left: 18px;
+  width: 28px;
+}
+
+.timeline-node::before {
+  position: absolute;
+  top: calc(50% - 5px);
+  left: 4px;
+  width: 22px;
+  height: 10px;
+  border-bottom: 1px solid var(--tree-branch);
+  border-left: 1px solid var(--tree-line);
+  border-bottom-left-radius: 9px;
+  content: "";
 }
 
 .timeline-dot {
   position: absolute;
-  top: 3px;
-  left: 1px;
-  width: 12px;
-  height: 12px;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
+  transform: translateY(-50%);
   transition:
     background-color var(--motion-soft) var(--ease-standard),
     box-shadow var(--motion-soft) var(--ease-standard),
@@ -367,12 +408,16 @@ kbd {
 
 .timeline-line {
   position: absolute;
-  top: 20px;
-  bottom: 0;
-  left: 6px;
-  width: 2px;
+  top: calc(50% + 9px);
+  bottom: -12px;
+  left: 4px;
+  width: 1px;
   border-radius: 999px;
-  background: var(--border);
+  background: linear-gradient(
+    180deg,
+    var(--tree-line),
+    color-mix(in srgb, var(--tree-line) 52%, transparent)
+  );
 }
 
 .priority-high {
@@ -396,7 +441,7 @@ kbd {
 }
 
 .task-item:hover .timeline-dot {
-  transform: scale(1.18);
+  transform: translateY(-50%) scale(1.16);
 }
 
 .timeline-dot.completed-dot {
@@ -406,15 +451,15 @@ kbd {
 .task-check,
 .batch-check {
   display: grid;
-  width: 22px;
-  min-width: 22px;
-  height: 22px;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
   place-items: center;
   border: 1px solid var(--border-light);
   border-radius: 50%;
   background: transparent;
   color: var(--on-success);
-  margin-top: 2px;
+  margin-top: 0;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
@@ -456,27 +501,36 @@ kbd {
 .task-content {
   min-width: 0;
   flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 1px;
 }
 
 .task-content h3 {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 23px;
+  line-height: 20px;
   letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition:
     color var(--motion-theme) var(--ease-standard),
     text-decoration-color var(--motion-fast) var(--ease-standard);
 }
 
 .task-content p {
-  margin: 3px 0 0;
-  overflow-wrap: anywhere;
+  margin: 0;
+  overflow: hidden;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 21px;
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: color var(--motion-theme) var(--ease-standard);
 }
 
@@ -493,8 +547,16 @@ mark {
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 9px;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+.task-meta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  max-width: 265px;
+  flex-wrap: nowrap;
 }
 
 .list-badge,
@@ -506,11 +568,15 @@ mark {
   min-width: 0;
   align-items: center;
   gap: 4px;
+  max-width: 126px;
+  overflow: hidden;
   border-radius: var(--radius-sm);
-  padding: 2px 7px 3px;
-  font-size: 12px;
+  padding: 1px 6px 2px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition:
     background-color var(--motion-theme) var(--ease-standard),
     color var(--motion-theme) var(--ease-standard),
@@ -546,10 +612,10 @@ mark {
   align-items: flex-start;
   gap: 4px;
   opacity: 0;
-  transform: translateX(6px);
+  transform: translateX(4px);
   transition:
-    opacity var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-out);
+    opacity 140ms var(--ease-standard),
+    transform 180ms var(--ease-out);
 }
 
 .task-item:hover .task-actions,
@@ -560,8 +626,8 @@ mark {
 
 .task-actions button {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   border: 0;
   border-radius: var(--radius-sm);
@@ -576,12 +642,27 @@ mark {
 .task-actions button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  transform: scale(1.06);
+  transform: scale(1.04);
 }
 
 .task-actions svg {
   width: 15px;
   height: 15px;
+}
+
+@media (max-width: 720px) {
+  .task-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-meta {
+    grid-column: 1;
+    grid-row: auto;
+    max-width: none;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 4px;
+  }
 }
 
 .batch-bar {

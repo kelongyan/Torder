@@ -20,6 +20,21 @@ body {
     color var(--motion-theme) var(--ease-standard);
 }
 
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 340ms;
+  animation-timing-function: var(--ease-standard);
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  animation-name: theme-out;
+}
+
+::view-transition-new(root) {
+  animation-name: theme-in;
+}
+
 button,
 input,
 textarea,
@@ -77,4 +92,28 @@ select {
 .icon-xs {
   width: 13px;
   height: 13px;
+}
+
+@keyframes theme-out {
+  from {
+    opacity: 1;
+    filter: brightness(1);
+  }
+
+  to {
+    opacity: 0;
+    filter: brightness(0.96);
+  }
+}
+
+@keyframes theme-in {
+  from {
+    opacity: 0;
+    filter: brightness(1.04);
+  }
+
+  to {
+    opacity: 1;
+    filter: brightness(1);
+  }
 }
