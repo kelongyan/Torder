@@ -98,6 +98,7 @@ export function RecurringRuleDialog({
       presence={presence}
       onClose={onClose}
       width="680px"
+      overlayClassName="recurring-rule-dialog"
     >
       <form
         className="dialog-form recurring-rule-form"
@@ -113,6 +114,7 @@ export function RecurringRuleDialog({
           onSubmit={() => void submit()}
           recurrenceRequired
           titleInvalid={touched && !draft.title.trim()}
+          compactDateTime
         />
         <DialogFooter
           onCancel={onClose}

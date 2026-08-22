@@ -248,9 +248,8 @@
 }
 
 .date-time-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px;
-  gap: 6px;
+  position: relative;
+  display: block;
 }
 
 .date-time-trigger {
@@ -279,6 +278,14 @@
   background: var(--bg-hover);
   box-shadow: 0 0 0 3px var(--focus-ring);
   transform: translateY(-1px);
+}
+
+.date-time-control.has-value .date-time-trigger {
+  padding-right: 38px;
+}
+
+.date-time-control.has-value .date-time-compact-trigger {
+  padding-right: 31px;
 }
 
 .date-time-trigger > span {
@@ -342,25 +349,30 @@
 }
 
 .date-time-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  z-index: 1;
   display: grid;
-  min-height: 38px;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
   place-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
   color: var(--text-muted);
+  transform: translateY(-50%);
   transition:
-    border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard),
     transform var(--motion-fast) var(--ease-spring);
 }
 
 .date-time-clear:hover {
-  border-color: var(--border-light);
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
   color: var(--text-primary);
-  transform: translateY(-1px);
+  transform: translateY(-50%) scale(1.04);
 }
 
 .date-time-clear svg {

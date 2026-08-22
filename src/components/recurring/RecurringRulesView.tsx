@@ -58,7 +58,6 @@ export function RecurringRulesView({
           <Repeat2 aria-hidden="true" />
           <strong>还没有循环任务</strong>
           <button type="button" className="primary-action" onClick={onCreate}>
-            <Plus aria-hidden="true" className="icon-sm" />
             新建循环任务
           </button>
         </div>

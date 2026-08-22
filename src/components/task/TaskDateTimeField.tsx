@@ -100,7 +100,7 @@ export function TaskDateTimeField({
       }}
     >
       <span>{label}</span>
-      <div className="date-time-control">
+      <div className={`date-time-control ${value ? "has-value" : ""}`}>
         <button
           type="button"
           className={`date-time-trigger ${variant === "compact" ? "date-time-compact-trigger" : ""} ${open ? "active" : ""}`}
