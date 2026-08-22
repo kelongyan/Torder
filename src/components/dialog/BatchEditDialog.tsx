@@ -51,57 +51,55 @@ export function BatchEditDialog({
   }
 
   return (
-    <div className="dialog-overlay">
-      <DialogShell
-        title="批量编辑"
-        subtitle={`将应用到已选的 ${count} 项任务`}
-        icon={Pencil}
-        width="460px"
-        presence={presence}
-        onClose={onClose}
-      >
-        <div className="dialog-form">
-          <div className="form-field">
-            <span>移动到清单</span>
-            <Select<string | "">
-              value={listId}
-              options={[
-                { value: "", label: "不修改清单" },
-                ...lists.map((list) => ({
-                  value: list.id,
-                  label: list.name,
-                  dotColor: list.color ?? DEFAULT_LIST_COLOR,
-                })),
-              ]}
-              onChange={setListId}
-              ariaLabel="批量修改清单"
-            />
-          </div>
-          <div className="form-field">
-            <span>优先级</span>
-            <SegmentedControl
-              value={priority === -1 ? -1 : priority}
-              options={[{ value: -1, label: "不改" }, ...priorityOptions]}
-              onChange={(value) => setPriority(value as 0 | 1 | 2 | -1)}
-              ariaLabel="批量修改优先级"
-            />
-          </div>
+    <DialogShell
+      title="批量编辑"
+      subtitle={`将应用到已选的 ${count} 项任务`}
+      icon={Pencil}
+      width="460px"
+      presence={presence}
+      onClose={onClose}
+    >
+      <div className="dialog-form">
+        <div className="form-field">
+          <span>移动到清单</span>
+          <Select<string | "">
+            value={listId}
+            options={[
+              { value: "", label: "不修改清单" },
+              ...lists.map((list) => ({
+                value: list.id,
+                label: list.name,
+                dotColor: list.color ?? DEFAULT_LIST_COLOR,
+              })),
+            ]}
+            onChange={setListId}
+            ariaLabel="批量修改清单"
+          />
         </div>
+        <div className="form-field">
+          <span>优先级</span>
+          <SegmentedControl
+            value={priority === -1 ? -1 : priority}
+            options={[{ value: -1, label: "不改" }, ...priorityOptions]}
+            onChange={(value) => setPriority(value as 0 | 1 | 2 | -1)}
+            ariaLabel="批量修改优先级"
+          />
+        </div>
+      </div>
 
-        <footer className="dialog-footer">
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            取消
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={busy}
-            onClick={() => void handleApply()}
-          >
-            应用修改
-          </button>
-        </footer>
-      </DialogShell>
-    </div>
+      <footer className="dialog-footer">
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          取消
+        </button>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={busy}
+          onClick={() => void handleApply()}
+        >
+          应用修改
+        </button>
+      </footer>
+    </DialogShell>
   );
 }

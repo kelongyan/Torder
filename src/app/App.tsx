@@ -206,16 +206,19 @@ function App() {
     () => pickDefaultListId(scope, lists),
     [lists, scope],
   );
+  const deletedViewActive =
+    !recurringViewActive && scope.kind === "view" && scope.view === "deleted";
+  const effectiveLayout = deletedViewActive ? "list" : layout;
   const contentKey = useMemo(
     () =>
       [
-        recurringViewActive ? "recurring" : layout,
+        recurringViewActive ? "recurring" : effectiveLayout,
         scope.kind,
         scope.kind === "view" ? scope.view : scope.listId,
         sortBy,
         showCompleted,
       ].join(":"),
-    [layout, recurringViewActive, scope, sortBy, showCompleted],
+    [effectiveLayout, recurringViewActive, scope, sortBy, showCompleted],
   );
   const createPresence = usePresence(createOpen, 280);
   const listDialogPresence = usePresence(listDialogOpen, 280);
@@ -694,7 +697,7 @@ function App() {
           <MainHeader
             title={currentTitle}
             taskCount={tasks.length}
-            layout={layout}
+            layout={effectiveLayout}
             theme={settings.theme}
             sortBy={sortBy}
             showCompleted={showCompleted}
@@ -709,7 +712,7 @@ function App() {
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}
             syncStatus={syncStatus}
-            showLayoutControls={!recurringViewActive}
+            showLayoutControls={!recurringViewActive && !deletedViewActive}
           />
 
           {displayError && (
@@ -732,7 +735,7 @@ function App() {
           <section className="content-panel" aria-label={`${currentTitle}任务`}>
             <div
               key={contentKey}
-              className={`content-motion content-motion-${layout}`}
+              className={`content-motion content-motion-${effectiveLayout}`}
             >
               {recurringViewActive ? (
                 <RecurringRulesView
@@ -750,7 +753,7 @@ function App() {
                   onGenerate={(rule) => void handleGenerateRecurring(rule)}
                   onDelete={requestDeleteRecurring}
                 />
-              ) : layout === "list" ? (
+              ) : effectiveLayout === "list" ? (
                 <TaskListView
                   tasks={tasks}
                   lists={lists}
@@ -773,7 +776,7 @@ function App() {
                   onBatchEdit={() => setBatchEditOpen(true)}
                   onExitBatch={clearBatchSelection}
                 />
-              ) : layout === "board" ? (
+              ) : effectiveLayout === "board" ? (
                 <TaskBoard
                   tasks={tasks}
                   lists={lists}
@@ -782,18 +785,20 @@ function App() {
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                 />
-              ) : layout === "month" ? (
+              ) : effectiveLayout === "month" ? (
                 <MonthCalendar
                   tasks={tasks}
                   events={calendarEvents}
+                  showCompleted={showCompleted}
                   onOpenTask={(task) => selectTask(task.id)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
                 />
-              ) : layout === "week" ? (
+              ) : effectiveLayout === "week" ? (
                 <WeekCalendar
                   tasks={tasks}
                   events={calendarEvents}
+                  showCompleted={showCompleted}
                   onOpenTask={(task) => selectTask(task.id)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
@@ -806,6 +811,7 @@ function App() {
                   selectedTaskId={selectedTaskId}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
+                  onDelete={requestDeleteTask}
                 />
               )}
             </div>
@@ -819,8 +825,8 @@ function App() {
           defaultListId={defaultListId}
           presence={createPresence.phase}
           onClose={() => setCreateOpen(false)}
-          onSubmit={(input) => void handleCreateTask(input)}
-          onSubmitRecurring={(input) => void handleCreateRecurring(input)}
+          onSubmit={handleCreateTask}
+          onSubmitRecurring={handleCreateRecurring}
         />
       )}
 
@@ -843,8 +849,8 @@ function App() {
           defaultListId={defaultListId}
           presence={recurringDialogPresence.phase}
           onClose={() => setRecurringDialogOpen(false)}
-          onCreate={(input) => void handleCreateRecurring(input)}
-          onUpdate={(input) => void handleUpdateRecurring(input)}
+          onCreate={handleCreateRecurring}
+          onUpdate={handleUpdateRecurring}
         />
       )}
 

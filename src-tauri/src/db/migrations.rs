@@ -431,6 +431,14 @@ fn apply_migrations_through(
 }
 
 #[cfg(test)]
+pub(crate) fn apply_migrations_through_for_test(
+    connection: &mut Connection,
+    maximum_version: i64,
+) -> RepositoryResult<()> {
+    apply_migrations_through(connection, maximum_version)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

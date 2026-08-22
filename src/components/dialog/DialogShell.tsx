@@ -9,6 +9,7 @@ export function DialogShell({
   icon: Icon,
   width,
   presence = "enter",
+  overlayClassName,
   children,
   onClose,
 }: {
@@ -17,12 +18,19 @@ export function DialogShell({
   icon: LucideIcon;
   width: string;
   presence?: PresencePhase;
+  overlayClassName?: string;
   children: ReactNode;
   onClose: () => void;
 }) {
   return (
     <div
-      className={`dialog-overlay ${presence === "exit" ? "is-exiting" : "is-entering"}`}
+      className={[
+        "dialog-overlay",
+        presence === "exit" ? "is-exiting" : "is-entering",
+        overlayClassName,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="presentation"
     >
       <section
@@ -40,7 +48,12 @@ export function DialogShell({
             <h2>{title}</h2>
             {subtitle && <p>{subtitle}</p>}
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label="关闭"
+          >
             <X aria-hidden="true" />
           </button>
         </header>

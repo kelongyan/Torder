@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use rusqlite::{params, Connection, TransactionBehavior};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
+use tauri_plugin_notification::NotificationExt;
 
+use crate::db::sync_repository;
 use crate::models::Task;
 
 #[derive(Debug, Clone, Serialize)]
@@ -35,76 +37,107 @@ pub fn start_notifier(app_handle: AppHandle, database_path: PathBuf) {
 fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(), String> {
     let mut connection = open_connection(database_path).map_err(|e| format!("db open: {e}"))?;
 
-    // 认领与发送必须原子化：早先的实现用两条独立语句，各自重新求值
-    // julianday('now') 且谓词无界，落在两次求值之间的任务会被打上
-    // reminded_at 却从未发出事件，那条提醒就永久丢失了。
-    // 现在先在一个事务里查出待提醒任务并按 id 精确认领，提交成功后才发送事件。
-    // IMMEDIATE 让写锁在 SELECT 之前就拿到，避免读到已被别处认领的行。
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|e| format!("begin: {e}"))?;
-
-    let tasks: Vec<Task> = {
-        let mut statement = transaction
-            .prepare(
-                r#"
-                SELECT id, title, note, status, priority, list_id, due_at,
-                       completed_at, sort_order, remind_before, remind_at, reminded_at,
-                       repeat_rule, recurring_rule_id, occurrence_at,
-                       created_at, updated_at, deleted_at
-                FROM tasks
-                WHERE remind_at IS NOT NULL
-                  AND reminded_at IS NULL
-                  AND deleted_at IS NULL
-                  AND status = 'todo'
-                  AND julianday(remind_at) <= julianday('now')
-                "#,
-            )
-            .map_err(|e| format!("prepare: {e}"))?;
-
-        let rows = statement
-            .query_map([], map_task)
-            .map_err(|e| format!("query_map: {e}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("collect: {e}"))?;
-        rows
-    };
+    let tasks = due_reminder_tasks(&connection)?;
 
     if tasks.is_empty() {
         return Ok(());
     }
 
-    // 只为真正认领成功的任务发送事件，重复认领不会产生重复通知。
-    let mut claimed = Vec::with_capacity(tasks.len());
     for task in tasks {
-        let updated = transaction
-            .execute(
-                r#"
-                UPDATE tasks
-                SET reminded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-                WHERE id = ?1 AND reminded_at IS NULL
-                "#,
-                params![task.id],
-            )
-            .map_err(|e| format!("update reminded_at: {e}"))?;
-        if updated > 0 {
-            claimed.push(task);
+        send_native_notification(app_handle, &task)?;
+        if mark_task_reminded(&mut connection, &task.id)? {
+            let event = ReminderEvent {
+                task_id: task.id.clone(),
+                title: task.title.clone(),
+                due_at: task.due_at.clone(),
+            };
+            let _ = app_handle.emit("task-reminder", event);
         }
     }
 
-    transaction.commit().map_err(|e| format!("commit: {e}"))?;
+    Ok(())
+}
 
-    for task in &claimed {
-        let event = ReminderEvent {
-            task_id: task.id.clone(),
-            title: task.title.clone(),
-            due_at: task.due_at.clone(),
-        };
-        let _ = app_handle.emit("task-reminder", event);
+fn due_reminder_tasks(connection: &Connection) -> Result<Vec<Task>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, title, note, status, priority, list_id, due_at,
+                   completed_at, sort_order, remind_before, remind_at, reminded_at,
+                   repeat_rule, recurring_rule_id, occurrence_at,
+                   created_at, updated_at, deleted_at
+            FROM tasks
+            WHERE remind_at IS NOT NULL
+              AND reminded_at IS NULL
+              AND deleted_at IS NULL
+              AND status = 'todo'
+              AND julianday(remind_at) <= julianday('now')
+            "#,
+        )
+        .map_err(|e| format!("prepare: {e}"))?;
+
+    let tasks = statement
+        .query_map([], map_task)
+        .map_err(|e| format!("query_map: {e}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("collect: {e}"))?;
+    Ok(tasks)
+}
+
+fn send_native_notification(app_handle: &AppHandle, task: &Task) -> Result<(), String> {
+    app_handle
+        .notification()
+        .builder()
+        .title("今序提醒")
+        .body(task.title.clone())
+        .show()
+        .map_err(|error| format!("native notification: {error}"))
+}
+
+fn mark_task_reminded(connection: &mut Connection, task_id: &str) -> Result<bool, String> {
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|e| format!("begin: {e}"))?;
+    let updated = transaction
+        .execute(
+            r#"
+            UPDATE tasks
+            SET reminded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ?1 AND reminded_at IS NULL
+            "#,
+            params![task_id],
+        )
+        .map_err(|e| format!("update reminded_at: {e}"))?;
+    if updated == 0 {
+        transaction.commit().map_err(|e| format!("commit: {e}"))?;
+        return Ok(false);
     }
 
-    Ok(())
+    let changed_task = transaction
+        .query_row(
+            r#"
+            SELECT id, title, note, status, priority, list_id, due_at,
+                   completed_at, sort_order, remind_before, remind_at, reminded_at,
+                   repeat_rule, recurring_rule_id, occurrence_at,
+                   created_at, updated_at, deleted_at
+            FROM tasks
+            WHERE id = ?1
+            "#,
+            params![task_id],
+            map_task,
+        )
+        .map_err(|e| format!("reload task: {e}"))?;
+    sync_repository::record_change(
+        &transaction,
+        "task",
+        task_id,
+        "upsert",
+        serde_json::to_value(changed_task).map_err(|e| format!("serialize task: {e}"))?,
+    )
+    .map_err(|e| format!("record reminder sync change: {e}"))?;
+    transaction.commit().map_err(|e| format!("commit: {e}"))?;
+    Ok(true)
 }
 
 fn open_connection(database_path: &PathBuf) -> Result<Connection, rusqlite::Error> {
@@ -140,4 +173,69 @@ fn map_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         updated_at: row.get(16)?,
         deleted_at: row.get(17)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::task_repository::TaskRepository;
+    use crate::db::Database;
+    use crate::models::CreateTaskInput;
+
+    #[test]
+    fn mark_task_reminded_records_sync_change_with_payload() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-notifier-reminded-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let task = TaskRepository::new(&database)
+            .create(CreateTaskInput {
+                title: "提醒同步测试".to_owned(),
+                note: None,
+                priority: Some(1),
+                list_id: Some("work".to_owned()),
+                due_at: Some("2026-08-21T09:00:00Z".to_owned()),
+                sort_order: Some(0),
+                remind_before: Some(10),
+                repeat_rule: None,
+            })
+            .unwrap();
+        let mut connection = database.connect().unwrap();
+
+        assert!(mark_task_reminded(&mut connection, &task.id).unwrap());
+        assert!(!mark_task_reminded(&mut connection, &task.id).unwrap());
+
+        let reminded_at = connection
+            .query_row(
+                "SELECT reminded_at FROM tasks WHERE id = ?1",
+                params![&task.id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .unwrap();
+        assert!(reminded_at.is_some());
+        let payload_json: String = connection
+            .query_row(
+                "SELECT payload_json FROM sync_changes WHERE entity = 'task' AND object_id = ?1 ORDER BY revision DESC LIMIT 1",
+                params![&task.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let payload: serde_json::Value = serde_json::from_str(&payload_json).unwrap();
+        assert!(payload["remindedAt"].as_str().is_some());
+        let change_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE entity = 'task' AND object_id = ?1",
+                params![&task.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(change_count, 2);
+
+        drop(connection);
+        drop(database);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+    }
 }

@@ -11,6 +11,7 @@ export function TaskCalendar({
   selectedTaskId,
   onOpen,
   onToggle,
+  onDelete,
 }: {
   tasks: Task[];
   lists: TaskList[];
@@ -18,6 +19,7 @@ export function TaskCalendar({
   selectedTaskId: string | null;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) {
   const groups = useMemo(() => groupCalendarTasks(tasks), [tasks]);
 
@@ -51,7 +53,7 @@ export function TaskCalendar({
                 searchQuery={searchQuery}
                 onOpen={onOpen}
                 onToggle={onToggle}
-                onDelete={() => undefined}
+                onDelete={onDelete}
                 onToggleBatchSelected={() => undefined}
               />
             ))}

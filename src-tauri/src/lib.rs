@@ -2,10 +2,10 @@ pub mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
-pub mod sync;
 mod notifier;
 mod recurrence;
 mod recurring_scheduler;
+pub mod sync;
 #[cfg(desktop)]
 mod tray;
 
@@ -32,7 +32,9 @@ fn run_startup_backup_if_enabled(app: tauri::AppHandle) {
 #[cfg(desktop)]
 fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
     use tauri::Emitter;
-    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+    use tauri_plugin_global_shortcut::{
+        Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
+    };
 
     let quick_add = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyT);
     app.handle().plugin(

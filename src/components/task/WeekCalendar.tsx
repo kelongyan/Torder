@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Plane, Sun } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Plane,
+  Sun,
+} from "lucide-react";
 import type { CalendarEvent, Task } from "../../types/database";
 import { priorityCopy } from "../../constants/taskConfig";
 import { calendarEventTypeCopy } from "../../constants/calendarEventConfig";
@@ -15,7 +21,11 @@ function toDateKey(date: Date): string {
 }
 
 function startOfWeek(anchor: Date): Date {
-  const date = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  const date = new Date(
+    anchor.getFullYear(),
+    anchor.getMonth(),
+    anchor.getDate(),
+  );
   const leading = (date.getDay() + 6) % 7; // 周一开头
   date.setDate(date.getDate() - leading);
   return date;
@@ -24,12 +34,14 @@ function startOfWeek(anchor: Date): Date {
 export function WeekCalendar({
   tasks,
   events,
+  showCompleted,
   onOpenTask,
   onCreateEvent,
   onEditEvent,
 }: {
   tasks: Task[];
   events: CalendarEvent[];
+  showCompleted: boolean;
   onOpenTask: (task: Task) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
@@ -40,15 +52,20 @@ export function WeekCalendar({
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const task of tasks) {
-      if (!task.dueAt || task.status === "done" || task.status === "archived")
+      if (
+        !task.dueAt ||
+        task.status === "archived" ||
+        (!showCompleted && task.status === "done")
+      ) {
         continue;
+      }
       const key = toDateKey(new Date(task.dueAt));
       const bucket = map.get(key) ?? [];
       bucket.push(task);
       map.set(key, bucket);
     }
     return map;
-  }, [tasks]);
+  }, [showCompleted, tasks]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();

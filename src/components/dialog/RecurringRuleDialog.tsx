@@ -36,18 +36,21 @@ export function RecurringRuleDialog({
   defaultListId: string;
   presence: PresencePhase;
   onClose: () => void;
-  onCreate: (input: CreateRecurringRuleInput) => void;
-  onUpdate: (input: UpdateRecurringRuleInput) => void;
+  onCreate: (input: CreateRecurringRuleInput) => Promise<void>;
+  onUpdate: (input: UpdateRecurringRuleInput) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(() =>
     buildInitialDraft(rule, sourceTask, lists, defaultListId),
   );
   const [touched, setTouched] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit() {
+  async function submit() {
+    if (submitting) return;
     setTouched(true);
     const firstDueAt = fromDateTimeLocal(draft.dueAt);
-    if (!draft.title.trim() || !draft.recurrenceFrequency || !firstDueAt) return;
+    if (!draft.title.trim() || !draft.recurrenceFrequency || !firstDueAt)
+      return;
 
     const common = {
       title: draft.title.trim(),
@@ -70,16 +73,27 @@ export function RecurringRuleDialog({
       endAt: fromDateTimeLocal(draft.recurrenceEndAt),
     };
 
+    setSubmitting(true);
     if (rule) {
-      onUpdate({ id: rule.id, ...common });
+      try {
+        await onUpdate({ id: rule.id, ...common });
+      } finally {
+        setSubmitting(false);
+      }
     } else {
-      onCreate({ sourceTaskId: sourceTask?.id ?? null, ...common });
+      try {
+        await onCreate({ sourceTaskId: sourceTask?.id ?? null, ...common });
+      } finally {
+        setSubmitting(false);
+      }
     }
   }
 
   return (
     <DialogShell
-      title={rule ? "编辑循环任务" : sourceTask ? "设为循环任务" : "新建循环任务"}
+      title={
+        rule ? "编辑循环任务" : sourceTask ? "设为循环任务" : "新建循环任务"
+      }
       subtitle="调整规则只影响未来生成的任务，已生成实例保持不变"
       icon={Repeat2}
       presence={presence}
@@ -90,20 +104,21 @@ export function RecurringRuleDialog({
         className="dialog-form recurring-rule-form"
         onSubmit={(event) => {
           event.preventDefault();
-          submit();
+          void submit();
         }}
       >
         <TaskFormFields
           draft={draft}
           lists={lists}
           onChange={setDraft}
-          onSubmit={submit}
+          onSubmit={() => void submit()}
           recurrenceRequired
           titleInvalid={touched && !draft.title.trim()}
         />
         <DialogFooter
           onCancel={onClose}
           submitLabel={rule ? "保存规则" : "创建循环任务"}
+          submitting={submitting}
         />
       </form>
     </DialogShell>
@@ -117,7 +132,9 @@ function buildInitialDraft(
   defaultListId: string,
 ): TaskDraft {
   if (rule) return recurringRuleDraft(rule);
-  const draft = sourceTask ? createTaskDraft(sourceTask, lists) : emptyDraft(defaultListId);
+  const draft = sourceTask
+    ? createTaskDraft(sourceTask, lists)
+    : emptyDraft(defaultListId);
   const legacyFrequency = sourceTask?.repeatRule;
   const recurrenceFrequency: RecurrenceFrequency =
     legacyFrequency === "daily" ||

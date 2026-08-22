@@ -215,7 +215,7 @@ impl<'database> TaskRepository<'database> {
                 remind_at = ?10,
                 repeat_rule = ?11,
                 reminded_at = CASE
-                    WHEN ?7 IS NOT NULL AND ?7 != due_at THEN NULL
+                    WHEN ?10 IS NOT remind_at THEN NULL
                     ELSE reminded_at
                 END,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 
+use crate::db::list_repository::ListRepository;
 use crate::db::migrations::CURRENT_SCHEMA_VERSION;
 use crate::db::recurring_repository::RecurringRuleRepository;
 use crate::db::settings_repository::SettingsRepository;
@@ -17,17 +18,11 @@ const DB_FILE_NAME: &str = "torder.sqlite";
 const BACKUP_RETENTION_DEFAULT: i64 = 20;
 
 #[tauri::command]
-pub fn backup_database(
-    app: AppHandle,
-    database: State<'_, Database>,
-) -> Result<String, String> {
+pub fn backup_database(app: AppHandle, database: State<'_, Database>) -> Result<String, String> {
     backup_database_impl(&app, &database).map_err(|error| error.to_string())
 }
 
-pub fn backup_database_impl(
-    app: &AppHandle,
-    database: &Database,
-) -> RepositoryResult<String> {
+pub fn backup_database_impl(app: &AppHandle, database: &Database) -> RepositoryResult<String> {
     let data_dir = app.path().app_data_dir()?;
     let db_path = data_dir.join(DB_FILE_NAME);
     let backup_dir = data_dir.join(BACKUP_DIR_NAME);
@@ -42,9 +37,8 @@ pub fn backup_database_impl(
     drop(connection);
 
     let backup_path = backup_dir.join(format!("torder-backup-{stamp}.sqlite"));
-    let quoted = backup_path.to_string_lossy().replace('\'', "''");
     let connection = rusqlite::Connection::open(&db_path)?;
-    connection.execute_batch(&format!("VACUUM INTO '{quoted}'"))?;
+    vacuum_into(&connection, &backup_path)?;
 
     // 备份会越积越多，按保留策略清理最旧的几份，防止 AppData 无声膨胀。
     let retention = SettingsRepository::new(database)
@@ -79,9 +73,7 @@ fn prune_backup_files(backup_dir: &Path, retention: i64) -> RepositoryResult<()>
         .filter(|path| {
             path.file_name()
                 .and_then(|name| name.to_str())
-                .map(|name| {
-                    name.starts_with("torder-backup-") && name.ends_with(".sqlite")
-                })
+                .map(|name| name.starts_with("torder-backup-") && name.ends_with(".sqlite"))
                 .unwrap_or(false)
         })
         .collect();
@@ -120,7 +112,7 @@ fn export_tasks_impl(
         [],
         |row| row.get(0),
     )?;
-    let lists = TaskListRepository::new(database).list()?;
+    let lists = ListRepository::new(database).list()?;
     let tasks = TaskRepository::new(database).export_all()?;
     let recurring_rules = RecurringRuleRepository::new(database).export_all()?;
 
@@ -173,24 +165,59 @@ pub fn restore_backup(app: AppHandle, path: String) -> Result<(), String> {
 fn restore_backup_impl(app: &AppHandle, path: &str) -> RepositoryResult<()> {
     let data_dir = app.path().app_data_dir()?;
     let backup_dir = data_dir.join(BACKUP_DIR_NAME);
+    fs::create_dir_all(&backup_dir)?;
     // 这个入口来自 webview，且 tauri.conf.json 的 csp 为 null。
     // 不做校验的话它就是“用磁盘上任意文件覆盖用户数据库”的原语。
     let source = resolve_backup_path(&backup_dir, path)?;
     verify_restorable_database(&source)?;
 
     let db_path = data_dir.join(DB_FILE_NAME);
-    // 覆盖前先留一份当前数据的安全网，恢复选错文件时还有退路。
+    // 覆盖前先用 SQLite 自己导出一致性快照，避免 WAL 中的未 checkpoint 数据丢失。
     if db_path.exists() {
         let safety_copy = backup_dir.join(format!(
-            "torder-prerestore-{}.sqlite",
-            chrono::Local::now().format("%Y%m%d-%H%M%S")
+            "torder-prerestore-{}-{}.sqlite",
+            chrono::Local::now().format("%Y%m%d-%H%M%S"),
+            uuid::Uuid::new_v4()
         ));
-        fs::copy(&db_path, &safety_copy)?;
+        snapshot_current_database(&db_path, &safety_copy)?;
     }
 
-    fs::copy(&source, &db_path)?;
-    let _ = fs::remove_file(data_dir.join("torder.sqlite-wal"));
-    let _ = fs::remove_file(data_dir.join("torder.sqlite-shm"));
+    replace_database_file(&source, &db_path)?;
+    finalize_restored_database(&db_path)?;
+    Ok(())
+}
+
+fn snapshot_current_database(db_path: &Path, snapshot_path: &Path) -> RepositoryResult<()> {
+    let connection = rusqlite::Connection::open(db_path)?;
+    vacuum_into(&connection, snapshot_path)
+}
+
+fn replace_database_file(source: &Path, db_path: &Path) -> RepositoryResult<()> {
+    remove_database_sidecars(db_path);
+    fs::copy(source, db_path)?;
+    remove_database_sidecars(db_path);
+    Ok(())
+}
+
+fn remove_database_sidecars(db_path: &Path) {
+    let _ = fs::remove_file(PathBuf::from(format!("{}-wal", db_path.display())));
+    let _ = fs::remove_file(PathBuf::from(format!("{}-shm", db_path.display())));
+}
+
+fn finalize_restored_database(db_path: &Path) -> RepositoryResult<()> {
+    let restored = Database::initialize(db_path.to_path_buf())?;
+    let status = restored.status()?;
+    if status.schema_version != CURRENT_SCHEMA_VERSION {
+        return Err(RepositoryError::Validation(
+            "restored backup could not be migrated",
+        ));
+    }
+    Ok(())
+}
+
+fn vacuum_into(connection: &rusqlite::Connection, target_path: &Path) -> RepositoryResult<()> {
+    let quoted = target_path.to_string_lossy().replace('\'', "''");
+    connection.execute_batch(&format!("VACUUM INTO '{quoted}'"))?;
     Ok(())
 }
 
@@ -218,11 +245,9 @@ fn resolve_backup_path(backup_dir: &Path, path: &str) -> RepositoryResult<PathBu
 
 /// 确认候选文件确实是本应用能读的 SQLite 库，且 schema 不比当前代码更新。
 fn verify_restorable_database(source: &Path) -> RepositoryResult<()> {
-    let connection = rusqlite::Connection::open_with_flags(
-        source,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|_| RepositoryError::Validation("backup file is not a readable database"))?;
+    let connection =
+        rusqlite::Connection::open_with_flags(source, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|_| RepositoryError::Validation("backup file is not a readable database"))?;
 
     let integrity: String = connection
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
@@ -405,7 +430,9 @@ mod tests {
         assert!(remaining.contains(&"torder-backup-202608124-000000.sqlite".to_owned()));
 
         // 安全快照与无关文件不受影响
-        assert!(dir.join("torder-prerestore-20260816-000000.sqlite").exists());
+        assert!(dir
+            .join("torder-prerestore-20260816-000000.sqlite")
+            .exists());
         assert!(dir.join("unrelated.txt").exists());
         fs::remove_dir_all(&dir).unwrap();
     }
@@ -433,19 +460,63 @@ mod tests {
         assert_eq!(parse_retention(Some("5".to_owned())), 5);
         assert_eq!(parse_retention(Some(" 12 ".to_owned())), 12);
     }
-}
 
-struct TaskListRepository<'database> {
-    database: &'database Database,
-}
+    #[test]
+    fn snapshot_current_database_includes_wal_changes() {
+        let dir = std::env::temp_dir().join(format!("torder-snapshot-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("torder.sqlite");
+        let snapshot_path = dir.join("snapshot.sqlite");
 
-impl<'database> TaskListRepository<'database> {
-    fn new(database: &'database Database) -> Self {
-        Self { database }
+        let connection = rusqlite::Connection::open(&db_path).unwrap();
+        connection
+            .execute_batch(
+                r#"
+                PRAGMA journal_mode = WAL;
+                CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+                INSERT INTO items (name) VALUES ('wal item');
+                "#,
+            )
+            .unwrap();
+
+        snapshot_current_database(&db_path, &snapshot_path).unwrap();
+
+        let snapshot = rusqlite::Connection::open(&snapshot_path).unwrap();
+        let count: i64 = snapshot
+            .query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+        drop(snapshot);
+        drop(connection);
+        fs::remove_dir_all(&dir).unwrap();
     }
 
-    fn list(&self) -> RepositoryResult<Vec<TaskList>> {
-        use crate::db::list_repository::ListRepository;
-        ListRepository::new(self.database).list()
+    #[test]
+    fn finalize_restored_database_migrates_legacy_schema() {
+        let dir = std::env::temp_dir().join(format!("torder-restore-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("torder.sqlite");
+        let mut connection = rusqlite::Connection::open(&db_path).unwrap();
+        crate::db::migrations::apply_migrations_through_for_test(&mut connection, 9).unwrap();
+        drop(connection);
+
+        finalize_restored_database(&db_path).unwrap();
+
+        let database = Database::initialize(db_path.clone()).unwrap();
+        let status = database.status().unwrap();
+        assert_eq!(status.schema_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(status.list_count, 3);
+        let connection = database.connect().unwrap();
+        let sync_change_table_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'sync_changes'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(sync_change_table_count, 1);
+        drop(connection);
+        drop(database);
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

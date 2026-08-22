@@ -31,12 +31,14 @@ function monthTitle(year: number, month: number): string {
 export function MonthCalendar({
   tasks,
   events,
+  showCompleted,
   onOpenTask,
   onCreateEvent,
   onEditEvent,
 }: {
   tasks: Task[];
   events: CalendarEvent[];
+  showCompleted: boolean;
   onOpenTask: (task: Task) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
@@ -50,15 +52,20 @@ export function MonthCalendar({
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const task of tasks) {
-      if (!task.dueAt || task.status === "done" || task.status === "archived")
+      if (
+        !task.dueAt ||
+        task.status === "archived" ||
+        (!showCompleted && task.status === "done")
+      ) {
         continue;
+      }
       const key = toDateKey(new Date(task.dueAt));
       const bucket = map.get(key) ?? [];
       bucket.push(task);
       map.set(key, bucket);
     }
     return map;
-  }, [tasks]);
+  }, [showCompleted, tasks]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();

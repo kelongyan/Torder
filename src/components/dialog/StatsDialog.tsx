@@ -28,116 +28,114 @@ export function StatsDialog({
   );
 
   return (
-    <div className="dialog-overlay">
-      <DialogShell
-        title="统计洞察"
-        subtitle="任务完成情况一览"
-        icon={BarChart3}
-        width="560px"
-        presence={presence}
-        onClose={onClose}
-      >
-        <div className="dialog-form">
-          <div className="stats-overview">
-            <div className="stats-metric">
-              <span>总任务</span>
-              <strong>{stats.total}</strong>
-            </div>
-            <div className="stats-metric">
-              <span>待办</span>
-              <strong>{stats.todo}</strong>
-            </div>
-            <div className="stats-metric">
-              <span>已完成</span>
-              <strong>{stats.done}</strong>
-            </div>
-            <div className="stats-metric">
-              <span>完成率</span>
-              <strong>{stats.rate}%</strong>
-            </div>
+    <DialogShell
+      title="统计洞察"
+      subtitle="任务完成情况一览"
+      icon={BarChart3}
+      width="560px"
+      presence={presence}
+      onClose={onClose}
+    >
+      <div className="dialog-form">
+        <div className="stats-overview">
+          <div className="stats-metric">
+            <span>总任务</span>
+            <strong>{stats.total}</strong>
           </div>
-
-          <section className="stats-section">
-            <h3 className="stats-section-title">最近 7 天完成趋势</h3>
-            <div className="stats-trend">
-              {stats.trend.map((item) => (
-                <div key={item.label} className="stats-trend-col">
-                  <span className="stats-trend-count">
-                    {item.count > 0 ? item.count : ""}
-                  </span>
-                  <div
-                    className="stats-trend-bar"
-                    style={{
-                      height: `${Math.max(
-                        4,
-                        Math.round((item.count / maxTrend) * 64),
-                      )}px`,
-                    }}
-                  />
-                  <span className="stats-trend-label">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="stats-section">
-            <h3 className="stats-section-title">优先级分布</h3>
-            {stats.priorityBars.map((item) => (
-              <div key={item.label} className="stats-bar-row">
-                <span className="stats-bar-label">
-                  <span
-                    className="stats-bar-dot"
-                    style={{ background: item.color }}
-                  />
-                  {item.label}
-                </span>
-                <div className="stats-bar-track">
-                  <div
-                    className="stats-bar-fill"
-                    style={{
-                      width: `${Math.round((item.count / maxBar) * 100)}%`,
-                      background: item.color,
-                    }}
-                  />
-                </div>
-                <span className="stats-bar-count">{item.count}</span>
-              </div>
-            ))}
-          </section>
-
-          <section className="stats-section">
-            <h3 className="stats-section-title">清单分布</h3>
-            {stats.listBars.map((item) => (
-              <div key={item.id} className="stats-bar-row">
-                <span className="stats-bar-label">
-                  <span
-                    className="stats-bar-dot"
-                    style={{ background: item.color }}
-                  />
-                  {item.name}
-                </span>
-                <div className="stats-bar-track">
-                  <div
-                    className="stats-bar-fill"
-                    style={{
-                      width: `${Math.round((item.count / maxBar) * 100)}%`,
-                      background: item.color,
-                    }}
-                  />
-                </div>
-                <span className="stats-bar-count">{item.count}</span>
-              </div>
-            ))}
-          </section>
+          <div className="stats-metric">
+            <span>待办</span>
+            <strong>{stats.todo}</strong>
+          </div>
+          <div className="stats-metric">
+            <span>已完成</span>
+            <strong>{stats.done}</strong>
+          </div>
+          <div className="stats-metric">
+            <span>完成率</span>
+            <strong>{stats.rate}%</strong>
+          </div>
         </div>
 
-        <footer className="dialog-footer">
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            完成
-          </button>
-        </footer>
-      </DialogShell>
-    </div>
+        <section className="stats-section">
+          <h3 className="stats-section-title">最近 7 天完成趋势</h3>
+          <div className="stats-trend">
+            {stats.trend.map((item) => (
+              <div key={item.label} className="stats-trend-col">
+                <span className="stats-trend-count">
+                  {item.count > 0 ? item.count : ""}
+                </span>
+                <div
+                  className="stats-trend-bar"
+                  style={{
+                    height: `${Math.max(
+                      4,
+                      Math.round((item.count / maxTrend) * 64),
+                    )}px`,
+                  }}
+                />
+                <span className="stats-trend-label">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="stats-section">
+          <h3 className="stats-section-title">优先级分布</h3>
+          {stats.priorityBars.map((item) => (
+            <div key={item.label} className="stats-bar-row">
+              <span className="stats-bar-label">
+                <span
+                  className="stats-bar-dot"
+                  style={{ background: item.color }}
+                />
+                {item.label}
+              </span>
+              <div className="stats-bar-track">
+                <div
+                  className="stats-bar-fill"
+                  style={{
+                    width: `${Math.round((item.count / maxBar) * 100)}%`,
+                    background: item.color,
+                  }}
+                />
+              </div>
+              <span className="stats-bar-count">{item.count}</span>
+            </div>
+          ))}
+        </section>
+
+        <section className="stats-section">
+          <h3 className="stats-section-title">清单分布</h3>
+          {stats.listBars.map((item) => (
+            <div key={item.id} className="stats-bar-row">
+              <span className="stats-bar-label">
+                <span
+                  className="stats-bar-dot"
+                  style={{ background: item.color }}
+                />
+                {item.name}
+              </span>
+              <div className="stats-bar-track">
+                <div
+                  className="stats-bar-fill"
+                  style={{
+                    width: `${Math.round((item.count / maxBar) * 100)}%`,
+                    background: item.color,
+                  }}
+                />
+              </div>
+              <span className="stats-bar-count">{item.count}</span>
+            </div>
+          ))}
+        </section>
+      </div>
+
+      <footer className="dialog-footer">
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          完成
+        </button>
+      </footer>
+    </DialogShell>
   );
 }
 

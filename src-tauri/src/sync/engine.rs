@@ -1433,13 +1433,12 @@ pub fn resolve_conflict_with_payload(
                 ));
             }
             object_id = uuid::Uuid::new_v4().to_string();
-            let mut copy =
-                remote_payload
-                    .as_object()
-                    .cloned()
-                    .ok_or(RepositoryError::Validation(
-                        "invalid remote conflict payload",
-                    ))?;
+            let mut copy = merge_payload(&local_payload, &remote_payload)
+                .as_object()
+                .cloned()
+                .ok_or(RepositoryError::Validation(
+                    "invalid remote conflict payload",
+                ))?;
             copy.insert("id".to_owned(), Value::String(object_id.clone()));
             copy.insert("deletedAt".to_owned(), Value::Null);
             Value::Object(copy)
@@ -2310,14 +2309,59 @@ fn merged_payload(
     transaction: &rusqlite::Transaction<'_>,
     operation: &ChangeOperation,
 ) -> RepositoryResult<Value> {
-    let mut merged = current_payload(transaction, &operation.entity, &operation.object_id)
-        .unwrap_or_else(|_| json!({}));
+    let mut merged = match current_payload(transaction, &operation.entity, &operation.object_id) {
+        Ok(payload) => payload,
+        Err(RepositoryError::Database(rusqlite::Error::QueryReturnedNoRows)) => {
+            if !has_full_insert_payload(&operation.entity, &operation.payload) {
+                return Err(RepositoryError::Validation(
+                    "sync partial payload requires existing object",
+                ));
+            }
+            json!({})
+        }
+        Err(error) => return Err(error),
+    };
     let target = merged.as_object_mut().expect("sync payload object");
     for (key, value) in operation.payload.as_object().expect("validated payload") {
         target.insert(key.clone(), value.clone());
     }
     target.insert("id".to_owned(), Value::String(operation.object_id.clone()));
     Ok(merged)
+}
+
+fn has_full_insert_payload(entity: &str, payload: &Value) -> bool {
+    let Some(payload) = payload.as_object() else {
+        return false;
+    };
+    let required_fields: &[&str] = match entity {
+        "list" => &["name", "sortOrder", "isDefault", "deletedAt"],
+        "recurringRule" => &[
+            "title",
+            "priority",
+            "listId",
+            "frequency",
+            "intervalCount",
+            "weekdays",
+            "firstDueAt",
+            "timezone",
+            "generateAheadMinutes",
+            "enabled",
+            "deletedAt",
+        ],
+        "task" => &[
+            "title",
+            "status",
+            "priority",
+            "listId",
+            "sortOrder",
+            "deletedAt",
+        ],
+        "calendarEvent" => &["title", "eventType", "startDate", "endDate", "deletedAt"],
+        _ => return false,
+    };
+    required_fields
+        .iter()
+        .all(|field| payload.contains_key(*field))
 }
 
 fn apply_operation(
@@ -2631,7 +2675,9 @@ mod tests {
                     "task",
                     "remote-task",
                     json!({
-                        "id": "remote-task", "title": "不应部分导入", "listId": "remote-list"
+                        "id": "remote-task", "title": "不应部分导入", "status": "todo",
+                        "priority": 1, "listId": "remote-list", "sortOrder": 0,
+                        "deletedAt": null
                     }),
                 ),
             ],
@@ -2819,6 +2865,61 @@ mod tests {
                 .unwrap()
                 .as_deref(),
             Some(reminded_at)
+        );
+        drop(connection);
+        drop(database);
+        cleanup_database(&path);
+    }
+
+    #[test]
+    fn rejects_partial_remote_payload_without_local_base() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-sync-partial-missing-base-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let mut connection = database.connect().unwrap();
+        let batch = ChangeBatch {
+            protocol: PROTOCOL,
+            sequence: 1,
+            device_id: "remote-device".to_owned(),
+            created_at: "2026-08-21T08:31:00.000Z".to_owned(),
+            operations: vec![operation(
+                "partial-remote-task",
+                "task",
+                "remote-task",
+                json!({
+                    "id": "remote-task",
+                    "title": "只有标题的增量"
+                }),
+            )],
+        };
+
+        let error = apply_batch(&mut connection, &batch).unwrap_err();
+
+        assert!(matches!(
+            error,
+            RepositoryError::Validation("sync partial payload requires existing object")
+        ));
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM tasks WHERE id = 'remote-task'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM sync_changes WHERE id = 'partial-remote-task'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
         );
         drop(connection);
         drop(database);
