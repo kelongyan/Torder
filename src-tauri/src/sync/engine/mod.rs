@@ -81,14 +81,8 @@ pub async fn inspect_remote(
                 encryption_key_id,
             })
         }
-        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::NOT_FOUND => {
-            Ok(SyncRemoteInspection {
-                initialized: false,
-                requires_confirmation: true,
-                unknown_entries: Vec::new(),
-                encryption_enabled: false,
-                encryption_key_id: None,
-            })
+        Err(WebDavError::Http(status)) if missing_remote_collection(status) => {
+            Ok(uninitialized_remote_inspection())
         }
         Err(WebDavError::Http(status))
             if status == reqwest::StatusCode::METHOD_NOT_ALLOWED
@@ -113,6 +107,20 @@ pub async fn inspect_remote(
             })
         }
         Err(error) => Err(RepositoryError::Tauri(error.to_string())),
+    }
+}
+
+fn missing_remote_collection(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::NOT_FOUND || status == reqwest::StatusCode::CONFLICT
+}
+
+fn uninitialized_remote_inspection() -> SyncRemoteInspection {
+    SyncRemoteInspection {
+        initialized: false,
+        requires_confirmation: true,
+        unknown_entries: Vec::new(),
+        encryption_enabled: false,
+        encryption_key_id: None,
     }
 }
 
@@ -347,7 +355,7 @@ async fn read_remote_manifest(
             validate_manifest(&manifest)?;
             Ok(Some(manifest))
         }
-        Err(WebDavError::Http(reqwest::StatusCode::NOT_FOUND)) => Ok(None),
+        Err(WebDavError::Http(status)) if missing_remote_collection(status) => Ok(None),
         Err(error) => Err(RepositoryError::Tauri(error.to_string())),
     }
 }
@@ -584,12 +592,7 @@ async fn run_with_client_once(
     initial_mode: InitialSyncMode,
 ) -> RepositoryResult<()> {
     let root = validated_remote_root(remote_path)?;
-    for path in [
-        root.to_owned(),
-        format!("{root}/changes"),
-        format!("{root}/snapshots"),
-        format!("{root}/locks"),
-    ] {
+    for path in remote_collection_paths(&root) {
         match client.mkcol(&path).await {
             Ok(()) | Err(WebDavError::Http(reqwest::StatusCode::METHOD_NOT_ALLOWED)) => {}
             Err(WebDavError::Http(reqwest::StatusCode::CONFLICT)) => {}
@@ -1030,6 +1033,24 @@ fn validated_remote_root(remote_path: &str) -> RepositoryResult<String> {
     Ok(root.to_owned())
 }
 
+fn remote_collection_paths(root: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut current = String::new();
+    for segment in root.split('/') {
+        if !current.is_empty() {
+            current.push('/');
+        }
+        current.push_str(segment);
+        paths.push(current.clone());
+    }
+    paths.extend([
+        format!("{root}/changes"),
+        format!("{root}/snapshots"),
+        format!("{root}/locks"),
+    ]);
+    paths
+}
+
 pub fn confirmation_key(server_url: &str, remote_path: &str) -> String {
     format!(
         "{}|{}",
@@ -1049,7 +1070,7 @@ async fn load_or_create_manifest(
                 .map_err(|_| RepositoryError::Validation("invalid remote manifest"))?;
             Ok((manifest, etag))
         }
-        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::NOT_FOUND => {
+        Err(WebDavError::Http(status)) if missing_remote_collection(status) => {
             let candidate = Manifest {
                 protocol: PROTOCOL,
                 collection_id: uuid::Uuid::new_v4().to_string(),
@@ -1331,6 +1352,38 @@ mod tests {
     fn keyring_test_guard() -> MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    #[test]
+    fn missing_webdav_collections_are_uninitialized() {
+        assert!(missing_remote_collection(reqwest::StatusCode::NOT_FOUND));
+        assert!(missing_remote_collection(reqwest::StatusCode::CONFLICT));
+        assert!(!missing_remote_collection(
+            reqwest::StatusCode::UNAUTHORIZED
+        ));
+    }
+
+    #[test]
+    fn remote_collection_paths_create_nested_parents_first() {
+        assert_eq!(
+            remote_collection_paths("Torder/mobile"),
+            vec![
+                "Torder",
+                "Torder/mobile",
+                "Torder/mobile/changes",
+                "Torder/mobile/snapshots",
+                "Torder/mobile/locks",
+            ]
+        );
+        assert_eq!(
+            remote_collection_paths(".torder"),
+            vec![
+                ".torder",
+                ".torder/changes",
+                ".torder/snapshots",
+                ".torder/locks",
+            ]
+        );
     }
 
     #[test]
