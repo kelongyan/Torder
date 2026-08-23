@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Cloud, RefreshCw } from "lucide-react";
+import { Cloud, RefreshCw, ShieldCheck } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import {
   cleanupSyncHistory,
@@ -715,76 +715,91 @@ export function SettingsSyncSection({
                     </label>
                   </>
                 )}
-                <label className="settings-toggle form-grid-full">
-                  <input
-                    type="checkbox"
-                    checked={
-                      syncEncryptionEnabled ||
-                      syncInspection?.encryptionEnabled === true
-                    }
-                    disabled={
-                      syncStatus?.configured === true ||
-                      syncInspection?.encryptionEnabled === true
-                    }
-                    onChange={(event) =>
-                      setSyncEncryptionEnabled(event.target.checked)
-                    }
-                  />
-                  <span>端到端加密</span>
-                </label>
-                {(syncEncryptionEnabled ||
-                  syncInspection?.encryptionEnabled === true) && (
-                  <>
-                    <label className="form-field form-grid-full">
+                <div className="sync-encryption-card form-grid-full">
+                  <div className="sync-encryption-head">
+                    <span className="sync-encryption-icon">
+                      <ShieldCheck aria-hidden="true" className="icon-sm" />
+                    </span>
+                    <span className="sync-encryption-copy">
+                      <strong>端到端加密</strong>
                       <span>
-                        {syncStatus?.encryptionKeyAvailable
-                          ? "更新加密密码（可选）"
-                          : "加密密码"}
+                        {syncInspection?.encryptionEnabled === true
+                          ? "远端已启用，需使用加密密码"
+                          : "开启后同步数据会加密保存"}
                       </span>
+                    </span>
+                    <label className="settings-toggle sync-encryption-toggle">
                       <input
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        value={syncEncryptionPassword}
+                        type="checkbox"
+                        aria-label="端到端加密"
+                        checked={
+                          syncEncryptionEnabled ||
+                          syncInspection?.encryptionEnabled === true
+                        }
+                        disabled={
+                          syncStatus?.configured === true ||
+                          syncInspection?.encryptionEnabled === true
+                        }
                         onChange={(event) =>
-                          setSyncEncryptionPassword(event.target.value)
+                          setSyncEncryptionEnabled(event.target.checked)
                         }
                       />
                     </label>
-                    <label className="form-field form-grid-full">
-                      <span>确认密码</span>
-                      <input
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        value={syncEncryptionPasswordConfirm}
-                        onChange={(event) =>
-                          setSyncEncryptionPasswordConfirm(event.target.value)
-                        }
-                      />
-                    </label>
-                    <p className="settings-section-hint form-grid-full">
-                      密码不会上传。
-                    </p>
-                  </>
-                )}
+                  </div>
+                  {(syncEncryptionEnabled ||
+                    syncInspection?.encryptionEnabled === true) && (
+                    <div className="sync-encryption-fields">
+                      <label className="form-field">
+                        <span>
+                          {syncStatus?.encryptionKeyAvailable
+                            ? "更新加密密码（可选）"
+                            : "加密密码"}
+                        </span>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          minLength={8}
+                          value={syncEncryptionPassword}
+                          onChange={(event) =>
+                            setSyncEncryptionPassword(event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="form-field">
+                        <span>确认密码</span>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          minLength={8}
+                          value={syncEncryptionPasswordConfirm}
+                          onChange={(event) =>
+                            setSyncEncryptionPasswordConfirm(event.target.value)
+                          }
+                        />
+                      </label>
+                      <p>密码只保存在本机，不会上传。</p>
+                    </div>
+                  )}
+                </div>
               </>
             )}
             {syncInspection &&
               (syncStatus?.configured || syncSetupStep === 3) && (
                 <div className="sync-inspection form-grid-full" role="status">
-                  <strong>
-                    {syncInspection.initialized
-                      ? "已发现同步集合"
-                      : "将新建同步集合"}
-                  </strong>
-                  {syncInspection.unknownEntries.length > 0 && (
-                    <span>
-                      未知项目：{syncInspection.unknownEntries.join("、")}
-                    </span>
-                  )}
+                  <span className="sync-inspection-copy">
+                    <strong>
+                      {syncInspection.initialized
+                        ? "已发现同步集合"
+                        : "将新建同步集合"}
+                    </strong>
+                    {syncInspection.unknownEntries.length > 0 && (
+                      <span>
+                        未知项目：{syncInspection.unknownEntries.join("、")}
+                      </span>
+                    )}
+                  </span>
                   {syncInspection.requiresConfirmation && (
-                    <label className="settings-toggle">
+                    <label className="sync-confirm-row">
                       <input
                         type="checkbox"
                         checked={syncRemoteConfirmed}
@@ -792,7 +807,10 @@ export function SettingsSyncSection({
                           setSyncRemoteConfirmed(event.target.checked)
                         }
                       />
-                      <span>确认服务器和目录</span>
+                      <span>
+                        <strong>确认服务器和目录</strong>
+                        <small>将使用当前目录作为同步集合。</small>
+                      </span>
                     </label>
                   )}
                 </div>
