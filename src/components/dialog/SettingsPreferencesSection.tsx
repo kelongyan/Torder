@@ -1,4 +1,4 @@
-import { Clock, ListTodo, Settings2, Trash2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { reminderOptions } from "../../constants/reminderConfig";
 import { taskViewCopy } from "../../constants/taskViews";
 import { cleanupTrash } from "../../services/taskService";
@@ -159,18 +159,6 @@ export function SettingsPreferencesSection({
           />
         </label>
       </div>
-      <p className="settings-section-hint">
-        <Clock aria-hidden="true" className="icon-xs" />
-        启动时会按回收站清理规则自动处理过期任务。
-      </p>
-      <p className="settings-section-hint">
-        <ListTodo aria-hidden="true" className="icon-xs" />
-        在清单内新建任务时优先使用当前清单。
-      </p>
-      <p className="settings-section-hint">
-        <Trash2 aria-hidden="true" className="icon-xs" />
-        永久删除会从应用视图隐藏，并保留同步所需的删除记录。
-      </p>
     </section>
   );
 }
