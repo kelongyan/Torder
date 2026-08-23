@@ -18,11 +18,16 @@ export function TaskListView({
   onToggle,
   onDelete,
   onRestore,
+  onPermanentDelete,
   onToggleBatchSelected,
   onBatchComplete,
   onBatchDelete,
+  onBatchRestore,
+  onBatchPermanentDelete,
   onBatchEdit,
   onExitBatch,
+  onEmptyTrash,
+  onReorder,
 }: {
   tasks: Task[];
   lists: TaskList[];
@@ -36,13 +41,19 @@ export function TaskListView({
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
   onRestore: (task: Task) => void;
+  onPermanentDelete: (task: Task) => void;
   onToggleBatchSelected: (id: string) => void;
   onBatchComplete: () => void;
   onBatchDelete: () => void;
+  onBatchRestore: () => void;
+  onBatchPermanentDelete: () => void;
   onBatchEdit: () => void;
   onExitBatch: () => void;
+  onEmptyTrash: () => void;
+  onReorder: (sourceId: string, targetId: string) => void;
 }) {
   const deletedView = scope.kind === "view" && scope.view === "deleted";
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const animatedTasks = useAnimatedTasks(tasks);
   const activeTasks = animatedTasks.filter(
     (item) => item.task.status !== "done",
@@ -75,33 +86,56 @@ export function TaskListView({
 
   return (
     <div className={`list-container ${batchMode ? "batching" : ""}`}>
-      {batchMode && !deletedView && (
+      {batchMode && (
         <div className="batch-bar">
           <span>已选 {batchSelectedIds.length} 项</span>
-          <button
-            type="button"
-            onClick={onBatchComplete}
-            disabled={batchSelectedIds.length === 0}
-          >
-            <Check aria-hidden="true" className="icon-sm" />
-            完成
-          </button>
-          <button
-            type="button"
-            onClick={onBatchEdit}
-            disabled={batchSelectedIds.length === 0}
-          >
-            <Pencil aria-hidden="true" className="icon-sm" />
-            编辑
-          </button>
-          <button
-            type="button"
-            onClick={onBatchDelete}
-            disabled={batchSelectedIds.length === 0}
-          >
-            <Trash2 aria-hidden="true" className="icon-sm" />
-            删除
-          </button>
+          {deletedView ? (
+            <>
+              <button
+                type="button"
+                onClick={onBatchRestore}
+                disabled={batchSelectedIds.length === 0}
+              >
+                <Check aria-hidden="true" className="icon-sm" />
+                恢复
+              </button>
+              <button
+                type="button"
+                onClick={onBatchPermanentDelete}
+                disabled={batchSelectedIds.length === 0}
+              >
+                <Trash2 aria-hidden="true" className="icon-sm" />
+                永久删除
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onBatchComplete}
+                disabled={batchSelectedIds.length === 0}
+              >
+                <Check aria-hidden="true" className="icon-sm" />
+                完成
+              </button>
+              <button
+                type="button"
+                onClick={onBatchEdit}
+                disabled={batchSelectedIds.length === 0}
+              >
+                <Pencil aria-hidden="true" className="icon-sm" />
+                编辑
+              </button>
+              <button
+                type="button"
+                onClick={onBatchDelete}
+                disabled={batchSelectedIds.length === 0}
+              >
+                <Trash2 aria-hidden="true" className="icon-sm" />
+                删除
+              </button>
+            </>
+          )}
           <button type="button" onClick={onExitBatch}>
             退出
           </button>
@@ -109,7 +143,13 @@ export function TaskListView({
       )}
       {deletedView ? (
         <>
-          <SectionHeader label={`回收站 · ${animatedTasks.length}`} />
+          <div className="trash-toolbar">
+            <SectionHeader label={`回收站 · ${animatedTasks.length}`} />
+            <button type="button" className="btn-danger" onClick={onEmptyTrash}>
+              <Trash2 aria-hidden="true" className="icon-sm" />
+              清空回收站
+            </button>
+          </div>
           {animatedTasks.map((item, index) => (
             <TaskRow
               key={item.task.id}
@@ -127,6 +167,7 @@ export function TaskListView({
               onToggle={onToggle}
               onDelete={onDelete}
               onRestore={onRestore}
+              onPermanentDelete={onPermanentDelete}
               onToggleBatchSelected={onToggleBatchSelected}
             />
           ))}
@@ -155,7 +196,17 @@ export function TaskListView({
                   onToggle={onToggle}
                   onDelete={onDelete}
                   onRestore={onRestore}
+                  onPermanentDelete={onPermanentDelete}
                   onToggleBatchSelected={onToggleBatchSelected}
+                  draggable={!batchMode && !item.leaving}
+                  dragging={draggingId === item.task.id}
+                  onDragStart={(task) => setDraggingId(task.id)}
+                  onDragOver={() => undefined}
+                  onDrop={(task) => {
+                    if (draggingId) onReorder(draggingId, task.id);
+                    setDraggingId(null);
+                  }}
+                  onDragEnd={() => setDraggingId(null)}
                 />
               ))}
             </>
@@ -179,7 +230,17 @@ export function TaskListView({
                   onToggle={onToggle}
                   onDelete={onDelete}
                   onRestore={onRestore}
+                  onPermanentDelete={onPermanentDelete}
                   onToggleBatchSelected={onToggleBatchSelected}
+                  draggable={!batchMode && !item.leaving}
+                  dragging={draggingId === item.task.id}
+                  onDragStart={(task) => setDraggingId(task.id)}
+                  onDragOver={() => undefined}
+                  onDrop={(task) => {
+                    if (draggingId) onReorder(draggingId, task.id);
+                    setDraggingId(null);
+                  }}
+                  onDragEnd={() => setDraggingId(null)}
                 />
               ))}
             </>

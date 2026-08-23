@@ -95,6 +95,11 @@
   border-color: var(--accent-border);
 }
 
+.month-cell:has(.month-task[draggable="true"]:active) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+}
+
 .month-cell.is-outside {
   background: transparent;
   opacity: 0.55;
@@ -196,6 +201,10 @@
 
 .month-task:hover {
   background: var(--bg-hover);
+}
+
+.month-task[draggable="true"] {
+  cursor: grab;
 }
 
 .month-task-dot {

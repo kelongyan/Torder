@@ -20,7 +20,14 @@ export function TaskRow({
   onToggle,
   onDelete,
   onRestore,
+  onPermanentDelete,
   onToggleBatchSelected,
+  draggable = false,
+  dragging = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   task: Task;
   lists: TaskList[];
@@ -37,7 +44,14 @@ export function TaskRow({
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
   onRestore?: (task: Task) => void;
+  onPermanentDelete?: (task: Task) => void;
   onToggleBatchSelected: (id: string) => void;
+  draggable?: boolean;
+  dragging?: boolean;
+  onDragStart?: (task: Task) => void;
+  onDragOver?: (task: Task) => void;
+  onDrop?: (task: Task) => void;
+  onDragEnd?: () => void;
 }) {
   const completed = task.status === "done";
   const list = lists.find((item) => item.id === task.listId) ?? null;
@@ -51,8 +65,21 @@ export function TaskRow({
     <article
       className={`task-item ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
         leaving ? "is-leaving" : ""
-      } ${deleted ? "deleted" : ""}`}
+      } ${deleted ? "deleted" : ""} ${dragging ? "is-dragging" : ""}`}
       style={{ "--item-index": motionIndex } as CSSProperties}
+      draggable={draggable}
+      onDragStart={() => onDragStart?.(task)}
+      onDragEnd={onDragEnd}
+      onDragOver={(event) => {
+        if (!draggable) return;
+        event.preventDefault();
+        onDragOver?.(task);
+      }}
+      onDrop={(event) => {
+        if (!draggable) return;
+        event.preventDefault();
+        onDrop?.(task);
+      }}
       onClick={handleRowClick}
     >
       {!batchMode && (
@@ -107,17 +134,30 @@ export function TaskRow({
       {!batchMode && (
         <div className="task-actions">
           {deleted ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onRestore?.(task);
-              }}
-              aria-label="恢复任务"
-              title="恢复到原清单"
-            >
-              <RotateCcw aria-hidden="true" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRestore?.(task);
+                }}
+                aria-label="恢复任务"
+                title="恢复到原清单"
+              >
+                <RotateCcw aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPermanentDelete?.(task);
+                }}
+                aria-label="永久删除任务"
+                title="永久删除"
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+            </>
           ) : (
             <>
               <button

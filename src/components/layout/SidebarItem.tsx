@@ -9,6 +9,8 @@ export function SidebarItem({
   onClick,
   onEdit,
   onDelete,
+  editLabel = "编辑清单",
+  deleteLabel = "删除清单",
 }: {
   icon?: LucideIcon;
   color?: string;
@@ -19,6 +21,8 @@ export function SidebarItem({
   onClick: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  editLabel?: string;
+  deleteLabel?: string;
 }) {
   const hasActions = Boolean(onEdit || onDelete);
 
@@ -55,8 +59,8 @@ export function SidebarItem({
                   e.stopPropagation();
                   onEdit();
                 }}
-                title="编辑清单"
-                aria-label="编辑清单"
+                title={editLabel}
+                aria-label={editLabel}
               >
                 <Pencil className="icon-xs" />
               </button>
@@ -69,8 +73,8 @@ export function SidebarItem({
                   e.stopPropagation();
                   onDelete();
                 }}
-                title="删除清单"
-                aria-label="删除清单"
+                title={deleteLabel}
+                aria-label={deleteLabel}
               >
                 <Trash2 className="icon-xs" />
               </button>

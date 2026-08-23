@@ -1,22 +1,47 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
 use serde_json::json;
 use tauri::{AppHandle, Manager};
+use uuid::Uuid;
 
 use crate::db::list_repository::ListRepository;
 use crate::db::migrations::CURRENT_SCHEMA_VERSION;
 use crate::db::recurring_repository::RecurringRuleRepository;
 use crate::db::settings_repository::SettingsRepository;
+use crate::db::sync_repository;
 use crate::db::task_repository::TaskRepository;
 use crate::db::Database;
 use crate::error::{RepositoryError, RepositoryResult};
-use crate::models::{RecurringRule, Task, TaskList};
+use crate::models::{
+    CreateListInput, CreateRecurringRuleInput, CreateTaskInput, RecurringRule, Task, TaskList,
+    UpdateTaskInput,
+};
 
 const BACKUP_DIR_NAME: &str = "backups";
 const DB_FILE_NAME: &str = "torder.sqlite";
 const BACKUP_RETENTION_DEFAULT: i64 = 20;
 const BACKUP_RETENTION_KEY: &str = "backupRetentionCount";
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupImportPreview {
+    pub path: String,
+    pub name: String,
+    pub list_count: usize,
+    pub task_count: usize,
+    pub recurring_rule_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupImportResult {
+    pub imported_lists: usize,
+    pub imported_tasks: usize,
+    pub imported_recurring_rules: usize,
+    pub skipped_lists: usize,
+}
 
 pub fn backup_database(app: &AppHandle, database: &Database) -> RepositoryResult<String> {
     let data_dir = app.path().app_data_dir()?;
@@ -82,7 +107,11 @@ fn prune_backup_files(backup_dir: &Path, retention: i64) -> RepositoryResult<()>
     Ok(())
 }
 
-pub fn export_tasks(app: &AppHandle, database: &Database, format: &str) -> RepositoryResult<String> {
+pub fn export_tasks(
+    app: &AppHandle,
+    database: &Database,
+    format: &str,
+) -> RepositoryResult<String> {
     let data_dir = app.path().app_data_dir()?;
     let export_dir = data_dir.join("exports");
     fs::create_dir_all(&export_dir)?;
@@ -158,6 +187,69 @@ pub fn restore_backup(app: &AppHandle, path: &str) -> RepositoryResult<()> {
     Ok(())
 }
 
+pub fn preview_backup_import(app: &AppHandle, path: &str) -> RepositoryResult<BackupImportPreview> {
+    let data_dir = app.path().app_data_dir()?;
+    let backup_dir = data_dir.join(BACKUP_DIR_NAME);
+    fs::create_dir_all(&backup_dir)?;
+    let source = resolve_backup_path(&backup_dir, path)?;
+    verify_restorable_database(&source)?;
+    let name = source
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("backup.sqlite")
+        .to_owned();
+
+    with_prepared_backup_database(app, &source, |backup_database| {
+        let lists = ListRepository::new(backup_database).list()?;
+        let tasks = TaskRepository::new(backup_database)
+            .export_all()?
+            .into_iter()
+            .filter(|task| task.deleted_at.is_none())
+            .count();
+        let recurring_rules = RecurringRuleRepository::new(backup_database)
+            .export_all()?
+            .into_iter()
+            .filter(|rule| rule.deleted_at.is_none())
+            .count();
+        Ok(BackupImportPreview {
+            path: source.display().to_string(),
+            name,
+            list_count: lists.len(),
+            task_count: tasks,
+            recurring_rule_count: recurring_rules,
+        })
+    })
+}
+
+pub fn import_backup_selection(
+    app: &AppHandle,
+    database: &Database,
+    path: &str,
+    include_lists: bool,
+    include_tasks: bool,
+    include_recurring_rules: bool,
+) -> RepositoryResult<BackupImportResult> {
+    if !include_lists && !include_tasks && !include_recurring_rules {
+        return Err(RepositoryError::Validation("nothing selected to import"));
+    }
+
+    let data_dir = app.path().app_data_dir()?;
+    let backup_dir = data_dir.join(BACKUP_DIR_NAME);
+    fs::create_dir_all(&backup_dir)?;
+    let source = resolve_backup_path(&backup_dir, path)?;
+    verify_restorable_database(&source)?;
+
+    with_prepared_backup_database(app, &source, |backup_database| {
+        import_from_prepared_backup(
+            database,
+            backup_database,
+            include_lists,
+            include_tasks,
+            include_recurring_rules,
+        )
+    })
+}
+
 fn snapshot_current_database(db_path: &Path, snapshot_path: &Path) -> RepositoryResult<()> {
     let connection = rusqlite::Connection::open(db_path)?;
     vacuum_into(&connection, snapshot_path)
@@ -183,6 +275,195 @@ fn finalize_restored_database(db_path: &Path) -> RepositoryResult<()> {
             "restored backup could not be migrated",
         ));
     }
+    Ok(())
+}
+
+fn with_prepared_backup_database<T>(
+    app: &AppHandle,
+    source: &Path,
+    reader: impl FnOnce(&Database) -> RepositoryResult<T>,
+) -> RepositoryResult<T> {
+    let import_dir = app.path().app_data_dir()?.join("import-work");
+    fs::create_dir_all(&import_dir)?;
+    let temp_path = import_dir.join(format!("backup-import-{}.sqlite", Uuid::new_v4()));
+    fs::copy(source, &temp_path)?;
+
+    let result = (|| {
+        let backup_database = Database::initialize(temp_path.clone())?;
+        reader(&backup_database)
+    })();
+
+    remove_database_sidecars(&temp_path);
+    let _ = fs::remove_file(&temp_path);
+    result
+}
+
+fn import_from_prepared_backup(
+    database: &Database,
+    backup_database: &Database,
+    include_lists: bool,
+    include_tasks: bool,
+    include_recurring_rules: bool,
+) -> RepositoryResult<BackupImportResult> {
+    let backup_lists = ListRepository::new(backup_database).list()?;
+    let current_lists = ListRepository::new(database).list()?;
+    let mut list_id_map = std::collections::HashMap::<String, String>::new();
+    let mut imported_lists = 0_usize;
+    let mut skipped_lists = 0_usize;
+
+    for current in &current_lists {
+        list_id_map.insert(current.id.clone(), current.id.clone());
+    }
+
+    for backup_list in &backup_lists {
+        if let Some(current) = current_lists
+            .iter()
+            .find(|list| same_name(&list.name, &backup_list.name))
+        {
+            list_id_map.insert(backup_list.id.clone(), current.id.clone());
+            if backup_list.id != current.id {
+                skipped_lists += 1;
+            }
+            continue;
+        }
+
+        if include_lists && !backup_list.is_default {
+            let created = ListRepository::new(database).create(CreateListInput {
+                name: backup_list.name.clone(),
+                color: backup_list.color.clone(),
+                sort_order: Some(backup_list.sort_order),
+            })?;
+            list_id_map.insert(backup_list.id.clone(), created.id);
+            imported_lists += 1;
+        }
+    }
+
+    let mut imported_tasks = 0_usize;
+    if include_tasks {
+        for task in TaskRepository::new(backup_database)
+            .export_all()?
+            .into_iter()
+            .filter(|task| task.deleted_at.is_none())
+        {
+            let list_id = mapped_list_id(&task.list_id, &list_id_map);
+            let created = TaskRepository::new(database).create(CreateTaskInput {
+                title: task.title.clone(),
+                note: task.note.clone(),
+                priority: Some(task.priority),
+                list_id: Some(list_id),
+                due_at: task.due_at.clone(),
+                sort_order: Some(task.sort_order),
+                remind_before: task.remind_before,
+                repeat_rule: task.repeat_rule.clone(),
+                subtasks: Some(task.subtasks.clone()),
+                tags: Some(task.tags.clone()),
+            })?;
+            if task.status != "todo" {
+                let _ = TaskRepository::new(database).update(UpdateTaskInput {
+                    id: created.id,
+                    title: created.title,
+                    note: created.note,
+                    status: task.status,
+                    priority: created.priority,
+                    list_id: created.list_id,
+                    due_at: created.due_at,
+                    sort_order: created.sort_order,
+                    remind_before: created.remind_before,
+                    repeat_rule: created.repeat_rule,
+                    subtasks: created.subtasks,
+                    tags: created.tags,
+                })?;
+            }
+            imported_tasks += 1;
+        }
+    }
+
+    let mut imported_recurring_rules = 0_usize;
+    if include_recurring_rules {
+        for rule in RecurringRuleRepository::new(backup_database)
+            .export_all()?
+            .into_iter()
+            .filter(|rule| rule.deleted_at.is_none())
+        {
+            let created =
+                RecurringRuleRepository::new(database).create(CreateRecurringRuleInput {
+                    source_task_id: None,
+                    title: rule.title.clone(),
+                    note: rule.note.clone(),
+                    priority: rule.priority,
+                    list_id: mapped_list_id(&rule.list_id, &list_id_map),
+                    frequency: rule.frequency.clone(),
+                    interval_count: rule.interval_count,
+                    weekdays: rule.weekdays.clone(),
+                    month_day: rule.month_day,
+                    first_due_at: rule.first_due_at.clone(),
+                    timezone: rule.timezone.clone(),
+                    generate_ahead_minutes: rule.generate_ahead_minutes,
+                    remind_before: rule.remind_before,
+                    end_at: rule.end_at.clone(),
+                })?;
+            set_imported_recurring_state(
+                database,
+                &created.id,
+                rule.next_due_at.as_deref(),
+                rule.enabled,
+            )?;
+            imported_recurring_rules += 1;
+        }
+    }
+
+    Ok(BackupImportResult {
+        imported_lists,
+        imported_tasks,
+        imported_recurring_rules,
+        skipped_lists,
+    })
+}
+
+fn same_name(left: &str, right: &str) -> bool {
+    left.trim().to_lowercase() == right.trim().to_lowercase()
+}
+
+fn mapped_list_id(
+    original_id: &str,
+    list_id_map: &std::collections::HashMap<String, String>,
+) -> String {
+    list_id_map
+        .get(original_id)
+        .cloned()
+        .unwrap_or_else(|| "work".to_owned())
+}
+
+fn set_imported_recurring_state(
+    database: &Database,
+    id: &str,
+    next_due_at: Option<&str>,
+    enabled: bool,
+) -> RepositoryResult<()> {
+    let mut connection = database.connect()?;
+    let transaction = connection.transaction()?;
+    transaction.execute(
+        r#"
+        UPDATE recurring_rules
+        SET next_due_at = ?2,
+            enabled = ?3,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = ?1 AND deleted_at IS NULL
+        "#,
+        rusqlite::params![id, next_due_at, if enabled { 1 } else { 0 }],
+    )?;
+    sync_repository::record_change(
+        &transaction,
+        "recurringRule",
+        id,
+        "upsert",
+        json!({
+            "id": id,
+            "nextDueAt": next_due_at,
+            "enabled": enabled,
+        }),
+    )?;
+    transaction.commit()?;
     Ok(())
 }
 
@@ -430,6 +711,92 @@ mod tests {
         assert_eq!(parse_retention(Some("0".to_owned())), 20);
         assert_eq!(parse_retention(Some("5".to_owned())), 5);
         assert_eq!(parse_retention(Some(" 12 ".to_owned())), 12);
+    }
+
+    #[test]
+    fn import_from_prepared_backup_merges_selected_objects() {
+        let dir = std::env::temp_dir().join(format!("torder-import-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let current = Database::initialize(dir.join("current.sqlite")).unwrap();
+        let backup = Database::initialize(dir.join("backup.sqlite")).unwrap();
+        let backup_list = ListRepository::new(&backup)
+            .create(CreateListInput {
+                name: "旧项目".to_owned(),
+                color: Some("#336699".to_owned()),
+                sort_order: Some(8),
+            })
+            .unwrap();
+        TaskRepository::new(&backup)
+            .create(CreateTaskInput {
+                title: "迁移任务".to_owned(),
+                note: Some("来自旧备份".to_owned()),
+                priority: Some(2),
+                list_id: Some(backup_list.id.clone()),
+                due_at: Some("2030-01-01T09:00:00Z".to_owned()),
+                sort_order: Some(3),
+                remind_before: Some(30),
+                repeat_rule: None,
+                subtasks: Some(vec![crate::models::TaskSubtask {
+                    id: "legacy-subtask".to_owned(),
+                    title: "检查导入".to_owned(),
+                    completed: false,
+                    created_at: "2026-01-01T00:00:00Z".to_owned(),
+                    completed_at: None,
+                    sort_order: 0,
+                }]),
+                tags: Some(vec!["迁移".to_owned()]),
+            })
+            .unwrap();
+        RecurringRuleRepository::new(&backup)
+            .create(CreateRecurringRuleInput {
+                source_task_id: None,
+                title: "旧循环".to_owned(),
+                note: None,
+                priority: 1,
+                list_id: backup_list.id,
+                frequency: "daily".to_owned(),
+                interval_count: 1,
+                weekdays: vec![],
+                month_day: None,
+                first_due_at: "2030-01-02T09:00:00Z".to_owned(),
+                timezone: "UTC".to_owned(),
+                generate_ahead_minutes: 0,
+                remind_before: None,
+                end_at: None,
+            })
+            .unwrap();
+
+        let result = import_from_prepared_backup(&current, &backup, true, true, true).unwrap();
+
+        assert_eq!(result.imported_lists, 1);
+        assert_eq!(result.imported_tasks, 1);
+        assert_eq!(result.imported_recurring_rules, 1);
+        let current_lists = ListRepository::new(&current).list().unwrap();
+        let imported_list = current_lists
+            .iter()
+            .find(|list| list.name == "旧项目")
+            .unwrap();
+        let imported_tasks = TaskRepository::new(&current).export_all().unwrap();
+        let imported_task = imported_tasks
+            .iter()
+            .find(|task| task.title == "迁移任务")
+            .unwrap();
+        assert_eq!(imported_task.list_id, imported_list.id);
+        assert_eq!(imported_task.tags, vec!["迁移"]);
+        assert_eq!(imported_task.subtasks[0].title, "检查导入");
+        let imported_rules = RecurringRuleRepository::new(&current).list().unwrap();
+        let imported_rule = imported_rules
+            .iter()
+            .find(|rule| rule.title == "旧循环")
+            .unwrap();
+        assert_eq!(imported_rule.list_id, imported_list.id);
+
+        drop(imported_rules);
+        drop(imported_tasks);
+        drop(current_lists);
+        drop(current);
+        drop(backup);
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

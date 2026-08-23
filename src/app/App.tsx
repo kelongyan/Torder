@@ -20,6 +20,7 @@ import type {
 import {
   defaultAppSettings,
   type AppSettings,
+  type SavedTaskView,
   type ThemePreference,
 } from "../types/settings";
 import type { ConfirmState } from "../types/ui";
@@ -52,12 +53,14 @@ import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
 import { WindowTitleBar } from "../components/layout/WindowTitleBar";
+import { SavedViewDialog } from "../components/dialog/SavedViewDialog";
 
 import { useAppInit } from "../hooks/useAppInit";
 import { useAppDataLoaders } from "../hooks/useAppDataLoaders";
 import { useDialogManager } from "../hooks/useDialogManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useTaskReminder } from "../hooks/useTaskReminder";
+import { usePresence } from "../hooks/usePresence";
 import { useSyncLifecycle } from "../hooks/useSyncLifecycle";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
@@ -70,6 +73,7 @@ import {
   skipNextRecurringOccurrence,
   updateRecurringRule,
 } from "../services/recurringService";
+import { snoozeTaskReminder } from "../services/taskService";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -100,6 +104,10 @@ function App() {
   const [syncWifiOnly, setSyncWifiOnly] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [recurringViewActive, setRecurringViewActive] = useState(false);
+  const [savedViewDialogOpen, setSavedViewDialogOpen] = useState(false);
+  const [editingSavedView, setEditingSavedView] =
+    useState<SavedTaskView | null>(null);
+  const savedViewPresence = usePresence(savedViewDialogOpen, 280);
 
   const dialog = useDialogManager();
   const {
@@ -209,14 +217,21 @@ function App() {
     setSearchQuery,
     setSortBy,
     setShowCompleted,
+    applyViewState,
     addTask,
     saveTask,
     toggleTask,
     removeTask,
     restoreTask,
+    permanentDeleteTask,
+    emptyTrash,
     batchComplete,
     batchDelete,
+    batchRestore,
+    batchPermanentDelete,
     batchUpdate,
+    reorderTasks,
+    patchTask,
     selectTask,
     toggleBatchMode,
     toggleBatchSelected,
@@ -240,10 +255,25 @@ function App() {
     () => buildCounts(allTasks, lists, showCompleted),
     [allTasks, lists, showCompleted],
   );
-  const defaultListId = useMemo(
-    () => pickDefaultListId(scope, lists),
-    [lists, scope],
+  const activeSavedViewId = useMemo(
+    () =>
+      settings.savedViews.find(
+        (view) =>
+          sameScope(view.scope, scope) &&
+          view.query === searchQuery &&
+          view.sortBy === sortBy &&
+          view.showCompleted === showCompleted &&
+          view.layout === layout,
+      )?.id ?? null,
+    [layout, scope, searchQuery, settings.savedViews, showCompleted, sortBy],
   );
+  const defaultListId = useMemo(() => {
+    if (scope.kind === "list") return scope.listId;
+    if (lists.some((list) => list.id === settings.defaultListId)) {
+      return settings.defaultListId;
+    }
+    return pickDefaultListId(scope, lists);
+  }, [lists, scope, settings.defaultListId]);
   const deletedViewActive =
     !recurringViewActive && scope.kind === "view" && scope.view === "deleted";
   const effectiveLayout = deletedViewActive ? "list" : layout;
@@ -265,10 +295,17 @@ function App() {
     selectTask(null);
     clearBatchSelection();
     void loadRecurringRules();
-  }, [clearBatchSelection, loadRecurringRules, selectTask, setMenuOpen, setMobileSidebarOpen]);
+  }, [
+    clearBatchSelection,
+    loadRecurringRules,
+    selectTask,
+    setMenuOpen,
+    setMobileSidebarOpen,
+  ]);
 
   const closeEverything = useCallback(() => {
     closeDialogs();
+    setSavedViewDialogOpen(false);
     setRecurringViewActive(false);
     selectTask(null);
     clearBatchSelection();
@@ -308,7 +345,55 @@ function App() {
     wifiOnly: syncWifiOnly,
     onStatusChange: setSyncStatus,
   });
-  useTaskReminder();
+  const handleReminder = useCallback(
+    (event: { taskId: string; title: string; dueAt: string | null }) => {
+      pushToast(`提醒：${event.title}`, "info", [
+        {
+          label: "10 分钟",
+          onClick: async () => {
+            await snoozeTaskReminder(
+              event.taskId,
+              offsetReminder(new Date(), 10),
+            );
+            await useTaskStore.getState().loadTasks();
+            pushToast("已延后 10 分钟", "success");
+          },
+        },
+        {
+          label: "1 小时",
+          onClick: async () => {
+            await snoozeTaskReminder(
+              event.taskId,
+              offsetReminder(new Date(), 60),
+            );
+            await useTaskStore.getState().loadTasks();
+            pushToast("已延后 1 小时", "success");
+          },
+        },
+        {
+          label: "明天",
+          onClick: async () => {
+            await snoozeTaskReminder(event.taskId, tomorrowReminder());
+            await useTaskStore.getState().loadTasks();
+            pushToast("已延后到明天", "success");
+          },
+        },
+        {
+          label: "完成",
+          onClick: async () => {
+            await toggleTask(event.taskId, true);
+            pushToast("任务已完成", "success");
+          },
+        },
+        {
+          label: "打开",
+          onClick: () => selectTask(event.taskId),
+        },
+      ]);
+    },
+    [pushToast, selectTask, toggleTask],
+  );
+  useTaskReminder(handleReminder);
   useKeyboardShortcuts({
     onOpenCreateDialog: openCreateDialog,
     onOpenShortcuts: () => setShortcutsOpen(true),
@@ -396,6 +481,93 @@ function App() {
     await setScope(nextScope);
   }
 
+  async function handleOpenSavedView(view: SavedTaskView) {
+    setRecurringViewActive(false);
+    setMenuOpen(false);
+    setMobileSidebarOpen(false);
+    selectTask(null);
+    await applyViewState({
+      scope: view.scope,
+      searchQuery: view.query,
+      sortBy: view.sortBy,
+      showCompleted: view.showCompleted,
+      layout: view.layout,
+    });
+  }
+
+  function openCreateSavedViewDialog() {
+    setEditingSavedView(null);
+    setSavedViewDialogOpen(true);
+  }
+
+  function openEditSavedViewDialog(view: SavedTaskView) {
+    setEditingSavedView(view);
+    setSavedViewDialogOpen(true);
+  }
+
+  async function handleSaveSavedView(view: SavedTaskView) {
+    const nextViews = editingSavedView
+      ? settings.savedViews.map((item) => (item.id === view.id ? view : item))
+      : [...settings.savedViews, view];
+    await saveAppSetting("savedViews", nextViews);
+    setSettings((current) => ({ ...current, savedViews: nextViews }));
+    setSavedViewDialogOpen(false);
+    pushToast(
+      editingSavedView ? "保存视图已更新" : "筛选视图已保存",
+      "success",
+    );
+  }
+
+  function requestDeleteSavedView(view: SavedTaskView) {
+    setConfirmState({
+      title: "删除保存视图",
+      body: `删除“${view.name}”？不会删除任何任务。`,
+      confirmText: "删除视图",
+      danger: true,
+      onConfirm: async () => {
+        const nextViews = settings.savedViews.filter(
+          (item) => item.id !== view.id,
+        );
+        await saveAppSetting("savedViews", nextViews);
+        setSettings((current) => ({ ...current, savedViews: nextViews }));
+        setConfirmState(null);
+        pushToast("保存视图已删除", "info");
+      },
+    });
+  }
+
+  async function handleReorderTask(sourceId: string, targetId: string) {
+    await reorderTasks(sourceId, targetId);
+    pushToast("手动排序已更新", "success");
+  }
+
+  async function handleBoardMove(
+    task: Task,
+    columnId: "todo" | "doing" | "done",
+  ) {
+    if (columnId === "done") {
+      await patchTask(task.id, { status: "done" });
+    } else if (columnId === "doing") {
+      await patchTask(task.id, { status: "todo", priority: 2 });
+    } else {
+      await patchTask(task.id, {
+        status: "todo",
+        priority: task.priority === 2 ? 1 : task.priority,
+      });
+    }
+    pushToast("看板状态已更新", "success");
+  }
+
+  async function handleMoveTaskDate(taskId: string, dateKey: string) {
+    const task =
+      allTasks.find((item) => item.id === taskId) ??
+      tasks.find((item) => item.id === taskId);
+    await patchTask(taskId, {
+      dueAt: mergeTaskDate(task?.dueAt ?? null, dateKey),
+    });
+    pushToast("截止日期已调整", "success");
+  }
+
   async function handleThemeToggle() {
     const nextTheme: ThemePreference =
       settings.theme === "dark" ? "light" : "dark";
@@ -451,7 +623,13 @@ function App() {
 
   async function handleToggleTask(task: Task) {
     await toggleTask(task.id, task.status !== "done");
-    pushToast(task.status === "done" ? "任务已恢复" : "任务已完成", "success");
+    pushToast(task.status === "done" ? "任务已恢复" : "任务已完成", "success", {
+      label: "撤销",
+      onClick: async () => {
+        await toggleTask(task.id, task.status === "done");
+        pushToast("已撤销", "info");
+      },
+    });
   }
 
   async function handleSaveTask(input: UpdateTaskInput) {
@@ -561,35 +739,130 @@ function App() {
       onConfirm: async () => {
         await removeTask(task.id);
         setConfirmState(null);
-        pushToast("任务已移入回收站", "info");
+        pushToast("任务已移入回收站", "info", {
+          label: "撤销",
+          onClick: async () => {
+            await restoreTask(task.id);
+            pushToast("已撤销删除", "success");
+          },
+        });
       },
     });
   }
 
   async function handleRestoreTask(task: Task) {
     await restoreTask(task.id);
-    pushToast(`已恢复"${task.title}"`, "success");
+    pushToast(`已恢复"${task.title}"`, "success", {
+      label: "撤销",
+      onClick: async () => {
+        await removeTask(task.id);
+        pushToast("已撤销恢复", "info");
+      },
+    });
+  }
+
+  function requestPermanentDeleteTask(task: Task) {
+    setConfirmState({
+      title: "永久删除任务",
+      body: `永久删除“${task.title}”？此操作不可撤销。`,
+      confirmText: "永久删除",
+      danger: true,
+      onConfirm: async () => {
+        await permanentDeleteTask(task.id);
+        setConfirmState(null);
+        pushToast("任务已永久删除", "info");
+      },
+    });
+  }
+
+  function requestEmptyTrash() {
+    if (tasks.length === 0) return;
+    setConfirmState({
+      title: "清空回收站",
+      body: `永久删除回收站内 ${tasks.length} 项任务？此操作不可撤销。`,
+      confirmText: "清空回收站",
+      danger: true,
+      onConfirm: async () => {
+        const count = await emptyTrash();
+        setConfirmState(null);
+        pushToast(`已清空 ${count} 项任务`, "info");
+      },
+    });
   }
 
   function requestBatchDelete() {
     if (batchSelectedIds.length === 0) return;
+    const selectedIds = [...batchSelectedIds];
     setConfirmState({
       title: "确认批量删除",
-      body: `删除已选 ${batchSelectedIds.length} 项？不可撤销。`,
+      body: `删除已选 ${batchSelectedIds.length} 项？可从回收站恢复。`,
       confirmText: "删除",
       danger: true,
       onConfirm: async () => {
         await batchDelete();
         setConfirmState(null);
-        pushToast("已删除选中任务", "info");
+        pushToast("已删除选中任务", "info", {
+          label: "撤销",
+          onClick: async () => {
+            for (const id of selectedIds) {
+              await useTaskStore.getState().restoreTask(id);
+            }
+            pushToast("已撤销批量删除", "success");
+          },
+        });
       },
     });
   }
 
   async function handleBatchComplete() {
     if (batchSelectedIds.length === 0) return;
+    const selectedIds = [...batchSelectedIds];
+    const lookup = new Map(
+      [...allTasks, ...tasks].map((task) => [task.id, task] as const),
+    );
+    const restoreTodoIds = selectedIds.filter(
+      (id) => lookup.get(id)?.status !== "done",
+    );
     await batchComplete();
-    pushToast("已完成选中任务", "success");
+    pushToast("已完成选中任务", "success", {
+      label: "撤销",
+      onClick: async () => {
+        for (const id of restoreTodoIds) {
+          await useTaskStore.getState().toggleTask(id, false);
+        }
+        pushToast("已撤销批量完成", "info");
+      },
+    });
+  }
+
+  async function handleBatchRestore() {
+    if (batchSelectedIds.length === 0) return;
+    const selectedIds = [...batchSelectedIds];
+    await batchRestore();
+    pushToast("已恢复选中任务", "success", {
+      label: "撤销",
+      onClick: async () => {
+        for (const id of selectedIds) {
+          await useTaskStore.getState().removeTask(id);
+        }
+        pushToast("已撤销批量恢复", "info");
+      },
+    });
+  }
+
+  function requestBatchPermanentDelete() {
+    if (batchSelectedIds.length === 0) return;
+    setConfirmState({
+      title: "永久删除选中任务",
+      body: `永久删除已选 ${batchSelectedIds.length} 项？此操作不可撤销。`,
+      confirmText: "永久删除",
+      danger: true,
+      onConfirm: async () => {
+        await batchPermanentDelete();
+        setConfirmState(null);
+        pushToast("已永久删除选中任务", "info");
+      },
+    });
   }
 
   async function handleBatchUpdate(patch: Parameters<typeof batchUpdate>[0]) {
@@ -635,8 +908,14 @@ function App() {
           scope={scope}
           searchQuery={searchQuery}
           counts={counts}
+          savedViews={settings.savedViews}
+          activeSavedViewId={activeSavedViewId}
           onSearchChange={(query) => void setSearchQuery(query)}
           onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
+          onSavedViewOpen={(view) => void handleOpenSavedView(view)}
+          onSavedViewAdd={openCreateSavedViewDialog}
+          onSavedViewEdit={openEditSavedViewDialog}
+          onSavedViewDelete={requestDeleteSavedView}
           onAddList={openAddListDialog}
           onEditList={openEditListDialog}
           onDeleteList={requestDeleteList}
@@ -721,11 +1000,18 @@ function App() {
                   onToggle={(task) => void handleToggleTask(task)}
                   onDelete={requestDeleteTask}
                   onRestore={(task) => void handleRestoreTask(task)}
+                  onPermanentDelete={requestPermanentDeleteTask}
                   onToggleBatchSelected={toggleBatchSelected}
                   onBatchComplete={() => void handleBatchComplete()}
                   onBatchDelete={requestBatchDelete}
+                  onBatchRestore={() => void handleBatchRestore()}
+                  onBatchPermanentDelete={requestBatchPermanentDelete}
                   onBatchEdit={() => setBatchEditOpen(true)}
                   onExitBatch={clearBatchSelection}
+                  onEmptyTrash={requestEmptyTrash}
+                  onReorder={(sourceId, targetId) =>
+                    void handleReorderTask(sourceId, targetId)
+                  }
                 />
               ) : effectiveLayout === "board" ? (
                 <TaskBoard
@@ -735,6 +1021,9 @@ function App() {
                   selectedTaskId={selectedTaskId}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
+                  onMove={(task, columnId) =>
+                    void handleBoardMove(task, columnId)
+                  }
                 />
               ) : effectiveLayout === "month" ? (
                 <MonthCalendar
@@ -744,6 +1033,9 @@ function App() {
                   onOpenTask={(task) => selectTask(task.id)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
+                  onMoveTaskDate={(taskId, date) =>
+                    void handleMoveTaskDate(taskId, date)
+                  }
                 />
               ) : effectiveLayout === "week" ? (
                 <WeekCalendar
@@ -753,6 +1045,9 @@ function App() {
                   onOpenTask={(task) => selectTask(task.id)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
+                  onMoveTaskDate={(taskId, date) =>
+                    void handleMoveTaskDate(taskId, date)
+                  }
                 />
               ) : (
                 <TaskCalendar
@@ -789,6 +1084,7 @@ function App() {
         <TaskCreateDialog
           lists={lists}
           defaultListId={defaultListId}
+          defaultReminderMinutes={settings.defaultReminderMinutes}
           presence={createPresence.phase}
           onClose={() => setCreateOpen(false)}
           onSubmit={handleCreateTask}
@@ -851,16 +1147,26 @@ function App() {
       {settingsPresence.rendered && (
         <SettingsDialog
           autoBackup={autoBackup}
+          settings={settings}
+          lists={lists}
           syncAutoEnabled={syncAutoEnabled}
           syncWifiOnly={syncWifiOnly}
           externalSyncStatus={syncStatus}
           presence={settingsPresence.phase}
           onClose={() => setSettingsOpen(false)}
           onAutoBackupChange={setAutoBackup}
+          onSettingsChange={setSettings}
           onSyncAutoEnabledChange={setSyncAutoEnabled}
           onSyncWifiOnlyChange={setSyncWifiOnly}
           onSyncStatusChange={setSyncStatus}
           onToast={pushToast}
+          onImportComplete={async () => {
+            setLists(await listLists());
+            await Promise.all([
+              loadRecurringRules(),
+              useTaskStore.getState().loadTasks(),
+            ]);
+          }}
         />
       )}
 
@@ -868,8 +1174,26 @@ function App() {
         <StatsDialog
           tasks={allTasks}
           lists={lists}
+          recurringRules={recurringRules}
           presence={statsPresence.phase}
           onClose={() => setStatsOpen(false)}
+        />
+      )}
+
+      {savedViewPresence.rendered && (
+        <SavedViewDialog
+          view={editingSavedView}
+          lists={lists}
+          currentState={{
+            scope,
+            query: searchQuery,
+            sortBy,
+            showCompleted,
+            layout,
+          }}
+          presence={savedViewPresence.phase}
+          onClose={() => setSavedViewDialogOpen(false)}
+          onSubmit={handleSaveSavedView}
         />
       )}
 
@@ -892,6 +1216,38 @@ function App() {
       <ToastHost toasts={toasts} />
     </div>
   );
+}
+
+function sameScope(left: TaskScope, right: TaskScope): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "view" && right.kind === "view") {
+    return left.view === right.view;
+  }
+  if (left.kind === "list" && right.kind === "list") {
+    return left.listId === right.listId;
+  }
+  return false;
+}
+
+function mergeTaskDate(dueAt: string | null, dateKey: string): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = dueAt ? new Date(dueAt) : new Date();
+  if (!dueAt) date.setHours(9, 0, 0, 0);
+  date.setFullYear(year, month - 1, day);
+  return date.toISOString();
+}
+
+function offsetReminder(anchor: Date, minutes: number): string {
+  return new Date(anchor.getTime() + minutes * 60_000)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
+}
+
+function tomorrowReminder(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  date.setHours(9, 0, 0, 0);
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 export default App;

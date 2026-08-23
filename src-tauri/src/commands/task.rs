@@ -36,6 +36,17 @@ pub fn update_task(database: State<'_, Database>, input: UpdateTaskInput) -> Res
 }
 
 #[tauri::command]
+pub fn snooze_task_reminder(
+    database: State<'_, Database>,
+    id: String,
+    remind_at: String,
+) -> Result<Task, String> {
+    TaskRepository::new(&database)
+        .snooze_reminder(&id, &remind_at)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn delete_task(database: State<'_, Database>, id: String) -> Result<(), String> {
     TaskRepository::new(&database)
         .soft_delete(&id)
@@ -57,5 +68,26 @@ pub fn set_task_completed(
 pub fn restore_task(database: State<'_, Database>, id: String) -> Result<Task, String> {
     TaskRepository::new(&database)
         .restore(&id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn permanent_delete_task(database: State<'_, Database>, id: String) -> Result<(), String> {
+    TaskRepository::new(&database)
+        .permanent_delete(&id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn empty_trash(database: State<'_, Database>) -> Result<i64, String> {
+    TaskRepository::new(&database)
+        .empty_trash()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn cleanup_trash(database: State<'_, Database>, retention_days: i64) -> Result<i64, String> {
+    TaskRepository::new(&database)
+        .cleanup_trash(retention_days)
         .map_err(|error| error.to_string())
 }

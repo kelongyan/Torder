@@ -14,6 +14,8 @@ export function TaskCard({
   motionIndex = 0,
   onOpen,
   onToggle,
+  draggable = false,
+  onDragStart,
 }: {
   task: Task;
   list: TaskList | null;
@@ -22,13 +24,20 @@ export function TaskCard({
   motionIndex?: number;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
+  draggable?: boolean;
+  onDragStart?: (task: Task) => void;
 }) {
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
+  const completedSubtasks = task.subtasks.filter(
+    (subtask) => subtask.completed,
+  ).length;
 
   return (
     <article
       className={`board-card ${selected ? "selected" : ""} ${task.status === "done" ? "completed" : ""}`}
       style={{ "--item-index": motionIndex } as CSSProperties}
+      draggable={draggable}
+      onDragStart={() => onDragStart?.(task)}
       onClick={() => onOpen(task)}
     >
       <div className="board-card-top">
@@ -67,6 +76,16 @@ export function TaskCard({
         >
           {priorityCopy[task.priority].label}
         </span>
+        {task.subtasks.length > 0 && (
+          <span className="subtask-pill">
+            {completedSubtasks}/{task.subtasks.length}
+          </span>
+        )}
+        {task.tags.slice(0, 2).map((tag) => (
+          <span key={tag} className="tag-pill">
+            #{tag}
+          </span>
+        ))}
         <span>{formatTaskDateTime(task.dueAt)}</span>
       </div>
     </article>

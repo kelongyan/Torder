@@ -35,6 +35,7 @@ android-test-*.png
 
 # Local-only build artifacts and process snapshots (never commit)
 dist-*/
+docs/
 AGENTS.md
 CLAUDE.md
 RULE.md

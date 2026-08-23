@@ -5,6 +5,8 @@ import {
   findBrowserTask,
   findBrowserTaskIncludingDeleted,
   getBrowserTasksSnapshot,
+  removeBrowserTaskIncludingDeleted,
+  removeDeletedBrowserTasksBefore,
   updateBrowserTask,
   updateBrowserTaskIncludingDeleted,
 } from "./browserTaskMock";
@@ -33,6 +35,8 @@ export function createTask(input: CreateTaskInput): Promise<Task> {
       remindAt,
       remindedAt: null,
       repeatRule: input.repeatRule ?? null,
+      subtasks: cloneSubtasks(input.subtasks ?? []),
+      tags: normalizeTags(input.tags ?? []),
       recurringRuleId: null,
       occurrenceAt: null,
       createdAt: now,
@@ -71,6 +75,9 @@ export function updateTask(input: UpdateTaskInput): Promise<Task> {
     if (!existing) return Promise.reject(new Error("任务不存在"));
 
     const remindAt = computeRemindAt(input.dueAt, input.remindBefore);
+    const reminderScheduleChanged =
+      input.dueAt !== existing.dueAt ||
+      input.remindBefore !== existing.remindBefore;
     const next: Task = {
       ...existing,
       ...input,
@@ -81,7 +88,9 @@ export function updateTask(input: UpdateTaskInput): Promise<Task> {
           ? (existing.completedAt ?? new Date().toISOString())
           : null,
       remindAt,
-      remindedAt: remindAt === existing.remindAt ? existing.remindedAt : null,
+      remindedAt: reminderScheduleChanged ? null : existing.remindedAt,
+      subtasks: cloneSubtasks(input.subtasks),
+      tags: normalizeTags(input.tags),
       updatedAt: new Date().toISOString(),
     };
     updateBrowserTask(input.id, () => next);
@@ -122,6 +131,42 @@ export function restoreTask(id: string): Promise<Task> {
   return invoke<Task>("restore_task", { id });
 }
 
+export function permanentDeleteTask(id: string): Promise<void> {
+  if (!isTauri()) {
+    const task = findBrowserTaskIncludingDeleted(id);
+    if (!task || !task.deletedAt)
+      return Promise.reject(new Error("任务不存在"));
+    removeBrowserTaskIncludingDeleted(id);
+    return Promise.resolve();
+  }
+
+  return invoke<void>("permanent_delete_task", { id });
+}
+
+export function emptyTrash(): Promise<number> {
+  if (!isTauri()) {
+    return Promise.resolve(removeDeletedBrowserTasksBefore());
+  }
+
+  return invoke<number>("empty_trash");
+}
+
+export function cleanupTrash(retentionDays: number): Promise<number> {
+  if (retentionDays < 0) {
+    return Promise.reject(new Error("回收站保留天数不能为负数"));
+  }
+
+  if (!isTauri()) {
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - retentionDays);
+    return Promise.resolve(
+      removeDeletedBrowserTasksBefore(threshold.toISOString()),
+    );
+  }
+
+  return invoke<number>("cleanup_trash", { retentionDays });
+}
+
 export function setTaskCompleted(
   id: string,
   completed: boolean,
@@ -140,10 +185,32 @@ export function setTaskCompleted(
       sortOrder: task.sortOrder,
       remindBefore: task.remindBefore,
       repeatRule: task.repeatRule,
+      subtasks: task.subtasks,
+      tags: task.tags,
     });
   }
 
   return invoke<Task>("set_task_completed", { id, completed });
+}
+
+export function snoozeTaskReminder(
+  id: string,
+  remindAt: string,
+): Promise<Task> {
+  if (!isTauri()) {
+    const task = findBrowserTask(id);
+    if (!task) return Promise.reject(new Error("任务不存在"));
+    const next: Task = {
+      ...task,
+      remindAt,
+      remindedAt: null,
+      updatedAt: new Date().toISOString(),
+    };
+    updateBrowserTask(id, () => next);
+    return Promise.resolve({ ...next });
+  }
+
+  return invoke<Task>("snooze_task_reminder", { id, remindAt });
 }
 
 function computeRemindAt(
@@ -165,4 +232,32 @@ function computeRemindAt(
 
 function toRfc3339Seconds(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function cloneSubtasks(tasks: Task["subtasks"]): Task["subtasks"] {
+  return tasks.map((subtask, index) => ({
+    ...subtask,
+    id: subtask.id || `subtask-${Date.now()}-${index}`,
+    title: subtask.title.trim(),
+    sortOrder: index,
+  }));
+}
+
+function normalizeTags(tags: string[]): string[] {
+  const next: string[] = [];
+  for (const tag of tags) {
+    const value = tag.trim().replace(/^#/, "");
+    if (!value || value.length > 40) continue;
+    if (
+      next.some(
+        (item) =>
+          item.toLocaleLowerCase("zh-CN") === value.toLocaleLowerCase("zh-CN"),
+      )
+    ) {
+      continue;
+    }
+    next.push(value);
+    if (next.length >= 30) break;
+  }
+  return next;
 }

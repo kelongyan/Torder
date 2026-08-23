@@ -115,6 +115,7 @@ export function RecurringRuleDialog({
           recurrenceRequired
           titleInvalid={touched && !draft.title.trim()}
           compactDateTime
+          showTags={false}
         />
         <DialogFooter
           onCancel={onClose}

@@ -53,6 +53,8 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         sort_order: Some(1),
         remind_before: None,
         repeat_rule: None,
+        subtasks: None,
+        tags: None,
     })?;
     assert_eq!(task.title, "数据层测试任务");
     assert_eq!(task.status, "todo");
@@ -70,6 +72,8 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         sort_order: task.sort_order,
         remind_before: task.remind_before,
         repeat_rule: task.repeat_rule.clone(),
+        subtasks: task.subtasks.clone(),
+        tags: task.tags.clone(),
     })?;
     assert_eq!(updated.status, "done");
     assert!(updated.completed_at.is_some());
@@ -90,6 +94,8 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         sort_order: None,
         remind_before: None,
         repeat_rule: None,
+        subtasks: None,
+        tags: None,
     })?;
     SettingsRepository::new(&database).upsert(UpsertSettingInput {
         key: "theme".to_owned(),
@@ -172,6 +178,8 @@ fn updating_reminder_schedule_clears_reminded_at_and_records_sync_payload() -> R
         sort_order: Some(0),
         remind_before: Some(60),
         repeat_rule: None,
+        subtasks: None,
+        tags: None,
     })?;
     database.connect()?.execute(
         "UPDATE tasks SET reminded_at = '2026-08-22T08:30:00.000Z' WHERE id = ?1",
@@ -189,6 +197,8 @@ fn updating_reminder_schedule_clears_reminded_at_and_records_sync_payload() -> R
         sort_order: task.sort_order,
         remind_before: Some(30),
         repeat_rule: task.repeat_rule.clone(),
+        subtasks: task.subtasks.clone(),
+        tags: task.tags.clone(),
     })?;
 
     assert!(updated.reminded_at.is_none());
@@ -298,6 +308,61 @@ fn supports_core_task_views_sorting_and_completion_flow() -> RepositoryResult<()
 }
 
 #[test]
+fn trash_cleanup_and_permanent_delete_hide_deleted_tasks() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-trash-flow-test-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let repository = TaskRepository::new(&database);
+
+    let stale = repository.create(task_input("过期回收站任务", 0, None, None, 0))?;
+    let fresh = repository.create(task_input("保留回收站任务", 1, None, None, 1))?;
+    repository.soft_delete(&stale.id)?;
+    repository.soft_delete(&fresh.id)?;
+
+    database.connect()?.execute(
+        "UPDATE tasks SET deleted_at = '2000-01-01T00:00:00.000Z' WHERE id = ?1",
+        rusqlite::params![&stale.id],
+    )?;
+    database.connect()?.execute(
+        "UPDATE tasks SET deleted_at = '2999-01-01T00:00:00.000Z' WHERE id = ?1",
+        rusqlite::params![&fresh.id],
+    )?;
+
+    assert_eq!(
+        repository
+            .query(query_input("view", "deleted", None, "created", true))?
+            .len(),
+        2
+    );
+
+    assert_eq!(repository.cleanup_trash(7)?, 1);
+    let remaining = repository.query(query_input("view", "deleted", None, "created", true))?;
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].id, fresh.id);
+
+    repository.permanent_delete(&fresh.id)?;
+    assert!(repository
+        .query(query_input("view", "deleted", None, "created", true))?
+        .is_empty());
+    assert_eq!(repository.empty_trash()?, 0);
+    assert!(matches!(
+        repository.restore(&stale.id),
+        Err(RepositoryError::NotFound("task"))
+    ));
+
+    let purged_count: i64 = database.connect()?.query_row(
+        "SELECT COUNT(*) FROM tasks WHERE purged_at IS NOT NULL",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(purged_count, 2);
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
 fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResult<()> {
     let database_path =
         std::env::temp_dir().join(format!("torder-filter-test-{}.sqlite", Uuid::new_v4()));
@@ -312,6 +377,8 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         sort_order: None,
         remind_before: None,
         repeat_rule: None,
+        subtasks: None,
+        tags: Some(vec!["竞品".to_owned(), "资料".to_owned()]),
     })?;
     repository.create(CreateTaskInput {
         title: "购买生活用品".to_owned(),
@@ -322,6 +389,8 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         sort_order: None,
         remind_before: None,
         repeat_rule: None,
+        subtasks: None,
+        tags: Some(vec!["生活".to_owned()]),
     })?;
 
     assert_eq!(
@@ -342,6 +411,16 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
     })?;
     assert_eq!(combined.len(), 1);
     assert_eq!(combined[0].id.as_str(), matched_task.id.as_str());
+
+    let tagged = repository.query(TaskQueryInput {
+        scope_kind: "view".to_owned(),
+        scope_value: "all".to_owned(),
+        query: Some("tag:竞品".to_owned()),
+        sort_by: Some("priority".to_owned()),
+        show_completed: true,
+    })?;
+    assert_eq!(tagged.len(), 1);
+    assert_eq!(tagged[0].id.as_str(), matched_task.id.as_str());
 
     let mut connection = database.connect()?;
     let transaction = connection.transaction()?;
@@ -831,6 +910,8 @@ fn task_input(
         sort_order: Some(sort_order),
         remind_before: None,
         repeat_rule: None,
+        subtasks: None,
+        tags: None,
     }
 }
 

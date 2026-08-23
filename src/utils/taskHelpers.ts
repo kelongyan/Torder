@@ -31,6 +31,7 @@ export interface TaskDraft {
   generateAheadMinutes: number;
   generateAheadUnit: "hours" | "days";
   recurrenceEndAt: string;
+  tagsInput: string;
 }
 
 export function getScopeTitle(scope: TaskScope, lists: TaskList[]): string {
@@ -113,14 +114,17 @@ function findList(lists: TaskList[], id: string): TaskList | null {
   return lists.find((list) => list.id === id) ?? null;
 }
 
-export function emptyDraft(defaultListId: string): TaskDraft {
+export function emptyDraft(
+  defaultListId: string,
+  defaultReminderMinutes = 1440,
+): TaskDraft {
   return {
     title: "",
     note: "",
     priority: 1,
     listId: defaultListId,
     dueAt: getDefaultDueAtLocal(),
-    remindBefore: 1440, // default 1 day before due
+    remindBefore: defaultReminderMinutes < 0 ? null : defaultReminderMinutes,
     recurrenceFrequency: null,
     recurrenceInterval: 1,
     recurrenceWeekdays: [new Date().getDay()],
@@ -128,6 +132,7 @@ export function emptyDraft(defaultListId: string): TaskDraft {
     generateAheadMinutes: 1440,
     generateAheadUnit: "days",
     recurrenceEndAt: "",
+    tagsInput: "",
   };
 }
 
@@ -150,6 +155,7 @@ export function createTaskDraft(
     generateAheadMinutes: 1440,
     generateAheadUnit: "days",
     recurrenceEndAt: "",
+    tagsInput: task.tags.join(" "),
   };
 }
 
@@ -169,6 +175,7 @@ export function recurringRuleDraft(rule: RecurringRule): TaskDraft {
     generateAheadUnit:
       rule.generateAheadMinutes % 1440 === 0 ? "days" : "hours",
     recurrenceEndAt: toDateTimeLocal(rule.endAt),
+    tagsInput: "",
   };
 }
 
@@ -207,6 +214,7 @@ export interface QuickAddParsed {
   title: string;
   priority?: 0 | 1 | 2;
   listId?: string;
+  tags: string[];
   dueAt: string | null;
 }
 
@@ -232,6 +240,7 @@ export function parseQuickAddText(
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   let priority: 0 | 1 | 2 | undefined;
   let listId: string | undefined;
+  const tags: string[] = [];
   let dateToken: string | undefined;
   let timeToken: string | undefined;
   const titleParts: string[] = [];
@@ -242,6 +251,10 @@ export function parseQuickAddText(
       const list = lists.find((item) => item.name === name);
       if (list) {
         listId = list.id;
+        continue;
+      }
+      if (name.trim()) {
+        tags.push(name.trim());
         continue;
       }
     }
@@ -278,8 +291,32 @@ export function parseQuickAddText(
     title: titleParts.join(" "),
     priority,
     listId,
+    tags: normalizeTags(tags),
     dueAt: resolveQuickAddDue(dateToken, timeToken),
   };
+}
+
+export function parseTagsInput(value: string): string[] {
+  return normalizeTags(value.split(/[\s,，、]+/));
+}
+
+function normalizeTags(values: string[]): string[] {
+  const tags: string[] = [];
+  for (const raw of values) {
+    const tag = raw.trim().replace(/^#/, "");
+    if (!tag || tag.length > 40) continue;
+    if (
+      tags.some(
+        (item) =>
+          item.toLocaleLowerCase("zh-CN") === tag.toLocaleLowerCase("zh-CN"),
+      )
+    ) {
+      continue;
+    }
+    tags.push(tag);
+    if (tags.length >= 30) break;
+  }
+  return tags;
 }
 
 /** 日期词 + 时间词 → ISO；无日期词时时间已过顺延到明天。 */

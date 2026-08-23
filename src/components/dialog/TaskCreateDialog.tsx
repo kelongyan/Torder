@@ -7,7 +7,11 @@ import type {
   CreateTaskInput,
   TaskList,
 } from "../../types/database";
-import { emptyDraft, type TaskDraft } from "../../utils/taskHelpers";
+import {
+  emptyDraft,
+  parseTagsInput,
+  type TaskDraft,
+} from "../../utils/taskHelpers";
 import { DialogFooter } from "./DialogFooter";
 import { DialogShell } from "./DialogShell";
 import { TaskFormFields } from "../task/TaskFormFields";
@@ -15,6 +19,7 @@ import { TaskFormFields } from "../task/TaskFormFields";
 export function TaskCreateDialog({
   lists,
   defaultListId,
+  defaultReminderMinutes,
   presence,
   onClose,
   onSubmit,
@@ -22,13 +27,14 @@ export function TaskCreateDialog({
 }: {
   lists: TaskList[];
   defaultListId: string;
+  defaultReminderMinutes: number;
   presence: PresencePhase;
   onClose: () => void;
   onSubmit: (input: CreateTaskInput) => Promise<void>;
   onSubmitRecurring: (input: CreateRecurringRuleInput) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(() =>
-    emptyDraft(defaultListId),
+    emptyDraft(defaultListId, defaultReminderMinutes),
   );
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -79,6 +85,7 @@ export function TaskCreateDialog({
         dueAt,
         remindBefore: draft.remindBefore,
         repeatRule: null,
+        tags: parseTagsInput(draft.tagsInput),
       });
     } finally {
       setSubmitting(false);

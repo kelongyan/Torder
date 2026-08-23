@@ -219,6 +219,8 @@ function generateBrowserRule(rule: RecurringRule, force: boolean): number {
     remindAt,
     remindedAt: null,
     repeatRule: null,
+    subtasks: [],
+    tags: [],
     recurringRuleId: rule.id,
     occurrenceAt: selected,
     createdAt: now.toISOString(),

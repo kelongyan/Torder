@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { getSetting, loadAppSettings } from "../services/settingsService";
 import { listLists } from "../services/listService";
-import { useTaskStore } from "../stores/taskStore";
+import { useTaskStore, viewScope } from "../stores/taskStore";
 import { type AppSettings } from "../types/settings";
 import { normalizeError } from "../utils/normalizeError";
 
@@ -13,8 +13,6 @@ export function useAppInit(
   setSyncAutoEnabled: (enabled: boolean) => void,
   setSyncWifiOnly: (enabled: boolean) => void,
 ) {
-  const loadTasks = useTaskStore((state) => state.loadTasks);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -39,7 +37,9 @@ export function useAppInit(
         setAutoBackup(autoBackupSetting?.value === "true");
         setSyncAutoEnabled(syncAutoSetting?.value !== "false");
         setSyncWifiOnly(syncWifiSetting?.value === "true");
-        await loadTasks();
+        await useTaskStore
+          .getState()
+          .setScope(viewScope(nextSettings.defaultView));
       } catch (nextError) {
         if (!cancelled) setAppError(normalizeError(nextError));
       }
@@ -50,7 +50,6 @@ export function useAppInit(
       cancelled = true;
     };
   }, [
-    loadTasks,
     setSettings,
     setLists,
     setAppError,

@@ -386,6 +386,32 @@ const MIGRATIONS: &[Migration] = &[
         );
         "#,
     },
+    Migration {
+        version: 11,
+        name: "add_trash_purge_and_default_settings",
+        sql: r#"
+        ALTER TABLE tasks ADD COLUMN purged_at TEXT;
+
+        CREATE INDEX idx_tasks_trash_visible
+            ON tasks(deleted_at, purged_at)
+            WHERE deleted_at IS NOT NULL;
+
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('defaultListId', '"work"');
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('defaultView', '"all"');
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('trashRetentionDays', 'null');
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('backupRetentionCount', '20');
+        "#,
+    },
+    Migration {
+        version: 12,
+        name: "add_task_subtasks_tags_and_saved_views",
+        sql: r#"
+        ALTER TABLE tasks ADD COLUMN subtasks TEXT NOT NULL DEFAULT '[]';
+        ALTER TABLE tasks ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';
+
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('savedViews', '[]');
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。

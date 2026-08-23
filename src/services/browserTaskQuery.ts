@@ -47,6 +47,16 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
   }
   if (parsed.priority !== null && task.priority !== parsed.priority)
     return false;
+  if (
+    parsed.tagName !== null &&
+    !task.tags.some(
+      (tag) =>
+        tag.toLocaleLowerCase("zh-CN") ===
+        parsed.tagName!.toLocaleLowerCase("zh-CN"),
+    )
+  ) {
+    return false;
+  }
   // l: 匹配清单名称（与 Rust 侧 name 子查询语义一致），解析为 ID 比较。
   if (parsed.listName !== null) {
     const list = getBrowserListsSnapshot().find(
@@ -79,6 +89,7 @@ interface ParsedSearchQuery {
   text: string | null;
   priority: number | null;
   listName: string | null;
+  tagName: string | null;
   due: "today" | "overdue" | "none" | null;
 }
 
@@ -87,6 +98,7 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
   const textParts: string[] = [];
   let priority: number | null = null;
   let listName: string | null = null;
+  let tagName: string | null = null;
   let due: "today" | "overdue" | "none" | null = null;
 
   for (const token of query.split(/\s+/)) {
@@ -104,6 +116,13 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
         continue;
       }
     }
+    if (token.startsWith("tag:")) {
+      const name = token.slice(4).trim().replace(/^#/, "");
+      if (name) {
+        tagName = name;
+        continue;
+      }
+    }
     if (token.startsWith("due:")) {
       const value = token.slice(4);
       if (value === "今天" || value === "today") due = "today";
@@ -118,6 +137,7 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
     text: textParts.length > 0 ? textParts.join(" ") : null,
     priority,
     listName,
+    tagName,
     due,
   };
 }
@@ -176,6 +196,12 @@ function compareTasks(left: Task, right: Task, sortBy: TaskSortBy): number {
     );
   }
 
+  if (sortBy === "manual") {
+    if (left.sortOrder !== right.sortOrder)
+      return left.sortOrder - right.sortOrder;
+    return left.createdAt.localeCompare(right.createdAt);
+  }
+
   return left.createdAt.localeCompare(right.createdAt);
 }
 
@@ -198,5 +224,9 @@ function localDateKey(date: Date): string {
 }
 
 function cloneTask(task: Task): Task {
-  return { ...task };
+  return {
+    ...task,
+    subtasks: task.subtasks.map((subtask) => ({ ...subtask })),
+    tags: [...task.tags],
+  };
 }

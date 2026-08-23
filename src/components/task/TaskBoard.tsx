@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { Task, TaskList } from "../../types/database";
 import { TaskCard } from "./TaskCard";
 
@@ -9,6 +9,7 @@ export function TaskBoard({
   selectedTaskId,
   onOpen,
   onToggle,
+  onMove,
 }: {
   tasks: Task[];
   lists: TaskList[];
@@ -16,19 +17,25 @@ export function TaskBoard({
   selectedTaskId: string | null;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
+  onMove: (task: Task, columnId: "todo" | "doing" | "done") => void;
 }) {
+  const [draggingTask, setDraggingTask] = useState<Task | null>(null);
   const columns = [
     {
       id: "todo",
       title: "待处理",
       color: "var(--blue)",
-      tasks: tasks.filter((task) => task.status !== "done" && task.priority !== 2),
+      tasks: tasks.filter(
+        (task) => task.status !== "done" && task.priority !== 2,
+      ),
     },
     {
       id: "doing",
       title: "进行中",
       color: "var(--red)",
-      tasks: tasks.filter((task) => task.status !== "done" && task.priority === 2),
+      tasks: tasks.filter(
+        (task) => task.status !== "done" && task.priority === 2,
+      ),
     },
     {
       id: "done",
@@ -45,9 +52,19 @@ export function TaskBoard({
           key={column.id}
           className="board-column"
           style={{ "--item-index": columnIndex } as CSSProperties}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            if (!draggingTask) return;
+            onMove(draggingTask, column.id as "todo" | "doing" | "done");
+            setDraggingTask(null);
+          }}
         >
           <header>
-            <span className="board-dot" style={{ backgroundColor: column.color }} />
+            <span
+              className="board-dot"
+              style={{ backgroundColor: column.color }}
+            />
             <h2>{column.title}</h2>
             <span>{column.tasks.length}</span>
           </header>
@@ -62,6 +79,8 @@ export function TaskBoard({
                 motionIndex={taskIndex}
                 onOpen={onOpen}
                 onToggle={onToggle}
+                draggable
+                onDragStart={setDraggingTask}
               />
             ))}
           </div>

@@ -3,8 +3,15 @@ import type { Setting } from "../types/database";
 import {
   defaultAppSettings,
   type AppSettings,
+  type SavedTaskView,
   type ThemePreference,
 } from "../types/settings";
+import type {
+  SystemView,
+  TaskLayout,
+  TaskScope,
+  TaskSortBy,
+} from "../types/database";
 
 let browserSettings = createBrowserSettings();
 
@@ -52,6 +59,17 @@ export async function loadAppSettings(): Promise<AppSettings> {
       settings.get("defaultReminderMinutes"),
       1440,
     ),
+    defaultListId: parseString(
+      settings.get("defaultListId"),
+      defaultAppSettings.defaultListId,
+    ),
+    defaultView: parseSystemView(settings.get("defaultView")),
+    trashRetentionDays: parseNullableNumber(settings.get("trashRetentionDays")),
+    backupRetentionCount: parseNumber(
+      settings.get("backupRetentionCount"),
+      defaultAppSettings.backupRetentionCount,
+    ),
+    savedViews: parseSavedViews(settings.get("savedViews")),
   };
 }
 
@@ -85,6 +103,92 @@ function parseTheme(value: string | undefined): ThemePreference {
 function parseNumber(value: string | undefined, fallback: number): number {
   const parsed = parseJson(value);
   return typeof parsed === "number" ? parsed : fallback;
+}
+
+function parseNullableNumber(value: string | undefined): number | null {
+  const parsed = parseJson(value);
+  return typeof parsed === "number" ? parsed : null;
+}
+
+function parseString(value: string | undefined, fallback: string): string {
+  const parsed = parseJson(value);
+  return typeof parsed === "string" && parsed.trim() ? parsed : fallback;
+}
+
+function parseSystemView(value: string | undefined): SystemView {
+  const parsed = parseJson(value);
+  return isSystemView(parsed) ? parsed : defaultAppSettings.defaultView;
+}
+
+function parseSavedViews(value: string | undefined): SavedTaskView[] {
+  const parsed = parseJson(value);
+  if (!Array.isArray(parsed)) return defaultAppSettings.savedViews;
+  return parsed.filter(isSavedTaskView);
+}
+
+function isSavedTaskView(value: unknown): value is SavedTaskView {
+  if (!value || typeof value !== "object") return false;
+  const view = value as Partial<SavedTaskView>;
+  return (
+    typeof view.id === "string" &&
+    view.id.trim().length > 0 &&
+    typeof view.name === "string" &&
+    view.name.trim().length > 0 &&
+    isSavedViewIcon(view.icon) &&
+    isTaskScope(view.scope) &&
+    typeof view.query === "string" &&
+    isTaskSortBy(view.sortBy) &&
+    typeof view.showCompleted === "boolean" &&
+    isTaskLayout(view.layout)
+  );
+}
+
+function isSavedViewIcon(value: unknown): value is SavedTaskView["icon"] {
+  return (
+    value === "filter" ||
+    value === "star" ||
+    value === "calendar" ||
+    value === "tag"
+  );
+}
+
+function isTaskScope(value: unknown): value is TaskScope {
+  if (!value || typeof value !== "object") return false;
+  const scope = value as Partial<TaskScope>;
+  if (scope.kind === "view") return isSystemView(scope.view);
+  return scope.kind === "list" && typeof scope.listId === "string";
+}
+
+function isTaskSortBy(value: unknown): value is TaskSortBy {
+  return (
+    value === "priority" ||
+    value === "date" ||
+    value === "created" ||
+    value === "manual"
+  );
+}
+
+function isTaskLayout(value: unknown): value is TaskLayout {
+  return (
+    value === "list" ||
+    value === "board" ||
+    value === "calendar" ||
+    value === "month" ||
+    value === "week"
+  );
+}
+
+function isSystemView(value: unknown): value is SystemView {
+  return (
+    value === "all" ||
+    value === "today" ||
+    value === "planned" ||
+    value === "overdue" ||
+    value === "no-date" ||
+    value === "important" ||
+    value === "completed" ||
+    value === "deleted"
+  );
 }
 
 function parseJson(value: string | undefined): unknown {

@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import {
   createTask,
   deleteTask,
+  emptyTrash,
+  permanentDeleteTask,
   queryTasks,
   restoreTask,
   setTaskCompleted,
@@ -37,17 +39,35 @@ interface TaskState {
   setSearchQuery: (query: string) => Promise<void>;
   setSortBy: (sortBy: TaskSortBy) => Promise<void>;
   setShowCompleted: (showCompleted: boolean) => Promise<void>;
+  applyViewState: (state: {
+    scope: TaskScope;
+    searchQuery: string;
+    sortBy: TaskSortBy;
+    showCompleted: boolean;
+    layout?: TaskLayout;
+  }) => Promise<void>;
   loadTasks: () => Promise<void>;
   addTask: (input: CreateTaskInput) => Promise<Task>;
   saveTask: (input: UpdateTaskInput) => Promise<Task>;
   toggleTask: (id: string, completed: boolean) => Promise<Task>;
   removeTask: (id: string) => Promise<void>;
   restoreTask: (id: string) => Promise<void>;
+  permanentDeleteTask: (id: string) => Promise<void>;
+  emptyTrash: () => Promise<number>;
   batchComplete: () => Promise<void>;
   batchDelete: () => Promise<void>;
+  batchRestore: () => Promise<void>;
+  batchPermanentDelete: () => Promise<void>;
   batchUpdate: (
-    patch: Partial<Pick<UpdateTaskInput, "listId" | "priority">>,
+    patch: Partial<
+      Pick<UpdateTaskInput, "listId" | "priority" | "dueAt" | "remindBefore">
+    >,
   ) => Promise<void>;
+  reorderTasks: (sourceId: string, targetId: string) => Promise<void>;
+  patchTask: (
+    id: string,
+    patch: Partial<Omit<UpdateTaskInput, "id">>,
+  ) => Promise<Task>;
   selectTask: (id: string | null) => void;
   toggleBatchMode: () => void;
   toggleBatchSelected: (id: string) => void;
@@ -94,6 +114,19 @@ export const useTaskStore = create<TaskState>()(
 
       setShowCompleted: async (showCompleted) => {
         set({ showCompleted, selectedTaskId: null, batchSelectedIds: [] });
+        await get().loadTasks();
+      },
+
+      applyViewState: async (next) => {
+        set({
+          scope: next.scope,
+          searchQuery: next.searchQuery,
+          sortBy: next.sortBy,
+          showCompleted: next.showCompleted,
+          layout: next.layout ?? get().layout,
+          selectedTaskId: null,
+          batchSelectedIds: [],
+        });
         await get().loadTasks();
       },
 
@@ -176,6 +209,29 @@ export const useTaskStore = create<TaskState>()(
         });
       },
 
+      permanentDeleteTask: async (id) => {
+        await runMutation(set, async () => {
+          await permanentDeleteTask(id);
+          set((state) => ({
+            selectedTaskId:
+              state.selectedTaskId === id ? null : state.selectedTaskId,
+            batchSelectedIds: state.batchSelectedIds.filter(
+              (selectedId) => selectedId !== id,
+            ),
+          }));
+          await get().loadTasks();
+        });
+      },
+
+      emptyTrash: async () => {
+        return runMutation(set, async () => {
+          const count = await emptyTrash();
+          set({ selectedTaskId: null, batchSelectedIds: [], batchMode: false });
+          await get().loadTasks();
+          return count;
+        });
+      },
+
       batchComplete: async () => {
         await runMutation(set, async () => {
           const selectedIds = get().batchSelectedIds;
@@ -192,6 +248,28 @@ export const useTaskStore = create<TaskState>()(
           const selectedIds = get().batchSelectedIds;
           for (const id of selectedIds) {
             await deleteTask(id);
+          }
+          set({ selectedTaskId: null, batchSelectedIds: [], batchMode: false });
+          await get().loadTasks();
+        });
+      },
+
+      batchRestore: async () => {
+        await runMutation(set, async () => {
+          const selectedIds = get().batchSelectedIds;
+          for (const id of selectedIds) {
+            await restoreTask(id);
+          }
+          set({ selectedTaskId: null, batchSelectedIds: [], batchMode: false });
+          await get().loadTasks();
+        });
+      },
+
+      batchPermanentDelete: async () => {
+        await runMutation(set, async () => {
+          const selectedIds = get().batchSelectedIds;
+          for (const id of selectedIds) {
+            await permanentDeleteTask(id);
           }
           set({ selectedTaskId: null, batchSelectedIds: [], batchMode: false });
           await get().loadTasks();
@@ -218,11 +296,72 @@ export const useTaskStore = create<TaskState>()(
               sortOrder: task.sortOrder,
               remindBefore: task.remindBefore,
               repeatRule: task.repeatRule,
+              subtasks: task.subtasks,
+              tags: task.tags,
               ...patch,
             });
           }
           set({ batchSelectedIds: [], batchMode: false });
           await get().loadTasks();
+        });
+      },
+
+      reorderTasks: async (sourceId, targetId) => {
+        await runMutation(set, async () => {
+          const current = get().tasks.filter((task) => !task.deletedAt);
+          const sourceIndex = current.findIndex((task) => task.id === sourceId);
+          const targetIndex = current.findIndex((task) => task.id === targetId);
+          if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex)
+            return;
+          const reordered = [...current];
+          const [source] = reordered.splice(sourceIndex, 1);
+          reordered.splice(targetIndex, 0, source);
+          for (const [index, task] of reordered.entries()) {
+            const sortOrder = index * 1000;
+            if (task.sortOrder === sortOrder) continue;
+            await updateTask({
+              id: task.id,
+              title: task.title,
+              note: task.note,
+              status: task.status,
+              priority: task.priority,
+              listId: task.listId,
+              dueAt: task.dueAt,
+              sortOrder,
+              remindBefore: task.remindBefore,
+              repeatRule: task.repeatRule,
+              subtasks: task.subtasks,
+              tags: task.tags,
+            });
+          }
+          set({ sortBy: "manual" });
+          await get().loadTasks();
+        });
+      },
+
+      patchTask: async (id, patch) => {
+        return runMutation(set, async () => {
+          const task =
+            get().allTasks.find((item) => item.id === id) ??
+            get().tasks.find((item) => item.id === id);
+          if (!task) throw new Error("任务不存在");
+          const updated = await updateTask({
+            id: task.id,
+            title: task.title,
+            note: task.note,
+            status: task.status,
+            priority: task.priority,
+            listId: task.listId,
+            dueAt: task.dueAt,
+            sortOrder: task.sortOrder,
+            remindBefore: task.remindBefore,
+            repeatRule: task.repeatRule,
+            subtasks: task.subtasks,
+            tags: task.tags,
+            ...patch,
+          });
+          await get().loadTasks();
+          return updated;
         });
       },
 
@@ -242,7 +381,8 @@ export const useTaskStore = create<TaskState>()(
             : [...state.batchSelectedIds, id],
         })),
 
-      clearBatchSelection: () => set({ batchSelectedIds: [], batchMode: false }),
+      clearBatchSelection: () =>
+        set({ batchSelectedIds: [], batchMode: false }),
       clearError: () => set({ error: null }),
     }),
     {
@@ -267,9 +407,7 @@ export function listScope(listId: string): TaskScope {
 
 async function runMutation<T>(
   set: (
-    partial:
-      | Partial<TaskState>
-      | ((state: TaskState) => Partial<TaskState>),
+    partial: Partial<TaskState> | ((state: TaskState) => Partial<TaskState>),
   ) => void,
   mutation: () => Promise<T>,
 ): Promise<T> {
@@ -283,4 +421,3 @@ async function runMutation<T>(
     throw error;
   }
 }
-

@@ -93,7 +93,9 @@
 .toast {
   display: flex;
   min-width: 180px;
+  max-width: min(560px, calc(100vw - 36px));
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
@@ -135,6 +137,25 @@
 
 .toast.info svg {
   color: var(--accent-hover);
+}
+
+.toast-action {
+  min-height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-bg);
+  padding: 0 9px;
+  color: var(--accent-hover);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  pointer-events: auto;
+}
+
+.toast-action:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-primary);
 }
 
 @keyframes shimmer {

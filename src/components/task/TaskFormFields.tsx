@@ -39,6 +39,7 @@ export function TaskFormFields({
   titleInvalid,
   recurrenceRequired = false,
   compactDateTime = false,
+  showTags = true,
 }: {
   draft: TaskDraft;
   lists: TaskList[];
@@ -47,6 +48,7 @@ export function TaskFormFields({
   titleInvalid?: boolean;
   recurrenceRequired?: boolean;
   compactDateTime?: boolean;
+  showTags?: boolean;
 }) {
   const frequency = draft.recurrenceFrequency;
   const shouldAutoFocus = !isMobile();
@@ -97,6 +99,19 @@ export function TaskFormFields({
           rows={4}
         />
       </div>
+
+      {showTags && (
+        <div className="form-field">
+          <span>标签</span>
+          <input
+            value={draft.tagsInput}
+            onChange={(event) =>
+              onChange({ ...draft, tagsInput: event.target.value })
+            }
+            placeholder="#项目 #地点"
+          />
+        </div>
+      )}
 
       <div className="form-grid">
         <TaskDateTimeField

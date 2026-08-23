@@ -74,6 +74,7 @@ export function TaskQuickAdd({
         listId: activeListId,
         dueAt: dueValue ? new Date(dueValue).toISOString() : null,
         remindBefore: dueValue ? remindBefore : null,
+        tags: parseQuickAddText(title, lists).tags,
       });
       setTitle("");
       setDueValue("");

@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
+  CalendarClock,
   MoreHorizontal,
+  Plus,
   Repeat2,
   RotateCcw,
+  SkipForward,
+  Tag,
   Trash2,
   X,
 } from "lucide-react";
@@ -19,7 +23,13 @@ import {
   reminderOptions,
 } from "../../constants/reminderConfig";
 import { usePresence, type PresencePhase } from "../../hooks/usePresence";
-import type { Task, TaskList, UpdateTaskInput } from "../../types/database";
+import type {
+  Task,
+  TaskList,
+  TaskSubtask,
+  UpdateTaskInput,
+} from "../../types/database";
+import { parseTagsInput } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
 import { TaskDateTimeField } from "../task/TaskDateTimeField";
@@ -101,6 +111,8 @@ function TaskDetailContent({
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
   const [draftNote, setDraftNote] = useState(task.note ?? "");
+  const [draftTagInput, setDraftTagInput] = useState(task.tags.join(" "));
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -136,8 +148,8 @@ function TaskDetailContent({
   function patchAndSave(patch: Partial<Omit<UpdateTaskInput, "id">>) {
     return onSave({
       id: task.id,
-      title: draftTitle.trim() || task.title,
-      note: draftNote.trim() || null,
+      title: task.title,
+      note: task.note,
       status: task.status,
       priority: task.priority,
       listId: task.listId,
@@ -145,6 +157,8 @@ function TaskDetailContent({
       sortOrder: task.sortOrder,
       remindBefore: task.remindBefore,
       repeatRule: task.repeatRule,
+      subtasks: task.subtasks,
+      tags: task.tags,
       ...patch,
     });
   }
@@ -160,6 +174,67 @@ function TaskDetailContent({
     }
     setEditing(null);
   }
+
+  function saveTags() {
+    const tags = parseTagsInput(draftTagInput);
+    if (tags.join("\n") !== task.tags.join("\n")) {
+      void patchAndSave({ tags });
+    }
+  }
+
+  function addSubtask() {
+    const title = newSubtaskTitle.trim();
+    if (!title) return;
+    const now = new Date().toISOString();
+    const next: TaskSubtask = {
+      id: `subtask-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      title,
+      completed: false,
+      createdAt: now,
+      completedAt: null,
+      sortOrder: task.subtasks.length,
+    };
+    setNewSubtaskTitle("");
+    void patchAndSave({ subtasks: [...task.subtasks, next] });
+  }
+
+  function toggleSubtask(subtask: TaskSubtask) {
+    const completed = !subtask.completed;
+    const subtasks = task.subtasks.map((item) =>
+      item.id === subtask.id
+        ? {
+            ...item,
+            completed,
+            completedAt: completed ? new Date().toISOString() : null,
+          }
+        : item,
+    );
+    void patchAndSave({ subtasks });
+  }
+
+  function removeSubtask(subtask: TaskSubtask) {
+    void patchAndSave({
+      subtasks: task.subtasks
+        .filter((item) => item.id !== subtask.id)
+        .map((item, index) => ({ ...item, sortOrder: index })),
+    });
+  }
+
+  function postponeOccurrence(days: number) {
+    void patchAndSave({ dueAt: shiftDueAt(task.dueAt, days) });
+  }
+
+  function postponeOccurrenceToWorkday() {
+    void patchAndSave({ dueAt: nextWorkdayDueAt(task.dueAt) });
+  }
+
+  const completedSubtasks = task.subtasks.filter(
+    (subtask) => subtask.completed,
+  ).length;
+  const subtaskProgress =
+    task.subtasks.length === 0
+      ? 0
+      : Math.round((completedSubtasks / task.subtasks.length) * 100);
 
   function saveNote() {
     const next = draftNote.trim() || null;
@@ -396,6 +471,96 @@ function TaskDetailContent({
           </button>
         </div>
 
+        <section className="detail-section">
+          <div className="detail-section-header">
+            <strong>检查清单</strong>
+            {task.subtasks.length > 0 && (
+              <span>
+                {completedSubtasks}/{task.subtasks.length} · {subtaskProgress}%
+              </span>
+            )}
+          </div>
+          {task.subtasks.length > 0 && (
+            <div className="subtask-progress" aria-hidden="true">
+              <span style={{ width: `${subtaskProgress}%` }} />
+            </div>
+          )}
+          <div className="subtask-list">
+            {task.subtasks.map((subtask) => (
+              <div
+                key={subtask.id}
+                className={`subtask-row ${subtask.completed ? "completed" : ""}`}
+              >
+                <button
+                  type="button"
+                  className={`task-check compact ${subtask.completed ? "checked" : ""}`}
+                  onClick={() => toggleSubtask(subtask)}
+                  aria-label={subtask.completed ? "恢复子任务" : "完成子任务"}
+                >
+                  {subtask.completed && <Check aria-hidden="true" />}
+                </button>
+                <span>{subtask.title}</span>
+                <button
+                  type="button"
+                  className="icon-button compact"
+                  onClick={() => removeSubtask(subtask)}
+                  aria-label="删除子任务"
+                  title="删除子任务"
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <form
+            className="subtask-add-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addSubtask();
+            }}
+          >
+            <input
+              value={newSubtaskTitle}
+              onChange={(event) => setNewSubtaskTitle(event.target.value)}
+              placeholder="添加子任务"
+            />
+            <button
+              type="submit"
+              className="icon-button"
+              aria-label="添加子任务"
+            >
+              <Plus aria-hidden="true" />
+            </button>
+          </form>
+        </section>
+
+        <section className="detail-section">
+          <div className="detail-section-header">
+            <strong>标签</strong>
+            <Tag aria-hidden="true" className="icon-sm" />
+          </div>
+          <input
+            className="detail-tags-input"
+            value={draftTagInput}
+            onChange={(event) => setDraftTagInput(event.target.value)}
+            onBlur={saveTags}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                saveTags();
+              }
+            }}
+            placeholder="#项目 #地点"
+          />
+          {task.tags.length > 0 && (
+            <div className="task-tags">
+              {task.tags.map((tag) => (
+                <span key={tag}>#{tag}</span>
+              ))}
+            </div>
+          )}
+        </section>
+
         <div className="detail-meta-row">
           <span
             className={`status-pill ${task.status === "done" ? "done" : ""}`}
@@ -440,6 +605,22 @@ function TaskDetailContent({
               }`}
               role="menu"
             >
+              {task.recurringRuleId && (
+                <>
+                  <button type="button" onClick={() => postponeOccurrence(1)}>
+                    <CalendarClock aria-hidden="true" className="icon-sm" />
+                    本次顺延到明天
+                  </button>
+                  <button type="button" onClick={postponeOccurrenceToWorkday}>
+                    <CalendarClock aria-hidden="true" className="icon-sm" />
+                    本次顺延到工作日
+                  </button>
+                  <button type="button" onClick={() => onDelete(task)}>
+                    <SkipForward aria-hidden="true" className="icon-sm" />
+                    跳过本次循环
+                  </button>
+                </>
+              )}
               <button type="button" onClick={() => onDelete(task)}>
                 <Trash2 aria-hidden="true" className="icon-sm" />
                 删除任务
@@ -452,3 +633,18 @@ function TaskDetailContent({
   );
 }
 
+function shiftDueAt(dueAt: string | null, days: number): string {
+  const date = dueAt ? new Date(dueAt) : new Date();
+  if (!dueAt) date.setHours(9, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+function nextWorkdayDueAt(dueAt: string | null): string {
+  const date = dueAt ? new Date(dueAt) : new Date();
+  if (!dueAt) date.setHours(9, 0, 0, 0);
+  do {
+    date.setDate(date.getDate() + 1);
+  } while (date.getDay() === 0 || date.getDay() === 6);
+  return date.toISOString();
+}

@@ -520,6 +520,8 @@ fn insert_occurrence(
                 "dueAt": occurrence,
                 "remindBefore": rule.remind_before,
                 "remindAt": remind_at,
+                "subtasks": [],
+                "tags": [],
                 "recurringRuleId": rule.id,
                 "occurrenceAt": occurrence,
                 "deletedAt": null,
@@ -605,7 +607,8 @@ fn current_task_payload(transaction: &Transaction<'_>, task_id: &str) -> Reposit
             'priority', priority, 'listId', list_id, 'dueAt', due_at,
             'completedAt', completed_at, 'sortOrder', sort_order,
             'remindBefore', remind_before, 'remindAt', remind_at,
-            'repeatRule', repeat_rule, 'recurringRuleId', recurring_rule_id,
+            'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags),
+            'recurringRuleId', recurring_rule_id,
             'occurrenceAt', occurrence_at, 'createdAt', created_at,
             'updatedAt', updated_at, 'deletedAt', deleted_at
         ) FROM tasks WHERE id = ?1"#,

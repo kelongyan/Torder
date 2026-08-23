@@ -164,6 +164,8 @@ mod tests {
                 sort_order: Some(0),
                 remind_before: Some(10),
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         let mut connection = database.connect().unwrap();

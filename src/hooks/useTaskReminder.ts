@@ -51,7 +51,7 @@ function showWebNotification(body: string) {
   }
 }
 
-export function useTaskReminder() {
+export function useTaskReminder(onReminder?: (event: ReminderEvent) => void) {
   useEffect(() => {
     if (!isTauri()) return;
 
@@ -61,6 +61,7 @@ export function useTaskReminder() {
     void listen<ReminderEvent>("task-reminder", (event) => {
       const { title, dueAt } = event.payload;
       const body = reminderBody(title, dueAt);
+      onReminder?.(event.payload);
       if (isMobile()) {
         void sendMobileNotification(body);
       } else {
@@ -75,5 +76,5 @@ export function useTaskReminder() {
       cancelled = true;
       unlisten?.();
     };
-  }, []);
+  }, [onReminder]);
 }

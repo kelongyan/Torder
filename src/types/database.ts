@@ -8,10 +8,19 @@ export type SystemView =
   | "completed"
   | "deleted";
 export type TaskLayout = "list" | "board" | "calendar" | "month" | "week";
-export type TaskSortBy = "priority" | "date" | "created";
+export type TaskSortBy = "priority" | "date" | "created" | "manual";
 
 export type TaskScope =
   { kind: "view"; view: SystemView } | { kind: "list"; listId: string };
+
+export interface TaskSubtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt: string | null;
+  sortOrder: number;
+}
 
 export interface Task {
   id: string;
@@ -27,6 +36,8 @@ export interface Task {
   remindAt: string | null;
   remindedAt: string | null;
   repeatRule: string | null;
+  subtasks: TaskSubtask[];
+  tags: string[];
   recurringRuleId: string | null;
   occurrenceAt: string | null;
   createdAt: string;
@@ -43,6 +54,8 @@ export interface CreateTaskInput {
   sortOrder?: number;
   remindBefore?: number | null;
   repeatRule?: string | null;
+  subtasks?: TaskSubtask[];
+  tags?: string[];
 }
 
 export interface UpdateTaskInput {
@@ -56,6 +69,8 @@ export interface UpdateTaskInput {
   sortOrder: number;
   remindBefore: number | null;
   repeatRule: string | null;
+  subtasks: TaskSubtask[];
+  tags: string[];
 }
 
 export interface TaskList {

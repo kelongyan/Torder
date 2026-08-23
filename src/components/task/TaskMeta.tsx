@@ -14,6 +14,9 @@ export function TaskMeta({
   const dueLabel = formatTaskDate(task.dueAt);
   const overdue = isOverdue(task.dueAt, task.status);
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
+  const completedSubtasks = task.subtasks.filter(
+    (subtask) => subtask.completed,
+  ).length;
 
   return (
     <div className="task-meta">
@@ -37,6 +40,16 @@ export function TaskMeta({
           {dueLabel}
         </span>
       )}
+      {task.subtasks.length > 0 && (
+        <span className="subtask-pill">
+          {completedSubtasks}/{task.subtasks.length}
+        </span>
+      )}
+      {task.tags.slice(0, 3).map((tag) => (
+        <span key={tag} className="tag-pill">
+          #{tag}
+        </span>
+      ))}
     </div>
   );
 }

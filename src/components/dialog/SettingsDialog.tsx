@@ -7,32 +7,44 @@ import { isMobile } from "../../utils/platform";
 import { SettingsBackupSection } from "./SettingsBackupSection";
 import { SettingsSyncSection } from "./SettingsSyncSection";
 import { SettingsExportSection } from "./SettingsExportSection";
+import { SettingsImportSection } from "./SettingsImportSection";
 import { SettingsAboutSection } from "./SettingsAboutSection";
+import { SettingsPreferencesSection } from "./SettingsPreferencesSection";
+import type { AppSettings } from "../../types/settings";
+import type { TaskList } from "../../types/database";
 
 export function SettingsDialog({
   autoBackup,
+  settings,
+  lists,
   syncAutoEnabled,
   syncWifiOnly,
   externalSyncStatus,
   presence,
   onClose,
   onAutoBackupChange,
+  onSettingsChange,
   onSyncAutoEnabledChange,
   onSyncWifiOnlyChange,
   onSyncStatusChange,
   onToast,
+  onImportComplete,
 }: {
   autoBackup: boolean;
+  settings: AppSettings;
+  lists: TaskList[];
   syncAutoEnabled: boolean;
   syncWifiOnly: boolean;
   externalSyncStatus: SyncStatus | null;
   presence: PresencePhase;
   onClose: () => void;
   onAutoBackupChange: (enabled: boolean) => void;
+  onSettingsChange: (settings: AppSettings) => void;
   onSyncAutoEnabledChange: (enabled: boolean) => void;
   onSyncWifiOnlyChange: (enabled: boolean) => void;
   onSyncStatusChange: (status: SyncStatus) => void;
   onToast: (message: string, type: ToastKind) => void;
+  onImportComplete: () => Promise<void>;
 }) {
   const mobile = isMobile();
 
@@ -46,6 +58,13 @@ export function SettingsDialog({
       onClose={onClose}
     >
       <div className="dialog-form">
+        <SettingsPreferencesSection
+          settings={settings}
+          lists={lists}
+          onSettingsChange={onSettingsChange}
+          onToast={onToast}
+        />
+
         {!mobile && (
           <SettingsBackupSection
             autoBackup={autoBackup}
@@ -65,7 +84,16 @@ export function SettingsDialog({
           onToast={onToast}
         />
 
-        {!mobile && <SettingsExportSection onToast={onToast} />}
+        {!mobile && (
+          <>
+            <SettingsImportSection
+              lists={lists}
+              onToast={onToast}
+              onImported={onImportComplete}
+            />
+            <SettingsExportSection onToast={onToast} />
+          </>
+        )}
 
         <SettingsAboutSection onToast={onToast} />
       </div>

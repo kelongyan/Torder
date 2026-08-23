@@ -26,6 +26,7 @@ export function MonthCalendar({
   onOpenTask,
   onCreateEvent,
   onEditEvent,
+  onMoveTaskDate,
 }: {
   tasks: Task[];
   events: CalendarEvent[];
@@ -33,12 +34,14 @@ export function MonthCalendar({
   onOpenTask: (task: Task) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
+  onMoveTaskDate: (taskId: string, date: string) => void;
 }) {
   const today = new Date();
   const [cursor, setCursor] = useState({
     year: today.getFullYear(),
     month: today.getMonth(),
   });
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
   const tasksByDate = useMemo(
     () => buildTasksByDate(tasks, showCompleted),
@@ -134,6 +137,12 @@ export function MonthCalendar({
               key={key}
               className={`month-cell ${inMonth ? "" : "is-outside"} ${key === todayKey ? "is-today" : ""}`}
               role="gridcell"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggingTaskId) onMoveTaskDate(draggingTaskId, key);
+                setDraggingTaskId(null);
+              }}
             >
               <div className="month-cell-top">
                 <span className="month-cell-date">{date.getDate()}</span>
@@ -163,6 +172,9 @@ export function MonthCalendar({
                   key={task.id}
                   type="button"
                   className="month-task"
+                  draggable
+                  onDragStart={() => setDraggingTaskId(task.id)}
+                  onDragEnd={() => setDraggingTaskId(null)}
                   onClick={() => onOpenTask(task)}
                   title={task.title}
                 >

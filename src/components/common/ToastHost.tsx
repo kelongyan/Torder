@@ -6,7 +6,11 @@ export function ToastHost({ toasts }: { toasts: ToastMessage[] }) {
     <div className="toast-host" aria-live="polite">
       {toasts.map((toast) => {
         const Icon =
-          toast.type === "success" ? CheckCircle2 : toast.type === "error" ? AlertCircle : Info;
+          toast.type === "success"
+            ? CheckCircle2
+            : toast.type === "error"
+              ? AlertCircle
+              : Info;
         return (
           <div
             key={toast.id}
@@ -14,6 +18,21 @@ export function ToastHost({ toasts }: { toasts: ToastMessage[] }) {
           >
             <Icon aria-hidden="true" className="icon-sm" />
             <span>{toast.message}</span>
+            {(toast.actions?.length
+              ? toast.actions
+              : toast.actionLabel && toast.onAction
+                ? [{ label: toast.actionLabel, onClick: toast.onAction }]
+                : []
+            ).map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className="toast-action"
+                onClick={() => void action.onClick()}
+              >
+                {action.label}
+              </button>
+            ))}
           </div>
         );
       })}

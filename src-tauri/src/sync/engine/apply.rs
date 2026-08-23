@@ -6,8 +6,8 @@ use std::io::{Read, Write};
 
 use super::validate::validate_operation;
 use super::{
-    MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_SNAPSHOT_JSON_BYTES, MAX_SNAPSHOT_OPERATIONS, PROTOCOL,
-    Utc,
+    Utc, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_SNAPSHOT_JSON_BYTES, MAX_SNAPSHOT_OPERATIONS,
+    PROTOCOL,
 };
 use crate::db::{sync_repository, Database};
 use crate::error::{RepositoryError, RepositoryResult};
@@ -233,7 +233,10 @@ pub(crate) fn decode_snapshot(payload: &[u8]) -> RepositoryResult<Snapshot> {
     Ok(snapshot)
 }
 
-pub fn apply_batch(connection: &mut rusqlite::Connection, batch: &ChangeBatch) -> RepositoryResult<()> {
+pub fn apply_batch(
+    connection: &mut rusqlite::Connection,
+    batch: &ChangeBatch,
+) -> RepositoryResult<()> {
     apply_batch_with_limit(connection, batch, MAX_BATCH_OPERATIONS)
 }
 
@@ -571,7 +574,7 @@ pub(crate) fn current_payload(
     let sql = match entity {
         "list" => "SELECT json_object('id', id, 'name', name, 'color', color, 'sortOrder', sort_order, 'isDefault', json(CASE WHEN is_default = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM lists WHERE id = ?1",
         "recurringRule" => "SELECT json_object('id', id, 'title', title, 'note', note, 'priority', priority, 'listId', list_id, 'frequency', frequency, 'intervalCount', interval_count, 'weekdays', json(weekdays), 'monthDay', month_day, 'firstDueAt', first_due_at, 'nextDueAt', next_due_at, 'timezone', timezone, 'generateAheadMinutes', generate_ahead_minutes, 'remindBefore', remind_before, 'endAt', end_at, 'enabled', json(CASE WHEN enabled = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM recurring_rules WHERE id = ?1",
-        "task" => "SELECT json_object('id', id, 'title', title, 'note', note, 'status', status, 'priority', priority, 'listId', list_id, 'dueAt', due_at, 'completedAt', completed_at, 'sortOrder', sort_order, 'remindBefore', remind_before, 'remindAt', remind_at, 'remindedAt', reminded_at, 'repeatRule', repeat_rule, 'recurringRuleId', recurring_rule_id, 'occurrenceAt', occurrence_at, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM tasks WHERE id = ?1",
+        "task" => "SELECT json_object('id', id, 'title', title, 'note', note, 'status', status, 'priority', priority, 'listId', list_id, 'dueAt', due_at, 'completedAt', completed_at, 'sortOrder', sort_order, 'remindBefore', remind_before, 'remindAt', remind_at, 'remindedAt', reminded_at, 'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags), 'recurringRuleId', recurring_rule_id, 'occurrenceAt', occurrence_at, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM tasks WHERE id = ?1",
         "calendarEvent" => "SELECT json_object('id', id, 'title', title, 'eventType', event_type, 'startDate', start_date, 'endDate', end_date, 'note', note, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM calendar_events WHERE id = ?1",
         _ => return Err(RepositoryError::Validation("invalid sync entity")),
     };
@@ -677,21 +680,27 @@ fn apply_operation(
             )?;
         }
         "task" => {
+            let subtasks = payload
+                .get("subtasks")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
+            let tags = payload.get("tags").cloned().unwrap_or_else(|| json!([]));
             transaction.execute(
                 r#"INSERT INTO tasks (
                     id, title, note, status, priority, list_id, due_at, completed_at,
                     sort_order, remind_before, remind_at, reminded_at, repeat_rule, recurring_rule_id,
-                    occurrence_at, created_at, updated_at, deleted_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15,
-                          COALESCE(?16, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-                          COALESCE(?17, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?18)
+                    occurrence_at, subtasks, tags, created_at, updated_at, deleted_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
+                          COALESCE(?18, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                          COALESCE(?19, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?20)
                 ON CONFLICT(id) DO UPDATE SET title=excluded.title, note=excluded.note,
                   status=excluded.status, priority=excluded.priority, list_id=excluded.list_id,
                   due_at=excluded.due_at, completed_at=excluded.completed_at, sort_order=excluded.sort_order,
                   remind_before=excluded.remind_before, remind_at=excluded.remind_at,
                   reminded_at=excluded.reminded_at,
                   repeat_rule=excluded.repeat_rule, recurring_rule_id=excluded.recurring_rule_id,
-                  occurrence_at=excluded.occurrence_at, updated_at=excluded.updated_at,
+                  occurrence_at=excluded.occurrence_at, subtasks=excluded.subtasks,
+                  tags=excluded.tags, updated_at=excluded.updated_at,
                   deleted_at=excluded.deleted_at"#,
                 rusqlite::params![
                     operation.object_id,
@@ -702,6 +711,7 @@ fn apply_operation(
                     optional_integer(&payload, "remindBefore"), optional_string(&payload, "remindAt"),
                     optional_string(&payload, "remindedAt"), optional_string(&payload, "repeatRule"),
                     optional_string(&payload, "recurringRuleId"), optional_string(&payload, "occurrenceAt"),
+                    serde_json::to_string(&subtasks)?, serde_json::to_string(&tags)?,
                     optional_string(&payload, "createdAt"),
                     optional_string(&payload, "updatedAt"), optional_string(&payload, "deletedAt"),
                 ],

@@ -273,6 +273,26 @@ kbd {
   margin-top: 0;
 }
 
+.trash-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.trash-toolbar .section-header {
+  margin: 0;
+}
+
+.trash-toolbar .btn-danger {
+  min-height: 32px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .task-item {
   position: relative;
   display: flex;
@@ -332,6 +352,16 @@ kbd {
   box-shadow:
     0 8px 28px color-mix(in srgb, var(--accent) 18%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.task-item[draggable="true"] {
+  cursor: grab;
+}
+
+.task-item.is-dragging {
+  border-color: var(--accent);
+  opacity: 0.6;
+  transform: scale(0.99);
 }
 
 .task-item.is-leaving {
@@ -563,7 +593,9 @@ mark {
 .priority-pill,
 .due-label,
 .status-pill,
-.today-badge {
+.today-badge,
+.tag-pill,
+.subtask-pill {
   display: inline-flex;
   min-width: 0;
   align-items: center;
@@ -581,6 +613,13 @@ mark {
     background-color var(--motion-theme) var(--ease-standard),
     color var(--motion-theme) var(--ease-standard),
     transform var(--motion-fast) var(--ease-spring);
+}
+
+.tag-pill,
+.subtask-pill {
+  max-width: 116px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
 }
 
 .priority-pill {

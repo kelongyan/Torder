@@ -16,8 +16,8 @@ mod apply;
 mod crypto_ops;
 mod validate;
 pub(crate) use apply::{
-    apply_batch, apply_snapshot, build_snapshot, current_payload, decode_snapshot,
-    encode_snapshot, resolve_conflict_with_payload,
+    apply_batch, apply_snapshot, build_snapshot, current_payload, decode_snapshot, encode_snapshot,
+    resolve_conflict_with_payload,
 };
 pub(crate) use crypto_ops::{decrypt_operations, encrypt_operations, encryption_context};
 pub(crate) use validate::*;
@@ -1942,6 +1942,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         let mut connection = database.connect().unwrap();
@@ -2022,6 +2024,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         let mut connection = database.connect().unwrap();
@@ -2119,6 +2123,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         let mut connection = database.connect().unwrap();
@@ -2197,6 +2203,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         let mut connection = database.connect().unwrap();
@@ -2315,6 +2323,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
 
@@ -2448,6 +2458,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         configure_local_encryption(&database, &old_config, &old_key);
@@ -3347,6 +3359,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
         let mut source_connection = source.connect().unwrap();
@@ -3520,6 +3534,8 @@ mod tests {
                 sort_order: None,
                 remind_before: None,
                 repeat_rule: None,
+                subtasks: None,
+                tags: None,
             })
             .unwrap();
     }

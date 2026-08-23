@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Flag,
+  GripVertical,
   Inbox,
   Kanban,
   List,
@@ -51,6 +52,7 @@ export const sortOptions: Array<{
   { value: "priority", label: "按优先级", icon: Flag },
   { value: "date", label: "按截止日期", icon: Calendar },
   { value: "created", label: "按创建时间", icon: Clock },
+  { value: "manual", label: "手动排序", icon: GripVertical },
 ];
 
 export const priorityCopy: Record<

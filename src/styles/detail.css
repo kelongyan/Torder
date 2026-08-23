@@ -335,3 +335,116 @@
 .detail-more-menu button:hover {
   background: var(--danger-bg);
 }
+
+.detail-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  padding: 12px;
+}
+
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.detail-section-header strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.subtask-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+}
+
+.subtask-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.subtask-list {
+  display: grid;
+  gap: 6px;
+}
+
+.subtask-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.subtask-row.completed span {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.subtask-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+}
+
+.subtask-add-row input,
+.detail-tags-input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.subtask-add-row input:focus,
+.detail-tags-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-tags span,
+.tag-pill,
+.subtask-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.tag-pill {
+  color: var(--accent-hover);
+}
+
+.subtask-pill {
+  color: var(--green);
+}

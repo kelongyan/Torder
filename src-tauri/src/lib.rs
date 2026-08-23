@@ -3,8 +3,8 @@ pub mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
-pub mod runtime;
 mod recurrence;
+pub mod runtime;
 pub mod sync;
 #[cfg(desktop)]
 mod tray;
@@ -27,6 +27,26 @@ fn run_startup_backup_if_enabled(app: tauri::AppHandle) {
         return;
     }
     let _ = backup::backup_database(&app, &database);
+}
+
+fn run_trash_cleanup_if_configured(app: tauri::AppHandle) {
+    use db::settings_repository::SettingsRepository;
+    use db::task_repository::TaskRepository;
+
+    let database = app.state::<Database>();
+    let retention_days = SettingsRepository::new(&database)
+        .get("trashRetentionDays")
+        .ok()
+        .flatten()
+        .and_then(|setting| serde_json::from_str::<Option<i64>>(&setting.value).ok())
+        .flatten()
+        .filter(|days| *days >= 0);
+    let Some(retention_days) = retention_days else {
+        return;
+    };
+    if let Err(error) = TaskRepository::new(&database).cleanup_trash(retention_days) {
+        eprintln!("trash cleanup failed: {error}");
+    }
 }
 
 #[cfg(desktop)]
@@ -78,6 +98,7 @@ pub fn run() {
             setup_global_quick_add(app)?;
 
             run_startup_backup_if_enabled(app.handle().clone());
+            run_trash_cleanup_if_configured(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -87,14 +108,20 @@ pub fn run() {
             commands::backup::backup_database,
             commands::backup::export_tasks,
             commands::backup::list_backups,
+            commands::backup::preview_backup_import,
+            commands::backup::import_backup_selection,
             commands::backup::restore_backup,
             commands::task::create_task,
             commands::task::get_task,
             commands::task::query_tasks,
             commands::task::update_task,
+            commands::task::snooze_task_reminder,
             commands::task::delete_task,
             commands::task::set_task_completed,
             commands::task::restore_task,
+            commands::task::permanent_delete_task,
+            commands::task::empty_trash,
+            commands::task::cleanup_trash,
             commands::recurring::list_recurring_rules,
             commands::recurring::create_recurring_rule,
             commands::recurring::update_recurring_rule,

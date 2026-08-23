@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use super::{
-    crypto, PROTOCOL, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_JSON_DEPTH, MAX_STRING_LENGTH,
+    crypto, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_JSON_DEPTH, MAX_STRING_LENGTH, PROTOCOL,
 };
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::manifest::{ChangeOperation, Manifest};
@@ -181,6 +181,8 @@ pub fn validate_entity_fields(
                     | "remindAt"
                     | "remindedAt"
                     | "repeatRule"
+                    | "subtasks"
+                    | "tags"
                     | "recurringRuleId"
                     | "occurrenceAt"
                     | "createdAt"
@@ -247,6 +249,8 @@ pub fn validate_entity_fields(
     integer_range(payload, "generateAheadMinutes", 0, 525_600)?;
     integer_range(payload, "remindBefore", 0, 525_600)?;
     validate_weekdays(payload.get("weekdays"))?;
+    validate_task_tags(payload.get("tags"))?;
+    validate_subtasks(payload.get("subtasks"))?;
     boolean_field(payload, "isDefault")?;
     boolean_field(payload, "enabled")?;
 
@@ -358,7 +362,84 @@ pub fn validate_weekdays(value: Option<&Value>) -> RepositoryResult<()> {
     Ok(())
 }
 
-pub fn timestamp_field(payload: &serde_json::Map<String, Value>, key: &str) -> RepositoryResult<()> {
+pub fn validate_task_tags(value: Option<&Value>) -> RepositoryResult<()> {
+    let Some(value) = value else { return Ok(()) };
+    let tags = value
+        .as_array()
+        .ok_or(RepositoryError::Validation("sync tags must be an array"))?;
+    if tags.len() > 30
+        || tags.iter().any(|tag| {
+            tag.as_str()
+                .is_none_or(|tag| tag.trim().is_empty() || tag.len() > 40)
+        })
+    {
+        return Err(RepositoryError::Validation("invalid sync tags"));
+    }
+    Ok(())
+}
+
+pub fn validate_subtasks(value: Option<&Value>) -> RepositoryResult<()> {
+    let Some(value) = value else { return Ok(()) };
+    let subtasks = value.as_array().ok_or(RepositoryError::Validation(
+        "sync subtasks must be an array",
+    ))?;
+    if subtasks.len() > 100 {
+        return Err(RepositoryError::Validation("too many sync subtasks"));
+    }
+    for subtask in subtasks {
+        let Some(subtask) = subtask.as_object() else {
+            return Err(RepositoryError::Validation("invalid sync subtask"));
+        };
+        let title = subtask
+            .get("title")
+            .and_then(Value::as_str)
+            .ok_or(RepositoryError::Validation("invalid sync subtask title"))?;
+        if title.trim().is_empty() || title.len() > 512 {
+            return Err(RepositoryError::Validation("invalid sync subtask title"));
+        }
+        let id = subtask
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or(RepositoryError::Validation("invalid sync subtask id"))?;
+        if id.trim().is_empty() || id.len() > MAX_ID_LENGTH {
+            return Err(RepositoryError::Validation("invalid sync subtask id"));
+        }
+        if !subtask.get("completed").is_some_and(Value::is_boolean) {
+            return Err(RepositoryError::Validation(
+                "invalid sync subtask completion",
+            ));
+        }
+        if !subtask.get("sortOrder").is_some_and(Value::is_i64) {
+            return Err(RepositoryError::Validation(
+                "invalid sync subtask sort order",
+            ));
+        }
+        let created_at =
+            subtask
+                .get("createdAt")
+                .and_then(Value::as_str)
+                .ok_or(RepositoryError::Validation(
+                    "invalid sync subtask timestamp",
+                ))?;
+        chrono::DateTime::parse_from_rfc3339(created_at)
+            .map_err(|_| RepositoryError::Validation("invalid sync subtask timestamp"))?;
+        if let Some(completed_at) = subtask.get("completedAt") {
+            if !completed_at.is_null() {
+                let completed_at = completed_at.as_str().ok_or(RepositoryError::Validation(
+                    "invalid sync subtask timestamp",
+                ))?;
+                chrono::DateTime::parse_from_rfc3339(completed_at)
+                    .map_err(|_| RepositoryError::Validation("invalid sync subtask timestamp"))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn timestamp_field(
+    payload: &serde_json::Map<String, Value>,
+    key: &str,
+) -> RepositoryResult<()> {
     let Some(value) = payload.get(key) else {
         return Ok(());
     };

@@ -26,6 +26,10 @@
   transform: translateY(-1px);
 }
 
+.board-column:has(.board-card[draggable="true"]:active) {
+  border-color: var(--accent-border);
+}
+
 .board-column header {
   display: flex;
   align-items: center;
@@ -94,6 +98,10 @@
 
 .board-card:active {
   transform: scale(0.99);
+}
+
+.board-card[draggable="true"] {
+  cursor: grab;
 }
 
 .board-card.completed h3 {

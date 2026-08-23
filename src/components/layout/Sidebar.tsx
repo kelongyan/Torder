@@ -1,4 +1,14 @@
-import { Plus, Repeat2, Search, X } from "lucide-react";
+import {
+  Calendar,
+  Filter,
+  Plus,
+  Repeat2,
+  Search,
+  Star,
+  Tag,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
@@ -6,15 +16,29 @@ import { taskViewCopy } from "../../constants/taskViews";
 import { isScopeActive } from "../../utils/taskHelpers";
 import { listScope, viewScope } from "../../stores/taskStore";
 import type { TaskList, TaskScope } from "../../types/database";
+import type { SavedTaskView, SavedViewIcon } from "../../types/settings";
 import { SidebarItem } from "./SidebarItem";
+
+const savedViewIcons: Record<SavedViewIcon, LucideIcon> = {
+  filter: Filter,
+  star: Star,
+  calendar: Calendar,
+  tag: Tag,
+};
 
 export function Sidebar({
   lists,
   scope,
   searchQuery,
   counts,
+  savedViews,
+  activeSavedViewId,
   onSearchChange,
   onScopeChange,
+  onSavedViewOpen,
+  onSavedViewAdd,
+  onSavedViewEdit,
+  onSavedViewDelete,
   onAddList,
   onEditList,
   onDeleteList,
@@ -30,8 +54,14 @@ export function Sidebar({
     views: Record<string, number>;
     lists: Record<string, number>;
   };
+  savedViews: SavedTaskView[];
+  activeSavedViewId: string | null;
   onSearchChange: (query: string) => void;
   onScopeChange: (scope: TaskScope) => void;
+  onSavedViewOpen: (view: SavedTaskView) => void;
+  onSavedViewAdd: () => void;
+  onSavedViewEdit: (view: SavedTaskView) => void;
+  onSavedViewDelete: (view: SavedTaskView) => void;
   onAddList: () => void;
   onEditList: (list: TaskList) => void;
   onDeleteList: (list: TaskList) => void;
@@ -109,6 +139,33 @@ export function Sidebar({
           count={recurringCount}
           onClick={onOpenRecurring}
         />
+
+        <div className="sidebar-divider" />
+        <div className="nav-group-header">
+          <span className="nav-group-label">保存视图</span>
+          <button
+            type="button"
+            className="btn-add-list"
+            onClick={onSavedViewAdd}
+            title="保存当前筛选"
+            aria-label="保存当前筛选"
+          >
+            <Plus className="icon-xs" />
+          </button>
+        </div>
+        {savedViews.map((view) => (
+          <SidebarItem
+            key={view.id}
+            icon={savedViewIcons[view.icon]}
+            label={view.name}
+            active={!recurringActive && activeSavedViewId === view.id}
+            onClick={() => onSavedViewOpen(view)}
+            onEdit={() => onSavedViewEdit(view)}
+            onDelete={() => onSavedViewDelete(view)}
+            editLabel="编辑保存视图"
+            deleteLabel="删除保存视图"
+          />
+        ))}
 
         <div className="sidebar-divider" />
         <div className="nav-group-header">

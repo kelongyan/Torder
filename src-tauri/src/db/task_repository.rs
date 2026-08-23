@@ -1,13 +1,13 @@
 #![allow(clippy::items_after_test_module)]
 
 use chrono::{SecondsFormat, Utc};
-use rusqlite::types::Value;
+use rusqlite::types::{Type, Value};
 use rusqlite::{params, params_from_iter, Row};
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::error::{RepositoryError, RepositoryResult};
-use crate::models::{CreateTaskInput, Task, TaskQueryInput, UpdateTaskInput};
+use crate::models::{CreateTaskInput, Task, TaskQueryInput, TaskSubtask, UpdateTaskInput};
 
 use super::{sync_repository, Database};
 
@@ -27,6 +27,10 @@ impl<'database> TaskRepository<'database> {
         let id = Uuid::new_v4().to_string();
         let list_id = input.list_id.unwrap_or_else(|| "work".to_owned());
         let remind_at = compute_remind_at(input.due_at.as_deref(), input.remind_before);
+        let subtasks = normalize_subtasks(input.subtasks.unwrap_or_default())?;
+        let subtasks_json = serde_json::to_string(&subtasks)?;
+        let tags = normalize_tags(input.tags.unwrap_or_default());
+        let tags_json = serde_json::to_string(&tags)?;
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
 
@@ -34,8 +38,8 @@ impl<'database> TaskRepository<'database> {
             r#"
             INSERT INTO tasks (
                 id, title, note, priority, list_id, due_at, sort_order,
-                remind_before, remind_at, repeat_rule
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                remind_before, remind_at, repeat_rule, subtasks, tags
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
             "#,
             params![
                 id,
@@ -48,6 +52,8 @@ impl<'database> TaskRepository<'database> {
                 input.remind_before,
                 remind_at,
                 input.repeat_rule,
+                subtasks_json,
+                tags_json,
             ],
         )?;
         sync_repository::record_change(
@@ -68,6 +74,8 @@ impl<'database> TaskRepository<'database> {
                 "remindAt": remind_at,
                 "remindedAt": null,
                 "repeatRule": input.repeat_rule,
+                "subtasks": subtasks,
+                "tags": tags,
                 "recurringRuleId": null,
                 "occurrenceAt": null,
                 "completedAt": null,
@@ -82,7 +90,10 @@ impl<'database> TaskRepository<'database> {
     pub fn get(&self, id: &str) -> RepositoryResult<Task> {
         let connection = self.database.connect()?;
         let result = connection.query_row(
-            &format!("{} WHERE id = ?1 AND deleted_at IS NULL", select_tasks()),
+            &format!(
+                "{} WHERE id = ?1 AND deleted_at IS NULL AND purged_at IS NULL",
+                select_tasks()
+            ),
             params![id],
             map_task,
         );
@@ -92,7 +103,7 @@ impl<'database> TaskRepository<'database> {
     pub fn export_all(&self) -> RepositoryResult<Vec<Task>> {
         let connection = self.database.connect()?;
         let mut statement = connection.prepare(&format!(
-            "{} ORDER BY list_id, sort_order, created_at",
+            "{} WHERE purged_at IS NULL ORDER BY list_id, sort_order, created_at",
             select_tasks()
         ))?;
         let tasks = statement
@@ -105,10 +116,14 @@ impl<'database> TaskRepository<'database> {
         let deleted_view = input.scope_kind == "view" && input.scope_value == "deleted";
         let mut clauses = if deleted_view {
             // 回收站视图：只列出软删除的任务，其余视图一律排除已删除。
-            vec!["t.deleted_at IS NOT NULL".to_owned()]
+            vec![
+                "t.deleted_at IS NOT NULL".to_owned(),
+                "t.purged_at IS NULL".to_owned(),
+            ]
         } else {
             vec![
                 "t.deleted_at IS NULL".to_owned(),
+                "t.purged_at IS NULL".to_owned(),
                 "t.status != 'archived'".to_owned(),
             ]
         };
@@ -161,6 +176,18 @@ impl<'database> TaskRepository<'database> {
                     );
                     values.push(Value::Text(list_name));
                 }
+                if let Some(tag_name) = parsed.tag_name {
+                    clauses.push(
+                        r#"
+                        EXISTS (
+                            SELECT 1 FROM json_each(t.tags)
+                            WHERE json_each.value = ? COLLATE NOCASE
+                        )
+                        "#
+                        .to_owned(),
+                    );
+                    values.push(Value::Text(tag_name));
+                }
                 match parsed.due {
                     Some(DueFilter::Today) => clauses.push(
                         "t.status = 'todo' AND t.due_at IS NOT NULL AND date(t.due_at, 'localtime') = date('now', 'localtime')"
@@ -195,6 +222,10 @@ impl<'database> TaskRepository<'database> {
         validate_status(&input.status)?;
         validate_priority(input.priority)?;
         let remind_at = compute_remind_at(input.due_at.as_deref(), input.remind_before);
+        let subtasks = normalize_subtasks(input.subtasks)?;
+        let subtasks_json = serde_json::to_string(&subtasks)?;
+        let tags = normalize_tags(input.tags);
+        let tags_json = serde_json::to_string(&tags)?;
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
         let updated = transaction.execute(
@@ -216,12 +247,14 @@ impl<'database> TaskRepository<'database> {
                 remind_before = ?9,
                 remind_at = ?10,
                 repeat_rule = ?11,
+                subtasks = ?12,
+                tags = ?13,
                 reminded_at = CASE
-                    WHEN ?10 IS NOT remind_at THEN NULL
+                    WHEN ?7 IS NOT due_at OR ?9 IS NOT remind_before THEN NULL
                     ELSE reminded_at
                 END,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1 AND deleted_at IS NULL
+            WHERE id = ?1 AND deleted_at IS NULL AND purged_at IS NULL
             "#,
             params![
                 input.id,
@@ -235,6 +268,8 @@ impl<'database> TaskRepository<'database> {
                 input.remind_before,
                 remind_at,
                 input.repeat_rule,
+                subtasks_json,
+                tags_json,
             ],
         )?;
 
@@ -258,6 +293,40 @@ impl<'database> TaskRepository<'database> {
         self.get(&input.id)
     }
 
+    pub fn snooze_reminder(&self, id: &str, remind_at: &str) -> RepositoryResult<Task> {
+        chrono::DateTime::parse_from_rfc3339(remind_at)?;
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
+            r#"
+            UPDATE tasks
+            SET remind_at = ?2,
+                reminded_at = NULL,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ?1 AND deleted_at IS NULL AND purged_at IS NULL
+            "#,
+            params![id, remind_at],
+        )?;
+        if updated == 0 {
+            return Err(RepositoryError::NotFound("task"));
+        }
+        let changed_task = transaction.query_row(
+            &format!("{} WHERE id = ?1", select_tasks()),
+            params![id],
+            map_task,
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            id,
+            "upsert",
+            serde_json::to_value(changed_task)?,
+        )?;
+        transaction.commit()?;
+
+        self.get(id)
+    }
+
     pub fn soft_delete(&self, id: &str) -> RepositoryResult<()> {
         let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
         let mut connection = self.database.connect()?;
@@ -267,7 +336,7 @@ impl<'database> TaskRepository<'database> {
             UPDATE tasks
             SET deleted_at = ?2,
                 updated_at = ?2
-            WHERE id = ?1 AND deleted_at IS NULL
+            WHERE id = ?1 AND deleted_at IS NULL AND purged_at IS NULL
             "#,
             params![id, now],
         )?;
@@ -305,7 +374,7 @@ impl<'database> TaskRepository<'database> {
                     ELSE NULL
                 END,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1 AND deleted_at IS NULL
+            WHERE id = ?1 AND deleted_at IS NULL AND purged_at IS NULL
             "#,
             params![id, status],
         )?;
@@ -338,7 +407,7 @@ impl<'database> TaskRepository<'database> {
             UPDATE tasks
             SET deleted_at = NULL,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1 AND deleted_at IS NOT NULL
+            WHERE id = ?1 AND deleted_at IS NOT NULL AND purged_at IS NULL
             "#,
             params![id],
         )?;
@@ -360,6 +429,130 @@ impl<'database> TaskRepository<'database> {
         transaction.commit()?;
 
         self.get(id)
+    }
+
+    /// 从回收站中永久隐藏任务。业务行保留为同步 tombstone，避免快照构建时丢失 payload。
+    pub fn permanent_delete(&self, id: &str) -> RepositoryResult<()> {
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let updated = transaction.execute(
+            r#"
+            UPDATE tasks
+            SET purged_at = ?2,
+                updated_at = ?2
+            WHERE id = ?1
+              AND deleted_at IS NOT NULL
+              AND purged_at IS NULL
+            "#,
+            params![id, now],
+        )?;
+        if updated == 0 {
+            return Err(RepositoryError::NotFound("task"));
+        }
+        let changed_task = transaction.query_row(
+            &format!("{} WHERE id = ?1", select_tasks()),
+            params![id],
+            map_task,
+        )?;
+        sync_repository::record_change(
+            &transaction,
+            "task",
+            id,
+            "delete",
+            serde_json::to_value(changed_task)?,
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn empty_trash(&self) -> RepositoryResult<i64> {
+        let ids = self.trash_ids_before(None)?;
+        self.mark_purged(ids)
+    }
+
+    pub fn cleanup_trash(&self, retention_days: i64) -> RepositoryResult<i64> {
+        if retention_days < 0 {
+            return Err(RepositoryError::Validation(
+                "trash retention days cannot be negative",
+            ));
+        }
+        let threshold = Utc::now() - chrono::Duration::days(retention_days);
+        let threshold = threshold.to_rfc3339_opts(SecondsFormat::Millis, true);
+        let ids = self.trash_ids_before(Some(threshold.as_str()))?;
+        self.mark_purged(ids)
+    }
+
+    fn trash_ids_before(&self, deleted_before: Option<&str>) -> RepositoryResult<Vec<String>> {
+        let connection = self.database.connect()?;
+        match deleted_before {
+            Some(value) => {
+                let mut statement = connection.prepare(
+                    r#"
+                    SELECT id FROM tasks
+                    WHERE deleted_at IS NOT NULL
+                      AND purged_at IS NULL
+                      AND deleted_at <= ?1
+                    ORDER BY deleted_at ASC
+                    "#,
+                )?;
+                let rows = statement.query_map(params![value], |row| row.get::<_, String>(0))?;
+                Ok(rows.collect::<Result<Vec<_>, _>>()?)
+            }
+            None => {
+                let mut statement = connection.prepare(
+                    r#"
+                    SELECT id FROM tasks
+                    WHERE deleted_at IS NOT NULL
+                      AND purged_at IS NULL
+                    ORDER BY deleted_at ASC
+                    "#,
+                )?;
+                let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+                Ok(rows.collect::<Result<Vec<_>, _>>()?)
+            }
+        }
+    }
+
+    fn mark_purged(&self, ids: Vec<String>) -> RepositoryResult<i64> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        let mut connection = self.database.connect()?;
+        let transaction = connection.transaction()?;
+        let mut count = 0_i64;
+        for id in ids {
+            let updated = transaction.execute(
+                r#"
+                UPDATE tasks
+                SET purged_at = ?2,
+                    updated_at = ?2
+                WHERE id = ?1
+                  AND deleted_at IS NOT NULL
+                  AND purged_at IS NULL
+                "#,
+                params![id, now],
+            )?;
+            if updated == 0 {
+                continue;
+            }
+            let changed_task = transaction.query_row(
+                &format!("{} WHERE id = ?1", select_tasks()),
+                params![id],
+                map_task,
+            )?;
+            sync_repository::record_change(
+                &transaction,
+                "task",
+                &id,
+                "delete",
+                serde_json::to_value(changed_task)?,
+            )?;
+            count += 1;
+        }
+        transaction.commit()?;
+        Ok(count)
     }
 }
 
@@ -405,7 +598,7 @@ pub(crate) fn select_tasks() -> &'static str {
     r#"
     SELECT id, title, note, status, priority, list_id, due_at,
            completed_at, sort_order, remind_before, remind_at, reminded_at,
-           repeat_rule, recurring_rule_id, occurrence_at,
+           repeat_rule, subtasks, tags, recurring_rule_id, occurrence_at,
            created_at, updated_at, deleted_at
     FROM tasks
     "#
@@ -415,7 +608,7 @@ fn select_tasks_aliased() -> &'static str {
     r#"
     SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.due_at,
            t.completed_at, t.sort_order, t.remind_before, t.remind_at, t.reminded_at,
-           t.repeat_rule, t.recurring_rule_id, t.occurrence_at,
+           t.repeat_rule, t.subtasks, t.tags, t.recurring_rule_id, t.occurrence_at,
            t.created_at, t.updated_at, t.deleted_at
     FROM tasks t
     "#
@@ -436,6 +629,7 @@ fn sort_clause(sort_by: &str) -> RepositoryResult<&'static str> {
             t.created_at DESC
             "#),
         "created" => Ok("t.created_at ASC"),
+        "manual" => Ok("t.sort_order ASC, t.created_at ASC"),
         _ => Err(RepositoryError::Validation("invalid task sort")),
     }
 }
@@ -454,6 +648,7 @@ struct ParsedSearchQuery {
     text: Option<String>,
     priority: Option<i64>,
     list_name: Option<String>,
+    tag_name: Option<String>,
     due: Option<DueFilter>,
 }
 
@@ -468,6 +663,7 @@ fn parse_search_query(query: &str) -> ParsedSearchQuery {
     let mut text_parts: Vec<&str> = Vec::new();
     let mut priority: Option<i64> = None;
     let mut list_name: Option<String> = None;
+    let mut tag_name: Option<String> = None;
     let mut due: Option<DueFilter> = None;
 
     for token in query.split_whitespace() {
@@ -483,6 +679,13 @@ fn parse_search_query(query: &str) -> ParsedSearchQuery {
             let name = value.trim();
             if !name.is_empty() {
                 list_name = Some(name.to_owned());
+                continue;
+            }
+        }
+        if let Some(value) = token.strip_prefix("tag:") {
+            let name = value.trim().trim_start_matches('#');
+            if !name.is_empty() {
+                tag_name = Some(name.to_owned());
                 continue;
             }
         }
@@ -510,6 +713,7 @@ fn parse_search_query(query: &str) -> ParsedSearchQuery {
         text,
         priority,
         list_name,
+        tag_name,
         due,
     }
 }
@@ -552,6 +756,8 @@ mod search_query_tests {
 }
 
 pub(crate) fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
+    let subtasks_json: String = row.get(13)?;
+    let tags_json: String = row.get(14)?;
     Ok(Task {
         id: row.get(0)?,
         title: row.get(1)?,
@@ -566,12 +772,69 @@ pub(crate) fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
         remind_at: row.get(10)?,
         reminded_at: row.get(11)?,
         repeat_rule: row.get(12)?,
-        recurring_rule_id: row.get(13)?,
-        occurrence_at: row.get(14)?,
-        created_at: row.get(15)?,
-        updated_at: row.get(16)?,
-        deleted_at: row.get(17)?,
+        subtasks: parse_subtasks_column(subtasks_json, 13)?,
+        tags: parse_tags_column(tags_json, 14)?,
+        recurring_rule_id: row.get(15)?,
+        occurrence_at: row.get(16)?,
+        created_at: row.get(17)?,
+        updated_at: row.get(18)?,
+        deleted_at: row.get(19)?,
     })
+}
+
+fn parse_subtasks_column(value: String, index: usize) -> rusqlite::Result<Vec<TaskSubtask>> {
+    serde_json::from_str(&value).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(index, Type::Text, Box::new(error))
+    })
+}
+
+fn parse_tags_column(value: String, index: usize) -> rusqlite::Result<Vec<String>> {
+    serde_json::from_str(&value).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(index, Type::Text, Box::new(error))
+    })
+}
+
+fn normalize_subtasks(mut subtasks: Vec<TaskSubtask>) -> RepositoryResult<Vec<TaskSubtask>> {
+    if subtasks.len() > 100 {
+        return Err(RepositoryError::Validation("too many subtasks"));
+    }
+    for (index, subtask) in subtasks.iter_mut().enumerate() {
+        subtask.id = subtask.id.trim().to_owned();
+        if subtask.id.is_empty() {
+            subtask.id = Uuid::new_v4().to_string();
+        }
+        subtask.title = subtask.title.trim().to_owned();
+        if subtask.title.is_empty() || subtask.title.len() > 512 {
+            return Err(RepositoryError::Validation("invalid subtask title"));
+        }
+        chrono::DateTime::parse_from_rfc3339(&subtask.created_at)?;
+        if let Some(completed_at) = subtask.completed_at.as_deref() {
+            chrono::DateTime::parse_from_rfc3339(completed_at)?;
+        }
+        subtask.sort_order = index as i64;
+    }
+    Ok(subtasks)
+}
+
+fn normalize_tags(tags: Vec<String>) -> Vec<String> {
+    let mut normalized: Vec<String> = Vec::new();
+    for tag in tags {
+        let tag = tag.trim().trim_start_matches('#').to_owned();
+        if tag.is_empty() || tag.len() > 40 {
+            continue;
+        }
+        if normalized
+            .iter()
+            .any(|item| item.eq_ignore_ascii_case(&tag))
+        {
+            continue;
+        }
+        normalized.push(tag);
+        if normalized.len() >= 30 {
+            break;
+        }
+    }
+    normalized
 }
 
 /// Compute `remind_at` from `due_at` and `remind_before` (in minutes).

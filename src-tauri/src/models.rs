@@ -2,6 +2,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct TaskSubtask {
+    pub id: String,
+    pub title: String,
+    pub completed: bool,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+    pub sort_order: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Task {
     pub id: String,
     pub title: String,
@@ -16,6 +27,8 @@ pub struct Task {
     pub remind_at: Option<String>,
     pub reminded_at: Option<String>,
     pub repeat_rule: Option<String>,
+    pub subtasks: Vec<TaskSubtask>,
+    pub tags: Vec<String>,
     pub recurring_rule_id: Option<String>,
     pub occurrence_at: Option<String>,
     pub created_at: String,
@@ -102,6 +115,8 @@ pub struct CreateTaskInput {
     pub sort_order: Option<i64>,
     pub remind_before: Option<i64>,
     pub repeat_rule: Option<String>,
+    pub subtasks: Option<Vec<TaskSubtask>>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,6 +132,8 @@ pub struct UpdateTaskInput {
     pub sort_order: i64,
     pub remind_before: Option<i64>,
     pub repeat_rule: Option<String>,
+    pub subtasks: Vec<TaskSubtask>,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

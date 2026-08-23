@@ -29,6 +29,7 @@ export function WeekCalendar({
   onOpenTask,
   onCreateEvent,
   onEditEvent,
+  onMoveTaskDate,
 }: {
   tasks: Task[];
   events: CalendarEvent[];
@@ -36,9 +37,11 @@ export function WeekCalendar({
   onOpenTask: (task: Task) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
+  onMoveTaskDate: (taskId: string, date: string) => void;
 }) {
   const today = new Date();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
   const tasksByDate = useMemo(
     () => buildTasksByDate(tasks, showCompleted),
@@ -132,6 +135,12 @@ export function WeekCalendar({
               key={key}
               className={`month-cell week-cell ${isToday ? "is-today" : ""}`}
               role="gridcell"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggingTaskId) onMoveTaskDate(draggingTaskId, key);
+                setDraggingTaskId(null);
+              }}
             >
               <div className="month-cell-top">
                 <span className="month-cell-date">
@@ -164,6 +173,9 @@ export function WeekCalendar({
                     key={task.id}
                     type="button"
                     className="month-task"
+                    draggable
+                    onDragStart={() => setDraggingTaskId(task.id)}
+                    onDragEnd={() => setDraggingTaskId(null)}
                     onClick={() => onOpenTask(task)}
                     title={task.title}
                   >

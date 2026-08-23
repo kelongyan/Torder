@@ -10,6 +10,21 @@ export function addBrowserTask(task: Task): void {
   browserTasks = [task, ...browserTasks];
 }
 
+export function removeBrowserTaskIncludingDeleted(id: string): boolean {
+  const before = browserTasks.length;
+  browserTasks = browserTasks.filter((task) => task.id !== id);
+  return browserTasks.length !== before;
+}
+
+export function removeDeletedBrowserTasksBefore(timestamp?: string): number {
+  const before = browserTasks.length;
+  browserTasks = browserTasks.filter((task) => {
+    if (!task.deletedAt) return true;
+    return timestamp ? task.deletedAt > timestamp : false;
+  });
+  return before - browserTasks.length;
+}
+
 export function updateBrowserTask(
   id: string,
   updater: (task: Task) => Task,
@@ -158,6 +173,8 @@ function browserTask(
     remindAt: null,
     remindedAt: null,
     repeatRule: null,
+    subtasks: [],
+    tags: [],
     recurringRuleId: null,
     occurrenceAt: null,
     createdAt: timestamp,
@@ -168,5 +185,9 @@ function browserTask(
 }
 
 function cloneTask(task: Task): Task {
-  return { ...task };
+  return {
+    ...task,
+    subtasks: task.subtasks.map((subtask) => ({ ...subtask })),
+    tags: [...task.tags],
+  };
 }
