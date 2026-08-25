@@ -9,7 +9,7 @@ use crate::sync::manifest::{ChangeOperation, Manifest};
 pub fn validate_manifest(manifest: &Manifest) -> RepositoryResult<()> {
     if manifest.protocol != PROTOCOL
         || manifest.format != "torder-sync"
-        || manifest.schema_version != 1
+        || manifest.schema_version != 2
         || manifest.latest_sequence < 0
         || manifest.snapshot_sequence < 0
         || manifest.snapshot_sequence > manifest.latest_sequence
@@ -41,7 +41,7 @@ pub fn validate_manifest(manifest: &Manifest) -> RepositoryResult<()> {
 pub fn validate_operation(operation: &ChangeOperation) -> RepositoryResult<()> {
     if !matches!(
         operation.entity.as_str(),
-        "list" | "recurringRule" | "task" | "calendarEvent"
+        "list" | "recurringRule" | "task" | "calendarEvent" | "attachment"
     ) {
         return Err(RepositoryError::Validation("invalid sync entity"));
     }
@@ -201,6 +201,24 @@ pub fn validate_entity_fields(
                     | "updatedAt"
                     | "deletedAt"
             ),
+            "attachment" => matches!(
+                key.as_str(),
+                "id" | "taskId"
+                    | "kind"
+                    | "blobId"
+                    | "displayName"
+                    | "originalName"
+                    | "externalUrl"
+                    | "contentSha256"
+                    | "sizeBytes"
+                    | "mimeType"
+                    | "remotePath"
+                    | "encryptionKeyId"
+                    | "sortOrder"
+                    | "createdAt"
+                    | "updatedAt"
+                    | "deletedAt"
+            ),
             _ => false,
         };
         if !allowed {
@@ -210,24 +228,82 @@ pub fn validate_entity_fields(
 
     string_field(payload, "id", MAX_ID_LENGTH)?;
     string_field(payload, "listId", MAX_ID_LENGTH)?;
+    string_field(payload, "taskId", MAX_ID_LENGTH)?;
+    string_field(payload, "blobId", MAX_ID_LENGTH)?;
     string_field(payload, "recurringRuleId", MAX_ID_LENGTH)?;
     string_field(payload, "repeatRule", MAX_STRING_LENGTH)?;
     string_field(payload, "color", 64)?;
     string_field(payload, "name", 512)?;
     string_field(payload, "title", 512)?;
+    string_field(payload, "displayName", 512)?;
+    string_field(payload, "originalName", 512)?;
     string_field(payload, "note", MAX_STRING_LENGTH)?;
     string_field(payload, "status", 32)?;
     string_field(payload, "eventType", 32)?;
     string_field(payload, "frequency", 32)?;
     string_field(payload, "timezone", 64)?;
+    string_field(payload, "kind", 32)?;
+    string_field(payload, "externalUrl", 2048)?;
+    string_field(payload, "contentSha256", 128)?;
+    string_field(payload, "mimeType", 255)?;
+    string_field(payload, "remotePath", 512)?;
+    string_field(payload, "encryptionKeyId", MAX_ID_LENGTH)?;
 
+    if let Some(value) = payload.get("kind") {
+        if !matches!(value.as_str(), Some("managed" | "webLink")) {
+            return Err(RepositoryError::Validation("invalid sync attachment kind"));
+        }
+    }
+    if let Some(value) = payload.get("externalUrl") {
+        if !value.is_null() {
+            let url = value
+                .as_str()
+                .ok_or(RepositoryError::Validation("sync field must be a string"))?;
+            if !(url.starts_with("https://") || url.starts_with("http://")) {
+                return Err(RepositoryError::Validation("invalid sync attachment URL"));
+            }
+        }
+    }
+    if entity == "attachment" {
+        match payload.get("kind").and_then(Value::as_str) {
+            Some("managed") => {
+                if payload.get("blobId").and_then(Value::as_str).is_none()
+                    || payload
+                        .get("contentSha256")
+                        .and_then(Value::as_str)
+                        .is_none()
+                    || payload.get("sizeBytes").and_then(Value::as_i64).is_none()
+                    || payload.get("remotePath").and_then(Value::as_str).is_none()
+                {
+                    return Err(RepositoryError::Validation(
+                        "managed attachment payload is incomplete",
+                    ));
+                }
+            }
+            Some("webLink") => {
+                if payload.get("externalUrl").and_then(Value::as_str).is_none() {
+                    return Err(RepositoryError::Validation(
+                        "web link attachment payload is incomplete",
+                    ));
+                }
+            }
+            Some(_) => {}
+            None => {
+                if !payload.contains_key("deletedAt") {
+                    return Err(RepositoryError::Validation(
+                        "attachment payload requires kind",
+                    ));
+                }
+            }
+        }
+    }
     if let Some(value) = payload.get("status") {
         if !matches!(value.as_str(), Some("todo" | "done" | "archived")) {
             return Err(RepositoryError::Validation("invalid sync task status"));
         }
     }
     if let Some(value) = payload.get("eventType") {
-        if !matches!(value.as_str(), Some("leave" | "trip")) {
+        if !matches!(value.as_str(), Some("leave" | "trip" | "other")) {
             return Err(RepositoryError::Validation(
                 "invalid sync calendar event type",
             ));
@@ -245,6 +321,7 @@ pub fn validate_entity_fields(
     }
     integer_range(payload, "priority", 0, 2)?;
     integer_range(payload, "sortOrder", i64::MIN, i64::MAX)?;
+    integer_range(payload, "sizeBytes", 0, i64::MAX)?;
     integer_range(payload, "intervalCount", 1, 365)?;
     integer_range(payload, "monthDay", 1, 31)?;
     integer_range(payload, "generateAheadMinutes", 0, 525_600)?;
@@ -303,14 +380,30 @@ pub fn string_field(
     let Some(value) = payload.get(key) else {
         return Ok(());
     };
-    if value.is_null() && matches!(key, "note" | "color" | "recurringRuleId" | "repeatRule") {
+    if value.is_null()
+        && matches!(
+            key,
+            "note"
+                | "color"
+                | "recurringRuleId"
+                | "repeatRule"
+                | "blobId"
+                | "originalName"
+                | "externalUrl"
+                | "contentSha256"
+                | "mimeType"
+                | "remotePath"
+                | "encryptionKeyId"
+        )
+    {
         return Ok(());
     }
     let value = value
         .as_str()
         .ok_or(RepositoryError::Validation("sync field must be a string"))?;
     if value.len() > max_length
-        || (matches!(key, "id" | "name" | "title") && value.trim().is_empty())
+        || (matches!(key, "id" | "name" | "title" | "displayName" | "taskId")
+            && value.trim().is_empty())
     {
         return Err(RepositoryError::Validation("sync string field is invalid"));
     }
@@ -326,7 +419,7 @@ pub fn integer_range(
     let Some(value) = payload.get(key) else {
         return Ok(());
     };
-    if value.is_null() && matches!(key, "monthDay" | "remindBefore") {
+    if value.is_null() && matches!(key, "monthDay" | "remindBefore" | "sizeBytes") {
         return Ok(());
     }
     let value = value.as_i64().ok_or(RepositoryError::Validation(

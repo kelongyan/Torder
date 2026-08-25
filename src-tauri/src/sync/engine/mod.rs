@@ -1,9 +1,20 @@
 #![allow(clippy::items_after_test_module)]
 
+use std::collections::BTreeSet;
+use std::fs;
+
 use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
-use crate::db::{recurring_repository::RecurringRuleRepository, sync_repository, Database};
+use crate::db::{
+    attachment_repository::{
+        attachment_tmp_dir, blob_absolute_path, managed_blob_relative_path, sha256_file,
+        AttachmentBlobTransfer, AttachmentRepository, MAX_ATTACHMENT_FILE_BYTES,
+    },
+    recurring_repository::RecurringRuleRepository,
+    sync_repository, Database,
+};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{SyncChange, SyncRemoteInspection};
 use crate::sync::crypto::{self, EncryptionKey};
@@ -22,7 +33,7 @@ pub(crate) use apply::{
 pub(crate) use crypto_ops::{decrypt_operations, encrypt_operations, encryption_context};
 pub(crate) use validate::*;
 
-const PROTOCOL: i64 = 1;
+const PROTOCOL: i64 = 2;
 const MAX_BATCH_OPERATIONS: usize = 500;
 const MAX_BATCH_JSON_BYTES: usize = 1024 * 1024;
 const MAX_SNAPSHOT_OPERATIONS: usize = 50_000;
@@ -61,7 +72,10 @@ pub async fn inspect_remote(
                     let name = href.trim_end_matches('/').rsplit('/').next().unwrap_or("");
                     (!name.is_empty()
                         && name != root_name
-                        && !matches!(name, "manifest.json" | "changes" | "snapshots" | "locks"))
+                        && !matches!(
+                            name,
+                            "manifest.json" | "changes" | "snapshots" | "locks" | "attachments"
+                        ))
                     .then(|| name.to_owned())
                 })
                 .take(20)
@@ -710,6 +724,10 @@ async fn run_with_client_once(
             sync_repository::set_state(&connection, "lastRemoteSequence", &sequence.to_string())?;
         }
     }
+    if should_pull {
+        sync_repository::set_state(&connection, "syncPhase", "downloadBlobs")?;
+        download_pending_attachment_blobs(database, client, &root, encryption.as_ref()).await?;
+    }
     if initial_mode == InitialSyncMode::Download {
         RecurringRuleRepository::new(database).generate_due()?;
         let synced_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -728,7 +746,6 @@ async fn run_with_client_once(
     // collecting pending changes so the resulting task changes join this upload.
     sync_repository::set_state(&connection, "syncPhase", "upload")?;
     RecurringRuleRepository::new(database).generate_due()?;
-    let pending_total = sync_repository::pending_count(&connection)?;
     let changes = sync_repository::list_pending(&connection, 500)?;
     if changes.is_empty() {
         let synced_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -768,6 +785,10 @@ async fn run_with_client_once(
         }
         return Ok(());
     }
+    upload_attachment_blobs_for_changes(database, client, &root, &changes, encryption.as_ref())
+        .await?;
+    let pending_total = sync_repository::pending_count(&connection)?;
+    let changes = sync_repository::list_pending(&connection, 500)?;
     let sequence = manifest
         .latest_sequence
         .checked_add(1)
@@ -939,13 +960,320 @@ fn build_upload_batch(
     }
 }
 
+async fn upload_attachment_blobs_for_changes(
+    database: &Database,
+    client: &WebDavClient,
+    root: &str,
+    changes: &[SyncChange],
+    encryption: Option<&EncryptionContext>,
+) -> RepositoryResult<()> {
+    let blob_ids = attachment_blob_ids_from_changes(changes)?;
+    if blob_ids.is_empty() {
+        return Ok(());
+    }
+    let data_dir = database.data_dir()?;
+    let repository = AttachmentRepository::new(database);
+    let blobs = repository.list_blobs_by_ids(&blob_ids)?;
+    for blob in blobs {
+        match upload_attachment_blob(&repository, &data_dir, client, root, &blob, encryption).await
+        {
+            Ok(()) => {}
+            Err(error) => {
+                if !error.to_string().contains("attachment file not found") {
+                    let _ = repository.mark_blob_failed(&blob.id, &error.to_string());
+                }
+                return Err(error);
+            }
+        }
+    }
+    repository.refresh_pending_attachment_changes()?;
+    Ok(())
+}
+
+async fn upload_attachment_blob(
+    repository: &AttachmentRepository<'_>,
+    data_dir: &std::path::Path,
+    client: &WebDavClient,
+    root: &str,
+    blob: &AttachmentBlobTransfer,
+    encryption: Option<&EncryptionContext>,
+) -> RepositoryResult<()> {
+    let remote_path = blob
+        .remote_path
+        .clone()
+        .unwrap_or_else(|| managed_blob_relative_path(&blob.id));
+    validate_attachment_remote_path(&remote_path)?;
+    let local_path = blob_absolute_path(data_dir, &blob.local_relative_path)?;
+    if !local_path.is_file() {
+        repository.mark_blob_missing(&blob.id, "attachment file not found")?;
+        return Err(RepositoryError::NotFound("attachment file"));
+    }
+    let (content_sha256, size_bytes) = sha256_file(&local_path)?;
+    if content_sha256 != blob.content_sha256 || size_bytes != blob.size_bytes {
+        repository.mark_blob_missing(&blob.id, "attachment file integrity mismatch")?;
+        return Err(RepositoryError::Validation(
+            "attachment file integrity mismatch",
+        ));
+    }
+    let plaintext = fs::read(&local_path)?;
+    if plaintext.len() as u64 > MAX_ATTACHMENT_FILE_BYTES {
+        return Err(RepositoryError::Validation("attachment file is too large"));
+    }
+    let (payload, encryption_key_id) = if let Some(context) = encryption {
+        let key_id = context.config.key_id.as_str();
+        let aad = attachment_blob_associated_data(blob, key_id);
+        (
+            crypto::encrypt_bytes(&plaintext, &context.key, &aad)?,
+            Some(key_id),
+        )
+    } else {
+        (plaintext, None)
+    };
+    let remote_blob_path = format!("{root}/{remote_path}");
+    ensure_remote_parent_collections(client, &remote_blob_path).await?;
+    match client
+        .put_blob_if_none_match(&remote_blob_path, payload.clone())
+        .await
+    {
+        Ok(()) => {}
+        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
+            let existing = client
+                .get_blob(&remote_blob_path)
+                .await
+                .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+            if !remote_payload_matches_blob(&existing, blob, encryption_key_id, encryption)? {
+                return Err(RepositoryError::Tauri(
+                    "remote attachment blob already exists with different content; local changes remain pending".to_owned(),
+                ));
+            }
+        }
+        Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
+    }
+    let verified = client
+        .get_blob(&remote_blob_path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    if !remote_payload_matches_blob(&verified, blob, encryption_key_id, encryption)? {
+        return Err(RepositoryError::Tauri(
+            "remote attachment blob verification failed; local changes remain pending".to_owned(),
+        ));
+    }
+    repository.mark_blob_uploaded(&blob.id, &remote_path, encryption_key_id)?;
+    Ok(())
+}
+
+async fn download_pending_attachment_blobs(
+    database: &Database,
+    client: &WebDavClient,
+    root: &str,
+    encryption: Option<&EncryptionContext>,
+) -> RepositoryResult<()> {
+    let data_dir = database.data_dir()?;
+    let repository = AttachmentRepository::new(database);
+    let blobs = repository.list_pending_downloads(500)?;
+    for blob in blobs {
+        if let Err(error) = download_attachment_blob(
+            database,
+            &repository,
+            &data_dir,
+            client,
+            root,
+            &blob,
+            encryption,
+        )
+        .await
+        {
+            repository.mark_blob_failed(&blob.id, &error.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+async fn download_attachment_blob(
+    database: &Database,
+    repository: &AttachmentRepository<'_>,
+    data_dir: &std::path::Path,
+    client: &WebDavClient,
+    root: &str,
+    blob: &AttachmentBlobTransfer,
+    encryption: Option<&EncryptionContext>,
+) -> RepositoryResult<()> {
+    let local_relative_path = managed_blob_relative_path(&blob.id);
+    let target = blob_absolute_path(data_dir, &local_relative_path)?;
+    if target.is_file() {
+        let (content_sha256, size_bytes) = sha256_file(&target)?;
+        if content_sha256 == blob.content_sha256 && size_bytes == blob.size_bytes {
+            repository.mark_blob_downloaded(&blob.id, &local_relative_path)?;
+            return Ok(());
+        }
+    }
+    let remote_path = blob
+        .remote_path
+        .as_deref()
+        .ok_or(RepositoryError::Validation(
+            "attachment remote path is missing",
+        ))?;
+    validate_attachment_remote_path(remote_path)?;
+    let remote_payload = client
+        .get_blob(&format!("{root}/{remote_path}"))
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    let plaintext = decrypt_remote_attachment_blob(database, blob, &remote_payload, encryption)?;
+    if !attachment_blob_bytes_match(&plaintext, blob) {
+        return Err(RepositoryError::Validation(
+            "attachment blob integrity mismatch",
+        ));
+    }
+    let parent = target
+        .parent()
+        .ok_or(RepositoryError::Validation("invalid attachment path"))?;
+    fs::create_dir_all(parent)?;
+    let tmp_dir = attachment_tmp_dir(data_dir);
+    fs::create_dir_all(&tmp_dir)?;
+    let tmp_path = tmp_dir.join(format!("{}.part", uuid::Uuid::new_v4()));
+    if let Err(error) = fs::write(&tmp_path, &plaintext) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(error.into());
+    }
+    if target.exists() {
+        fs::remove_file(&target)?;
+    }
+    if let Err(error) = fs::rename(&tmp_path, &target) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(error.into());
+    }
+    repository.mark_blob_downloaded(&blob.id, &local_relative_path)
+}
+
+fn attachment_blob_ids_from_changes(changes: &[SyncChange]) -> RepositoryResult<Vec<String>> {
+    let mut ids = BTreeSet::new();
+    for change in changes {
+        if change.entity != "attachment" || change.operation == "delete" {
+            continue;
+        }
+        let payload: Value = serde_json::from_str(&change.payload_json)
+            .map_err(|_| RepositoryError::Validation("invalid local sync payload"))?;
+        if payload.get("kind").and_then(Value::as_str) == Some("managed") {
+            let blob_id = payload.get("blobId").and_then(Value::as_str).ok_or(
+                RepositoryError::Validation("managed attachment payload is incomplete"),
+            )?;
+            ids.insert(blob_id.to_owned());
+        }
+    }
+    Ok(ids.into_iter().collect())
+}
+
+fn decrypt_remote_attachment_blob(
+    database: &Database,
+    blob: &AttachmentBlobTransfer,
+    payload: &[u8],
+    encryption: Option<&EncryptionContext>,
+) -> RepositoryResult<Vec<u8>> {
+    let Some(key_id) = blob
+        .encryption_key_id
+        .as_deref()
+        .or_else(|| encryption.map(|context| context.config.key_id.as_str()))
+    else {
+        return Ok(payload.to_vec());
+    };
+    let key = if let Some(context) = encryption.filter(|context| context.config.key_id == key_id) {
+        context.key.clone()
+    } else {
+        let connection = database.connect()?;
+        let stored = crate::sync::credentials::load_encryption_keys(&connection)?;
+        crypto::stored_key(&stored, key_id)?.ok_or(RepositoryError::Validation(
+            "sync encryption password is required on this device",
+        ))?
+    };
+    let aad = attachment_blob_associated_data(blob, key_id);
+    crypto::decrypt_bytes(payload, &key, &aad)
+}
+
+fn remote_payload_matches_blob(
+    payload: &[u8],
+    blob: &AttachmentBlobTransfer,
+    encryption_key_id: Option<&str>,
+    encryption: Option<&EncryptionContext>,
+) -> RepositoryResult<bool> {
+    let plaintext = if let (Some(key_id), Some(context)) = (encryption_key_id, encryption) {
+        let aad = attachment_blob_associated_data(blob, key_id);
+        crypto::decrypt_bytes(payload, &context.key, &aad)?
+    } else {
+        payload.to_vec()
+    };
+    Ok(attachment_blob_bytes_match(&plaintext, blob))
+}
+
+fn attachment_blob_bytes_match(payload: &[u8], blob: &AttachmentBlobTransfer) -> bool {
+    payload.len() as i64 == blob.size_bytes && sha256_bytes(payload) == blob.content_sha256
+}
+
+fn sha256_bytes(payload: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(payload);
+    let digest = hasher.finalize();
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        encoded.push_str(&format!("{byte:02x}"));
+    }
+    encoded
+}
+
+fn attachment_blob_associated_data(blob: &AttachmentBlobTransfer, key_id: &str) -> Vec<u8> {
+    format!(
+        "attachmentBlob|{}|{}|{}|{}",
+        blob.id, blob.content_sha256, blob.size_bytes, key_id
+    )
+    .into_bytes()
+}
+
+fn validate_attachment_remote_path(path: &str) -> RepositoryResult<()> {
+    if !path.starts_with("attachments/blobs/")
+        || path.contains('\\')
+        || path.starts_with('/')
+        || path.contains(':')
+        || path.contains('?')
+        || path.contains('#')
+        || path.chars().any(char::is_control)
+        || path
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        return Err(RepositoryError::Validation("invalid attachment path"));
+    }
+    Ok(())
+}
+
+async fn ensure_remote_parent_collections(
+    client: &WebDavClient,
+    remote_blob_path: &str,
+) -> RepositoryResult<()> {
+    let Some(parent) = remote_blob_path.rsplit_once('/').map(|(parent, _)| parent) else {
+        return Err(RepositoryError::Validation("invalid attachment path"));
+    };
+    let mut current = String::new();
+    for segment in parent.split('/') {
+        if !current.is_empty() {
+            current.push('/');
+        }
+        current.push_str(segment);
+        match client.mkcol(&current).await {
+            Ok(())
+            | Err(WebDavError::Http(reqwest::StatusCode::METHOD_NOT_ALLOWED))
+            | Err(WebDavError::Http(reqwest::StatusCode::CONFLICT)) => {}
+            Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
+        }
+    }
+    Ok(())
+}
+
 pub async fn cleanup_remote_history_now(
     database: &Database,
     server_url: &str,
     remote_path: &str,
     username: Option<String>,
     password: Option<String>,
-) -> RepositoryResult<()> {
+) -> RepositoryResult<i64> {
     let connection = database.connect()?;
     let expected_confirmation = confirmation_key(server_url, remote_path);
     if sync_repository::get_state(&connection, "remoteConfirmedFor")?.as_deref()
@@ -973,13 +1301,15 @@ pub async fn cleanup_remote_history_now(
     let manifest: Manifest = serde_json::from_value(value)
         .map_err(|_| RepositoryError::Validation("invalid remote manifest"))?;
     validate_manifest(&manifest)?;
+    let remote_attachment_blobs_removed =
+        cleanup_remote_attachment_blobs(database, &client, &root, &manifest).await?;
     if let Some(sequence) =
         cleanup_remote_history(&client, &root, &manifest, already_pruned).await?
     {
         let connection = database.connect()?;
         sync_repository::set_state(&connection, "remotePrunedSequence", &sequence.to_string())?;
     }
-    Ok(())
+    Ok(remote_attachment_blobs_removed)
 }
 
 async fn cleanup_remote_history(
@@ -1008,6 +1338,82 @@ async fn cleanup_remote_history(
         }
     }
     Ok(Some(manifest.snapshot_sequence))
+}
+
+#[derive(Debug)]
+struct RemoteAttachmentCleanupCandidate {
+    remote_path: String,
+    delete_sequence: i64,
+}
+
+async fn cleanup_remote_attachment_blobs(
+    database: &Database,
+    client: &WebDavClient,
+    root: &str,
+    manifest: &Manifest,
+) -> RepositoryResult<i64> {
+    let connection = database.connect()?;
+    let candidates = remote_attachment_cleanup_candidates(&connection, manifest)?;
+    drop(connection);
+
+    let mut removed = 0_i64;
+    for candidate in candidates {
+        validate_attachment_remote_path(&candidate.remote_path)?;
+        match client
+            .delete(&format!("{root}/{}", candidate.remote_path))
+            .await
+        {
+            Ok(()) | Err(WebDavError::Http(reqwest::StatusCode::NOT_FOUND)) => {
+                removed += 1;
+            }
+            Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
+        }
+    }
+    Ok(removed)
+}
+
+fn remote_attachment_cleanup_candidates(
+    connection: &rusqlite::Connection,
+    manifest: &Manifest,
+) -> RepositoryResult<Vec<RemoteAttachmentCleanupCandidate>> {
+    let mut statement = connection.prepare(
+        r#"
+        SELECT b.remote_path, MAX(c.remote_sequence) AS delete_sequence
+        FROM attachment_blobs AS b
+        INNER JOIN task_attachments AS a ON a.blob_id = b.id
+        INNER JOIN sync_changes AS c ON c.entity = 'attachment'
+          AND c.object_id = a.id
+          AND c.operation = 'delete'
+        WHERE b.remote_path IS NOT NULL
+          AND a.deleted_at IS NOT NULL
+          AND c.uploaded_at IS NOT NULL
+          AND c.remote_sequence IS NOT NULL
+          AND julianday(a.deleted_at) < julianday('now', '-30 days')
+          AND NOT EXISTS (
+            SELECT 1 FROM task_attachments AS live
+            WHERE live.blob_id = b.id AND live.deleted_at IS NULL
+          )
+        GROUP BY b.id, b.remote_path
+        "#,
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(RemoteAttachmentCleanupCandidate {
+                remote_path: row.get(0)?,
+                delete_sequence: row.get(1)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows
+        .into_iter()
+        .filter(|candidate| {
+            manifest
+                .devices
+                .iter()
+                .filter(|device| device.enabled)
+                .all(|device| device.last_sequence >= candidate.delete_sequence)
+        })
+        .collect())
 }
 
 fn remote_pruned_sequence(connection: &rusqlite::Connection) -> RepositoryResult<i64> {
@@ -1075,7 +1481,7 @@ async fn load_or_create_manifest(
                 protocol: PROTOCOL,
                 collection_id: uuid::Uuid::new_v4().to_string(),
                 format: "torder-sync".to_owned(),
-                schema_version: 1,
+                schema_version: 2,
                 latest_sequence: 0,
                 snapshot_sequence: 0,
                 updated_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
@@ -1420,6 +1826,12 @@ mod tests {
                 json!({ "id": "event-id", "startDate": "2026-02-30" }),
             ),
             operation(
+                "bad-event-type",
+                "calendarEvent",
+                "event-id",
+                json!({ "id": "event-id", "eventType": "meeting" }),
+            ),
+            operation(
                 "mismatched-id",
                 "list",
                 "list-id",
@@ -1430,6 +1842,18 @@ mod tests {
                 "task",
                 "task-id",
                 json!({ "id": "task-id", "password": "must-not-sync" }),
+            ),
+            operation(
+                "bad-attachment-kind",
+                "attachment",
+                "attachment-id",
+                json!({ "id": "attachment-id", "taskId": "task-id", "kind": "localReference", "displayName": "本机路径", "sortOrder": 0, "deletedAt": null }),
+            ),
+            operation(
+                "bad-attachment-url",
+                "attachment",
+                "attachment-id",
+                json!({ "id": "attachment-id", "taskId": "task-id", "kind": "webLink", "displayName": "链接", "externalUrl": "file:///secret", "sortOrder": 0, "deletedAt": null }),
             ),
             operation(
                 "long-title",
@@ -1462,7 +1886,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 0,
             "updatedAt": "2026-08-21T00:00:00.000Z",
             "unexpected": true
@@ -1786,6 +2210,83 @@ mod tests {
     }
 
     #[test]
+    fn applies_remote_attachment_metadata_after_task() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-sync-attachment-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let mut connection = database.connect().unwrap();
+        let attachment_payload = json!({
+            "id": "remote-attachment",
+            "taskId": "remote-task",
+            "kind": "managed",
+            "blobId": "remote-blob",
+            "displayName": "合同.pdf",
+            "originalName": "合同.pdf",
+            "externalUrl": null,
+            "contentSha256": "abc123",
+            "sizeBytes": 12,
+            "mimeType": "application/pdf",
+            "remotePath": "attachments/blobs/re/remote-blob.bin",
+            "sortOrder": 0,
+            "createdAt": "2026-08-21T00:00:00.000Z",
+            "updatedAt": "2026-08-21T00:00:00.000Z",
+            "deletedAt": null,
+        });
+        let task_payload = json!({
+            "id": "remote-task",
+            "title": "带附件任务",
+            "status": "todo",
+            "priority": 1,
+            "listId": "work",
+            "sortOrder": 0,
+            "createdAt": "2026-08-21T00:00:00.000Z",
+            "updatedAt": "2026-08-21T00:00:00.000Z",
+            "deletedAt": null,
+        });
+        let batch = ChangeBatch {
+            protocol: PROTOCOL,
+            sequence: 1,
+            device_id: "remote-device".to_owned(),
+            created_at: "2026-08-21T00:00:00.000Z".to_owned(),
+            operations: vec![
+                operation(
+                    "remote-attachment-op",
+                    "attachment",
+                    "remote-attachment",
+                    attachment_payload,
+                ),
+                operation("remote-task-op", "task", "remote-task", task_payload),
+            ],
+        };
+
+        apply_batch(&mut connection, &batch).unwrap();
+
+        let row: (String, String, String) = connection
+            .query_row(
+                "SELECT a.task_id, b.sync_state, b.remote_path FROM task_attachments AS a INNER JOIN attachment_blobs AS b ON b.id = a.blob_id WHERE a.id = 'remote-attachment'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(row.0, "remote-task");
+        assert_eq!(row.1, "pendingDownload");
+        assert_eq!(row.2, "attachments/blobs/re/remote-blob.bin");
+        let payload = current_payload(
+            &connection.unchecked_transaction().unwrap(),
+            "attachment",
+            "remote-attachment",
+        )
+        .unwrap();
+        assert_eq!(payload["displayName"], "合同.pdf");
+        assert_eq!(payload["sizeBytes"], 12);
+
+        drop(connection);
+        drop(database);
+        cleanup_database(&path);
+    }
+    #[test]
     fn applies_dependency_ordered_batch_and_replay_is_idempotent() {
         let path = std::env::temp_dir().join(format!(
             "torder-sync-engine-{}.sqlite",
@@ -1805,7 +2306,7 @@ mod tests {
                     "calendarEvent",
                     "remote-event",
                     json!({
-                        "id": "remote-event", "title": "远端出差", "eventType": "trip",
+                        "id": "remote-event", "title": "远端会议", "eventType": "other",
                         "startDate": "2026-09-01", "endDate": "2026-09-02", "note": null,
                         "createdAt": "2026-08-21T00:00:00.000Z",
                         "updatedAt": "2026-08-21T01:00:00.000Z",
@@ -1883,12 +2384,12 @@ mod tests {
         assert_eq!(
             connection
                 .query_row(
-                    "SELECT title FROM calendar_events WHERE id = 'remote-event'",
+                    "SELECT title, event_type FROM calendar_events WHERE id = 'remote-event'",
                     [],
-                    |row| row.get::<_, String>(0)
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
                 )
                 .unwrap(),
-            "远端出差"
+            ("远端会议".to_owned(), "other".to_owned())
         );
         assert_eq!(
             connection
@@ -2425,6 +2926,266 @@ mod tests {
     }
 
     #[test]
+    fn encrypted_managed_attachment_uploads_blob_before_metadata_without_plaintext() {
+        let _keyring_guard = keyring_test_guard();
+        let (config, key) = crypto::create_config("attachment sync password").unwrap();
+        let dir = std::env::temp_dir().join(format!(
+            "torder-sync-attachment-upload-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = Database::initialize(dir.join("torder.sqlite")).unwrap();
+        configure_local_encryption(&database, &config, &key);
+        let task = crate::db::task_repository::TaskRepository::new(&database)
+            .create(crate::models::CreateTaskInput {
+                title: "带附件任务".to_owned(),
+                note: None,
+                priority: Some(1),
+                list_id: Some("work".to_owned()),
+                scheduled_date: None,
+                due_at: None,
+                sort_order: None,
+                remind_before: None,
+                repeat_rule: None,
+                subtasks: None,
+                tags: None,
+            })
+            .unwrap();
+        let source_path = dir.join("source-secret.txt");
+        std::fs::write(&source_path, b"attachment plaintext secret").unwrap();
+        let attachment = AttachmentRepository::new(&database)
+            .create_managed(
+                &dir,
+                crate::models::CreateAttachmentInput {
+                    task_id: task.id,
+                    source_path: source_path.display().to_string(),
+                    display_name: Some("secret.txt".to_owned()),
+                },
+            )
+            .unwrap();
+
+        let (address, requests, handle) = spawn_mock_dav(MockDavConfig::default(), 17);
+        let client = WebDavClient::new_for_test(address);
+        tauri::async_runtime::block_on(run_with_client(&database, &client, "sync")).unwrap();
+
+        let requests = requests.lock().unwrap();
+        let blob_put_index = requests
+            .iter()
+            .position(|request| {
+                request.method == "PUT" && request.path.contains("/attachments/blobs/")
+            })
+            .unwrap();
+        let change_put_index = requests
+            .iter()
+            .position(|request| request.method == "PUT" && request.path.contains("/changes/"))
+            .unwrap();
+        assert!(blob_put_index < change_put_index);
+        let blob_put = &requests[blob_put_index];
+        assert!(!blob_put
+            .body
+            .windows("attachment plaintext secret".len())
+            .any(|window| window == b"attachment plaintext secret"));
+        drop(requests);
+        handle.join().unwrap();
+
+        let connection = database.connect().unwrap();
+        let blob_row: (String, Option<String>) = connection
+            .query_row(
+                "SELECT sync_state, encryption_key_id FROM attachment_blobs WHERE id = ?1",
+                rusqlite::params![attachment.blob_id.unwrap()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(blob_row.0, "uploaded");
+        assert_eq!(blob_row.1.as_deref(), Some(config.key_id.as_str()));
+        credentials::remove_encryption_keys(&connection).unwrap();
+        drop(connection);
+        drop(database);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn remote_attachment_metadata_downloads_blob_to_managed_storage() {
+        let dir = std::env::temp_dir().join(format!(
+            "torder-sync-attachment-download-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = Database::initialize(dir.join("torder.sqlite")).unwrap();
+        let payload = b"remote attachment body".to_vec();
+        let attachment_payload = json!({
+            "id": "remote-attachment-download",
+            "taskId": "remote-task-download",
+            "kind": "managed",
+            "blobId": "remote-blob-download",
+            "displayName": "remote.txt",
+            "originalName": "remote.txt",
+            "contentSha256": sha256_bytes(&payload),
+            "sizeBytes": payload.len() as i64,
+            "mimeType": "text/plain",
+            "remotePath": "attachments/blobs/re/remote-blob-download.bin",
+            "sortOrder": 0,
+            "deletedAt": null
+        });
+        let batch = serde_json::to_value(ChangeBatch {
+            protocol: PROTOCOL,
+            sequence: 1,
+            device_id: "remote-device".to_owned(),
+            created_at: "2026-08-21T00:00:00.000Z".to_owned(),
+            operations: vec![
+                operation(
+                    "remote-task-download-op",
+                    "task",
+                    "remote-task-download",
+                    json!({
+                        "id": "remote-task-download",
+                        "title": "远端附件任务",
+                        "status": "todo",
+                        "priority": 1,
+                        "listId": "work",
+                        "sortOrder": 0,
+                        "deletedAt": null
+                    }),
+                ),
+                operation(
+                    "remote-attachment-download-op",
+                    "attachment",
+                    "remote-attachment-download",
+                    attachment_payload,
+                ),
+            ],
+        })
+        .unwrap();
+        let manifest = json!({
+            "protocol": PROTOCOL,
+            "collectionId": uuid::Uuid::new_v4().to_string(),
+            "format": "torder-sync",
+            "schemaVersion": 2,
+            "latestSequence": 1,
+            "updatedAt": "2026-08-21T00:00:00.000Z"
+        });
+        let (address, _requests, handle) = spawn_mock_dav(
+            MockDavConfig {
+                manifest: Some(manifest),
+                batch: Some(batch),
+                blob: Some(payload.clone()),
+                ..MockDavConfig::default()
+            },
+            9,
+        );
+        let client = WebDavClient::new_for_test(address);
+        tauri::async_runtime::block_on(run_with_client(&database, &client, "sync")).unwrap();
+
+        let local_path = dir.join("attachments/blobs/re/remote-blob-download.bin");
+        assert_eq!(std::fs::read(&local_path).unwrap(), payload);
+        let connection = database.connect().unwrap();
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT sync_state FROM attachment_blobs WHERE id = 'remote-blob-download'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "downloaded"
+        );
+        handle.join().unwrap();
+        drop(connection);
+        drop(database);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn remote_attachment_hash_mismatch_marks_blob_failed_without_writing_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "torder-sync-attachment-mismatch-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = Database::initialize(dir.join("torder.sqlite")).unwrap();
+        let expected = b"expected attachment body".to_vec();
+        let wrong = b"wrong attachment body".to_vec();
+        let attachment_payload = json!({
+            "id": "remote-attachment-mismatch",
+            "taskId": "remote-task-mismatch",
+            "kind": "managed",
+            "blobId": "remote-blob-mismatch",
+            "displayName": "remote.txt",
+            "contentSha256": sha256_bytes(&expected),
+            "sizeBytes": expected.len() as i64,
+            "remotePath": "attachments/blobs/re/remote-blob-mismatch.bin",
+            "sortOrder": 0,
+            "deletedAt": null
+        });
+        let batch = serde_json::to_value(ChangeBatch {
+            protocol: PROTOCOL,
+            sequence: 1,
+            device_id: "remote-device".to_owned(),
+            created_at: "2026-08-21T00:00:00.000Z".to_owned(),
+            operations: vec![
+                operation(
+                    "remote-task-mismatch-op",
+                    "task",
+                    "remote-task-mismatch",
+                    json!({
+                        "id": "remote-task-mismatch",
+                        "title": "远端坏附件任务",
+                        "status": "todo",
+                        "priority": 1,
+                        "listId": "work",
+                        "sortOrder": 0,
+                        "deletedAt": null
+                    }),
+                ),
+                operation(
+                    "remote-attachment-mismatch-op",
+                    "attachment",
+                    "remote-attachment-mismatch",
+                    attachment_payload,
+                ),
+            ],
+        })
+        .unwrap();
+        let manifest = json!({
+            "protocol": PROTOCOL,
+            "collectionId": uuid::Uuid::new_v4().to_string(),
+            "format": "torder-sync",
+            "schemaVersion": 2,
+            "latestSequence": 1,
+            "updatedAt": "2026-08-21T00:00:00.000Z"
+        });
+        let (address, _requests, handle) = spawn_mock_dav(
+            MockDavConfig {
+                manifest: Some(manifest),
+                batch: Some(batch),
+                blob: Some(wrong),
+                ..MockDavConfig::default()
+            },
+            9,
+        );
+        let client = WebDavClient::new_for_test(address);
+        tauri::async_runtime::block_on(run_with_client(&database, &client, "sync")).unwrap();
+
+        assert!(!dir
+            .join("attachments/blobs/re/remote-blob-mismatch.bin")
+            .exists());
+        let connection = database.connect().unwrap();
+        let row: (String, Option<String>) = connection
+            .query_row(
+                "SELECT sync_state, last_error FROM attachment_blobs WHERE id = 'remote-blob-mismatch'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(row.0, "failed");
+        assert!(row.1.unwrap().contains("integrity mismatch"));
+        handle.join().unwrap();
+        drop(connection);
+        drop(database);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn remote_device_revocation_updates_manifest_before_local_state() {
         let path = std::env::temp_dir().join(format!(
             "torder-sync-revoke-device-{}.sqlite",
@@ -2433,10 +3194,10 @@ mod tests {
         let database = Database::initialize(path.clone()).unwrap();
         let collection_id = uuid::Uuid::new_v4().to_string();
         let manifest = json!({
-            "protocol": 1,
+            "protocol": PROTOCOL,
             "collectionId": collection_id,
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 1,
             "snapshotSequence": 0,
             "updatedAt": "2026-08-21T00:00:00.000Z",
@@ -2688,7 +3449,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 1,
             "updatedAt": "2026-08-21T00:00:00.000Z",
             "encryption": config,
@@ -2861,7 +3622,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 1,
             "snapshotSequence": 1,
             "updatedAt": "2026-08-21T00:00:00.000Z",
@@ -2908,7 +3669,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": collection_id,
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 1,
             "updatedAt": "2026-08-21T00:00:00.000Z"
         });
@@ -3022,7 +3783,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 1,
             "snapshotSequence": 1,
             "updatedAt": "2026-08-21T00:00:00.000Z"
@@ -3083,7 +3844,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 0,
             "updatedAt": "2026-08-21T00:00:00.000Z",
             "devices": [{
@@ -3123,7 +3884,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 1,
             "updatedAt": "2026-08-21T00:00:00.000Z"
         });
@@ -3479,7 +4240,7 @@ mod tests {
             protocol: PROTOCOL,
             collection_id: uuid::Uuid::new_v4().to_string(),
             format: "torder-sync".to_owned(),
-            schema_version: 1,
+            schema_version: 2,
             latest_sequence: 2,
             snapshot_sequence: 2,
             updated_at: "2026-08-21T00:00:00.000Z".to_owned(),
@@ -3518,6 +4279,143 @@ mod tests {
             .all(|request| request.method == "DELETE" && request.path.contains("/changes/")));
         drop(requests);
         handle.join().unwrap();
+    }
+
+    #[test]
+    fn remote_attachment_cleanup_waits_for_every_enabled_device_ack() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-sync-attachment-cleanup-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let connection = database.connect().unwrap();
+        connection
+            .execute(
+                "INSERT INTO tasks (id, title, status, priority, list_id, sort_order) VALUES ('task-1', '附件任务', 'todo', 1, 'work', 0)",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                r#"
+                INSERT INTO attachment_blobs (
+                    id, content_sha256, size_bytes, local_relative_path,
+                    remote_path, sync_state, created_at, updated_at
+                ) VALUES (
+                    'blob-1',
+                    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                    8,
+                    'attachments/blobs/bl/blob-1.bin',
+                    'attachments/blobs/bl/blob-1.bin',
+                    'uploaded',
+                    '2020-01-01T00:00:00.000Z',
+                    '2020-01-01T00:00:00.000Z'
+                )
+                "#,
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                r#"
+                INSERT INTO task_attachments (
+                    id, task_id, kind, blob_id, display_name,
+                    created_at, updated_at, deleted_at
+                ) VALUES (
+                    'attachment-1',
+                    'task-1',
+                    'managed',
+                    'blob-1',
+                    '合同.pdf',
+                    '2020-01-01T00:00:00.000Z',
+                    '2020-01-01T00:00:00.000Z',
+                    '2020-01-01T00:00:00.000Z'
+                )
+                "#,
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                r#"
+                INSERT INTO sync_changes (
+                    id, entity, object_id, operation, base_revision, revision,
+                    payload_json, created_at, uploaded_at, remote_sequence
+                ) VALUES (
+                    'change-1',
+                    'attachment',
+                    'attachment-1',
+                    'delete',
+                    1,
+                    2,
+                    '{}',
+                    '2020-01-01T00:00:00.000Z',
+                    '2020-01-01T00:00:00.000Z',
+                    10
+                )
+                "#,
+                [],
+            )
+            .unwrap();
+
+        let mut manifest = Manifest {
+            protocol: PROTOCOL,
+            collection_id: uuid::Uuid::new_v4().to_string(),
+            format: "torder-sync".to_owned(),
+            schema_version: 2,
+            latest_sequence: 10,
+            snapshot_sequence: 0,
+            updated_at: "2026-08-21T00:00:00.000Z".to_owned(),
+            encryption: None,
+            devices: vec![
+                ManifestDevice {
+                    id: "device-a".to_owned(),
+                    name: "设备 A".to_owned(),
+                    last_seen_at: "2026-08-21T00:00:00.000Z".to_owned(),
+                    last_sequence: 9,
+                    enabled: true,
+                },
+                ManifestDevice {
+                    id: "device-disabled".to_owned(),
+                    name: "停用设备".to_owned(),
+                    last_seen_at: "2026-08-21T00:00:00.000Z".to_owned(),
+                    last_sequence: 0,
+                    enabled: false,
+                },
+            ],
+        };
+        assert!(remote_attachment_cleanup_candidates(&connection, &manifest)
+            .unwrap()
+            .is_empty());
+        manifest.devices[0].last_sequence = 10;
+        let candidates = remote_attachment_cleanup_candidates(&connection, &manifest).unwrap();
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].remote_path, "attachments/blobs/bl/blob-1.bin");
+        drop(connection);
+
+        let (address, requests, handle) = spawn_mock_dav(
+            MockDavConfig {
+                blob: Some(b"old body".to_vec()),
+                ..MockDavConfig::default()
+            },
+            1,
+        );
+        let client = WebDavClient::new_for_test(address);
+        let removed = tauri::async_runtime::block_on(cleanup_remote_attachment_blobs(
+            &database, &client, "sync", &manifest,
+        ))
+        .unwrap();
+        assert_eq!(removed, 1);
+        let requests = requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].method, "DELETE");
+        assert!(requests[0]
+            .path
+            .contains("/sync/attachments/blobs/bl/blob-1.bin"));
+        drop(requests);
+        handle.join().unwrap();
+        drop(database);
+        cleanup_database(&path);
     }
 
     #[test]
@@ -3577,7 +4475,7 @@ mod tests {
             "protocol": PROTOCOL,
             "collectionId": uuid::Uuid::new_v4().to_string(),
             "format": "torder-sync",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "latestSequence": 0,
             "updatedAt": "2026-08-21T00:00:00.000Z"
         })
@@ -3623,6 +4521,7 @@ mod tests {
         manifest: Option<Value>,
         batch: Option<Value>,
         snapshot: Option<Vec<u8>>,
+        blob: Option<Vec<u8>>,
         fail_manifest_update: bool,
         corrupt_batch_read: bool,
         manifest_without_etag: bool,
@@ -3655,6 +4554,7 @@ mod tests {
             let mut manifest = config.manifest;
             let mut batch = config.batch;
             let mut snapshot = config.snapshot;
+            let mut blob = config.blob;
             let mut lock_payload = config.lock_payload;
             let mut manifest_version = if manifest.is_some() { 1 } else { 0 };
             for _ in 0..expected_requests {
@@ -3772,6 +4672,42 @@ mod tests {
                                 etag: None,
                             },
                         }
+                    }
+                } else if request.path.contains("/attachments/blobs/") && request.method == "PUT" {
+                    if blob.is_some() {
+                        MockResponse {
+                            status: 412,
+                            body: Vec::new(),
+                            etag: None,
+                        }
+                    } else {
+                        blob = Some(request.body.clone());
+                        MockResponse {
+                            status: 201,
+                            body: Vec::new(),
+                            etag: None,
+                        }
+                    }
+                } else if request.path.contains("/attachments/blobs/") && request.method == "GET" {
+                    match blob.as_ref() {
+                        Some(value) => MockResponse {
+                            status: 200,
+                            body: value.clone(),
+                            etag: None,
+                        },
+                        None => MockResponse {
+                            status: 404,
+                            body: Vec::new(),
+                            etag: None,
+                        },
+                    }
+                } else if request.path.contains("/attachments/blobs/") && request.method == "DELETE"
+                {
+                    blob = None;
+                    MockResponse {
+                        status: 204,
+                        body: Vec::new(),
+                        etag: None,
                     }
                 } else if request.path.contains("/snapshots/") && request.method == "PUT" {
                     snapshot = Some(request.body.clone());
@@ -3916,6 +4852,10 @@ fn bootstrap_existing_objects(connection: &mut rusqlite::Connection) -> Reposito
         (
             "task",
             "SELECT item.id FROM tasks AS item LEFT JOIN sync_objects AS object ON object.entity = 'task' AND object.object_id = item.id WHERE object.object_id IS NULL",
+        ),
+        (
+            "attachment",
+            "SELECT item.id FROM task_attachments AS item LEFT JOIN sync_objects AS object ON object.entity = 'attachment' AND object.object_id = item.id WHERE object.object_id IS NULL",
         ),
         (
             "calendarEvent",

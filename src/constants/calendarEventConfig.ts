@@ -6,4 +6,5 @@ export const calendarEventTypeCopy: Record<
 > = {
   leave: { label: "休假", color: "#50fa7b" },
   trip: { label: "出差", color: "#8be9fd" },
+  other: { label: "其他", color: "#ffb86c" },
 };

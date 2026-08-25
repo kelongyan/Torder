@@ -1,4 +1,5 @@
 pub mod app;
+pub mod attachment;
 pub mod backup;
 pub mod calendar_event;
 pub mod database;

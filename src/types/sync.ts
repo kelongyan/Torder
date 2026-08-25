@@ -18,7 +18,7 @@ export interface SyncStatus {
   deviceName: string | null;
   pendingChanges: number;
   conflictCount: number;
-  phase: "prepare" | "download" | "merge" | "upload" | null;
+  phase: "prepare" | "download" | "merge" | "downloadBlobs" | "upload" | null;
   lastSyncAt: string | null;
   lastError: string | null;
   encryptionEnabled: boolean;
@@ -52,6 +52,9 @@ export interface SyncDevice {
 export interface SyncCleanupResult {
   changesRemoved: number;
   tombstonesRemoved: number;
+  attachmentBlobsRemoved: number;
+  attachmentBytesRemoved: number;
+  remoteAttachmentBlobsRemoved: number;
 }
 
 export interface SyncRemoteInspection {

@@ -9,6 +9,7 @@ use super::{
     Utc, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_SNAPSHOT_JSON_BYTES, MAX_SNAPSHOT_OPERATIONS,
     PROTOCOL,
 };
+use crate::db::attachment_repository::managed_blob_relative_path;
 use crate::db::{sync_repository, Database};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::manifest::{ChangeBatch, ChangeOperation, Snapshot};
@@ -148,8 +149,9 @@ pub fn build_snapshot(
                  WHEN 'list' THEN 0
                  WHEN 'recurringRule' THEN 1
                  WHEN 'task' THEN 2
-                 WHEN 'calendarEvent' THEN 3
-                 ELSE 4
+                 WHEN 'attachment' THEN 3
+                 WHEN 'calendarEvent' THEN 4
+                 ELSE 5
                END, object_id"#,
         )?;
         let values = statement
@@ -527,8 +529,9 @@ fn entity_order(entity: &str) -> u8 {
         "list" => 0,
         "recurringRule" => 1,
         "task" => 2,
-        "calendarEvent" => 3,
-        _ => 4,
+        "attachment" => 3,
+        "calendarEvent" => 4,
+        _ => 5,
     }
 }
 
@@ -576,6 +579,7 @@ pub(crate) fn current_payload(
         "recurringRule" => "SELECT json_object('id', id, 'title', title, 'note', note, 'priority', priority, 'listId', list_id, 'frequency', frequency, 'intervalCount', interval_count, 'weekdays', json(weekdays), 'monthDay', month_day, 'firstDueAt', first_due_at, 'nextDueAt', next_due_at, 'timezone', timezone, 'generateAheadMinutes', generate_ahead_minutes, 'remindBefore', remind_before, 'endAt', end_at, 'enabled', json(CASE WHEN enabled = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM recurring_rules WHERE id = ?1",
         "task" => "SELECT json_object('id', id, 'title', title, 'note', note, 'status', status, 'priority', priority, 'listId', list_id, 'scheduledDate', scheduled_date, 'dueAt', due_at, 'completedAt', completed_at, 'sortOrder', sort_order, 'remindBefore', remind_before, 'remindAt', remind_at, 'remindedAt', reminded_at, 'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags), 'recurringRuleId', recurring_rule_id, 'occurrenceAt', occurrence_at, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM tasks WHERE id = ?1",
         "calendarEvent" => "SELECT json_object('id', id, 'title', title, 'eventType', event_type, 'startDate', start_date, 'endDate', end_date, 'note', note, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM calendar_events WHERE id = ?1",
+        "attachment" => "SELECT json_object('id', a.id, 'taskId', a.task_id, 'kind', a.kind, 'blobId', a.blob_id, 'displayName', a.display_name, 'originalName', a.original_name, 'externalUrl', a.external_url, 'contentSha256', b.content_sha256, 'sizeBytes', b.size_bytes, 'mimeType', b.mime_type, 'remotePath', b.remote_path, 'encryptionKeyId', b.encryption_key_id, 'sortOrder', a.sort_order, 'createdAt', a.created_at, 'updatedAt', a.updated_at, 'deletedAt', a.deleted_at) FROM task_attachments AS a LEFT JOIN attachment_blobs AS b ON b.id = a.blob_id WHERE a.id = ?1",
         _ => return Err(RepositoryError::Validation("invalid sync entity")),
     };
     let encoded = transaction.query_row(sql, rusqlite::params![object_id], |row| {
@@ -636,6 +640,7 @@ fn has_full_insert_payload(entity: &str, payload: &Value) -> bool {
             "deletedAt",
         ],
         "calendarEvent" => &["title", "eventType", "startDate", "endDate", "deletedAt"],
+        "attachment" => &["taskId", "kind", "displayName", "sortOrder", "deletedAt"],
         _ => return false,
     };
     required_fields
@@ -716,6 +721,82 @@ fn apply_operation(
                     serde_json::to_string(&subtasks)?, serde_json::to_string(&tags)?,
                     optional_string(&payload, "createdAt"),
                     optional_string(&payload, "updatedAt"), optional_string(&payload, "deletedAt"),
+                ],
+            )?;
+        }
+        "attachment" => {
+            let kind = string(&payload, "kind", "managed");
+            let blob_id = optional_string(&payload, "blobId");
+            if kind == "managed" {
+                let blob_id = blob_id.ok_or(RepositoryError::Validation(
+                    "managed attachment requires blob id",
+                ))?;
+                let local_relative_path = managed_blob_relative_path(blob_id);
+                transaction.execute(
+                    r#"INSERT INTO attachment_blobs (
+                           id, content_sha256, size_bytes, mime_type, local_relative_path,
+                           remote_path, encryption_key_id, sync_state, created_at, updated_at, deleted_at
+                       )
+                       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'pendingDownload',
+                               COALESCE(?8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                               COALESCE(?9, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), NULL)
+                       ON CONFLICT(id) DO UPDATE SET
+                         content_sha256=excluded.content_sha256,
+                         size_bytes=excluded.size_bytes,
+                         mime_type=excluded.mime_type,
+                         remote_path=excluded.remote_path,
+                         encryption_key_id=excluded.encryption_key_id,
+                         sync_state=CASE
+                           WHEN attachment_blobs.content_sha256 = excluded.content_sha256
+                             AND attachment_blobs.sync_state = 'downloaded'
+                           THEN attachment_blobs.sync_state
+                           ELSE 'pendingDownload'
+                         END,
+                         updated_at=excluded.updated_at,
+                         deleted_at=NULL"#,
+                    rusqlite::params![
+                        blob_id,
+                        string(&payload, "contentSha256", ""),
+                        integer(&payload, "sizeBytes", 0),
+                        optional_string(&payload, "mimeType"),
+                        local_relative_path,
+                        optional_string(&payload, "remotePath"),
+                        optional_string(&payload, "encryptionKeyId"),
+                        optional_string(&payload, "createdAt"),
+                        optional_string(&payload, "updatedAt"),
+                    ],
+                )?;
+            }
+            transaction.execute(
+                r#"INSERT INTO task_attachments (
+                       id, task_id, kind, blob_id, display_name, original_name, external_url,
+                       sort_order, created_at, updated_at, deleted_at
+                   )
+                   VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
+                           COALESCE(?9, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                           COALESCE(?10, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?11)
+                   ON CONFLICT(id) DO UPDATE SET
+                     task_id=excluded.task_id,
+                     kind=excluded.kind,
+                     blob_id=excluded.blob_id,
+                     display_name=excluded.display_name,
+                     original_name=excluded.original_name,
+                     external_url=excluded.external_url,
+                     sort_order=excluded.sort_order,
+                     updated_at=excluded.updated_at,
+                     deleted_at=excluded.deleted_at"#,
+                rusqlite::params![
+                    operation.object_id,
+                    string(&payload, "taskId", ""),
+                    kind,
+                    blob_id,
+                    string(&payload, "displayName", "附件"),
+                    optional_string(&payload, "originalName"),
+                    optional_string(&payload, "externalUrl"),
+                    integer(&payload, "sortOrder", 0),
+                    optional_string(&payload, "createdAt"),
+                    optional_string(&payload, "updatedAt"),
+                    optional_string(&payload, "deletedAt"),
                 ],
             )?;
         }

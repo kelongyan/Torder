@@ -18,6 +18,7 @@ const KDF: &str = "argon2id-v1";
 const KEY_BYTES: usize = 32;
 const SALT_BYTES: usize = 16;
 const NONCE_BYTES: usize = 24;
+const BLOB_MAGIC: &[u8] = b"TORDERBLOB1";
 
 #[derive(Clone)]
 pub struct EncryptionKey([u8; KEY_BYTES]);
@@ -193,6 +194,58 @@ pub fn decrypt_value(
         .map_err(|_| RepositoryError::Validation("invalid decrypted sync payload"))
 }
 
+pub fn encrypt_bytes(
+    plaintext: &[u8],
+    key: &EncryptionKey,
+    associated_data: &[u8],
+) -> RepositoryResult<Vec<u8>> {
+    let cipher = XChaCha20Poly1305::new_from_slice(&key.0)
+        .map_err(|_| RepositoryError::Validation("invalid sync encryption key"))?;
+    let mut nonce = [0_u8; NONCE_BYTES];
+    OsRng.fill_bytes(&mut nonce);
+    let ciphertext = cipher
+        .encrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: plaintext,
+                aad: associated_data,
+            },
+        )
+        .map_err(|_| RepositoryError::Validation("failed to encrypt sync payload"))?;
+    let mut output = Vec::with_capacity(BLOB_MAGIC.len() + NONCE_BYTES + ciphertext.len());
+    output.extend_from_slice(BLOB_MAGIC);
+    output.extend_from_slice(&nonce);
+    output.extend_from_slice(&ciphertext);
+    Ok(output)
+}
+
+pub fn decrypt_bytes(
+    payload: &[u8],
+    key: &EncryptionKey,
+    associated_data: &[u8],
+) -> RepositoryResult<Vec<u8>> {
+    if payload.len() <= BLOB_MAGIC.len() + NONCE_BYTES || !payload.starts_with(BLOB_MAGIC) {
+        return Err(RepositoryError::Validation(
+            "invalid encrypted sync payload",
+        ));
+    }
+    let nonce_start = BLOB_MAGIC.len();
+    let ciphertext_start = nonce_start + NONCE_BYTES;
+    let cipher = XChaCha20Poly1305::new_from_slice(&key.0)
+        .map_err(|_| RepositoryError::Validation("invalid sync encryption key"))?;
+    cipher
+        .decrypt(
+            XNonce::from_slice(&payload[nonce_start..ciphertext_start]),
+            Payload {
+                msg: &payload[ciphertext_start..],
+                aad: associated_data,
+            },
+        )
+        .map_err(|_| {
+            RepositoryError::Validation("sync encryption password is incorrect or data is damaged")
+        })
+}
+
 fn decode_field(
     envelope: &serde_json::Map<String, Value>,
     field: &str,
@@ -240,6 +293,21 @@ mod tests {
                 "invalid encrypted sync payload"
             ))
         ));
+    }
+
+    #[test]
+    fn encrypted_blob_round_trips_without_plaintext() {
+        let (_config, key) = create_config("correct horse battery staple").unwrap();
+        let plaintext = b"managed attachment secret";
+        let encrypted = encrypt_bytes(plaintext, &key, b"attachmentBlob|id|hash|23|key").unwrap();
+        assert!(!encrypted
+            .windows("managed attachment secret".len())
+            .any(|window| window == b"managed attachment secret"));
+        assert_eq!(
+            decrypt_bytes(&encrypted, &key, b"attachmentBlob|id|hash|23|key").unwrap(),
+            plaintext
+        );
+        assert!(decrypt_bytes(&encrypted, &key, b"attachmentBlob|id|hash|23|other").is_err());
     }
 
     #[test]

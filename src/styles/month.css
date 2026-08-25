@@ -331,6 +331,15 @@
   background: color-mix(in srgb, var(--blue) 24%, transparent);
 }
 
+.month-event-other {
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: var(--amber);
+}
+
+.month-event-other:hover {
+  background: color-mix(in srgb, var(--amber) 28%, transparent);
+}
+
 .month-task {
   display: flex;
   min-height: 20px;
@@ -377,18 +386,18 @@
 }
 
 .month-task-title {
-  display: -webkit-box;
-  overflow: hidden;
+  display: block;
+  overflow: visible;
   color: var(--text-secondary);
   line-height: 17px;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .week-view .month-task-title {
-  -webkit-line-clamp: 2;
+  line-height: 18px;
 }
 
 .week-cell-body {
@@ -435,4 +444,8 @@
 
 .month-legend-icon.trip {
   color: var(--blue);
+}
+
+.month-legend-icon.other {
+  color: var(--amber);
 }

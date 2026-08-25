@@ -423,6 +423,98 @@ const MIGRATIONS: &[Migration] = &[
             WHERE deleted_at IS NULL;
         "#,
     },
+    Migration {
+        version: 14,
+        name: "add_task_attachments",
+        sql: r#"
+        CREATE TABLE attachment_blobs (
+            id TEXT PRIMARY KEY,
+            content_sha256 TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0),
+            mime_type TEXT,
+            local_relative_path TEXT NOT NULL,
+            remote_path TEXT,
+            encryption_key_id TEXT,
+            sync_state TEXT NOT NULL DEFAULT 'pendingUpload'
+                CHECK (sync_state IN ('pendingUpload', 'uploaded', 'pendingDownload', 'downloaded', 'missing', 'failed')),
+            last_error TEXT,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            deleted_at TEXT
+        );
+
+        CREATE TABLE task_attachments (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            kind TEXT NOT NULL CHECK (kind IN ('managed', 'localReference', 'webLink')),
+            blob_id TEXT,
+            display_name TEXT NOT NULL CHECK (length(trim(display_name)) > 0),
+            original_name TEXT,
+            external_url TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            deleted_at TEXT,
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+            FOREIGN KEY (blob_id) REFERENCES attachment_blobs(id) ON DELETE RESTRICT
+        );
+
+        CREATE TABLE local_attachment_references (
+            attachment_id TEXT PRIMARY KEY,
+            local_path TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            FOREIGN KEY (attachment_id) REFERENCES task_attachments(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX idx_task_attachments_task
+            ON task_attachments(task_id, sort_order, created_at)
+            WHERE deleted_at IS NULL;
+
+        CREATE INDEX idx_task_attachments_blob
+            ON task_attachments(blob_id)
+            WHERE blob_id IS NOT NULL AND deleted_at IS NULL;
+
+        CREATE INDEX idx_attachment_blobs_sync
+            ON attachment_blobs(sync_state, updated_at)
+            WHERE deleted_at IS NULL;
+        "#,
+    },
+    Migration {
+        version: 15,
+        name: "allow_other_calendar_event_type",
+        sql: r#"
+        DROP INDEX IF EXISTS idx_calendar_events_dates;
+
+        CREATE TABLE calendar_events_next (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+            event_type TEXT NOT NULL CHECK (event_type IN ('leave', 'trip', 'other')),
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL CHECK (end_date >= start_date),
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            deleted_at TEXT
+        );
+
+        INSERT INTO calendar_events_next (
+            id, title, event_type, start_date, end_date, note,
+            created_at, updated_at, deleted_at
+        )
+        SELECT
+            id, title, event_type, start_date, end_date, note,
+            created_at, updated_at, deleted_at
+        FROM calendar_events;
+
+        DROP TABLE calendar_events;
+        ALTER TABLE calendar_events_next RENAME TO calendar_events;
+
+        CREATE INDEX idx_calendar_events_dates
+            ON calendar_events(start_date, end_date)
+            WHERE deleted_at IS NULL;
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。
@@ -519,5 +611,46 @@ mod tests {
         assert_eq!(link.0.as_deref(), Some("legacy-legacy-task"));
         assert_eq!(link.1.as_deref(), Some("2026-08-10T09:00:00Z"));
         assert_eq!(link.2, None);
+    }
+
+    #[test]
+    fn migrates_calendar_event_type_constraint_for_other_events() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch("PRAGMA foreign_keys = ON;")
+            .unwrap();
+        apply_migrations_through(&mut connection, 14).unwrap();
+        connection
+            .execute(
+                r#"
+                INSERT INTO calendar_events (id, title, event_type, start_date, end_date)
+                VALUES ('legacy-event', '旧出差', 'trip', '2026-08-20', '2026-08-21')
+                "#,
+                [],
+            )
+            .unwrap();
+
+        apply_migrations(&mut connection).unwrap();
+
+        connection
+            .execute(
+                r#"
+                INSERT INTO calendar_events (id, title, event_type, start_date, end_date)
+                VALUES ('other-event', '其他日程', 'other', '2026-08-22', '2026-08-22')
+                "#,
+                [],
+            )
+            .unwrap();
+        let event_types: Vec<String> = {
+            let mut statement = connection
+                .prepare("SELECT event_type FROM calendar_events ORDER BY id")
+                .unwrap();
+            statement
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        assert_eq!(event_types, vec!["trip".to_owned(), "other".to_owned()]);
     }
 }

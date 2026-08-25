@@ -39,6 +39,15 @@ impl Database {
         Ok(connection)
     }
 
+    pub fn data_dir(&self) -> RepositoryResult<PathBuf> {
+        self.path
+            .parent()
+            .map(PathBuf::from)
+            .ok_or(crate::error::RepositoryError::Validation(
+                "invalid database path",
+            ))
+    }
+
     pub fn status(&self) -> RepositoryResult<DatabaseStatus> {
         let connection = self.connect()?;
         let schema_version = connection.query_row(

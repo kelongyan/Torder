@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Emitter};
 
-use crate::db::{sync_repository, Database};
+use crate::db::{attachment_repository::AttachmentRepository, sync_repository, Database};
 use crate::models::{SyncCleanupResult, SyncStatus};
 use crate::sync::credentials;
 use crate::sync::engine;
@@ -78,13 +78,25 @@ pub async fn cleanup_sync_history(
         Ok(result) => result.map_err(|error| error.to_string()),
         Err(_) => Err("sync history cleanup timed out after 120 seconds".to_owned()),
     };
-    if let Err(error) = cleanup_result {
-        record_sync_command_error(database, &error);
-        return Err(error);
-    }
+    let remote_attachment_blobs_removed = match cleanup_result {
+        Ok(value) => value,
+        Err(error) => {
+            record_sync_command_error(database, &error);
+            return Err(error);
+        }
+    };
 
     let connection = database.connect().map_err(|error| error.to_string())?;
-    let result = sync_repository::prune_history(&connection).map_err(|error| error.to_string())?;
+    let mut result =
+        sync_repository::prune_history(&connection).map_err(|error| error.to_string())?;
+    drop(connection);
+    let data_dir = database.data_dir().map_err(|error| error.to_string())?;
+    let (attachment_blobs_removed, attachment_bytes_removed) = AttachmentRepository::new(database)
+        .cleanup_orphan_blobs(&data_dir, 30)
+        .map_err(|error| error.to_string())?;
+    result.attachment_blobs_removed = attachment_blobs_removed;
+    result.attachment_bytes_removed = attachment_bytes_removed;
+    result.remote_attachment_blobs_removed = remote_attachment_blobs_removed;
     app.emit("sync-completed", ())
         .map_err(|error| error.to_string())?;
     Ok(result)

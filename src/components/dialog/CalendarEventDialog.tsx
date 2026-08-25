@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { CalendarDays, Plane, Sun } from "lucide-react";
+import { CalendarDays, CircleDot, Plane, Sun } from "lucide-react";
 import { calendarEventTypeCopy } from "../../constants/calendarEventConfig";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { CalendarEvent, CalendarEventType } from "../../types/database";
@@ -116,6 +116,12 @@ export function CalendarEventDialog({
                 label: calendarEventTypeCopy.trip.label,
                 color: calendarEventTypeCopy.trip.color,
                 icon: Plane,
+              },
+              {
+                value: "other",
+                label: calendarEventTypeCopy.other.label,
+                color: calendarEventTypeCopy.other.color,
+                icon: CircleDot,
               },
             ]}
           />

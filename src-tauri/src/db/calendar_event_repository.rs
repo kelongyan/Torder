@@ -178,9 +178,9 @@ fn validate_input(
             "calendar event title cannot be empty",
         ));
     }
-    if !matches!(event_type, "leave" | "trip") {
+    if !matches!(event_type, "leave" | "trip" | "other") {
         return Err(RepositoryError::Validation(
-            "calendar event type must be leave or trip",
+            "calendar event type must be leave, trip or other",
         ));
     }
     if !is_iso_date(start_date) || !is_iso_date(end_date) {

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use uuid::Uuid;
 
+use torder_lib::db::attachment_repository::{sha256_file, AttachmentRepository};
 use torder_lib::db::calendar_event_repository::CalendarEventRepository;
 use torder_lib::db::list_repository::ListRepository;
 use torder_lib::db::migrations::CURRENT_SCHEMA_VERSION;
@@ -849,8 +850,17 @@ fn calendar_events_support_multi_day_ranges_and_soft_delete() -> RepositoryResul
     })?;
     assert_eq!(leave.event_type, "leave");
 
+    let other = repository.create(CreateCalendarEventInput {
+        title: "团队会议".to_owned(),
+        event_type: "other".to_owned(),
+        start_date: "2026-08-20".to_owned(),
+        end_date: "2026-08-20".to_owned(),
+        note: Some("会议室确认".to_owned()),
+    })?;
+    assert_eq!(other.event_type, "other");
+
     let listed = repository.list()?;
-    assert_eq!(listed.len(), 2);
+    assert_eq!(listed.len(), 3);
     assert_eq!(listed[0].id, trip.id, "list 应按 start_date 升序");
 
     let updated = repository.update(UpdateCalendarEventInput {
@@ -868,7 +878,7 @@ fn calendar_events_support_multi_day_ranges_and_soft_delete() -> RepositoryResul
         repository.get(&leave.id),
         Err(RepositoryError::NotFound("calendar event"))
     ));
-    assert_eq!(repository.list()?.len(), 1);
+    assert_eq!(repository.list()?.len(), 2);
 
     assert!(matches!(
         repository.create(CreateCalendarEventInput {
@@ -954,6 +964,294 @@ fn clearing_sync_metadata_preserves_business_data() -> RepositoryResult<()> {
     Ok(())
 }
 
+#[test]
+fn attachment_tables_exist_after_migration() -> RepositoryResult<()> {
+    let database_path = std::env::temp_dir().join(format!(
+        "torder-attachment-schema-{}.sqlite",
+        Uuid::new_v4()
+    ));
+    let database = Database::initialize(database_path.clone())?;
+    let connection = database.connect()?;
+
+    for table in [
+        "attachment_blobs",
+        "task_attachments",
+        "local_attachment_references",
+    ] {
+        let count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            rusqlite::params![table],
+            |row| row.get(0),
+        )?;
+        assert_eq!(count, 1, "{table} should be created by migrations");
+    }
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn managed_attachment_copies_file_hashes_and_records_sync_changes() -> RepositoryResult<()> {
+    let data_dir = attachment_test_data_dir("managed");
+    std::fs::create_dir_all(&data_dir)?;
+    let database_path = data_dir.join("torder.sqlite");
+    let database = Database::initialize(database_path.clone())?;
+    let task = TaskRepository::new(&database).create(task_input(
+        "带附件任务",
+        1,
+        None,
+        Some("work"),
+        0,
+    ))?;
+    let source_path = data_dir.join("source-contract.txt");
+    std::fs::write(&source_path, b"attachment payload")?;
+
+    let repository = AttachmentRepository::new(&database);
+    let attachment = repository.create_managed(
+        &data_dir,
+        torder_lib::models::CreateAttachmentInput {
+            task_id: task.id.clone(),
+            source_path: source_path.display().to_string(),
+            display_name: Some(" 合同附件 ".to_owned()),
+        },
+    )?;
+
+    assert_eq!(attachment.task_id, task.id);
+    assert_eq!(attachment.kind, "managed");
+    assert_eq!(attachment.display_name, "合同附件");
+    assert_eq!(
+        attachment.original_name.as_deref(),
+        Some("source-contract.txt")
+    );
+    assert_eq!(attachment.sync_state.as_deref(), Some("pendingUpload"));
+    let (source_hash, source_size) = sha256_file(&source_path)?;
+    assert_eq!(
+        attachment.content_sha256.as_deref(),
+        Some(source_hash.as_str())
+    );
+    assert_eq!(attachment.size_bytes, Some(source_size));
+    let copied_path = data_dir.join(
+        attachment
+            .local_relative_path
+            .as_deref()
+            .expect("managed attachment should store a relative path"),
+    );
+    assert!(copied_path.is_file());
+    assert_eq!(sha256_file(&copied_path)?.0, source_hash);
+
+    let connection = database.connect()?;
+    let attachment_changes: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sync_changes WHERE entity = 'attachment' AND object_id = ?1 AND operation = 'upsert'",
+        rusqlite::params![attachment.id],
+        |row| row.get(0),
+    )?;
+    assert_eq!(attachment_changes, 1);
+    assert_eq!(repository.transfer_status()?.pending_upload, 1);
+    drop(connection);
+
+    repository.soft_delete(&attachment.id)?;
+    assert!(repository.list_by_task(&data_dir, &task.id)?.is_empty());
+    let delete_changes: i64 = database.connect()?.query_row(
+        "SELECT COUNT(*) FROM sync_changes WHERE entity = 'attachment' AND object_id = ?1 AND operation = 'delete'",
+        rusqlite::params![attachment.id],
+        |row| row.get(0),
+    )?;
+    assert_eq!(delete_changes, 1);
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    cleanup_dir(&data_dir);
+    Ok(())
+}
+
+#[test]
+fn orphan_attachment_cleanup_removes_only_expired_unreferenced_blobs() -> RepositoryResult<()> {
+    let data_dir = attachment_test_data_dir("cleanup");
+    std::fs::create_dir_all(&data_dir)?;
+    let database_path = data_dir.join("torder.sqlite");
+    let database = Database::initialize(database_path.clone())?;
+    let task = TaskRepository::new(&database).create(task_input(
+        "附件清理任务",
+        1,
+        None,
+        Some("work"),
+        0,
+    ))?;
+    let live_source = data_dir.join("live.txt");
+    let deleted_source = data_dir.join("deleted.txt");
+    std::fs::write(&live_source, b"live attachment")?;
+    std::fs::write(&deleted_source, b"deleted attachment")?;
+    let repository = AttachmentRepository::new(&database);
+    let live = repository.create_managed(
+        &data_dir,
+        torder_lib::models::CreateAttachmentInput {
+            task_id: task.id.clone(),
+            source_path: live_source.display().to_string(),
+            display_name: None,
+        },
+    )?;
+    let deleted = repository.create_managed(
+        &data_dir,
+        torder_lib::models::CreateAttachmentInput {
+            task_id: task.id.clone(),
+            source_path: deleted_source.display().to_string(),
+            display_name: None,
+        },
+    )?;
+    let live_path = data_dir.join(live.local_relative_path.as_deref().unwrap());
+    let deleted_path = data_dir.join(deleted.local_relative_path.as_deref().unwrap());
+
+    {
+        let connection = database.connect()?;
+        connection.execute(
+            "UPDATE attachment_blobs SET sync_state = 'uploaded', updated_at = '2020-01-01T00:00:00Z' WHERE id IN (?1, ?2)",
+            rusqlite::params![live.blob_id.as_deref(), deleted.blob_id.as_deref()],
+        )?;
+        connection.execute(
+            "UPDATE sync_changes SET uploaded_at = '2020-01-01T00:00:00Z', remote_sequence = 1 WHERE entity = 'attachment'",
+            [],
+        )?;
+    }
+    repository.soft_delete(&deleted.id)?;
+    {
+        let connection = database.connect()?;
+        connection.execute(
+            "UPDATE task_attachments SET deleted_at = '2020-01-01T00:00:00Z', updated_at = '2020-01-01T00:00:00Z' WHERE id = ?1",
+            rusqlite::params![deleted.id],
+        )?;
+        connection.execute(
+            "UPDATE sync_changes SET uploaded_at = '2020-01-01T00:00:00Z', remote_sequence = 2 WHERE entity = 'attachment'",
+            [],
+        )?;
+    }
+
+    let diagnostics = repository.diagnostics()?;
+    assert_eq!(diagnostics.managed_count, 1);
+    let (removed_count, removed_bytes) = repository.cleanup_orphan_blobs(&data_dir, 30)?;
+
+    assert_eq!(removed_count, 1);
+    assert_eq!(removed_bytes, b"deleted attachment".len() as i64);
+    assert!(live_path.is_file());
+    assert!(!deleted_path.exists());
+    let connection = database.connect()?;
+    assert!(connection
+        .query_row(
+            "SELECT deleted_at FROM attachment_blobs WHERE id = ?1",
+            rusqlite::params![deleted.blob_id.as_deref()],
+            |row| row.get::<_, Option<String>>(0),
+        )?
+        .is_some());
+    assert!(connection
+        .query_row(
+            "SELECT deleted_at FROM attachment_blobs WHERE id = ?1",
+            rusqlite::params![live.blob_id.as_deref()],
+            |row| row.get::<_, Option<String>>(0),
+        )?
+        .is_none());
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    cleanup_dir(&data_dir);
+    Ok(())
+}
+
+#[test]
+fn managed_attachment_rejects_missing_or_directory_sources() -> RepositoryResult<()> {
+    let data_dir = attachment_test_data_dir("invalid-source");
+    std::fs::create_dir_all(&data_dir)?;
+    let database_path = data_dir.join("torder.sqlite");
+    let database = Database::initialize(database_path.clone())?;
+    let task = TaskRepository::new(&database).create(task_input(
+        "附件校验任务",
+        1,
+        None,
+        Some("work"),
+        0,
+    ))?;
+    let repository = AttachmentRepository::new(&database);
+
+    assert!(matches!(
+        repository.create_managed(
+            &data_dir,
+            torder_lib::models::CreateAttachmentInput {
+                task_id: task.id.clone(),
+                source_path: data_dir.display().to_string(),
+                display_name: None,
+            },
+        ),
+        Err(RepositoryError::Validation(
+            "attachment source must be a file"
+        ))
+    ));
+    assert!(matches!(
+        repository.create_managed(
+            &data_dir,
+            torder_lib::models::CreateAttachmentInput {
+                task_id: task.id,
+                source_path: data_dir.join("missing.txt").display().to_string(),
+                display_name: None,
+            },
+        ),
+        Err(RepositoryError::Io(_))
+    ));
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    cleanup_dir(&data_dir);
+    Ok(())
+}
+
+#[test]
+fn local_reference_attachment_stays_local_and_does_not_record_sync_change() -> RepositoryResult<()>
+{
+    let data_dir = attachment_test_data_dir("local-ref");
+    std::fs::create_dir_all(&data_dir)?;
+    let database_path = data_dir.join("torder.sqlite");
+    let database = Database::initialize(database_path.clone())?;
+    let task = TaskRepository::new(&database).create(task_input(
+        "本地引用任务",
+        1,
+        None,
+        Some("work"),
+        0,
+    ))?;
+    let source_path = data_dir.join("local-note.txt");
+    std::fs::write(&source_path, b"local only")?;
+    let before_changes = sync_repository::pending_count(&database.connect()?)?;
+
+    let attachment = AttachmentRepository::new(&database).create_local_reference(
+        torder_lib::models::CreateAttachmentInput {
+            task_id: task.id.clone(),
+            source_path: source_path.display().to_string(),
+            display_name: None,
+        },
+    )?;
+
+    assert_eq!(attachment.kind, "localReference");
+    assert!(attachment.blob_id.is_none());
+    let canonical_source = std::fs::canonicalize(&source_path)?;
+    assert_eq!(
+        attachment.local_path.as_deref(),
+        Some(canonical_source.display().to_string().as_str())
+    );
+    let connection = database.connect()?;
+    let blob_count: i64 =
+        connection.query_row("SELECT COUNT(*) FROM attachment_blobs", [], |row| {
+            row.get(0)
+        })?;
+    assert_eq!(blob_count, 0);
+    assert_eq!(sync_repository::pending_count(&connection)?, before_changes);
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    cleanup_dir(&data_dir);
+    Ok(())
+}
+
 fn query_input(
     scope_kind: &str,
     scope_value: &str,
@@ -996,4 +1294,12 @@ fn cleanup_database_files(database_path: &Path) {
     let _ = std::fs::remove_file(database_path);
     let _ = std::fs::remove_file(format!("{}-wal", database_path.display()));
     let _ = std::fs::remove_file(format!("{}-shm", database_path.display()));
+}
+
+fn attachment_test_data_dir(name: &str) -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("torder-attachment-{name}-{}", Uuid::new_v4()))
+}
+
+fn cleanup_dir(path: &Path) {
+    let _ = std::fs::remove_dir_all(path);
 }

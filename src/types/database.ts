@@ -76,6 +76,73 @@ export interface UpdateTaskInput {
   tags: string[];
 }
 
+export type AttachmentKind = "managed" | "localReference" | "webLink";
+
+export type AttachmentSyncState =
+  | "pendingUpload"
+  | "uploaded"
+  | "pendingDownload"
+  | "downloaded"
+  | "missing"
+  | "failed";
+
+export interface AttachmentBlob {
+  id: string;
+  contentSha256: string;
+  sizeBytes: number;
+  mimeType: string | null;
+  localRelativePath: string;
+  remotePath: string | null;
+  encryptionKeyId: string | null;
+  syncState: AttachmentSyncState;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface Attachment {
+  id: string;
+  taskId: string;
+  kind: AttachmentKind;
+  blobId: string | null;
+  displayName: string;
+  originalName: string | null;
+  externalUrl: string | null;
+  contentSha256: string | null;
+  sizeBytes: number | null;
+  mimeType: string | null;
+  localRelativePath: string | null;
+  remotePath: string | null;
+  encryptionKeyId: string | null;
+  syncState: AttachmentSyncState | null;
+  lastError: string | null;
+  localPath: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface CreateAttachmentInput {
+  taskId: string;
+  sourcePath: string;
+  displayName?: string | null;
+}
+
+export interface CreateWebLinkAttachmentInput {
+  taskId: string;
+  url: string;
+  displayName: string;
+}
+
+export interface AttachmentTransferStatus {
+  pendingUpload: number;
+  pendingDownload: number;
+  failed: number;
+  missing: number;
+}
+
 export interface TaskList {
   id: string;
   name: string;
@@ -145,7 +212,7 @@ export interface Setting {
   updatedAt: string;
 }
 
-export type CalendarEventType = "leave" | "trip";
+export type CalendarEventType = "leave" | "trip" | "other";
 
 export interface CalendarEvent {
   id: string;

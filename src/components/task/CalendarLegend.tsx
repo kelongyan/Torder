@@ -1,4 +1,4 @@
-import { Plane, Sun } from "lucide-react";
+import { CircleDot, Plane, Sun } from "lucide-react";
 
 export function CalendarLegend() {
   return (
@@ -10,6 +10,10 @@ export function CalendarLegend() {
       <span className="month-legend-item">
         <Plane aria-hidden="true" className="month-legend-icon trip" />
         出差
+      </span>
+      <span className="month-legend-item">
+        <CircleDot aria-hidden="true" className="month-legend-icon other" />
+        其他
       </span>
     </footer>
   );

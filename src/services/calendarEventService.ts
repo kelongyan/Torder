@@ -41,6 +41,7 @@ function mockEvent(
 let browserEvents: CalendarEvent[] = [
   mockEvent("mock-leave-1", "领导休假", "leave", 3, 3, "请提前提交审批"),
   mockEvent("mock-trip-1", "领导出差", "trip", 8, 12, "上海客户拜访"),
+  mockEvent("mock-other-1", "部门会议", "other", 1, 1, "会议室确认"),
 ];
 
 export function listCalendarEvents(): Promise<CalendarEvent[]> {

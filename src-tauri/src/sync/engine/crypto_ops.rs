@@ -23,7 +23,7 @@ pub fn encryption_context(
 
 pub fn operation_associated_data(operation: &ChangeOperation) -> Vec<u8> {
     format!(
-        "torder-sync-v1|{}|{}|{}|{}|{}",
+        "torder-sync-v2|{}|{}|{}|{}|{}",
         operation.id,
         operation.entity,
         operation.object_id,

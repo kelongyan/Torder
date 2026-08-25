@@ -5,6 +5,7 @@ use reqwest::{Client, Method, StatusCode, Url};
 
 const MAX_JSON_BYTES: usize = 1024 * 1024;
 const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
+const MAX_BLOB_BYTES: usize = 100 * 1024 * 1024 + 1024;
 const MAX_ATTEMPTS: usize = 3;
 
 #[derive(Debug)]
@@ -146,21 +147,11 @@ impl WebDavClient {
     }
 
     pub async fn get_snapshot(&self, path: &str) -> Result<Vec<u8>, WebDavError> {
-        let mut response = self.request(Method::GET, self.url(path)?, None).await?;
-        if response
-            .content_length()
-            .is_some_and(|length| length > MAX_SNAPSHOT_BYTES as u64)
-        {
-            return Err(WebDavError::BodyTooLarge);
-        }
-        let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(WebDavError::Request)? {
-            if bytes.len() + chunk.len() > MAX_SNAPSHOT_BYTES {
-                return Err(WebDavError::BodyTooLarge);
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        Ok(bytes)
+        self.get_bytes(path, MAX_SNAPSHOT_BYTES).await
+    }
+
+    pub async fn get_blob(&self, path: &str) -> Result<Vec<u8>, WebDavError> {
+        self.get_bytes(path, MAX_BLOB_BYTES).await
     }
 
     pub async fn put_snapshot_if_none_match(
@@ -180,6 +171,28 @@ impl WebDavClient {
             None,
             Some("application/json"),
             Some("gzip"),
+        )
+        .await
+        .map(|_| ())
+    }
+
+    pub async fn put_blob_if_none_match(
+        &self,
+        path: &str,
+        payload: Vec<u8>,
+    ) -> Result<(), WebDavError> {
+        if payload.len() > MAX_BLOB_BYTES {
+            return Err(WebDavError::BodyTooLarge);
+        }
+        self.request_with_headers(
+            Method::PUT,
+            self.url(path)?,
+            Some(payload),
+            None,
+            Some("*"),
+            None,
+            Some("application/octet-stream"),
+            None,
         )
         .await
         .map(|_| ())
@@ -262,6 +275,24 @@ impl WebDavClient {
         )
         .await
         .map(|_| ())
+    }
+
+    async fn get_bytes(&self, path: &str, max_bytes: usize) -> Result<Vec<u8>, WebDavError> {
+        let mut response = self.request(Method::GET, self.url(path)?, None).await?;
+        if response
+            .content_length()
+            .is_some_and(|length| length > max_bytes as u64)
+        {
+            return Err(WebDavError::BodyTooLarge);
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(WebDavError::Request)? {
+            if bytes.len() + chunk.len() > max_bytes {
+                return Err(WebDavError::BodyTooLarge);
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        Ok(bytes)
     }
 
     fn url(&self, path: &str) -> Result<Url, WebDavError> {

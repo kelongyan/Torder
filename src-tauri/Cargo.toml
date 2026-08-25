@@ -1,6 +1,6 @@
 [package]
 name = "torder"
-version = "2.5.3"
+version = "2.5.4"
 description = "Torder（今序）本地优先待办桌面应用"
 authors = ["Zhaxideler"]
 license = "MIT"
@@ -34,6 +34,8 @@ reqwest = { version = "0.13.4", default-features = false, features = ["rustls", 
 quick-xml = "0.38"
 flate2 = "1"
 rand = "0.8"
+sha2 = "0.10"
+zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
 tokio = { version = "1", features = ["sync", "time"] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-notification = "2.3.3"

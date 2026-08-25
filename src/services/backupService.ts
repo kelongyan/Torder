@@ -21,7 +21,7 @@ let browserBackupPaths: string[] = [];
 
 export function backupDatabase(): Promise<string> {
   if (!isTauri()) {
-    const name = `torder-backup-${browserStamp()}.sqlite`;
+    const name = `torder-backup-${browserStamp()}.zip`;
     browserBackupPaths = [name, ...browserBackupPaths];
     return Promise.resolve(`mock://backups/${name}`);
   }

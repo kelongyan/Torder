@@ -383,6 +383,9 @@ pub fn prune_history(connection: &rusqlite::Connection) -> RepositoryResult<Sync
     Ok(SyncCleanupResult {
         changes_removed,
         tombstones_removed,
+        attachment_blobs_removed: 0,
+        attachment_bytes_removed: 0,
+        remote_attachment_blobs_removed: 0,
     })
 }
 

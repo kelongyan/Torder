@@ -1,3 +1,4 @@
+pub mod attachment_repository;
 pub mod calendar_event_repository;
 pub mod database;
 pub mod list_repository;

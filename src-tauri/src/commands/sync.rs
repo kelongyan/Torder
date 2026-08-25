@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde_json::json;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::db::{sync_repository, Database};
+use crate::db::{attachment_repository::AttachmentRepository, sync_repository, Database};
 use crate::models::{
     SyncChange, SyncCleanupResult, SyncConflict, SyncDevice, SyncRemoteInspection, SyncStatus,
 };
@@ -85,6 +85,9 @@ pub fn export_sync_diagnostics(
         .and_then(|url| reqwest::Url::parse(url).ok())
         .and_then(|url| url.host_str().map(str::to_owned));
     let error_category = status.last_error.as_deref().map(classify_diagnostic_error);
+    let attachment_diagnostics = AttachmentRepository::new(&database)
+        .diagnostics()
+        .map_err(|error| error.to_string())?;
     let payload = json!({
         "format": "torder-sync-diagnostics",
         "formatVersion": 1,
@@ -104,6 +107,7 @@ pub fn export_sync_diagnostics(
             "lastSyncAt": status.last_sync_at,
             "lastErrorCategory": error_category,
         },
+        "attachments": attachment_diagnostics,
     });
     let export_dir = app
         .path()
