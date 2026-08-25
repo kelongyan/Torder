@@ -18,6 +18,7 @@ import {
 export function createTask(input: CreateTaskInput): Promise<Task> {
   if (!isTauri()) {
     const now = new Date().toISOString();
+    const scheduledDate = input.scheduledDate ?? null;
     const dueAt = input.dueAt ?? null;
     const remindBefore = input.remindBefore ?? null;
     const remindAt = computeRemindAt(dueAt, remindBefore);
@@ -28,6 +29,7 @@ export function createTask(input: CreateTaskInput): Promise<Task> {
       status: "todo",
       priority: input.priority ?? 1,
       listId: input.listId ?? "work",
+      scheduledDate,
       dueAt,
       completedAt: null,
       sortOrder: input.sortOrder ?? 0,
@@ -181,6 +183,7 @@ export function setTaskCompleted(
       status: completed ? "done" : "todo",
       priority: task.priority,
       listId: task.listId,
+      scheduledDate: task.scheduledDate,
       dueAt: task.dueAt,
       sortOrder: task.sortOrder,
       remindBefore: task.remindBefore,

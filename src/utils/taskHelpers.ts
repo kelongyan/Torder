@@ -5,7 +5,12 @@ import {
   Star,
   type LucideIcon,
 } from "lucide-react";
-import { getDefaultDueAtLocal, toDateTimeLocal } from "./taskDates";
+import {
+  getDefaultDueAtLocal,
+  toDateKey,
+  toDateTimeLocal,
+  toLocalDateKey,
+} from "./taskDates";
 import { taskViewCopy } from "../constants/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
 import type {
@@ -22,6 +27,7 @@ export interface TaskDraft {
   note: string;
   priority: 0 | 1 | 2;
   listId: string;
+  scheduledDate: string;
   dueAt: string;
   remindBefore: number | null;
   recurrenceFrequency: RecurrenceFrequency | null;
@@ -80,10 +86,9 @@ export function buildCounts(
 function matchesViewCount(task: Task, view: SystemView): boolean {
   if (task.status === "done" || task.status === "archived") return false;
   if (view === "today") {
-    if (!task.dueAt) return false;
-    return isSameLocalDay(new Date(task.dueAt), new Date());
+    return taskPlanDateKey(task) === toDateKey(new Date());
   }
-  if (view === "planned") return task.dueAt !== null;
+  if (view === "planned") return task.scheduledDate !== null || task.dueAt !== null;
   if (view === "overdue") {
     if (!task.dueAt) return false;
     return localDateKey(new Date(task.dueAt)) < localDateKey(new Date());
@@ -93,15 +98,12 @@ function matchesViewCount(task: Task, view: SystemView): boolean {
   return true;
 }
 
-function isSameLocalDay(left: Date, right: Date): boolean {
-  return localDateKey(left) === localDateKey(right);
+function localDateKey(date: Date): string {
+  return toDateKey(date);
 }
 
-function localDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function taskPlanDateKey(task: Task): string | null {
+  return task.scheduledDate ?? toLocalDateKey(task.dueAt);
 }
 
 export function pickDefaultListId(scope: TaskScope, lists: TaskList[]): string {
@@ -117,14 +119,20 @@ function findList(lists: TaskList[], id: string): TaskList | null {
 export function emptyDraft(
   defaultListId: string,
   defaultReminderMinutes = 1440,
+  defaultScheduledDate = "",
 ): TaskDraft {
+  const useScheduledOnly = Boolean(defaultScheduledDate);
   return {
     title: "",
     note: "",
     priority: 1,
     listId: defaultListId,
-    dueAt: getDefaultDueAtLocal(),
-    remindBefore: defaultReminderMinutes < 0 ? null : defaultReminderMinutes,
+    scheduledDate: defaultScheduledDate,
+    dueAt: useScheduledOnly ? "" : getDefaultDueAtLocal(),
+    remindBefore:
+      useScheduledOnly || defaultReminderMinutes < 0
+        ? null
+        : defaultReminderMinutes,
     recurrenceFrequency: null,
     recurrenceInterval: 1,
     recurrenceWeekdays: [new Date().getDay()],
@@ -146,6 +154,7 @@ export function createTaskDraft(
     note: task.note ?? "",
     priority: task.priority,
     listId: task.listId,
+    scheduledDate: task.scheduledDate ?? "",
     dueAt: toDateTimeLocal(task.dueAt),
     remindBefore: task.remindBefore,
     recurrenceFrequency: null,
@@ -165,6 +174,7 @@ export function recurringRuleDraft(rule: RecurringRule): TaskDraft {
     note: rule.note ?? "",
     priority: rule.priority,
     listId: rule.listId,
+    scheduledDate: toLocalDateKey(rule.firstDueAt) ?? "",
     dueAt: toDateTimeLocal(rule.firstDueAt),
     remindBefore: rule.remindBefore,
     recurrenceFrequency: rule.frequency,

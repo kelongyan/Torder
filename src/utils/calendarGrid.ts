@@ -1,14 +1,8 @@
 import type { CalendarEvent, Task } from "../types/database";
+import { getTaskCalendarKey, toDateKey } from "./taskDates";
 
 export const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
-
-export function toDateKey(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
+export { toDateKey };
 
 export function buildTasksByDate(
   tasks: Task[],
@@ -16,19 +10,25 @@ export function buildTasksByDate(
 ): Map<string, Task[]> {
   const map = new Map<string, Task[]>();
   for (const task of tasks) {
-    if (
-      !task.dueAt ||
-      task.status === "archived" ||
-      (!showCompleted && task.status === "done")
-    ) {
+    if (isCalendarHidden(task, showCompleted)) {
       continue;
     }
-    const key = toDateKey(new Date(task.dueAt));
+    const key = getTaskCalendarKey(task);
+    if (!key) continue;
     const bucket = map.get(key) ?? [];
     bucket.push(task);
     map.set(key, bucket);
   }
   return map;
+}
+
+export function buildUnscheduledTasks(
+  tasks: Task[],
+  showCompleted: boolean,
+): Task[] {
+  return tasks.filter(
+    (task) => !isCalendarHidden(task, showCompleted) && !getTaskCalendarKey(task),
+  );
 }
 
 export function buildEventsByDate(
@@ -46,4 +46,10 @@ export function buildEventsByDate(
     }
   }
   return map;
+}
+
+function isCalendarHidden(task: Task, showCompleted: boolean): boolean {
+  return (
+    task.status === "archived" || (!showCompleted && task.status === "done")
+  );
 }

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState, type DragEvent } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { CalendarEvent, Task } from "../../types/database";
 import { priorityCopy } from "../../constants/taskConfig";
 import { calendarEventTypeCopy } from "../../constants/calendarEventConfig";
@@ -7,6 +7,7 @@ import {
   WEEKDAY_LABELS,
   buildEventsByDate,
   buildTasksByDate,
+  buildUnscheduledTasks,
   toDateKey,
 } from "../../utils/calendarGrid";
 import { CalendarLegend } from "./CalendarLegend";
@@ -24,6 +25,7 @@ export function MonthCalendar({
   events,
   showCompleted,
   onOpenTask,
+  onCreateTask,
   onCreateEvent,
   onEditEvent,
   onMoveTaskDate,
@@ -32,6 +34,7 @@ export function MonthCalendar({
   events: CalendarEvent[];
   showCompleted: boolean;
   onOpenTask: (task: Task) => void;
+  onCreateTask: (date: string) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
   onMoveTaskDate: (taskId: string, date: string) => void;
@@ -45,6 +48,10 @@ export function MonthCalendar({
 
   const tasksByDate = useMemo(
     () => buildTasksByDate(tasks, showCompleted),
+    [showCompleted, tasks],
+  );
+  const unscheduledTasks = useMemo(
+    () => buildUnscheduledTasks(tasks, showCompleted),
     [showCompleted, tasks],
   );
 
@@ -71,6 +78,19 @@ export function MonthCalendar({
       const total = current.year * 12 + current.month + delta;
       return { year: Math.floor(total / 12), month: total % 12 };
     });
+  };
+
+  const startTaskDrag = (event: DragEvent<HTMLButtonElement>, task: Task) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", task.id);
+    setDraggingTaskId(task.id);
+  };
+
+  const dropTask = (event: DragEvent<HTMLDivElement>, dateKey: string) => {
+    event.preventDefault();
+    const taskId = draggingTaskId ?? event.dataTransfer.getData("text/plain");
+    if (taskId) onMoveTaskDate(taskId, dateKey);
+    setDraggingTaskId(null);
   };
 
   return (
@@ -116,6 +136,35 @@ export function MonthCalendar({
         </button>
       </header>
 
+      {unscheduledTasks.length > 0 && (
+        <section className="month-unscheduled" aria-label="待安排任务">
+          <header>
+            <strong>待安排</strong>
+            <span>{unscheduledTasks.length} 项</span>
+          </header>
+          <div className="month-unscheduled-list">
+            {unscheduledTasks.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                className="month-task month-unscheduled-task"
+                draggable
+                onDragStart={(event) => startTaskDrag(event, task)}
+                onDragEnd={() => setDraggingTaskId(null)}
+                onClick={() => onOpenTask(task)}
+                title={task.title}
+              >
+                <span
+                  className={`month-task-dot ${priorityCopy[task.priority].className}`}
+                  aria-hidden="true"
+                />
+                <span className="month-task-title">{task.title}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="month-weekdays" role="row">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="month-weekday" role="columnheader">
@@ -130,64 +179,57 @@ export function MonthCalendar({
           const inMonth = date.getMonth() === cursor.month;
           const dayTasks = tasksByDate.get(key) ?? [];
           const dayEvents = eventsByDate.get(key) ?? [];
-          const visibleTasks = dayTasks.slice(0, 2);
-          const overflow = dayTasks.length - visibleTasks.length;
           return (
             <div
               key={key}
               className={`month-cell ${inMonth ? "" : "is-outside"} ${key === todayKey ? "is-today" : ""}`}
               role="gridcell"
               onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (draggingTaskId) onMoveTaskDate(draggingTaskId, key);
-                setDraggingTaskId(null);
-              }}
+              onDrop={(event) => dropTask(event, key)}
             >
               <div className="month-cell-top">
                 <span className="month-cell-date">{date.getDate()}</span>
                 <button
                   type="button"
                   className="month-cell-add"
-                  onClick={() => onCreateEvent(key)}
-                  aria-label={`${key} 新建事件`}
-                  title="新建日程事件"
+                  onClick={() => onCreateTask(key)}
+                  aria-label={`${key} 新建任务`}
+                  title="新建任务"
                 >
-                  +
+                  <Plus aria-hidden="true" />
                 </button>
               </div>
-              {dayEvents.map((event) => (
-                <button
-                  key={event.id}
-                  type="button"
-                  className={`month-event month-event-${event.eventType}`}
-                  onClick={() => onEditEvent(event)}
-                  title={`${calendarEventTypeCopy[event.eventType].label}：${event.title}`}
-                >
-                  {event.title}
-                </button>
-              ))}
-              {visibleTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className="month-task"
-                  draggable
-                  onDragStart={() => setDraggingTaskId(task.id)}
-                  onDragEnd={() => setDraggingTaskId(null)}
-                  onClick={() => onOpenTask(task)}
-                  title={task.title}
-                >
-                  <span
-                    className={`month-task-dot ${priorityCopy[task.priority].className}`}
-                    aria-hidden="true"
-                  />
-                  <span className="month-task-title">{task.title}</span>
-                </button>
-              ))}
-              {overflow > 0 && (
-                <span className="month-cell-more">+{overflow} 项任务</span>
-              )}
+              <div className="month-cell-body">
+                {dayEvents.map((event) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    className={`month-event month-event-${event.eventType}`}
+                    onClick={() => onEditEvent(event)}
+                    title={`${calendarEventTypeCopy[event.eventType].label}：${event.title}`}
+                  >
+                    {event.title}
+                  </button>
+                ))}
+                {dayTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    className="month-task"
+                    draggable
+                    onDragStart={(event) => startTaskDrag(event, task)}
+                    onDragEnd={() => setDraggingTaskId(null)}
+                    onClick={() => onOpenTask(task)}
+                    title={task.title}
+                  >
+                    <span
+                      className={`month-task-dot ${priorityCopy[task.priority].className}`}
+                      aria-hidden="true"
+                    />
+                    <span className="month-task-title">{task.title}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           );
         })}

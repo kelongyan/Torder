@@ -16,6 +16,7 @@ import {
   previewBackupImport,
   type BackupImportPreview,
 } from "../../services/backupService";
+import { toLocalDateKey } from "../../utils/taskDates";
 
 type ImportKind = "csv" | "markdown" | "json";
 
@@ -142,6 +143,7 @@ export function SettingsImportSection({
             note: task.note ?? null,
             priority: task.priority ?? 1,
             listId,
+            scheduledDate: task.scheduledDate ?? null,
             dueAt: task.dueAt ?? null,
             remindBefore: task.remindBefore ?? null,
             tags: task.tags ?? [],
@@ -155,6 +157,7 @@ export function SettingsImportSection({
               status: task.status,
               priority: created.priority,
               listId: created.listId,
+              scheduledDate: created.scheduledDate,
               dueAt: created.dueAt,
               sortOrder: created.sortOrder,
               remindBefore: created.remindBefore,
@@ -432,6 +435,7 @@ function parseCsvImport(
       status: isTaskStatus(row.status) ? row.status : "todo",
       priority: parsePriority(row.priority),
       listId: findListId(row.listId || row.list || row.listName, lists),
+      scheduledDate: normalizeDateKey(row.scheduledDate),
       dueAt: normalizeDate(row.dueAt),
       remindBefore: parseNullableNumber(row.remindBefore),
       tags: row.tags ? row.tags.split(/[|,，、\s]+/).filter(Boolean) : [],
@@ -470,6 +474,7 @@ function parseMarkdownImport(
       priority: inferPriority(item[2]),
       listId:
         findListId(currentListName, lists) ?? `import-list-${currentListName}`,
+      scheduledDate: null,
       dueAt: null,
       remindBefore: null,
       tags: [],
@@ -549,6 +554,12 @@ function normalizeDate(value: string | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function normalizeDateKey(value: string | undefined): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return toLocalDateKey(normalizeDate(value));
 }
 
 function parsePriority(value: string | undefined): 0 | 1 | 2 {

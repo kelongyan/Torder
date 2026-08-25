@@ -12,6 +12,7 @@ import {
   getBrowserTasksSnapshot,
   updateBrowserTask,
 } from "./browserTaskMock";
+import { toLocalDateKey } from "../utils/taskDates";
 
 let browserRules: RecurringRule[] = [];
 
@@ -212,6 +213,7 @@ function generateBrowserRule(rule: RecurringRule, force: boolean): number {
     status: "todo",
     priority: rule.priority,
     listId: rule.listId,
+    scheduledDate: toLocalDateKey(selected),
     dueAt: selected,
     completedAt: null,
     sortOrder: 0,

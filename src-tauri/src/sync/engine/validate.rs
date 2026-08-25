@@ -174,6 +174,7 @@ pub fn validate_entity_fields(
                     | "status"
                     | "priority"
                     | "listId"
+                    | "scheduledDate"
                     | "dueAt"
                     | "completedAt"
                     | "sortOrder"
@@ -271,6 +272,7 @@ pub fn validate_entity_fields(
     }
     date_field(payload, "startDate")?;
     date_field(payload, "endDate")?;
+    date_field(payload, "scheduledDate")?;
     if let (Some(start), Some(end)) = (
         payload.get("startDate").and_then(Value::as_str),
         payload.get("endDate").and_then(Value::as_str),
@@ -470,6 +472,9 @@ pub fn date_field(payload: &serde_json::Map<String, Value>, key: &str) -> Reposi
     let Some(value) = payload.get(key) else {
         return Ok(());
     };
+    if value.is_null() && key == "scheduledDate" {
+        return Ok(());
+    }
     let value = value
         .as_str()
         .ok_or(RepositoryError::Validation("sync date must be a string"))?;

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, SecondsFormat, Utc};
+use chrono::{DateTime, Datelike, Duration, SecondsFormat, Utc};
 use rusqlite::{params, OptionalExtension, Row, Transaction};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -481,6 +481,7 @@ fn insert_occurrence(
     now: DateTime<Utc>,
 ) -> RepositoryResult<usize> {
     let id = Uuid::new_v4().to_string();
+    let scheduled_date = occurrence_scheduled_date(occurrence, &rule.timezone)?;
     let remind_at = rule.remind_before.and_then(|minutes| {
         let value = parse_utc(occurrence).ok()? - Duration::minutes(minutes);
         (value > now).then(|| value.to_rfc3339_opts(SecondsFormat::Secs, true))
@@ -488,9 +489,9 @@ fn insert_occurrence(
     let inserted = transaction.execute(
         r#"
         INSERT OR IGNORE INTO tasks (
-            id, title, note, status, priority, list_id, due_at, sort_order,
+            id, title, note, status, priority, list_id, scheduled_date, due_at, sort_order,
             remind_before, remind_at, repeat_rule, recurring_rule_id, occurrence_at
-        ) VALUES (?1, ?2, ?3, 'todo', ?4, ?5, ?6, 0, ?7, ?8, NULL, ?9, ?6)
+        ) VALUES (?1, ?2, ?3, 'todo', ?4, ?5, ?6, ?7, 0, ?8, ?9, NULL, ?10, ?7)
         "#,
         params![
             id,
@@ -498,6 +499,7 @@ fn insert_occurrence(
             rule.note,
             rule.priority,
             rule.list_id,
+            scheduled_date,
             occurrence,
             rule.remind_before,
             remind_at,
@@ -517,6 +519,7 @@ fn insert_occurrence(
                 "status": "todo",
                 "priority": rule.priority,
                 "listId": rule.list_id,
+                "scheduledDate": scheduled_date,
                 "dueAt": occurrence,
                 "remindBefore": rule.remind_before,
                 "remindAt": remind_at,
@@ -604,7 +607,7 @@ fn current_task_payload(transaction: &Transaction<'_>, task_id: &str) -> Reposit
     let encoded = transaction.query_row(
         r#"SELECT json_object(
             'id', id, 'title', title, 'note', note, 'status', status,
-            'priority', priority, 'listId', list_id, 'dueAt', due_at,
+            'priority', priority, 'listId', list_id, 'scheduledDate', scheduled_date, 'dueAt', due_at,
             'completedAt', completed_at, 'sortOrder', sort_order,
             'remindBefore', remind_before, 'remindAt', remind_at,
             'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags),
@@ -616,6 +619,19 @@ fn current_task_payload(transaction: &Transaction<'_>, task_id: &str) -> Reposit
         |row| row.get::<_, String>(0),
     )?;
     Ok(serde_json::from_str(&encoded)?)
+}
+
+fn occurrence_scheduled_date(occurrence: &str, timezone: &str) -> RepositoryResult<String> {
+    let timezone = timezone
+        .parse::<chrono_tz::Tz>()
+        .map_err(|_| RepositoryError::Validation("invalid recurring timezone"))?;
+    let local = parse_utc(occurrence)?.with_timezone(&timezone);
+    Ok(format!(
+        "{:04}-{:02}-{:02}",
+        local.year(),
+        local.month(),
+        local.day()
+    ))
 }
 
 fn within_end(rule: &RecurringRule, occurrence: &str) -> RepositoryResult<bool> {

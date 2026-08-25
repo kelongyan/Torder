@@ -122,6 +122,7 @@ function createBrowserTasks(): Task[] {
       note: "清理不再需要的技术书籍，拍照挂闲鱼",
       priority: 0,
       listId: "personal",
+      scheduledDate: makeDate(2, 9, 0).slice(0, 10),
       dueAt: null,
     }),
     browserTask("preview-share", "准备周五的团队分享 — Tauri 2 实战", {
@@ -166,6 +167,7 @@ function browserTask(
     status: "todo",
     priority: 1,
     listId: "work",
+    scheduledDate: null,
     dueAt: null,
     completedAt: null,
     sortOrder: 0,

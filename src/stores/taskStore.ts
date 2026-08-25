@@ -60,7 +60,10 @@ interface TaskState {
   batchPermanentDelete: () => Promise<void>;
   batchUpdate: (
     patch: Partial<
-      Pick<UpdateTaskInput, "listId" | "priority" | "dueAt" | "remindBefore">
+      Pick<
+        UpdateTaskInput,
+        "listId" | "priority" | "scheduledDate" | "dueAt" | "remindBefore"
+      >
     >,
   ) => Promise<void>;
   reorderTasks: (sourceId: string, targetId: string) => Promise<void>;
@@ -292,6 +295,7 @@ export const useTaskStore = create<TaskState>()(
               status: task.status,
               priority: task.priority,
               listId: task.listId,
+              scheduledDate: task.scheduledDate,
               dueAt: task.dueAt,
               sortOrder: task.sortOrder,
               remindBefore: task.remindBefore,
@@ -326,6 +330,7 @@ export const useTaskStore = create<TaskState>()(
               status: task.status,
               priority: task.priority,
               listId: task.listId,
+              scheduledDate: task.scheduledDate,
               dueAt: task.dueAt,
               sortOrder,
               remindBefore: task.remindBefore,
@@ -352,6 +357,7 @@ export const useTaskStore = create<TaskState>()(
             status: task.status,
             priority: task.priority,
             listId: task.listId,
+            scheduledDate: task.scheduledDate,
             dueAt: task.dueAt,
             sortOrder: task.sortOrder,
             remindBefore: task.remindBefore,

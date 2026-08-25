@@ -29,6 +29,7 @@ export interface Task {
   status: "todo" | "done" | "archived";
   priority: 0 | 1 | 2;
   listId: string;
+  scheduledDate: string | null;
   dueAt: string | null;
   completedAt: string | null;
   sortOrder: number;
@@ -50,6 +51,7 @@ export interface CreateTaskInput {
   note?: string | null;
   priority?: 0 | 1 | 2;
   listId?: string;
+  scheduledDate?: string | null;
   dueAt?: string | null;
   sortOrder?: number;
   remindBefore?: number | null;
@@ -65,6 +67,7 @@ export interface UpdateTaskInput {
   status: Task["status"];
   priority: Task["priority"];
   listId: string;
+  scheduledDate: string | null;
   dueAt: string | null;
   sortOrder: number;
   remindBefore: number | null;

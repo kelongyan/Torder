@@ -247,6 +247,80 @@
   position: relative;
 }
 
+.task-date-control {
+  position: relative;
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  padding: 0 9px;
+  color: var(--text-primary);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.task-date-control:focus-within,
+.task-date-control:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.task-date-control .icon-sm {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.task-date-control input {
+  min-height: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.task-date-control input:focus {
+  box-shadow: none;
+}
+
+.task-date-control.has-value input {
+  padding-right: 24px;
+}
+
+.task-date-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.task-date-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.task-date-clear svg {
+  width: 13px;
+  height: 13px;
+}
+
 .date-time-control {
   position: relative;
   display: block;
@@ -713,6 +787,22 @@
 .task-create-dialog .date-time-control {
   grid-template-columns: minmax(0, 1fr) 30px;
   gap: 5px;
+}
+
+.task-create-dialog .task-date-control {
+  min-height: 30px;
+  gap: 6px;
+  padding: 0 7px;
+}
+
+.task-create-dialog .task-date-control.has-value input {
+  padding-right: 22px;
+}
+
+.task-create-dialog .task-date-clear {
+  right: 4px;
+  width: 20px;
+  height: 20px;
 }
 
 .task-create-dialog .date-time-trigger {

@@ -6,6 +6,7 @@ import { isMobile } from "../../utils/platform";
 import type { TaskDraft } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
+import { TaskDateField } from "./TaskDateField";
 import { TaskDateTimeField } from "./TaskDateTimeField";
 
 const repeatOptions = [
@@ -40,6 +41,7 @@ export function TaskFormFields({
   recurrenceRequired = false,
   compactDateTime = false,
   showTags = true,
+  showScheduledDate = true,
 }: {
   draft: TaskDraft;
   lists: TaskList[];
@@ -49,6 +51,7 @@ export function TaskFormFields({
   recurrenceRequired?: boolean;
   compactDateTime?: boolean;
   showTags?: boolean;
+  showScheduledDate?: boolean;
 }) {
   const frequency = draft.recurrenceFrequency;
   const shouldAutoFocus = !isMobile();
@@ -114,6 +117,12 @@ export function TaskFormFields({
       )}
 
       <div className="form-grid">
+        {showScheduledDate && !frequency && (
+          <TaskDateField
+            value={draft.scheduledDate}
+            onChange={(scheduledDate) => onChange({ ...draft, scheduledDate })}
+          />
+        )}
         <TaskDateTimeField
           value={draft.dueAt}
           onChange={(dueAt) => onChange({ ...draft, dueAt })}

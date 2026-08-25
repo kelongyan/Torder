@@ -1,5 +1,10 @@
-import { Calendar } from "lucide-react";
-import { formatTaskDate, isOverdue } from "../../utils/taskDates";
+import { Calendar, CalendarDays } from "lucide-react";
+import {
+  formatTaskDate,
+  formatTaskScheduleDate,
+  isOverdue,
+  toLocalDateKey,
+} from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";
@@ -12,6 +17,10 @@ export function TaskMeta({
   list: TaskList | null;
 }) {
   const dueLabel = formatTaskDate(task.dueAt);
+  const scheduleLabel = formatTaskScheduleDate(task.scheduledDate);
+  const dueDateKey = toLocalDateKey(task.dueAt);
+  const showSchedule =
+    scheduleLabel && (!task.dueAt || task.scheduledDate !== dueDateKey);
   const overdue = isOverdue(task.dueAt, task.status);
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
   const completedSubtasks = task.subtasks.filter(
@@ -38,6 +47,12 @@ export function TaskMeta({
         <span className={`due-label ${overdue ? "overdue" : ""}`}>
           <Calendar aria-hidden="true" className="icon-xs" />
           {dueLabel}
+        </span>
+      )}
+      {showSchedule && (
+        <span className="due-label">
+          <CalendarDays aria-hidden="true" className="icon-xs" />
+          计划 {scheduleLabel}
         </span>
       )}
       {task.subtasks.length > 0 && (

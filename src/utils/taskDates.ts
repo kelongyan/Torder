@@ -8,11 +8,24 @@ export function fromDateTimeLocal(value: string): string | null {
   return value ? new Date(value).toISOString() : null;
 }
 
+export function toDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-");
+}
+
+export function toLocalDateKey(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return toDateKey(date);
+}
+
 export function toLocalDateTimeValue(date: Date): string {
   return (
-    [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join(
-      "-",
-    ) + `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+    toDateKey(date) + `T${pad(date.getHours())}:${pad(date.getMinutes())}`
   );
 }
 
@@ -53,29 +66,46 @@ export function formatTaskDate(iso: string | null): string | null {
   }).format(date);
 }
 
+export function formatTaskScheduleDate(dateKey: string | null): string | null {
+  if (!dateKey) return null;
+  const date = parseDateKey(dateKey);
+  if (!date) return null;
+  const now = new Date();
+  if (isSameDay(date, now)) return "今天";
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (isSameDay(date, tomorrow)) return "明天";
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 export function formatTaskDateTime(iso: string | null): string {
   return formatTaskDate(iso) ?? "未设置";
 }
 
-export function formatCalendarDate(iso: string | null): {
+export function getTaskCalendarKey(task: {
+  scheduledDate: string | null;
+  dueAt: string | null;
+}): string | null {
+  return task.scheduledDate ?? toLocalDateKey(task.dueAt);
+}
+
+export function formatCalendarDate(dateKey: string | null): {
   key: string;
   title: string;
   weekday: string;
   isToday: boolean;
 } {
-  if (!iso) {
+  if (!dateKey) {
     return { key: "unscheduled", title: "未安排", weekday: "", isToday: false };
   }
 
-  const date = new Date(iso);
+  const date = parseDateKey(dateKey);
+  if (!date) {
+    return { key: "unscheduled", title: "未安排", weekday: "", isToday: false };
+  }
   const today = new Date();
-  const key = [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
-  ].join("-");
   return {
-    key,
+    key: dateKey,
     title: `${date.getMonth() + 1}月${date.getDate()}日`,
     weekday: new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(
       date,
@@ -94,6 +124,14 @@ function isSameDay(left: Date, right: Date): boolean {
     left.getMonth() === right.getMonth() &&
     left.getDate() === right.getDate()
   );
+}
+
+function parseDateKey(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function pad(value: number): string {

@@ -104,6 +104,7 @@ function App() {
   const [syncWifiOnly, setSyncWifiOnly] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [recurringViewActive, setRecurringViewActive] = useState(false);
+  const [createScheduledDate, setCreateScheduledDate] = useState("");
   const [savedViewDialogOpen, setSavedViewDialogOpen] = useState(false);
   const [editingSavedView, setEditingSavedView] =
     useState<SavedTaskView | null>(null);
@@ -335,7 +336,7 @@ function App() {
     });
     return () => unlisten?.();
   }, []);
-  useTrayQuickAdd(openCreateDialog, setAppError);
+  useTrayQuickAdd(openTaskCreateDialog, setAppError);
   useSyncLifecycle({
     setLists,
     setRecurringRules,
@@ -395,13 +396,18 @@ function App() {
   );
   useTaskReminder(handleReminder);
   useKeyboardShortcuts({
-    onOpenCreateDialog: openCreateDialog,
+    onOpenCreateDialog: () => openTaskCreateDialog(),
     onOpenShortcuts: () => setShortcutsOpen(true),
     onToggleBatchMode: toggleBatchMode,
     onEscape: closeEverything,
   });
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
+
+  function openTaskCreateDialog(scheduledDate = "") {
+    setCreateScheduledDate(scheduledDate);
+    openCreateDialog();
+  }
 
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查
@@ -562,10 +568,12 @@ function App() {
     const task =
       allTasks.find((item) => item.id === taskId) ??
       tasks.find((item) => item.id === taskId);
+    if (!task) return;
     await patchTask(taskId, {
-      dueAt: mergeTaskDate(task?.dueAt ?? null, dateKey),
+      scheduledDate: dateKey,
+      ...(task.dueAt ? { dueAt: mergeTaskDate(task.dueAt, dateKey) } : {}),
     });
-    pushToast("截止日期已调整", "success");
+    pushToast(task.dueAt ? "日期已调整" : "计划日期已安排", "success");
   }
 
   async function handleThemeToggle() {
@@ -597,6 +605,7 @@ function App() {
   async function handleCreateTask(input: CreateTaskInput) {
     await addTask(input);
     setCreateOpen(false);
+    setCreateScheduledDate("");
     pushToast("任务已创建", "success");
   }
 
@@ -608,6 +617,7 @@ function App() {
     ]);
     setCreateOpen(false);
     setRecurringDialogOpen(false);
+    setCreateScheduledDate("");
     pushToast("循环任务已创建", "success");
   }
 
@@ -935,7 +945,7 @@ function App() {
             sortBy={sortBy}
             showCompleted={showCompleted}
             onOpenSidebar={openMobileSidebar}
-            onOpenCreate={openCreateDialog}
+            onOpenCreate={() => openTaskCreateDialog()}
             onLayoutChange={setLayout}
             onThemeToggle={() => void handleThemeToggle()}
             onMenuToggle={() => setMenuOpen((open) => !open)}
@@ -1031,6 +1041,7 @@ function App() {
                   events={calendarEvents}
                   showCompleted={showCompleted}
                   onOpenTask={(task) => selectTask(task.id)}
+                  onCreateTask={(date) => openTaskCreateDialog(date)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
                   onMoveTaskDate={(taskId, date) =>
@@ -1043,6 +1054,7 @@ function App() {
                   events={calendarEvents}
                   showCompleted={showCompleted}
                   onOpenTask={(task) => selectTask(task.id)}
+                  onCreateTask={(date) => openTaskCreateDialog(date)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
                   onMoveTaskDate={(taskId, date) =>
@@ -1070,7 +1082,7 @@ function App() {
               <button
                 type="button"
                 className="mobile-create-fab"
-                onClick={openCreateDialog}
+                onClick={() => openTaskCreateDialog()}
                 aria-label="新建任务"
                 title="新建任务"
               >
@@ -1084,9 +1096,13 @@ function App() {
         <TaskCreateDialog
           lists={lists}
           defaultListId={defaultListId}
+          defaultScheduledDate={createScheduledDate}
           defaultReminderMinutes={settings.defaultReminderMinutes}
           presence={createPresence.phase}
-          onClose={() => setCreateOpen(false)}
+          onClose={() => {
+            setCreateOpen(false);
+            setCreateScheduledDate("");
+          }}
           onSubmit={handleCreateTask}
           onSubmitRecurring={handleCreateRecurring}
         />
@@ -1229,10 +1245,9 @@ function sameScope(left: TaskScope, right: TaskScope): boolean {
   return false;
 }
 
-function mergeTaskDate(dueAt: string | null, dateKey: string): string {
+function mergeTaskDate(dueAt: string, dateKey: string): string {
   const [year, month, day] = dateKey.split("-").map(Number);
-  const date = dueAt ? new Date(dueAt) : new Date();
-  if (!dueAt) date.setHours(9, 0, 0, 0);
+  const date = new Date(dueAt);
   date.setFullYear(year, month - 1, day);
   return date.toISOString();
 }

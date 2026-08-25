@@ -228,6 +228,7 @@ export function SettingsSyncSection({
       status: "状态",
       priority: "优先级",
       listId: "清单",
+      scheduledDate: "计划日期",
       dueAt: "截止时间",
       completedAt: "完成时间",
       remindBefore: "提前提醒",

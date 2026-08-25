@@ -69,14 +69,12 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
   if (parsed.due !== null) {
     if (parsed.due === "none") {
       if (task.dueAt !== null) return false;
+    } else if (parsed.due === "today") {
+      if (task.status !== "todo") return false;
+      if (taskPlanDateKey(task) !== localDateKey(new Date())) return false;
     } else if (!task.dueAt) {
       return false;
     } else if (task.status !== "todo") {
-      return false;
-    } else if (
-      parsed.due === "today" &&
-      !isSameLocalDay(new Date(task.dueAt), new Date())
-    ) {
       return false;
     } else if (parsed.due === "overdue" && !isOverdue(task.dueAt)) {
       return false;
@@ -167,12 +165,10 @@ function matchesSystemView(
   if (view === "all") return true;
   if (task.status !== "todo") return false;
   if (view === "important") return task.priority === 2;
-  if (view === "planned") return task.dueAt !== null;
+  if (view === "planned") return task.scheduledDate !== null || task.dueAt !== null;
   if (view === "overdue") return Boolean(task.dueAt && isOverdue(task.dueAt));
   if (view === "no-date") return task.dueAt === null;
-  return Boolean(
-    task.dueAt && isSameLocalDay(new Date(task.dueAt), new Date()),
-  );
+  return taskPlanDateKey(task) === localDateKey(new Date());
 }
 
 function isOverdue(dueAt: string): boolean {
@@ -206,14 +202,15 @@ function compareTasks(left: Task, right: Task, sortBy: TaskSortBy): number {
 }
 
 function compareDueDates(left: Task, right: Task): number {
-  if (!left.dueAt && !right.dueAt) return 0;
-  if (!left.dueAt) return 1;
-  if (!right.dueAt) return -1;
-  return left.dueAt.localeCompare(right.dueAt);
-}
-
-function isSameLocalDay(left: Date, right: Date): boolean {
-  return localDateKey(left) === localDateKey(right);
+  const leftKey = taskPlanDateKey(left);
+  const rightKey = taskPlanDateKey(right);
+  if (!leftKey && !rightKey) return 0;
+  if (!leftKey) return 1;
+  if (!rightKey) return -1;
+  return (
+    leftKey.localeCompare(rightKey) ||
+    compareNullableText(left.dueAt, right.dueAt)
+  );
 }
 
 function localDateKey(date: Date): string {
@@ -221,6 +218,18 @@ function localDateKey(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function taskPlanDateKey(task: Task): string | null {
+  if (task.scheduledDate) return task.scheduledDate;
+  return task.dueAt ? localDateKey(new Date(task.dueAt)) : null;
+}
+
+function compareNullableText(left: string | null, right: string | null): number {
+  if (!left && !right) return 0;
+  if (!left) return 1;
+  if (!right) return -1;
+  return left.localeCompare(right);
 }
 
 function cloneTask(task: Task): Task {

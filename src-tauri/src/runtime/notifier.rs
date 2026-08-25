@@ -160,6 +160,7 @@ mod tests {
                 note: None,
                 priority: Some(1),
                 list_id: Some("work".to_owned()),
+                scheduled_date: Some("2026-08-21".to_owned()),
                 due_at: Some("2026-08-21T09:00:00Z".to_owned()),
                 sort_order: Some(0),
                 remind_before: Some(10),

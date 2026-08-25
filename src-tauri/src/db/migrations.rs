@@ -412,6 +412,17 @@ const MIGRATIONS: &[Migration] = &[
         INSERT OR IGNORE INTO settings (key, value) VALUES ('savedViews', '[]');
         "#,
     },
+    Migration {
+        version: 13,
+        name: "add_task_scheduled_date",
+        sql: r#"
+        ALTER TABLE tasks ADD COLUMN scheduled_date TEXT;
+
+        CREATE INDEX idx_tasks_scheduled_date
+            ON tasks(scheduled_date)
+            WHERE deleted_at IS NULL;
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。

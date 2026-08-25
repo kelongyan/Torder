@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
+  CalendarDays,
   CalendarClock,
   MoreHorizontal,
   Plus,
@@ -13,8 +14,10 @@ import {
 } from "lucide-react";
 import {
   formatTaskDateTime,
+  formatTaskScheduleDate,
   fromDateTimeLocal,
   toDateTimeLocal,
+  toLocalDateKey,
 } from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { priorityCopy, priorityOptions } from "../../constants/taskConfig";
@@ -32,10 +35,17 @@ import type {
 import { parseTagsInput } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
+import { TaskDateField } from "../task/TaskDateField";
 import { TaskDateTimeField } from "../task/TaskDateTimeField";
 
 type EditingField =
-  "title" | "note" | "listId" | "priority" | "dueAt" | "remindBefore";
+  | "title"
+  | "note"
+  | "listId"
+  | "priority"
+  | "scheduledDate"
+  | "dueAt"
+  | "remindBefore";
 
 export function TaskDetailPanel({
   task,
@@ -153,6 +163,7 @@ function TaskDetailContent({
       status: task.status,
       priority: task.priority,
       listId: task.listId,
+      scheduledDate: task.scheduledDate,
       dueAt: task.dueAt,
       sortOrder: task.sortOrder,
       remindBefore: task.remindBefore,
@@ -221,11 +232,13 @@ function TaskDetailContent({
   }
 
   function postponeOccurrence(days: number) {
-    void patchAndSave({ dueAt: shiftDueAt(task.dueAt, days) });
+    const dueAt = shiftDueAt(task.dueAt, days);
+    void patchAndSave({ dueAt, scheduledDate: toLocalDateKey(dueAt) });
   }
 
   function postponeOccurrenceToWorkday() {
-    void patchAndSave({ dueAt: nextWorkdayDueAt(task.dueAt) });
+    const dueAt = nextWorkdayDueAt(task.dueAt);
+    void patchAndSave({ dueAt, scheduledDate: toLocalDateKey(dueAt) });
   }
 
   const completedSubtasks = task.subtasks.filter(
@@ -394,6 +407,36 @@ function TaskDetailContent({
                   style={{ background: listColor }}
                 />
                 {list?.name ?? "未分类"}
+              </span>
+            </button>
+          )}
+
+          {editing === "scheduledDate" ? (
+            <div className="detail-attr-cell detail-attr-editing">
+              <span className="detail-attr-label">计划日期</span>
+              <TaskDateField
+                value={task.scheduledDate ?? ""}
+                onChange={(scheduledDate) => {
+                  void patchAndSave({
+                    scheduledDate: scheduledDate || null,
+                  });
+                }}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="detail-attr-cell"
+              onClick={() => startEdit("scheduledDate")}
+            >
+              <span className="detail-attr-label">计划日期</span>
+              <span className="detail-attr-value">
+                <CalendarDays aria-hidden="true" className="icon-sm" />
+                {task.scheduledDate ? (
+                  formatTaskScheduleDate(task.scheduledDate)
+                ) : (
+                  <span className="detail-empty">未安排</span>
+                )}
               </span>
             </button>
           )}

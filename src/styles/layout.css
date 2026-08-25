@@ -973,6 +973,12 @@
   animation: content-reveal var(--motion-panel) var(--ease-out) both;
 }
 
+.content-motion-month,
+.content-motion-week {
+  height: auto;
+  min-height: 100%;
+}
+
 .content-motion-board {
   animation-name: content-reveal-wide;
 }

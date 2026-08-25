@@ -1,6 +1,9 @@
 /* --- 设置对话框 --- */
 .settings-dialog .dialog-card {
   display: flex;
+  width: min(94vw, 920px);
+  height: min(720px, calc(100vh - 36px));
+  max-height: calc(100vh - 36px);
   flex-direction: column;
   overflow: hidden;
 }
@@ -10,11 +13,118 @@
   flex-shrink: 0;
 }
 
-.settings-dialog .dialog-form {
-  gap: 14px;
+.settings-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 232px minmax(0, 1fr);
+}
+
+.settings-sidebar {
+  min-width: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-tertiary) 58%, transparent);
+  padding: 14px 12px;
+}
+
+.settings-side-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-side-nav-item {
+  display: grid;
+  width: 100%;
+  min-height: 38px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: transparent;
+  padding: 7px 9px;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.settings-side-nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-side-nav-item:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.settings-side-nav-item.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-primary);
+}
+
+.settings-side-nav-item svg {
+  width: 16px;
+  height: 16px;
+  justify-self: center;
+  color: currentColor;
+}
+
+.settings-side-nav-item > span {
+  display: block;
+  min-width: 0;
+}
+
+.settings-side-nav-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-side-nav-item strong {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.settings-content {
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 18px 18px;
+  padding: 20px 24px 24px;
+}
+
+.settings-content-head {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 16px;
+}
+
+.settings-content-head h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: 0;
+}
+
+.settings-content-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 16px;
 }
 
 .settings-dialog .dialog-footer {
@@ -763,6 +873,76 @@
 }
 
 @media (max-width: 720px) {
+  .settings-dialog .dialog-card {
+    width: min(92vw, 430px);
+    height: min(82dvh, calc(var(--app-viewport-height, 100dvh) - 28px));
+    max-height: min(82dvh, calc(var(--app-viewport-height, 100dvh) - 28px));
+  }
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-sidebar {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 9px 10px 8px;
+    scrollbar-width: none;
+  }
+
+  .settings-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-side-nav {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(96px, 1fr);
+    gap: 6px;
+  }
+
+  .settings-side-nav-item {
+    min-height: 36px;
+    grid-template-columns: 16px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .settings-side-nav-item svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .settings-side-nav-item strong {
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .settings-content {
+    padding: 12px;
+  }
+
+  .settings-content-head {
+    gap: 1px;
+    margin-bottom: 10px;
+  }
+
+  .settings-content-head h3 {
+    font-size: 17px;
+    line-height: 23px;
+  }
+
+  .settings-content-head p {
+    font-size: 11.5px;
+    line-height: 16px;
+  }
+
+  .settings-panel {
+    gap: 10px;
+  }
+
   .settings-dialog .dialog-footer {
     display: flex;
     justify-content: flex-end;
@@ -782,8 +962,17 @@
     height: 32px;
   }
 
+  .settings-preference-grid,
+  .sync-config-grid {
+    grid-template-columns: 1fr;
+  }
+
   .sync-encryption-fields {
     grid-template-columns: 1fr;
+  }
+
+  .settings-action-row .settings-toggle {
+    margin-left: 0;
   }
 
   .settings-dialog .dialog-footer .btn-secondary {

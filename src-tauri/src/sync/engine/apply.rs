@@ -574,7 +574,7 @@ pub(crate) fn current_payload(
     let sql = match entity {
         "list" => "SELECT json_object('id', id, 'name', name, 'color', color, 'sortOrder', sort_order, 'isDefault', json(CASE WHEN is_default = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM lists WHERE id = ?1",
         "recurringRule" => "SELECT json_object('id', id, 'title', title, 'note', note, 'priority', priority, 'listId', list_id, 'frequency', frequency, 'intervalCount', interval_count, 'weekdays', json(weekdays), 'monthDay', month_day, 'firstDueAt', first_due_at, 'nextDueAt', next_due_at, 'timezone', timezone, 'generateAheadMinutes', generate_ahead_minutes, 'remindBefore', remind_before, 'endAt', end_at, 'enabled', json(CASE WHEN enabled = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM recurring_rules WHERE id = ?1",
-        "task" => "SELECT json_object('id', id, 'title', title, 'note', note, 'status', status, 'priority', priority, 'listId', list_id, 'dueAt', due_at, 'completedAt', completed_at, 'sortOrder', sort_order, 'remindBefore', remind_before, 'remindAt', remind_at, 'remindedAt', reminded_at, 'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags), 'recurringRuleId', recurring_rule_id, 'occurrenceAt', occurrence_at, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM tasks WHERE id = ?1",
+        "task" => "SELECT json_object('id', id, 'title', title, 'note', note, 'status', status, 'priority', priority, 'listId', list_id, 'scheduledDate', scheduled_date, 'dueAt', due_at, 'completedAt', completed_at, 'sortOrder', sort_order, 'remindBefore', remind_before, 'remindAt', remind_at, 'remindedAt', reminded_at, 'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags), 'recurringRuleId', recurring_rule_id, 'occurrenceAt', occurrence_at, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM tasks WHERE id = ?1",
         "calendarEvent" => "SELECT json_object('id', id, 'title', title, 'eventType', event_type, 'startDate', start_date, 'endDate', end_date, 'note', note, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM calendar_events WHERE id = ?1",
         _ => return Err(RepositoryError::Validation("invalid sync entity")),
     };
@@ -687,14 +687,15 @@ fn apply_operation(
             let tags = payload.get("tags").cloned().unwrap_or_else(|| json!([]));
             transaction.execute(
                 r#"INSERT INTO tasks (
-                    id, title, note, status, priority, list_id, due_at, completed_at,
+                    id, title, note, status, priority, list_id, scheduled_date, due_at, completed_at,
                     sort_order, remind_before, remind_at, reminded_at, repeat_rule, recurring_rule_id,
                     occurrence_at, subtasks, tags, created_at, updated_at, deleted_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-                          COALESCE(?18, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-                          COALESCE(?19, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?20)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                          COALESCE(?19, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                          COALESCE(?20, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?21)
                 ON CONFLICT(id) DO UPDATE SET title=excluded.title, note=excluded.note,
                   status=excluded.status, priority=excluded.priority, list_id=excluded.list_id,
+                  scheduled_date=excluded.scheduled_date,
                   due_at=excluded.due_at, completed_at=excluded.completed_at, sort_order=excluded.sort_order,
                   remind_before=excluded.remind_before, remind_at=excluded.remind_at,
                   reminded_at=excluded.reminded_at,
@@ -706,7 +707,8 @@ fn apply_operation(
                     operation.object_id,
                     string(&payload, "title", "同步任务"), optional_string(&payload, "note"),
                     string(&payload, "status", "todo"), integer(&payload, "priority", 1),
-                    string(&payload, "listId", "work"), optional_string(&payload, "dueAt"),
+                    string(&payload, "listId", "work"), optional_string(&payload, "scheduledDate"),
+                    optional_string(&payload, "dueAt"),
                     optional_string(&payload, "completedAt"), integer(&payload, "sortOrder", 0),
                     optional_integer(&payload, "remindBefore"), optional_string(&payload, "remindAt"),
                     optional_string(&payload, "remindedAt"), optional_string(&payload, "repeatRule"),

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState, type DragEvent } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { CalendarEvent, Task } from "../../types/database";
 import { priorityCopy } from "../../constants/taskConfig";
 import { calendarEventTypeCopy } from "../../constants/calendarEventConfig";
@@ -7,6 +7,7 @@ import {
   WEEKDAY_LABELS,
   buildEventsByDate,
   buildTasksByDate,
+  buildUnscheduledTasks,
   toDateKey,
 } from "../../utils/calendarGrid";
 import { CalendarLegend } from "./CalendarLegend";
@@ -27,6 +28,7 @@ export function WeekCalendar({
   events,
   showCompleted,
   onOpenTask,
+  onCreateTask,
   onCreateEvent,
   onEditEvent,
   onMoveTaskDate,
@@ -35,6 +37,7 @@ export function WeekCalendar({
   events: CalendarEvent[];
   showCompleted: boolean;
   onOpenTask: (task: Task) => void;
+  onCreateTask: (date: string) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
   onMoveTaskDate: (taskId: string, date: string) => void;
@@ -45,6 +48,10 @@ export function WeekCalendar({
 
   const tasksByDate = useMemo(
     () => buildTasksByDate(tasks, showCompleted),
+    [showCompleted, tasks],
+  );
+  const unscheduledTasks = useMemo(
+    () => buildUnscheduledTasks(tasks, showCompleted),
     [showCompleted, tasks],
   );
 
@@ -75,6 +82,19 @@ export function WeekCalendar({
       next.setDate(current.getDate() + delta * 7);
       return next;
     });
+  };
+
+  const startTaskDrag = (event: DragEvent<HTMLButtonElement>, task: Task) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", task.id);
+    setDraggingTaskId(task.id);
+  };
+
+  const dropTask = (event: DragEvent<HTMLDivElement>, dateKey: string) => {
+    event.preventDefault();
+    const taskId = draggingTaskId ?? event.dataTransfer.getData("text/plain");
+    if (taskId) onMoveTaskDate(taskId, dateKey);
+    setDraggingTaskId(null);
   };
 
   return (
@@ -116,6 +136,35 @@ export function WeekCalendar({
         </button>
       </header>
 
+      {unscheduledTasks.length > 0 && (
+        <section className="month-unscheduled" aria-label="待安排任务">
+          <header>
+            <strong>待安排</strong>
+            <span>{unscheduledTasks.length} 项</span>
+          </header>
+          <div className="month-unscheduled-list">
+            {unscheduledTasks.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                className="month-task month-unscheduled-task"
+                draggable
+                onDragStart={(event) => startTaskDrag(event, task)}
+                onDragEnd={() => setDraggingTaskId(null)}
+                onClick={() => onOpenTask(task)}
+                title={task.title}
+              >
+                <span
+                  className={`month-task-dot ${priorityCopy[task.priority].className}`}
+                  aria-hidden="true"
+                />
+                <span className="month-task-title">{task.title}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="month-weekdays" role="row">
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className="month-weekday" role="columnheader">
@@ -127,6 +176,7 @@ export function WeekCalendar({
       <div className="month-grid week-grid" role="grid">
         {weekDays.map((date) => {
           const key = toDateKey(date);
+          const weekdayLabel = WEEKDAY_LABELS[(date.getDay() + 6) % 7];
           const dayTasks = tasksByDate.get(key) ?? [];
           const dayEvents = eventsByDate.get(key) ?? [];
           const isToday = key === todayKey;
@@ -136,27 +186,26 @@ export function WeekCalendar({
               className={`month-cell week-cell ${isToday ? "is-today" : ""}`}
               role="gridcell"
               onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (draggingTaskId) onMoveTaskDate(draggingTaskId, key);
-                setDraggingTaskId(null);
-              }}
+              onDrop={(event) => dropTask(event, key)}
             >
-              <div className="month-cell-top">
-                <span className="month-cell-date">
-                  {date.getMonth() + 1}/{date.getDate()}
-                </span>
+              <div className="month-cell-top week-cell-top">
+                <div className="week-cell-date">
+                  <span className="week-cell-date-main">
+                    {date.getMonth() + 1}/{date.getDate()}
+                  </span>
+                  <span className="week-cell-weekday">周{weekdayLabel}</span>
+                </div>
                 <button
                   type="button"
-                  className="month-cell-add"
-                  onClick={() => onCreateEvent(key)}
-                  aria-label={`${key} 新建事件`}
-                  title="新建日程事件"
+                  className="month-cell-add week-cell-add"
+                  onClick={() => onCreateTask(key)}
+                  aria-label={`${key} 新建任务`}
+                  title="新建任务"
                 >
-                  +
+                  <Plus aria-hidden="true" />
                 </button>
               </div>
-              <div className="week-cell-body">
+              <div className="month-cell-body week-cell-body">
                 {dayEvents.map((event) => (
                   <button
                     key={event.id}
@@ -174,7 +223,7 @@ export function WeekCalendar({
                     type="button"
                     className="month-task"
                     draggable
-                    onDragStart={() => setDraggingTaskId(task.id)}
+                    onDragStart={(event) => startTaskDrag(event, task)}
                     onDragEnd={() => setDraggingTaskId(null)}
                     onClick={() => onOpenTask(task)}
                     title={task.title}

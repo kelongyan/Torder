@@ -26,6 +26,7 @@ impl<'database> TaskRepository<'database> {
         validate_priority(priority)?;
         let id = Uuid::new_v4().to_string();
         let list_id = input.list_id.unwrap_or_else(|| "work".to_owned());
+        let scheduled_date = normalize_scheduled_date(input.scheduled_date)?;
         let remind_at = compute_remind_at(input.due_at.as_deref(), input.remind_before);
         let subtasks = normalize_subtasks(input.subtasks.unwrap_or_default())?;
         let subtasks_json = serde_json::to_string(&subtasks)?;
@@ -37,9 +38,9 @@ impl<'database> TaskRepository<'database> {
         transaction.execute(
             r#"
             INSERT INTO tasks (
-                id, title, note, priority, list_id, due_at, sort_order,
-                remind_before, remind_at, repeat_rule, subtasks, tags
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                id, title, note, priority, list_id, scheduled_date, due_at,
+                sort_order, remind_before, remind_at, repeat_rule, subtasks, tags
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
             "#,
             params![
                 id,
@@ -47,6 +48,7 @@ impl<'database> TaskRepository<'database> {
                 input.note,
                 priority,
                 list_id,
+                scheduled_date,
                 input.due_at,
                 input.sort_order.unwrap_or(0),
                 input.remind_before,
@@ -68,6 +70,7 @@ impl<'database> TaskRepository<'database> {
                 "status": "todo",
                 "priority": priority,
                 "listId": list_id,
+                "scheduledDate": scheduled_date,
                 "dueAt": input.due_at,
                 "sortOrder": input.sort_order.unwrap_or(0),
                 "remindBefore": input.remind_before,
@@ -190,7 +193,7 @@ impl<'database> TaskRepository<'database> {
                 }
                 match parsed.due {
                     Some(DueFilter::Today) => clauses.push(
-                        "t.status = 'todo' AND t.due_at IS NOT NULL AND date(t.due_at, 'localtime') = date('now', 'localtime')"
+                        "t.status = 'todo' AND COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) = date('now', 'localtime')"
                             .to_owned(),
                     ),
                     Some(DueFilter::Overdue) => clauses.push(
@@ -221,6 +224,7 @@ impl<'database> TaskRepository<'database> {
         let title = validate_title(&input.title)?;
         validate_status(&input.status)?;
         validate_priority(input.priority)?;
+        let scheduled_date = normalize_scheduled_date(input.scheduled_date)?;
         let remind_at = compute_remind_at(input.due_at.as_deref(), input.remind_before);
         let subtasks = normalize_subtasks(input.subtasks)?;
         let subtasks_json = serde_json::to_string(&subtasks)?;
@@ -236,21 +240,22 @@ impl<'database> TaskRepository<'database> {
                 status = ?4,
                 priority = ?5,
                 list_id = ?6,
-                due_at = ?7,
+                scheduled_date = ?7,
+                due_at = ?8,
                 completed_at = CASE
                     WHEN ?4 = 'done' AND completed_at IS NULL
                         THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                     WHEN ?4 != 'done' THEN NULL
                     ELSE completed_at
                 END,
-                sort_order = ?8,
-                remind_before = ?9,
-                remind_at = ?10,
-                repeat_rule = ?11,
-                subtasks = ?12,
-                tags = ?13,
+                sort_order = ?9,
+                remind_before = ?10,
+                remind_at = ?11,
+                repeat_rule = ?12,
+                subtasks = ?13,
+                tags = ?14,
                 reminded_at = CASE
-                    WHEN ?7 IS NOT due_at OR ?9 IS NOT remind_before THEN NULL
+                    WHEN ?8 IS NOT due_at OR ?10 IS NOT remind_before THEN NULL
                     ELSE reminded_at
                 END,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
@@ -263,6 +268,7 @@ impl<'database> TaskRepository<'database> {
                 input.status,
                 input.priority,
                 input.list_id,
+                scheduled_date,
                 input.due_at,
                 input.sort_order,
                 input.remind_before,
@@ -570,12 +576,14 @@ fn push_view_scope(
         "today" => clauses.push(
             r#"
             t.status = 'todo'
-            AND t.due_at IS NOT NULL
-            AND date(t.due_at, 'localtime') = date('now', 'localtime')
+            AND COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) = date('now', 'localtime')
             "#
             .to_owned(),
         ),
-        "planned" => clauses.push("t.status = 'todo' AND t.due_at IS NOT NULL".to_owned()),
+        "planned" => clauses.push(
+            "t.status = 'todo' AND (t.scheduled_date IS NOT NULL OR t.due_at IS NOT NULL)"
+                .to_owned(),
+        ),
         "overdue" => clauses.push(
             r#"
             t.status = 'todo'
@@ -596,7 +604,7 @@ fn push_view_scope(
 
 pub(crate) fn select_tasks() -> &'static str {
     r#"
-    SELECT id, title, note, status, priority, list_id, due_at,
+    SELECT id, title, note, status, priority, list_id, scheduled_date, due_at,
            completed_at, sort_order, remind_before, remind_at, reminded_at,
            repeat_rule, subtasks, tags, recurring_rule_id, occurrence_at,
            created_at, updated_at, deleted_at
@@ -606,7 +614,7 @@ pub(crate) fn select_tasks() -> &'static str {
 
 fn select_tasks_aliased() -> &'static str {
     r#"
-    SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.due_at,
+    SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.scheduled_date, t.due_at,
            t.completed_at, t.sort_order, t.remind_before, t.remind_at, t.reminded_at,
            t.repeat_rule, t.subtasks, t.tags, t.recurring_rule_id, t.occurrence_at,
            t.created_at, t.updated_at, t.deleted_at
@@ -618,12 +626,14 @@ fn sort_clause(sort_by: &str) -> RepositoryResult<&'static str> {
     match sort_by {
         "priority" => Ok(r#"
             t.priority DESC,
-            CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END ASC,
+            CASE WHEN COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) IS NULL THEN 1 ELSE 0 END ASC,
+            COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) ASC,
             t.due_at ASC,
             t.created_at DESC
             "#),
         "date" => Ok(r#"
-            CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END ASC,
+            CASE WHEN COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) IS NULL THEN 1 ELSE 0 END ASC,
+            COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) ASC,
             t.due_at ASC,
             t.priority DESC,
             t.created_at DESC
@@ -756,8 +766,8 @@ mod search_query_tests {
 }
 
 pub(crate) fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
-    let subtasks_json: String = row.get(13)?;
-    let tags_json: String = row.get(14)?;
+    let subtasks_json: String = row.get(14)?;
+    let tags_json: String = row.get(15)?;
     Ok(Task {
         id: row.get(0)?,
         title: row.get(1)?,
@@ -765,20 +775,21 @@ pub(crate) fn map_task(row: &Row<'_>) -> rusqlite::Result<Task> {
         status: row.get(3)?,
         priority: row.get(4)?,
         list_id: row.get(5)?,
-        due_at: row.get(6)?,
-        completed_at: row.get(7)?,
-        sort_order: row.get(8)?,
-        remind_before: row.get(9)?,
-        remind_at: row.get(10)?,
-        reminded_at: row.get(11)?,
-        repeat_rule: row.get(12)?,
-        subtasks: parse_subtasks_column(subtasks_json, 13)?,
-        tags: parse_tags_column(tags_json, 14)?,
-        recurring_rule_id: row.get(15)?,
-        occurrence_at: row.get(16)?,
-        created_at: row.get(17)?,
-        updated_at: row.get(18)?,
-        deleted_at: row.get(19)?,
+        scheduled_date: row.get(6)?,
+        due_at: row.get(7)?,
+        completed_at: row.get(8)?,
+        sort_order: row.get(9)?,
+        remind_before: row.get(10)?,
+        remind_at: row.get(11)?,
+        reminded_at: row.get(12)?,
+        repeat_rule: row.get(13)?,
+        subtasks: parse_subtasks_column(subtasks_json, 14)?,
+        tags: parse_tags_column(tags_json, 15)?,
+        recurring_rule_id: row.get(16)?,
+        occurrence_at: row.get(17)?,
+        created_at: row.get(18)?,
+        updated_at: row.get(19)?,
+        deleted_at: row.get(20)?,
     })
 }
 
@@ -835,6 +846,18 @@ fn normalize_tags(tags: Vec<String>) -> Vec<String> {
         }
     }
     normalized
+}
+
+fn normalize_scheduled_date(value: Option<String>) -> RepositoryResult<Option<String>> {
+    let Some(value) = value.map(|item| item.trim().to_owned()) else {
+        return Ok(None);
+    };
+    if value.is_empty() {
+        return Ok(None);
+    }
+    chrono::NaiveDate::parse_from_str(&value, "%Y-%m-%d")
+        .map_err(|_| RepositoryError::Validation("invalid scheduled date"))?;
+    Ok(Some(value))
 }
 
 /// Compute `remind_at` from `due_at` and `remind_before` (in minutes).

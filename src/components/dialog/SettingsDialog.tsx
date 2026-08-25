@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
-  ArrowLeft,
-  ChevronRight,
   Cloud,
-  Download,
-  FileUp,
+  DatabaseBackup,
+  Info,
+  Palette,
   Settings,
+  Settings2,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { ToastKind } from "../../types/ui";
@@ -18,25 +19,51 @@ import { SettingsExportSection } from "./SettingsExportSection";
 import { SettingsImportSection } from "./SettingsImportSection";
 import { SettingsAboutSection } from "./SettingsAboutSection";
 import { SettingsPreferencesSection } from "./SettingsPreferencesSection";
+import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import type { AppSettings } from "../../types/settings";
 import type { TaskList } from "../../types/database";
 
-type SettingsPanel = "root" | "sync" | "transfer";
+type SettingsPanel = "general" | "appearance" | "sync" | "data" | "about";
 
-const panelMeta = {
-  root: {
-    title: "设置",
-    icon: Settings,
+const settingsPanels = [
+  {
+    id: "general",
+    title: "常规",
+    description: "默认行为、提醒、回收站",
+    icon: Settings2,
   },
-  sync: {
+  {
+    id: "appearance",
+    title: "外观",
+    description: "主题模式与显示偏好",
+    icon: Palette,
+  },
+  {
+    id: "sync",
     title: "WebDAV 同步",
+    description: "账号、自动同步、设备与冲突",
     icon: Cloud,
   },
-  transfer: {
-    title: "导入导出",
-    icon: FileUp,
+  {
+    id: "data",
+    title: "数据与备份",
+    description: "备份、恢复、导入和导出",
+    icon: DatabaseBackup,
+    desktopOnly: true,
   },
-} satisfies Record<SettingsPanel, { title: string; icon: typeof Settings }>;
+  {
+    id: "about",
+    title: "关于",
+    description: "版本信息与更新",
+    icon: Info,
+  },
+] satisfies Array<{
+  id: SettingsPanel;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  desktopOnly?: boolean;
+}>;
 
 export function SettingsDialog({
   autoBackup,
@@ -72,111 +99,111 @@ export function SettingsDialog({
   onImportComplete: () => Promise<void>;
 }) {
   const mobile = isMobile();
-  const [activePanel, setActivePanel] = useState<SettingsPanel>("root");
-  const dialogMeta = panelMeta[activePanel];
+  const [activePanel, setActivePanel] = useState<SettingsPanel>("general");
+  const visiblePanels = settingsPanels.filter(
+    (panel) => !panel.desktopOnly || !mobile,
+  );
+  const activeMeta =
+    visiblePanels.find((panel) => panel.id === activePanel) ?? visiblePanels[0];
 
   return (
     <DialogShell
-      title={dialogMeta.title}
-      icon={dialogMeta.icon}
-      width="520px"
+      title="设置"
+      icon={Settings}
+      width="920px"
       presence={presence}
       overlayClassName="settings-dialog"
       onClose={onClose}
     >
-      <div className="dialog-form">
-        {activePanel === "root" && (
-          <>
-            <SettingsPreferencesSection
-              settings={settings}
-              lists={lists}
-              onSettingsChange={onSettingsChange}
-              onToast={onToast}
-            />
-
-            <section className="settings-section">
-              <div className="settings-nav-list">
+      <div className="settings-layout">
+        <aside className="settings-sidebar" aria-label="设置分类">
+          <nav className="settings-side-nav" role="tablist">
+            {visiblePanels.map((panel) => {
+              const Icon = panel.icon;
+              const selected = panel.id === activeMeta.id;
+              return (
                 <button
+                  key={panel.id}
                   type="button"
-                  className="settings-nav-item"
-                  onClick={() => setActivePanel("sync")}
+                  role="tab"
+                  aria-selected={selected}
+                  className={[
+                    "settings-side-nav-item",
+                    selected ? "is-active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setActivePanel(panel.id)}
                 >
-                  <span className="settings-nav-icon">
-                    <Cloud aria-hidden="true" />
+                  <Icon aria-hidden="true" />
+                  <span>
+                    <strong>{panel.title}</strong>
                   </span>
-                  <span className="settings-nav-copy">
-                    <strong>WebDAV 同步</strong>
-                    <span>账号、自动同步、冲突处理、诊断</span>
-                  </span>
-                  <ChevronRight aria-hidden="true" className="icon-sm" />
                 </button>
-                {!mobile && (
-                  <button
-                    type="button"
-                    className="settings-nav-item"
-                    onClick={() => setActivePanel("transfer")}
-                  >
-                    <span className="settings-nav-icon">
-                      <Download aria-hidden="true" />
-                    </span>
-                    <span className="settings-nav-copy">
-                      <strong>导入导出</strong>
-                      <span>导入文件或旧备份，导出任务数据</span>
-                    </span>
-                    <ChevronRight aria-hidden="true" className="icon-sm" />
-                  </button>
-                )}
-              </div>
-            </section>
+              );
+            })}
+          </nav>
+        </aside>
 
-            {!mobile && (
-              <SettingsBackupSection
-                autoBackup={autoBackup}
-                onAutoBackupChange={onAutoBackupChange}
-                onClose={onClose}
+        <div
+          className="settings-content"
+          role="tabpanel"
+          aria-label={activeMeta.title}
+        >
+          <div className="settings-content-head">
+            <h3>{activeMeta.title}</h3>
+            <p>{activeMeta.description}</p>
+          </div>
+
+          <div className="settings-panel">
+            {activeMeta.id === "general" && (
+              <SettingsPreferencesSection
+                settings={settings}
+                lists={lists}
+                onSettingsChange={onSettingsChange}
                 onToast={onToast}
               />
             )}
 
-            <SettingsAboutSection onToast={onToast} />
-          </>
-        )}
+            {activeMeta.id === "appearance" && <SettingsAppearanceSection />}
 
-        {activePanel === "sync" && (
-          <SettingsSyncSection
-            syncAutoEnabled={syncAutoEnabled}
-            syncWifiOnly={syncWifiOnly}
-            externalSyncStatus={externalSyncStatus}
-            onSyncAutoEnabledChange={onSyncAutoEnabledChange}
-            onSyncWifiOnlyChange={onSyncWifiOnlyChange}
-            onSyncStatusChange={onSyncStatusChange}
-            onToast={onToast}
-          />
-        )}
+            {activeMeta.id === "sync" && (
+              <SettingsSyncSection
+                syncAutoEnabled={syncAutoEnabled}
+                syncWifiOnly={syncWifiOnly}
+                externalSyncStatus={externalSyncStatus}
+                onSyncAutoEnabledChange={onSyncAutoEnabledChange}
+                onSyncWifiOnlyChange={onSyncWifiOnlyChange}
+                onSyncStatusChange={onSyncStatusChange}
+                onToast={onToast}
+              />
+            )}
 
-        {activePanel === "transfer" && !mobile && (
-          <>
-            <SettingsImportSection
-              lists={lists}
-              onToast={onToast}
-              onImported={onImportComplete}
-            />
-            <SettingsExportSection onToast={onToast} />
-          </>
-        )}
+            {activeMeta.id === "data" && !mobile && (
+              <>
+                <SettingsBackupSection
+                  autoBackup={autoBackup}
+                  onAutoBackupChange={onAutoBackupChange}
+                  onClose={onClose}
+                  onToast={onToast}
+                />
+                <SettingsImportSection
+                  lists={lists}
+                  onToast={onToast}
+                  onImported={onImportComplete}
+                />
+                <SettingsExportSection onToast={onToast} />
+              </>
+            )}
+
+            {activeMeta.id === "about" && (
+              <SettingsAboutSection onToast={onToast} />
+            )}
+          </div>
+        </div>
       </div>
 
       <footer className="dialog-footer">
-        {activePanel !== "root" && (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setActivePanel("root")}
-          >
-            <ArrowLeft aria-hidden="true" className="icon-sm" />
-            返回设置
-          </button>
-        )}
         <button type="button" className="btn-secondary" onClick={onClose}>
           完成
         </button>

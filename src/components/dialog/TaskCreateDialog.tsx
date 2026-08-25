@@ -19,6 +19,7 @@ import { TaskFormFields } from "../task/TaskFormFields";
 export function TaskCreateDialog({
   lists,
   defaultListId,
+  defaultScheduledDate = "",
   defaultReminderMinutes,
   presence,
   onClose,
@@ -27,6 +28,7 @@ export function TaskCreateDialog({
 }: {
   lists: TaskList[];
   defaultListId: string;
+  defaultScheduledDate?: string;
   defaultReminderMinutes: number;
   presence: PresencePhase;
   onClose: () => void;
@@ -34,7 +36,7 @@ export function TaskCreateDialog({
   onSubmitRecurring: (input: CreateRecurringRuleInput) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(() =>
-    emptyDraft(defaultListId, defaultReminderMinutes),
+    emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate),
   );
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -82,6 +84,7 @@ export function TaskCreateDialog({
         note: draft.note.trim() || null,
         priority: draft.priority,
         listId: draft.listId,
+        scheduledDate: draft.scheduledDate || null,
         dueAt,
         remindBefore: draft.remindBefore,
         repeatRule: null,

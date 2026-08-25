@@ -1,5 +1,5 @@
 import type { Task } from "../types/database";
-import { formatCalendarDate } from "./taskDates";
+import { formatCalendarDate, getTaskCalendarKey } from "./taskDates";
 
 export function groupCalendarTasks(tasks: Task[]) {
   const map = new Map<
@@ -14,7 +14,7 @@ export function groupCalendarTasks(tasks: Task[]) {
   >();
 
   for (const task of tasks) {
-    const date = formatCalendarDate(task.dueAt);
+    const date = formatCalendarDate(getTaskCalendarKey(task));
     const current =
       map.get(date.key) ??
       {

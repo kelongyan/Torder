@@ -49,6 +49,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         note: Some("验证创建、更新和软删除".to_owned()),
         priority: Some(2),
         list_id: Some("work".to_owned()),
+        scheduled_date: None,
         due_at: None,
         sort_order: Some(1),
         remind_before: None,
@@ -68,6 +69,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         status: "done".to_owned(),
         priority: task.priority,
         list_id: task.list_id.clone(),
+        scheduled_date: task.scheduled_date.clone(),
         due_at: task.due_at.clone(),
         sort_order: task.sort_order,
         remind_before: task.remind_before,
@@ -90,6 +92,7 @@ fn initializes_migrates_and_persists_repository_data() -> RepositoryResult<()> {
         note: None,
         priority: None,
         list_id: None,
+        scheduled_date: None,
         due_at: None,
         sort_order: None,
         remind_before: None,
@@ -174,6 +177,7 @@ fn updating_reminder_schedule_clears_reminded_at_and_records_sync_payload() -> R
         note: None,
         priority: Some(1),
         list_id: Some("work".to_owned()),
+        scheduled_date: Some("2026-08-22".to_owned()),
         due_at: Some("2026-08-22T10:00:00Z".to_owned()),
         sort_order: Some(0),
         remind_before: Some(60),
@@ -193,6 +197,7 @@ fn updating_reminder_schedule_clears_reminded_at_and_records_sync_payload() -> R
         status: task.status.clone(),
         priority: task.priority,
         list_id: task.list_id.clone(),
+        scheduled_date: task.scheduled_date.clone(),
         due_at: task.due_at.clone(),
         sort_order: task.sort_order,
         remind_before: Some(30),
@@ -308,6 +313,75 @@ fn supports_core_task_views_sorting_and_completion_flow() -> RepositoryResult<()
 }
 
 #[test]
+fn scheduled_date_without_deadline_participates_in_planned_views() -> RepositoryResult<()> {
+    let database_path = std::env::temp_dir().join(format!(
+        "torder-scheduled-date-test-{}.sqlite",
+        Uuid::new_v4()
+    ));
+    let database = Database::initialize(database_path.clone())?;
+    let repository = TaskRepository::new(&database);
+    let today_key =
+        database
+            .connect()?
+            .query_row("SELECT date('now', 'localtime')", [], |row| {
+                row.get::<_, String>(0)
+            })?;
+    let overdue_due = database.connect()?.query_row(
+        r#"
+        SELECT strftime(
+            '%Y-%m-%dT%H:%M:%SZ',
+            datetime(date('now', 'localtime', '-1 day') || ' 09:00:00', 'utc')
+        )
+        "#,
+        [],
+        |row| row.get::<_, String>(0),
+    )?;
+
+    let scheduled_only = repository.create(CreateTaskInput {
+        title: "只有计划日期".to_owned(),
+        note: None,
+        priority: Some(1),
+        list_id: Some("work".to_owned()),
+        scheduled_date: Some(today_key),
+        due_at: None,
+        sort_order: Some(0),
+        remind_before: None,
+        repeat_rule: None,
+        subtasks: None,
+        tags: None,
+    })?;
+    let overdue = repository.create(task_input("真正过期", 1, Some(&overdue_due), None, 1))?;
+
+    assert_eq!(
+        repository
+            .query(query_input("view", "today", None, "date", true))?
+            .into_iter()
+            .map(|task| task.id)
+            .collect::<Vec<_>>(),
+        vec![scheduled_only.id.clone()]
+    );
+    let planned_ids = repository
+        .query(query_input("view", "planned", None, "date", true))?
+        .into_iter()
+        .map(|task| task.id)
+        .collect::<Vec<_>>();
+    assert!(planned_ids.contains(&scheduled_only.id));
+    assert!(planned_ids.contains(&overdue.id));
+    assert_eq!(
+        repository
+            .query(query_input("view", "overdue", None, "date", true))?
+            .into_iter()
+            .map(|task| task.id)
+            .collect::<Vec<_>>(),
+        vec![overdue.id]
+    );
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
 fn trash_cleanup_and_permanent_delete_hide_deleted_tasks() -> RepositoryResult<()> {
     let database_path =
         std::env::temp_dir().join(format!("torder-trash-flow-test-{}.sqlite", Uuid::new_v4()));
@@ -373,6 +447,7 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         note: Some("包含搜索验证关键字".to_owned()),
         priority: Some(2),
         list_id: Some("work".to_owned()),
+        scheduled_date: None,
         due_at: None,
         sort_order: None,
         remind_before: None,
@@ -385,6 +460,7 @@ fn searches_combines_filters_and_handles_one_thousand_tasks() -> RepositoryResul
         note: None,
         priority: Some(1),
         list_id: Some("personal".to_owned()),
+        scheduled_date: None,
         due_at: None,
         sort_order: None,
         remind_before: None,
@@ -906,6 +982,7 @@ fn task_input(
         note: None,
         priority: Some(priority),
         list_id: list_id.map(str::to_owned),
+        scheduled_date: None,
         due_at: due_at.map(str::to_owned),
         sort_order: Some(sort_order),
         remind_before: None,

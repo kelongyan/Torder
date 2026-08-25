@@ -351,6 +351,7 @@ fn import_from_prepared_backup(
                 note: task.note.clone(),
                 priority: Some(task.priority),
                 list_id: Some(list_id),
+                scheduled_date: task.scheduled_date.clone(),
                 due_at: task.due_at.clone(),
                 sort_order: Some(task.sort_order),
                 remind_before: task.remind_before,
@@ -366,6 +367,7 @@ fn import_from_prepared_backup(
                     status: task.status,
                     priority: created.priority,
                     list_id: created.list_id,
+                    scheduled_date: created.scheduled_date,
                     due_at: created.due_at,
                     sort_order: created.sort_order,
                     remind_before: created.remind_before,
@@ -590,9 +592,14 @@ fn build_markdown_export(
                 .as_deref()
                 .map(|value| format!(" · 截止 {value}"))
                 .unwrap_or_default();
+            let scheduled = task
+                .scheduled_date
+                .as_deref()
+                .map(|value| format!(" · 计划 {value}"))
+                .unwrap_or_default();
             buffer.push_str(&format!(
-                "- [{done}] {}{} · 优先级 {priority}\n",
-                task.title, due
+                "- [{done}] {}{}{} · 优先级 {priority}\n",
+                task.title, scheduled, due
             ));
         }
     }
@@ -612,7 +619,7 @@ fn build_markdown_export(
 
 fn build_csv_export(tasks: &[Task]) -> RepositoryResult<String> {
     let mut buffer = String::from(
-        "id,title,note,status,priority,listId,dueAt,completedAt,createdAt,updatedAt,remindBefore,recurringRuleId,occurrenceAt\n",
+        "id,title,note,status,priority,listId,scheduledDate,dueAt,completedAt,createdAt,updatedAt,remindBefore,recurringRuleId,occurrenceAt\n",
     );
     for task in tasks.iter().filter(|task| task.deleted_at.is_none()) {
         let fields = [
@@ -622,6 +629,7 @@ fn build_csv_export(tasks: &[Task]) -> RepositoryResult<String> {
             &task.status,
             &task.priority.to_string(),
             &task.list_id,
+            &task.scheduled_date.clone().unwrap_or_default(),
             &task.due_at.clone().unwrap_or_default(),
             &task.completed_at.clone().unwrap_or_default(),
             &task.created_at,
@@ -732,6 +740,7 @@ mod tests {
                 note: Some("来自旧备份".to_owned()),
                 priority: Some(2),
                 list_id: Some(backup_list.id.clone()),
+                scheduled_date: Some("2030-01-01".to_owned()),
                 due_at: Some("2030-01-01T09:00:00Z".to_owned()),
                 sort_order: Some(3),
                 remind_before: Some(30),
