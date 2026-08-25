@@ -149,9 +149,10 @@ pub fn build_snapshot(
                  WHEN 'list' THEN 0
                  WHEN 'recurringRule' THEN 1
                  WHEN 'task' THEN 2
-                 WHEN 'attachment' THEN 3
-                 WHEN 'calendarEvent' THEN 4
-                 ELSE 5
+                 WHEN 'taskLink' THEN 3
+                 WHEN 'attachment' THEN 4
+                 WHEN 'calendarEvent' THEN 5
+                 ELSE 6
                END, object_id"#,
         )?;
         let values = statement
@@ -529,8 +530,9 @@ fn entity_order(entity: &str) -> u8 {
         "list" => 0,
         "recurringRule" => 1,
         "task" => 2,
-        "attachment" => 3,
-        "calendarEvent" => 4,
+        "taskLink" => 3,
+        "attachment" => 4,
+        "calendarEvent" => 5,
         _ => 5,
     }
 }
@@ -578,6 +580,7 @@ pub(crate) fn current_payload(
         "list" => "SELECT json_object('id', id, 'name', name, 'color', color, 'sortOrder', sort_order, 'isDefault', json(CASE WHEN is_default = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM lists WHERE id = ?1",
         "recurringRule" => "SELECT json_object('id', id, 'title', title, 'note', note, 'priority', priority, 'listId', list_id, 'frequency', frequency, 'intervalCount', interval_count, 'weekdays', json(weekdays), 'monthDay', month_day, 'firstDueAt', first_due_at, 'nextDueAt', next_due_at, 'timezone', timezone, 'generateAheadMinutes', generate_ahead_minutes, 'remindBefore', remind_before, 'endAt', end_at, 'enabled', json(CASE WHEN enabled = 1 THEN 'true' ELSE 'false' END), 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM recurring_rules WHERE id = ?1",
         "task" => "SELECT json_object('id', id, 'title', title, 'note', note, 'status', status, 'priority', priority, 'listId', list_id, 'scheduledDate', scheduled_date, 'dueAt', due_at, 'completedAt', completed_at, 'sortOrder', sort_order, 'remindBefore', remind_before, 'remindAt', remind_at, 'remindedAt', reminded_at, 'repeatRule', repeat_rule, 'subtasks', json(subtasks), 'tags', json(tags), 'recurringRuleId', recurring_rule_id, 'occurrenceAt', occurrence_at, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM tasks WHERE id = ?1",
+        "taskLink" => "SELECT json_object('id', id, 'sourceTaskId', source_task_id, 'targetTaskId', target_task_id, 'relationType', relation_type, 'sortOrder', sort_order, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM task_links WHERE id = ?1",
         "calendarEvent" => "SELECT json_object('id', id, 'title', title, 'eventType', event_type, 'startDate', start_date, 'endDate', end_date, 'note', note, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM calendar_events WHERE id = ?1",
         "attachment" => "SELECT json_object('id', a.id, 'taskId', a.task_id, 'kind', a.kind, 'blobId', a.blob_id, 'displayName', a.display_name, 'originalName', a.original_name, 'externalUrl', a.external_url, 'contentSha256', b.content_sha256, 'sizeBytes', b.size_bytes, 'mimeType', b.mime_type, 'remotePath', b.remote_path, 'encryptionKeyId', b.encryption_key_id, 'sortOrder', a.sort_order, 'createdAt', a.created_at, 'updatedAt', a.updated_at, 'deletedAt', a.deleted_at) FROM task_attachments AS a LEFT JOIN attachment_blobs AS b ON b.id = a.blob_id WHERE a.id = ?1",
         _ => return Err(RepositoryError::Validation("invalid sync entity")),
@@ -640,6 +643,13 @@ fn has_full_insert_payload(entity: &str, payload: &Value) -> bool {
             "deletedAt",
         ],
         "calendarEvent" => &["title", "eventType", "startDate", "endDate", "deletedAt"],
+        "taskLink" => &[
+            "sourceTaskId",
+            "targetTaskId",
+            "relationType",
+            "sortOrder",
+            "deletedAt",
+        ],
         "attachment" => &["taskId", "kind", "displayName", "sortOrder", "deletedAt"],
         _ => return false,
     };
@@ -793,6 +803,34 @@ fn apply_operation(
                     string(&payload, "displayName", "附件"),
                     optional_string(&payload, "originalName"),
                     optional_string(&payload, "externalUrl"),
+                    integer(&payload, "sortOrder", 0),
+                    optional_string(&payload, "createdAt"),
+                    optional_string(&payload, "updatedAt"),
+                    optional_string(&payload, "deletedAt"),
+                ],
+            )?;
+        }
+        "taskLink" => {
+            transaction.execute(
+                r#"INSERT INTO task_links (
+                       id, source_task_id, target_task_id, relation_type, sort_order,
+                       created_at, updated_at, deleted_at
+                   )
+                   VALUES (?1, ?2, ?3, ?4, ?5,
+                           COALESCE(?6, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                           COALESCE(?7, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?8)
+                   ON CONFLICT(id) DO UPDATE SET
+                     source_task_id=excluded.source_task_id,
+                     target_task_id=excluded.target_task_id,
+                     relation_type=excluded.relation_type,
+                     sort_order=excluded.sort_order,
+                     updated_at=excluded.updated_at,
+                     deleted_at=excluded.deleted_at"#,
+                rusqlite::params![
+                    operation.object_id,
+                    string(&payload, "sourceTaskId", ""),
+                    string(&payload, "targetTaskId", ""),
+                    string(&payload, "relationType", "reference"),
                     integer(&payload, "sortOrder", 0),
                     optional_string(&payload, "createdAt"),
                     optional_string(&payload, "updatedAt"),

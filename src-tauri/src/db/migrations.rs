@@ -515,6 +515,38 @@ const MIGRATIONS: &[Migration] = &[
             WHERE deleted_at IS NULL;
         "#,
     },
+    Migration {
+        version: 16,
+        name: "add_task_links",
+        sql: r#"
+        CREATE TABLE task_links (
+            id TEXT PRIMARY KEY,
+            source_task_id TEXT NOT NULL,
+            target_task_id TEXT NOT NULL,
+            relation_type TEXT NOT NULL DEFAULT 'reference'
+                CHECK (relation_type IN ('reference')),
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            deleted_at TEXT,
+            FOREIGN KEY (source_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+            FOREIGN KEY (target_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+            CHECK (source_task_id <> target_task_id)
+        );
+
+        CREATE UNIQUE INDEX idx_task_links_live_pair
+            ON task_links(source_task_id, target_task_id, relation_type)
+            WHERE deleted_at IS NULL;
+
+        CREATE INDEX idx_task_links_source
+            ON task_links(source_task_id, sort_order, created_at)
+            WHERE deleted_at IS NULL;
+
+        CREATE INDEX idx_task_links_target
+            ON task_links(target_task_id)
+            WHERE deleted_at IS NULL;
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。

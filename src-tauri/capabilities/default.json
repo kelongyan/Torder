@@ -13,6 +13,7 @@
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered",
+    "dialog:allow-open",
     "opener:allow-open-url",
     "opener:allow-open-path",
     "opener:allow-reveal-item-in-dir",

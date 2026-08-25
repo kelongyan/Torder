@@ -9,12 +9,14 @@ use torder_lib::db::migrations::CURRENT_SCHEMA_VERSION;
 use torder_lib::db::recurring_repository::RecurringRuleRepository;
 use torder_lib::db::settings_repository::SettingsRepository;
 use torder_lib::db::sync_repository;
+use torder_lib::db::task_link_repository::TaskLinkRepository;
 use torder_lib::db::task_repository::TaskRepository;
 use torder_lib::db::Database;
 use torder_lib::error::{RepositoryError, RepositoryResult};
 use torder_lib::models::{
-    CreateCalendarEventInput, CreateRecurringRuleInput, CreateTaskInput, TaskQueryInput,
-    UpdateCalendarEventInput, UpdateRecurringRuleInput, UpdateTaskInput, UpsertSettingInput,
+    CreateCalendarEventInput, CreateRecurringRuleInput, CreateTaskInput, CreateTaskLinkInput,
+    TaskQueryInput, UpdateCalendarEventInput, UpdateRecurringRuleInput, UpdateTaskInput,
+    UpsertSettingInput,
 };
 
 #[test]
@@ -985,6 +987,98 @@ fn attachment_tables_exist_after_migration() -> RepositoryResult<()> {
         )?;
         assert_eq!(count, 1, "{table} should be created by migrations");
     }
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn task_link_tables_exist_after_migration() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-task-link-schema-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let connection = database.connect()?;
+
+    let count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'task_links'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(count, 1, "task_links should be created by migrations");
+
+    drop(connection);
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn task_link_repository_prevents_self_reference_and_duplicates() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-task-link-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let task_repository = TaskRepository::new(&database);
+    let source = task_repository.create(task_input("源任务", 1, None, Some("work"), 0))?;
+    let target = task_repository.create(task_input("目标任务", 1, None, Some("work"), 1))?;
+    let repository = TaskLinkRepository::new(&database);
+
+    assert!(matches!(
+        repository.create(CreateTaskLinkInput {
+            source_task_id: source.id.clone(),
+            target_task_id: source.id.clone(),
+        }),
+        Err(RepositoryError::Validation("task cannot reference itself"))
+    ));
+
+    let first = repository.create(CreateTaskLinkInput {
+        source_task_id: source.id.clone(),
+        target_task_id: target.id.clone(),
+    })?;
+    let duplicate = repository.create(CreateTaskLinkInput {
+        source_task_id: source.id.clone(),
+        target_task_id: target.id.clone(),
+    })?;
+    assert_eq!(duplicate.id, first.id);
+    assert_eq!(duplicate.target_title.as_deref(), Some("目标任务"));
+    assert_eq!(repository.list_by_task(&source.id)?.len(), 1);
+    let row_count: i64 = database.connect()?.query_row(
+        "SELECT COUNT(*) FROM task_links WHERE source_task_id = ?1 AND target_task_id = ?2 AND deleted_at IS NULL",
+        rusqlite::params![source.id, target.id],
+        |row| row.get(0),
+    )?;
+    assert_eq!(row_count, 1);
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn deleting_task_link_records_sync_change() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-task-link-delete-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let task_repository = TaskRepository::new(&database);
+    let source = task_repository.create(task_input("源任务", 1, None, Some("work"), 0))?;
+    let target = task_repository.create(task_input("目标任务", 1, None, Some("work"), 1))?;
+    let repository = TaskLinkRepository::new(&database);
+    let link = repository.create(CreateTaskLinkInput {
+        source_task_id: source.id.clone(),
+        target_task_id: target.id,
+    })?;
+
+    repository.soft_delete(&link.id)?;
+
+    assert!(repository.list_by_task(&source.id)?.is_empty());
+    let connection = database.connect()?;
+    let delete_changes: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sync_changes WHERE entity = 'taskLink' AND object_id = ?1 AND operation = 'delete'",
+        rusqlite::params![link.id],
+        |row| row.get(0),
+    )?;
+    assert_eq!(delete_changes, 1);
 
     drop(connection);
     drop(database);

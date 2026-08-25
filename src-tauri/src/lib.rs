@@ -76,6 +76,7 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
@@ -130,6 +131,10 @@ pub fn run() {
             commands::task::permanent_delete_task,
             commands::task::empty_trash,
             commands::task::cleanup_trash,
+            commands::task_link::list_task_links,
+            commands::task_link::create_task_link,
+            commands::task_link::delete_task_link,
+            commands::task_link::search_linkable_tasks,
             commands::recurring::list_recurring_rules,
             commands::recurring::create_recurring_rule,
             commands::recurring::update_recurring_rule,

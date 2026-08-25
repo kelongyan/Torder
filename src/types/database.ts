@@ -76,6 +76,27 @@ export interface UpdateTaskInput {
   tags: string[];
 }
 
+export interface TaskLink {
+  id: string;
+  sourceTaskId: string;
+  targetTaskId: string;
+  relationType: "reference";
+  sortOrder: number;
+  targetTitle: string | null;
+  targetStatus: Task["status"] | null;
+  targetListId: string | null;
+  targetScheduledDate: string | null;
+  targetDueAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface CreateTaskLinkInput {
+  sourceTaskId: string;
+  targetTaskId: string;
+}
+
 export type AttachmentKind = "managed" | "localReference" | "webLink";
 
 export type AttachmentSyncState =

@@ -4,5 +4,10 @@
   "description": "Capability for Android/iOS",
   "platforms": ["android", "iOS"],
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default", "notification:default"]
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "opener:default",
+    "notification:default"
+  ]
 }

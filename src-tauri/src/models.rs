@@ -141,6 +141,31 @@ pub struct UpdateTaskInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct TaskLink {
+    pub id: String,
+    pub source_task_id: String,
+    pub target_task_id: String,
+    pub relation_type: String,
+    pub sort_order: i64,
+    pub target_title: Option<String>,
+    pub target_status: Option<String>,
+    pub target_list_id: Option<String>,
+    pub target_scheduled_date: Option<String>,
+    pub target_due_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub deleted_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTaskLinkInput {
+    pub source_task_id: String,
+    pub target_task_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AttachmentBlob {
     pub id: String,
     pub content_sha256: String,

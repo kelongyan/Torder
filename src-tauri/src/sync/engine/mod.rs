@@ -2286,6 +2286,121 @@ mod tests {
         drop(database);
         cleanup_database(&path);
     }
+
+    #[test]
+    fn applies_remote_task_link_after_referenced_tasks() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-sync-task-link-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let mut connection = database.connect().unwrap();
+        let source_task_payload = json!({
+            "id": "remote-source-task",
+            "title": "远端源任务",
+            "status": "todo",
+            "priority": 1,
+            "listId": "work",
+            "sortOrder": 0,
+            "createdAt": "2026-08-21T00:00:00.000Z",
+            "updatedAt": "2026-08-21T00:00:00.000Z",
+            "deletedAt": null,
+        });
+        let target_task_payload = json!({
+            "id": "remote-target-task",
+            "title": "远端目标任务",
+            "status": "todo",
+            "priority": 1,
+            "listId": "work",
+            "sortOrder": 1000,
+            "createdAt": "2026-08-21T00:00:00.000Z",
+            "updatedAt": "2026-08-21T00:00:00.000Z",
+            "deletedAt": null,
+        });
+        let task_link_payload = json!({
+            "id": "remote-task-link",
+            "sourceTaskId": "remote-source-task",
+            "targetTaskId": "remote-target-task",
+            "relationType": "reference",
+            "sortOrder": 0,
+            "createdAt": "2026-08-21T00:00:00.000Z",
+            "updatedAt": "2026-08-21T00:00:00.000Z",
+            "deletedAt": null,
+        });
+        let batch = ChangeBatch {
+            protocol: PROTOCOL,
+            sequence: 1,
+            device_id: "remote-device".to_owned(),
+            created_at: "2026-08-21T00:00:00.000Z".to_owned(),
+            operations: vec![
+                operation(
+                    "remote-task-link-op",
+                    "taskLink",
+                    "remote-task-link",
+                    task_link_payload,
+                ),
+                operation(
+                    "remote-target-task-op",
+                    "task",
+                    "remote-target-task",
+                    target_task_payload,
+                ),
+                operation(
+                    "remote-source-task-op",
+                    "task",
+                    "remote-source-task",
+                    source_task_payload,
+                ),
+            ],
+        };
+
+        apply_batch(&mut connection, &batch).unwrap();
+
+        let row: (String, String, String) = connection
+            .query_row(
+                r#"
+                SELECT l.source_task_id, l.target_task_id, target.title
+                FROM task_links AS l
+                INNER JOIN tasks AS target ON target.id = l.target_task_id
+                WHERE l.id = 'remote-task-link'
+                "#,
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(row.0, "remote-source-task");
+        assert_eq!(row.1, "remote-target-task");
+        assert_eq!(row.2, "远端目标任务");
+
+        drop(connection);
+        drop(database);
+        cleanup_database(&path);
+    }
+
+    #[test]
+    fn rejects_remote_task_link_self_reference() {
+        let change = operation(
+            "self-task-link-op",
+            "taskLink",
+            "self-task-link",
+            json!({
+                "id": "self-task-link",
+                "sourceTaskId": "task-1",
+                "targetTaskId": "task-1",
+                "relationType": "reference",
+                "sortOrder": 0,
+                "deletedAt": null,
+            }),
+        );
+
+        assert!(matches!(
+            validate_operation(&change),
+            Err(RepositoryError::Validation(
+                "task link cannot reference itself"
+            ))
+        ));
+    }
+
     #[test]
     fn applies_dependency_ordered_batch_and_replay_is_idempotent() {
         let path = std::env::temp_dir().join(format!(
@@ -4852,6 +4967,10 @@ fn bootstrap_existing_objects(connection: &mut rusqlite::Connection) -> Reposito
         (
             "task",
             "SELECT item.id FROM tasks AS item LEFT JOIN sync_objects AS object ON object.entity = 'task' AND object.object_id = item.id WHERE object.object_id IS NULL",
+        ),
+        (
+            "taskLink",
+            "SELECT item.id FROM task_links AS item LEFT JOIN sync_objects AS object ON object.entity = 'taskLink' AND object.object_id = item.id WHERE object.object_id IS NULL",
         ),
         (
             "attachment",

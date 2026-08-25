@@ -42,6 +42,10 @@ import {
   updateList,
 } from "../services/listService";
 import { TaskDetailPanel } from "../components/detail/TaskDetailPanel";
+import {
+  attachPendingAttachments,
+  type PendingTaskAttachment,
+} from "../services/pendingAttachmentService";
 import { TaskCreateDialog } from "../components/dialog/TaskCreateDialog";
 import { RecurringRuleDialog } from "../components/dialog/RecurringRuleDialog";
 import { RecurringRulesView } from "../components/recurring/RecurringRulesView";
@@ -602,8 +606,21 @@ function App() {
     applyNextTheme();
   }
 
-  async function handleCreateTask(input: CreateTaskInput) {
-    await addTask(input);
+  async function handleCreateTask(
+    input: CreateTaskInput,
+    attachments: PendingTaskAttachment[],
+  ) {
+    const task = await addTask(input);
+    if (attachments.length > 0) {
+      const result = await attachPendingAttachments(task.id, attachments);
+      if (result.created > 0) {
+        pushToast(`已添加 ${result.created} 个附件`, "success");
+      }
+      if (result.failed > 0) {
+        pushToast(`${result.failed} 个附件添加失败`, "error");
+        setAppError(result.errors[0] ?? "附件添加失败");
+      }
+    }
     setCreateOpen(false);
     setCreateScheduledDate("");
     pushToast("任务已创建", "success");
@@ -1105,6 +1122,7 @@ function App() {
           }}
           onSubmit={handleCreateTask}
           onSubmitRecurring={handleCreateRecurring}
+          onToast={pushToast}
         />
       )}
 
@@ -1117,6 +1135,8 @@ function App() {
         onToggle={(task) => void handleToggleTask(task)}
         onDelete={requestDeleteTask}
         onOpenRecurring={openTaskRecurring}
+        onOpenTask={selectTask}
+        onToast={pushToast}
       />
 
       {recurringDialogPresence.rendered && (

@@ -7,6 +7,7 @@ import type {
   CreateTaskInput,
   TaskList,
 } from "../../types/database";
+import type { ToastKind } from "../../types/ui";
 import {
   emptyDraft,
   parseTagsInput,
@@ -15,6 +16,8 @@ import {
 import { DialogFooter } from "./DialogFooter";
 import { DialogShell } from "./DialogShell";
 import { TaskFormFields } from "../task/TaskFormFields";
+import { PendingAttachmentSection } from "../detail/TaskAttachmentSection";
+import type { PendingTaskAttachment } from "../../services/pendingAttachmentService";
 
 export function TaskCreateDialog({
   lists,
@@ -25,6 +28,7 @@ export function TaskCreateDialog({
   onClose,
   onSubmit,
   onSubmitRecurring,
+  onToast,
 }: {
   lists: TaskList[];
   defaultListId: string;
@@ -32,12 +36,17 @@ export function TaskCreateDialog({
   defaultReminderMinutes: number;
   presence: PresencePhase;
   onClose: () => void;
-  onSubmit: (input: CreateTaskInput) => Promise<void>;
+  onSubmit: (
+    input: CreateTaskInput,
+    attachments: PendingTaskAttachment[],
+  ) => Promise<void>;
   onSubmitRecurring: (input: CreateRecurringRuleInput) => Promise<void>;
+  onToast: (message: string, type: ToastKind) => void;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(() =>
     emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate),
   );
+  const [attachments, setAttachments] = useState<PendingTaskAttachment[]>([]);
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,17 +88,20 @@ export function TaskCreateDialog({
     }
     setSubmitting(true);
     try {
-      await onSubmit({
-        title: draft.title,
-        note: draft.note.trim() || null,
-        priority: draft.priority,
-        listId: draft.listId,
-        scheduledDate: draft.scheduledDate || null,
-        dueAt,
-        remindBefore: draft.remindBefore,
-        repeatRule: null,
-        tags: parseTagsInput(draft.tagsInput),
-      });
+      await onSubmit(
+        {
+          title: draft.title,
+          note: draft.note.trim() || null,
+          priority: draft.priority,
+          listId: draft.listId,
+          scheduledDate: draft.scheduledDate || null,
+          dueAt,
+          remindBefore: draft.remindBefore,
+          repeatRule: null,
+          tags: parseTagsInput(draft.tagsInput),
+        },
+        attachments,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -122,6 +134,14 @@ export function TaskCreateDialog({
           titleInvalid={touched && !draft.title.trim()}
           compactDateTime
         />
+        {!draft.recurrenceFrequency && (
+          <PendingAttachmentSection
+            value={attachments}
+            onChange={setAttachments}
+            disabled={submitting}
+            onToast={onToast}
+          />
+        )}
         <DialogFooter
           onCancel={onClose}
           submitLabel={draft.recurrenceFrequency ? "创建循环任务" : "创建任务"}

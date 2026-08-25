@@ -16,12 +16,14 @@ use crate::db::migrations::CURRENT_SCHEMA_VERSION;
 use crate::db::recurring_repository::RecurringRuleRepository;
 use crate::db::settings_repository::SettingsRepository;
 use crate::db::sync_repository;
+use crate::db::task_link_repository::TaskLinkRepository;
 use crate::db::task_repository::TaskRepository;
 use crate::db::Database;
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{
     CreateAttachmentInput, CreateListInput, CreateRecurringRuleInput, CreateTaskInput,
-    CreateWebLinkAttachmentInput, RecurringRule, Task, TaskList, UpdateTaskInput,
+    CreateTaskLinkInput, CreateWebLinkAttachmentInput, RecurringRule, Task, TaskList,
+    UpdateTaskInput,
 };
 
 const BACKUP_DIR_NAME: &str = "backups";
@@ -92,6 +94,19 @@ struct ExportAttachment {
     size_bytes: Option<i64>,
     mime_type: Option<String>,
     sort_order: i64,
+    created_at: String,
+    updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportTaskLink {
+    id: String,
+    source_task_id: String,
+    target_task_id: String,
+    relation_type: String,
+    sort_order: i64,
+    target_title: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -334,6 +349,57 @@ fn collect_export_attachments(
     Ok(attachments)
 }
 
+fn collect_export_task_links(
+    connection: &rusqlite::Connection,
+) -> RepositoryResult<Vec<ExportTaskLink>> {
+    let table_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'task_links'",
+        [],
+        |row| row.get(0),
+    )?;
+    if table_count == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut statement = connection.prepare(
+        r#"
+        SELECT
+            l.id,
+            l.source_task_id,
+            l.target_task_id,
+            l.relation_type,
+            l.sort_order,
+            target.title,
+            l.created_at,
+            l.updated_at
+        FROM task_links AS l
+        INNER JOIN tasks AS source ON source.id = l.source_task_id
+        INNER JOIN tasks AS target ON target.id = l.target_task_id
+        WHERE l.deleted_at IS NULL
+          AND source.deleted_at IS NULL
+          AND source.purged_at IS NULL
+          AND target.deleted_at IS NULL
+          AND target.purged_at IS NULL
+        ORDER BY l.source_task_id, l.sort_order, l.created_at
+        "#,
+    )?;
+    let task_links = statement
+        .query_map([], |row| {
+            Ok(ExportTaskLink {
+                id: row.get(0)?,
+                source_task_id: row.get(1)?,
+                target_task_id: row.get(2)?,
+                relation_type: row.get(3)?,
+                sort_order: row.get(4)?,
+                target_title: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(task_links)
+}
+
 fn add_file_to_zip(
     zip: &mut zip::ZipWriter<fs::File>,
     entry_name: &str,
@@ -365,6 +431,7 @@ pub fn export_tasks(
     let tasks = TaskRepository::new(database).export_all()?;
     let recurring_rules = RecurringRuleRepository::new(database).export_all()?;
     let attachments = collect_export_attachments(&connection)?;
+    let task_links = collect_export_task_links(&connection)?;
 
     let file_name = match format {
         "json" => format!("torder-export-{stamp}.json"),
@@ -374,11 +441,23 @@ pub fn export_tasks(
     };
     let export_path = export_dir.join(&file_name);
     let content = match format {
-        "json" => build_json_export(&lists, &tasks, &recurring_rules, &attachments, &stamp)?,
-        "markdown" => {
-            build_markdown_export(&lists, &tasks, &recurring_rules, &attachments, &stamp)?
-        }
-        _ => build_csv_export(&tasks, &attachments)?,
+        "json" => build_json_export(
+            &lists,
+            &tasks,
+            &recurring_rules,
+            &attachments,
+            &task_links,
+            &stamp,
+        )?,
+        "markdown" => build_markdown_export(
+            &lists,
+            &tasks,
+            &recurring_rules,
+            &attachments,
+            &task_links,
+            &stamp,
+        )?,
+        _ => build_csv_export(&tasks, &attachments, &task_links)?,
     };
     fs::write(&export_path, content)?;
 
@@ -766,6 +845,7 @@ fn import_from_prepared_backup(
     }
 
     let mut imported_tasks = 0_usize;
+    let mut imported_task_id_map = HashMap::<String, String>::new();
     if include_tasks {
         for task in TaskRepository::new(backup_database)
             .export_all()?
@@ -812,8 +892,10 @@ fn import_from_prepared_backup(
                 &task.id,
                 &created_id,
             )?;
+            imported_task_id_map.insert(task.id, created_id);
             imported_tasks += 1;
         }
+        import_task_links(database, backup_database, &imported_task_id_map)?;
     }
 
     let mut imported_recurring_rules = 0_usize;
@@ -908,6 +990,38 @@ fn import_task_attachments(
             }
             "localReference" => {}
             _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn import_task_links(
+    database: &Database,
+    backup_database: &Database,
+    imported_task_id_map: &HashMap<String, String>,
+) -> RepositoryResult<()> {
+    if imported_task_id_map.is_empty() {
+        return Ok(());
+    }
+
+    let backup_repository = TaskLinkRepository::new(backup_database);
+    let repository = TaskLinkRepository::new(database);
+    for (source_task_id, target_source_task_id) in imported_task_id_map {
+        let links = match backup_repository.list_by_task(source_task_id) {
+            Ok(links) => links,
+            Err(RepositoryError::Database(rusqlite::Error::SqliteFailure(_, _))) => {
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
+        for link in links {
+            let Some(target_task_id) = imported_task_id_map.get(&link.target_task_id) else {
+                continue;
+            };
+            let _ = repository.create(CreateTaskLinkInput {
+                source_task_id: target_source_task_id.clone(),
+                target_task_id: target_task_id.clone(),
+            })?;
         }
     }
     Ok(())
@@ -1087,6 +1201,7 @@ fn build_json_export(
     tasks: &[Task],
     recurring_rules: &[RecurringRule],
     attachments: &[ExportAttachment],
+    task_links: &[ExportTaskLink],
     stamp: &str,
 ) -> RepositoryResult<String> {
     let payload = json!({
@@ -1097,6 +1212,7 @@ fn build_json_export(
         "tasks": tasks,
         "recurringRules": recurring_rules,
         "attachments": attachments,
+        "taskLinks": task_links,
     });
     Ok(serde_json::to_string_pretty(&payload)?)
 }
@@ -1112,11 +1228,24 @@ fn attachment_names_for_task<'a>(
         .collect()
 }
 
+fn task_link_names_for_task<'a>(task_links: &'a [ExportTaskLink], task_id: &str) -> Vec<&'a str> {
+    task_links
+        .iter()
+        .filter(|link| link.source_task_id == task_id)
+        .map(|link| {
+            link.target_title
+                .as_deref()
+                .unwrap_or(link.target_task_id.as_str())
+        })
+        .collect()
+}
+
 fn build_markdown_export(
     lists: &[TaskList],
     tasks: &[Task],
     recurring_rules: &[RecurringRule],
     attachments: &[ExportAttachment],
+    task_links: &[ExportTaskLink],
     stamp: &str,
 ) -> RepositoryResult<String> {
     let mut buffer = String::new();
@@ -1154,8 +1283,14 @@ fn build_markdown_export(
             } else {
                 format!(" · 附件 {}", attachment_names.join("；"))
             };
+            let task_link_names = task_link_names_for_task(task_links, &task.id);
+            let task_link_suffix = if task_link_names.is_empty() {
+                String::new()
+            } else {
+                format!(" · 引用 {}", task_link_names.join("；"))
+            };
             buffer.push_str(&format!(
-                "- [{done}] {}{}{} · 优先级 {priority}{attachment_suffix}\n",
+                "- [{done}] {}{}{} · 优先级 {priority}{attachment_suffix}{task_link_suffix}\n",
                 task.title, scheduled, due
             ));
         }
@@ -1174,12 +1309,17 @@ fn build_markdown_export(
     Ok(buffer)
 }
 
-fn build_csv_export(tasks: &[Task], attachments: &[ExportAttachment]) -> RepositoryResult<String> {
+fn build_csv_export(
+    tasks: &[Task],
+    attachments: &[ExportAttachment],
+    task_links: &[ExportTaskLink],
+) -> RepositoryResult<String> {
     let mut buffer = String::from(
-        "id,title,note,status,priority,listId,scheduledDate,dueAt,completedAt,createdAt,updatedAt,remindBefore,recurringRuleId,occurrenceAt,attachments\n",
+        "id,title,note,status,priority,listId,scheduledDate,dueAt,completedAt,createdAt,updatedAt,remindBefore,recurringRuleId,occurrenceAt,attachments,taskLinks\n",
     );
     for task in tasks.iter().filter(|task| task.deleted_at.is_none()) {
         let attachment_names = attachment_names_for_task(attachments, &task.id).join("；");
+        let task_link_names = task_link_names_for_task(task_links, &task.id).join("；");
         let fields = [
             &task.id,
             &task.title,
@@ -1199,6 +1339,7 @@ fn build_csv_export(tasks: &[Task], attachments: &[ExportAttachment]) -> Reposit
             &task.recurring_rule_id.clone().unwrap_or_default(),
             &task.occurrence_at.clone().unwrap_or_default(),
             &attachment_names,
+            &task_link_names,
         ];
         let line: Vec<String> = fields.iter().map(|field| escape_csv(field)).collect();
         buffer.push_str(&line.join(","));
@@ -1281,7 +1422,7 @@ mod tests {
     }
 
     #[test]
-    fn plain_exports_include_attachment_names_without_paths() {
+    fn plain_exports_include_attachment_and_task_link_names_without_paths() {
         let timestamp = "2026-08-25T00:00:00.000Z".to_owned();
         let lists = vec![TaskList {
             id: "work".to_owned(),
@@ -1348,24 +1489,53 @@ mod tests {
                 updated_at: timestamp,
             },
         ];
+        let task_links = vec![ExportTaskLink {
+            id: "task-link-1".to_owned(),
+            source_task_id: "task-1".to_owned(),
+            target_task_id: "task-2".to_owned(),
+            relation_type: "reference".to_owned(),
+            sort_order: 0,
+            target_title: Some("关联任务".to_owned()),
+            created_at: "2026-08-25T00:00:00.000Z".to_owned(),
+            updated_at: "2026-08-25T00:00:00.000Z".to_owned(),
+        }];
 
-        let json_export =
-            build_json_export(&lists, &tasks, &[], &attachments, "20260825-000000").unwrap();
+        let json_export = build_json_export(
+            &lists,
+            &tasks,
+            &[],
+            &attachments,
+            &task_links,
+            "20260825-000000",
+        )
+        .unwrap();
         assert!(json_export.contains("\"attachments\""));
+        assert!(json_export.contains("\"taskLinks\""));
         assert!(json_export.contains("合同.pdf"));
+        assert!(json_export.contains("关联任务"));
         assert!(!json_export.contains("localPath"));
         assert!(!json_export.contains("remotePath"));
         assert!(!json_export.contains("C:\\"));
 
-        let markdown_export =
-            build_markdown_export(&lists, &tasks, &[], &attachments, "20260825-000000").unwrap();
+        let markdown_export = build_markdown_export(
+            &lists,
+            &tasks,
+            &[],
+            &attachments,
+            &task_links,
+            "20260825-000000",
+        )
+        .unwrap();
         assert!(markdown_export.contains("附件 合同.pdf；本机引用.txt"));
+        assert!(markdown_export.contains("引用 关联任务"));
         assert!(!markdown_export.contains("C:\\"));
 
-        let csv_export = build_csv_export(&tasks, &attachments).unwrap();
+        let csv_export = build_csv_export(&tasks, &attachments, &task_links).unwrap();
         assert!(csv_export.starts_with("id,title"));
         assert!(csv_export.lines().next().unwrap().contains("attachments"));
+        assert!(csv_export.lines().next().unwrap().contains("taskLinks"));
         assert!(csv_export.contains("合同.pdf；本机引用.txt"));
+        assert!(csv_export.contains("关联任务"));
         assert!(!csv_export.contains("C:\\"));
     }
 
@@ -1465,7 +1635,7 @@ mod tests {
                 sort_order: Some(8),
             })
             .unwrap();
-        TaskRepository::new(&backup)
+        let backup_task = TaskRepository::new(&backup)
             .create(CreateTaskInput {
                 title: "迁移任务".to_owned(),
                 note: Some("来自旧备份".to_owned()),
@@ -1485,6 +1655,27 @@ mod tests {
                     sort_order: 0,
                 }]),
                 tags: Some(vec!["迁移".to_owned()]),
+            })
+            .unwrap();
+        let backup_target_task = TaskRepository::new(&backup)
+            .create(CreateTaskInput {
+                title: "依赖任务".to_owned(),
+                note: None,
+                priority: Some(1),
+                list_id: Some(backup_list.id.clone()),
+                scheduled_date: None,
+                due_at: None,
+                sort_order: Some(4),
+                remind_before: None,
+                repeat_rule: None,
+                subtasks: None,
+                tags: None,
+            })
+            .unwrap();
+        TaskLinkRepository::new(&backup)
+            .create(CreateTaskLinkInput {
+                source_task_id: backup_task.id,
+                target_task_id: backup_target_task.id,
             })
             .unwrap();
         RecurringRuleRepository::new(&backup)
@@ -1510,7 +1701,7 @@ mod tests {
             import_from_prepared_backup(&current, None, &backup, None, true, true, true).unwrap();
 
         assert_eq!(result.imported_lists, 1);
-        assert_eq!(result.imported_tasks, 1);
+        assert_eq!(result.imported_tasks, 2);
         assert_eq!(result.imported_recurring_rules, 1);
         let current_lists = ListRepository::new(&current).list().unwrap();
         let imported_list = current_lists
@@ -1525,6 +1716,11 @@ mod tests {
         assert_eq!(imported_task.list_id, imported_list.id);
         assert_eq!(imported_task.tags, vec!["迁移"]);
         assert_eq!(imported_task.subtasks[0].title, "检查导入");
+        let imported_links = TaskLinkRepository::new(&current)
+            .list_by_task(&imported_task.id)
+            .unwrap();
+        assert_eq!(imported_links.len(), 1);
+        assert_eq!(imported_links[0].target_title.as_deref(), Some("依赖任务"));
         let imported_rules = RecurringRuleRepository::new(&current).list().unwrap();
         let imported_rule = imported_rules
             .iter()

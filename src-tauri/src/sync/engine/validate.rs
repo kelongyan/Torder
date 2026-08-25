@@ -41,7 +41,7 @@ pub fn validate_manifest(manifest: &Manifest) -> RepositoryResult<()> {
 pub fn validate_operation(operation: &ChangeOperation) -> RepositoryResult<()> {
     if !matches!(
         operation.entity.as_str(),
-        "list" | "recurringRule" | "task" | "calendarEvent" | "attachment"
+        "list" | "recurringRule" | "task" | "calendarEvent" | "attachment" | "taskLink"
     ) {
         return Err(RepositoryError::Validation("invalid sync entity"));
     }
@@ -219,6 +219,16 @@ pub fn validate_entity_fields(
                     | "updatedAt"
                     | "deletedAt"
             ),
+            "taskLink" => matches!(
+                key.as_str(),
+                "id" | "sourceTaskId"
+                    | "targetTaskId"
+                    | "relationType"
+                    | "sortOrder"
+                    | "createdAt"
+                    | "updatedAt"
+                    | "deletedAt"
+            ),
             _ => false,
         };
         if !allowed {
@@ -229,6 +239,8 @@ pub fn validate_entity_fields(
     string_field(payload, "id", MAX_ID_LENGTH)?;
     string_field(payload, "listId", MAX_ID_LENGTH)?;
     string_field(payload, "taskId", MAX_ID_LENGTH)?;
+    string_field(payload, "sourceTaskId", MAX_ID_LENGTH)?;
+    string_field(payload, "targetTaskId", MAX_ID_LENGTH)?;
     string_field(payload, "blobId", MAX_ID_LENGTH)?;
     string_field(payload, "recurringRuleId", MAX_ID_LENGTH)?;
     string_field(payload, "repeatRule", MAX_STRING_LENGTH)?;
@@ -243,6 +255,7 @@ pub fn validate_entity_fields(
     string_field(payload, "frequency", 32)?;
     string_field(payload, "timezone", 64)?;
     string_field(payload, "kind", 32)?;
+    string_field(payload, "relationType", 32)?;
     string_field(payload, "externalUrl", 2048)?;
     string_field(payload, "contentSha256", 128)?;
     string_field(payload, "mimeType", 255)?;
@@ -252,6 +265,31 @@ pub fn validate_entity_fields(
     if let Some(value) = payload.get("kind") {
         if !matches!(value.as_str(), Some("managed" | "webLink")) {
             return Err(RepositoryError::Validation("invalid sync attachment kind"));
+        }
+    }
+    if let Some(value) = payload.get("relationType") {
+        if !matches!(value.as_str(), Some("reference")) {
+            return Err(RepositoryError::Validation(
+                "invalid sync task link relation",
+            ));
+        }
+    }
+    if entity == "taskLink" {
+        let source = payload.get("sourceTaskId").and_then(Value::as_str);
+        let target = payload.get("targetTaskId").and_then(Value::as_str);
+        match (source, target) {
+            (Some(source), Some(target)) if source != target => {}
+            (Some(_), Some(_)) => {
+                return Err(RepositoryError::Validation(
+                    "task link cannot reference itself",
+                ));
+            }
+            _ if payload.contains_key("deletedAt") => {}
+            _ => {
+                return Err(RepositoryError::Validation(
+                    "task link payload is incomplete",
+                ));
+            }
         }
     }
     if let Some(value) = payload.get("externalUrl") {
@@ -402,8 +440,16 @@ pub fn string_field(
         .as_str()
         .ok_or(RepositoryError::Validation("sync field must be a string"))?;
     if value.len() > max_length
-        || (matches!(key, "id" | "name" | "title" | "displayName" | "taskId")
-            && value.trim().is_empty())
+        || (matches!(
+            key,
+            "id" | "name"
+                | "title"
+                | "displayName"
+                | "taskId"
+                | "sourceTaskId"
+                | "targetTaskId"
+                | "relationType"
+        ) && value.trim().is_empty())
     {
         return Err(RepositoryError::Validation("sync string field is invalid"));
     }

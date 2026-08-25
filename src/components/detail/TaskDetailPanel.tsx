@@ -32,11 +32,14 @@ import type {
   TaskSubtask,
   UpdateTaskInput,
 } from "../../types/database";
+import type { ToastKind } from "../../types/ui";
 import { parseTagsInput } from "../../utils/taskHelpers";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Select } from "../common/Select";
 import { TaskDateField } from "../task/TaskDateField";
 import { TaskDateTimeField } from "../task/TaskDateTimeField";
+import { TaskAttachmentSection } from "./TaskAttachmentSection";
+import { TaskLinkSection } from "./TaskLinkSection";
 
 type EditingField =
   | "title"
@@ -56,6 +59,8 @@ export function TaskDetailPanel({
   onToggle,
   onDelete,
   onOpenRecurring,
+  onOpenTask,
+  onToast,
 }: {
   task: Task | null;
   lists: TaskList[];
@@ -65,6 +70,8 @@ export function TaskDetailPanel({
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
   onOpenRecurring: (task: Task) => void;
+  onOpenTask: (taskId: string) => void;
+  onToast: (message: string, type: ToastKind) => void;
 }) {
   const detailPresence = usePresence(task, 320);
   const presentTask = detailPresence.value;
@@ -91,6 +98,8 @@ export function TaskDetailPanel({
           onToggle={onToggle}
           onDelete={onDelete}
           onOpenRecurring={onOpenRecurring}
+          onOpenTask={onOpenTask}
+          onToast={onToast}
         />
       )}
     </div>
@@ -107,6 +116,8 @@ function TaskDetailContent({
   onToggle,
   onDelete,
   onOpenRecurring,
+  onOpenTask,
+  onToast,
 }: {
   task: Task;
   lists: TaskList[];
@@ -117,6 +128,8 @@ function TaskDetailContent({
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
   onOpenRecurring: (task: Task) => void;
+  onOpenTask: (taskId: string) => void;
+  onToast: (message: string, type: ToastKind) => void;
 }) {
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
@@ -301,7 +314,6 @@ function TaskDetailContent({
                 }
               }}
               onBlur={saveTitle}
-              placeholder="任务名称"
             />
           </div>
         ) : (
@@ -328,7 +340,6 @@ function TaskDetailContent({
                 }
               }}
               onBlur={saveNote}
-              placeholder="描述"
               rows={3}
             />
           </div>
@@ -565,7 +576,6 @@ function TaskDetailContent({
             <input
               value={newSubtaskTitle}
               onChange={(event) => setNewSubtaskTitle(event.target.value)}
-              placeholder="添加子任务"
             />
             <button
               type="submit"
@@ -576,6 +586,15 @@ function TaskDetailContent({
             </button>
           </form>
         </section>
+
+        <TaskAttachmentSection taskId={task.id} onToast={onToast} />
+
+        <TaskLinkSection
+          task={task}
+          lists={lists}
+          onOpenTask={onOpenTask}
+          onToast={onToast}
+        />
 
         <section className="detail-section">
           <div className="detail-section-header">
@@ -593,7 +612,6 @@ function TaskDetailContent({
                 saveTags();
               }
             }}
-            placeholder="#项目 #地点"
           />
           {task.tags.length > 0 && (
             <div className="task-tags">
