@@ -15,7 +15,9 @@ export interface UpdateListInput {
   sortOrder: number;
 }
 
-let browserLists: TaskList[] = [
+// 双模式共用的清单快照：浏览器模式下是唯一数据源，
+// Tauri 模式下由 IPC 结果同步，供本地派生查询解析 `l:<清单名>`。
+let listsSnapshot: TaskList[] = [
   defaultList("work", "工作", defaultListColors.work, 0),
   defaultList("personal", "个人", defaultListColors.personal, 1),
   defaultList("study", "学习", defaultListColors.study, 2),
@@ -23,9 +25,12 @@ let browserLists: TaskList[] = [
 
 export function listLists(): Promise<TaskList[]> {
   if (!isTauri()) {
-    return Promise.resolve(browserLists.map((list) => ({ ...list })));
+    return Promise.resolve(listsSnapshot.map((list) => ({ ...list })));
   }
-  return invoke<TaskList[]>("list_lists");
+  return invoke<TaskList[]>("list_lists").then((lists) => {
+    listsSnapshot = lists.map((list) => ({ ...list }));
+    return lists;
+  });
 }
 
 export function createList(input: CreateListInput): Promise<TaskList> {
@@ -37,52 +42,69 @@ export function createList(input: CreateListInput): Promise<TaskList> {
       id: `list-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       name,
       color: input.color ?? DEFAULT_LIST_COLOR,
-      sortOrder: input.sortOrder ?? browserLists.length,
+      sortOrder: input.sortOrder ?? listsSnapshot.length,
       isDefault: false,
       createdAt: timestamp,
       updatedAt: timestamp,
       deletedAt: null,
     };
-    browserLists = [...browserLists, list].sort(compareLists);
+    listsSnapshot = [...listsSnapshot, list].sort(compareLists);
     return Promise.resolve({ ...list });
   }
-  return invoke<TaskList>("create_list", { input });
+  return invoke<TaskList>("create_list", { input }).then((list) => {
+    upsertListsSnapshot(list);
+    return list;
+  });
 }
 
 export function updateList(input: UpdateListInput): Promise<TaskList> {
   if (!isTauri()) {
-    const index = browserLists.findIndex((list) => list.id === input.id);
+    const index = listsSnapshot.findIndex((list) => list.id === input.id);
     if (index < 0) return Promise.reject(new Error("清单不存在"));
     const name = validateBrowserName(input.name);
     ensureBrowserNameAvailable(name, input.id);
     const next = {
-      ...browserLists[index],
+      ...listsSnapshot[index],
       name,
       color: input.color,
       sortOrder: input.sortOrder,
       updatedAt: new Date().toISOString(),
     };
-    browserLists = browserLists
+    listsSnapshot = listsSnapshot
       .map((list, listIndex) => (listIndex === index ? next : list))
       .sort(compareLists);
     return Promise.resolve({ ...next });
   }
-  return invoke<TaskList>("update_list", { input });
+  return invoke<TaskList>("update_list", { input }).then((list) => {
+    upsertListsSnapshot(list);
+    return list;
+  });
 }
 
 export function deleteList(id: string): Promise<void> {
   if (!isTauri()) {
-    const list = browserLists.find((item) => item.id === id);
+    const list = listsSnapshot.find((item) => item.id === id);
     if (!list) return Promise.reject(new Error("清单不存在"));
     if (list.isDefault) return Promise.reject(new Error("默认清单不能删除"));
-    browserLists = browserLists.filter((item) => item.id !== id);
+    listsSnapshot = listsSnapshot.filter((item) => item.id !== id);
     return Promise.resolve();
   }
-  return invoke<void>("delete_list", { id });
+  return invoke<void>("delete_list", { id }).then(() => {
+    listsSnapshot = listsSnapshot.filter((item) => item.id !== id);
+  });
 }
 
-export function getBrowserListsSnapshot(): TaskList[] {
-  return browserLists.map((list) => ({ ...list }));
+export function getListsSnapshot(): TaskList[] {
+  return listsSnapshot.map((list) => ({ ...list }));
+}
+
+function upsertListsSnapshot(list: TaskList): void {
+  const exists = listsSnapshot.some((item) => item.id === list.id);
+  listsSnapshot = (
+    exists
+      ? listsSnapshot.map((item) => (item.id === list.id ? { ...list } : item))
+      : [...listsSnapshot, { ...list }]
+  ).sort(compareLists);
 }
 
 function defaultList(
@@ -111,7 +133,7 @@ function validateBrowserName(name: string): string {
 }
 
 function ensureBrowserNameAvailable(name: string, currentId?: string): void {
-  const duplicate = browserLists.some(
+  const duplicate = listsSnapshot.some(
     (list) =>
       list.id !== currentId &&
       list.name.localeCompare(name, "zh-CN", { sensitivity: "accent" }) === 0,

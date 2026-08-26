@@ -19,6 +19,7 @@ import { SettingsExportSection } from "./SettingsExportSection";
 import { SettingsImportSection } from "./SettingsImportSection";
 import { SettingsAboutSection } from "./SettingsAboutSection";
 import { SettingsPreferencesSection } from "./SettingsPreferencesSection";
+import { SettingsDesktopSection } from "./SettingsDesktopSection";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import type { AppSettings } from "../../types/settings";
 import type { TaskList } from "../../types/database";
@@ -29,7 +30,7 @@ const settingsPanels = [
   {
     id: "general",
     title: "常规",
-    description: "默认行为、提醒、回收站",
+    description: "默认行为、提醒、回收站、桌面与启动",
     icon: Settings2,
   },
   {
@@ -168,12 +169,15 @@ export function SettingsDialog({
 
           <div className="settings-panel">
             {activeMeta.id === "general" && (
-              <SettingsPreferencesSection
-                settings={settings}
-                lists={lists}
-                onSettingsChange={onSettingsChange}
-                onToast={onToast}
-              />
+              <>
+                <SettingsPreferencesSection
+                  settings={settings}
+                  lists={lists}
+                  onSettingsChange={onSettingsChange}
+                  onToast={onToast}
+                />
+                <SettingsDesktopSection onToast={onToast} />
+              </>
             )}
 
             {activeMeta.id === "appearance" && <SettingsAppearanceSection />}

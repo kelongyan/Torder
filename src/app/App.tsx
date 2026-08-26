@@ -77,7 +77,6 @@ import {
   skipNextRecurringOccurrence,
   updateRecurringRule,
 } from "../services/recurringService";
-import { snoozeTaskReminder } from "../services/taskService";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -342,6 +341,44 @@ function App() {
     });
     return () => unlisten?.();
   }, []);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    const unlisteners: Array<() => void> = [];
+    void (async () => {
+      const nextUnlisteners = await Promise.all([
+        // emit 广播全窗口含自身，按 source 自排除避免回环重载
+        listen<{ source: string }>("tasks-changed", (event) => {
+          if (event.payload.source === "main") return;
+          void useTaskStore.getState().loadTasks();
+        }),
+        listen<{ taskId: string }>("widget-open-task", async (event) => {
+          const store = useTaskStore.getState();
+          await store.loadTasks();
+          store.selectTask(event.payload.taskId);
+        }),
+      ]);
+      if (cancelled) {
+        nextUnlisteners.forEach((dispose) => dispose());
+        return;
+      }
+      unlisteners.push(...nextUnlisteners);
+    })();
+    return () => {
+      cancelled = true;
+      unlisteners.forEach((dispose) => dispose());
+    };
+  }, []);
+  useEffect(() => {
+    // 今天/逾期视图的派生依赖 new Date()，窗口重新可见时重算以修复跨午夜过期
+    const rederive = () => useTaskStore.getState().rederive();
+    document.addEventListener("visibilitychange", rederive);
+    window.addEventListener("focus", rederive);
+    return () => {
+      document.removeEventListener("visibilitychange", rederive);
+      window.removeEventListener("focus", rederive);
+    };
+  }, []);
   useTrayQuickAdd(openTaskCreateDialog, setAppError);
   useSyncLifecycle({
     setLists,
@@ -358,30 +395,27 @@ function App() {
         {
           label: "10 分钟",
           onClick: async () => {
-            await snoozeTaskReminder(
-              event.taskId,
-              offsetReminder(new Date(), 10),
-            );
-            await useTaskStore.getState().loadTasks();
+            await useTaskStore
+              .getState()
+              .snoozeTask(event.taskId, offsetReminder(new Date(), 10));
             pushToast("已延后 10 分钟", "success");
           },
         },
         {
           label: "1 小时",
           onClick: async () => {
-            await snoozeTaskReminder(
-              event.taskId,
-              offsetReminder(new Date(), 60),
-            );
-            await useTaskStore.getState().loadTasks();
+            await useTaskStore
+              .getState()
+              .snoozeTask(event.taskId, offsetReminder(new Date(), 60));
             pushToast("已延后 1 小时", "success");
           },
         },
         {
           label: "明天",
           onClick: async () => {
-            await snoozeTaskReminder(event.taskId, tomorrowReminder());
-            await useTaskStore.getState().loadTasks();
+            await useTaskStore
+              .getState()
+              .snoozeTask(event.taskId, tomorrowReminder());
             pushToast("已延后到明天", "success");
           },
         },

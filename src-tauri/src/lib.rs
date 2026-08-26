@@ -8,6 +8,8 @@ pub mod runtime;
 pub mod sync;
 #[cfg(desktop)]
 mod tray;
+#[cfg(desktop)]
+mod widget;
 
 use tauri::Manager;
 
@@ -86,12 +88,51 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// 开机自启动自愈：设置键与系统注册表实际状态对账。
+/// 安装目录变化后 Run 键指向失效路径，此处用当前 exe 路径重写。
+#[cfg(desktop)]
+fn reconcile_launch_at_startup(app: &tauri::AppHandle) {
+    use db::settings_repository::SettingsRepository;
+    use tauri_plugin_autostart::ManagerExt;
+
+    let enabled = SettingsRepository::new(&app.state::<Database>())
+        .get("launchAtStartup")
+        .ok()
+        .flatten()
+        .map(|setting| setting.value == "true")
+        .unwrap_or(false);
+    let manager = app.autolaunch();
+    match (enabled, manager.is_enabled()) {
+        (true, Ok(false)) => {
+            if let Err(error) = manager.enable() {
+                eprintln!("autostart self-heal enable failed: {error}");
+            }
+        }
+        (false, Ok(true)) => {
+            if let Err(error) = manager.disable() {
+                eprintln!("autostart self-heal disable failed: {error}");
+            }
+        }
+        (_, Err(error)) => eprintln!("autostart state check failed: {error}"),
+        _ => {}
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init());
+
+    // 开机自启动仅桌面平台可用；--silent 使开机拉起时静默驻留托盘
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_autostart::init(
+        tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+        Some(vec!["--silent"]),
+    ));
+
+    builder
         .setup(|app| {
             #[cfg(target_os = "android")]
             initialize_android_tls_verifier().map_err(|error| {
@@ -114,9 +155,25 @@ pub fn run() {
             app.manage(sync::SyncRuntime::default());
             runtime::notifier::start_notifier(app.handle().clone(), database_path);
             #[cfg(desktop)]
+            reconcile_launch_at_startup(app.handle());
+            #[cfg(desktop)]
             tray::setup(app)?;
             #[cfg(desktop)]
             setup_global_quick_add(app)?;
+            #[cfg(desktop)]
+            {
+                widget::setup(app)?;
+                tray::set_widget_menu_checked(
+                    app.handle(),
+                    widget::is_widget_visible(app.handle()),
+                );
+                // 开机自启动以 --silent 拉起：静默驻留托盘，不弹主窗口
+                if std::env::args().any(|arg| arg == "--silent") {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                }
+            }
 
             run_startup_backup_if_enabled(app.handle().clone());
             run_trash_cleanup_if_configured(app.handle().clone());
@@ -187,6 +244,12 @@ pub fn run() {
             commands::calendar_event::create_calendar_event,
             commands::calendar_event::update_calendar_event,
             commands::calendar_event::delete_calendar_event,
+            #[cfg(desktop)]
+            commands::widget::set_launch_at_startup,
+            #[cfg(desktop)]
+            commands::widget::show_main_window,
+            #[cfg(desktop)]
+            commands::widget::set_widget_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Torder");

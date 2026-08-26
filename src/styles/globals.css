@@ -14,6 +14,7 @@
 @import "./controls.css";
 @import "./feedback.css";
 @import "./responsive.css";
+@import "./widget.css";
 
 @font-face {
   font-family: "Frex Sans GB";

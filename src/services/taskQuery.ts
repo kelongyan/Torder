@@ -1,4 +1,4 @@
-import { getBrowserListsSnapshot } from "./listService";
+import { getListsSnapshot } from "./listService";
 import type {
   SystemView,
   Task,
@@ -13,7 +13,13 @@ export interface QueryTasksInput {
   showCompleted: boolean;
 }
 
-export function filterAndSortBrowserTasks(
+/**
+ * 任务作用域过滤 + 排序的客户端实现，双模式共用：
+ * 浏览器模式下是查询的完整实现，Tauri 模式下用于乐观更新的本地派生。
+ * 语义必须与 task_repository.rs 的 push_view_scope / sort_clause /
+ * parse_search_query 保持一致。
+ */
+export function filterAndSortTasks(
   tasks: Task[],
   input: QueryTasksInput,
 ): Task[] {
@@ -59,7 +65,7 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
   }
   // l: 匹配清单名称（与 Rust 侧 name 子查询语义一致），解析为 ID 比较。
   if (parsed.listName !== null) {
-    const list = getBrowserListsSnapshot().find(
+    const list = getListsSnapshot().find(
       (item) =>
         item.name.toLocaleLowerCase("zh-CN") ===
         parsed.listName!.toLocaleLowerCase("zh-CN"),
@@ -213,14 +219,21 @@ function compareDueDates(left: Task, right: Task): number {
   );
 }
 
-function localDateKey(date: Date): string {
+export function localDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function taskPlanDateKey(task: Task): string | null {
+export function shiftDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return localDateKey(date);
+}
+
+export function taskPlanDateKey(task: Task): string | null {
   if (task.scheduledDate) return task.scheduledDate;
   return task.dueAt ? localDateKey(new Date(task.dueAt)) : null;
 }

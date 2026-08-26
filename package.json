@@ -1,7 +1,7 @@
 {
   "name": "torder",
   "private": true,
-  "version": "2.5.7",
+  "version": "2.6.0",
   "license": "MIT",
   "type": "module",
   "scripts": {

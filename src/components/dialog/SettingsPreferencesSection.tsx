@@ -3,6 +3,7 @@ import { reminderOptions } from "../../constants/reminderConfig";
 import { taskViewCopy } from "../../constants/taskViews";
 import { cleanupTrash } from "../../services/taskService";
 import { saveAppSetting } from "../../services/settingsService";
+import { useTaskStore } from "../../stores/taskStore";
 import type { TaskList, SystemView } from "../../types/database";
 import type { AppSettings } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
@@ -75,7 +76,13 @@ export function SettingsPreferencesSection({
     if (retention !== null) {
       try {
         const count = await cleanupTrash(retention);
-        if (count > 0) onToast(`已清理 ${count} 项回收站任务`, "info");
+        if (count > 0) {
+          onToast(`已清理 ${count} 项回收站任务`, "info");
+          // cleanupTrash 绕过 store 直接清库，需同步回收站缓存
+          if (useTaskStore.getState().trashLoaded) {
+            void useTaskStore.getState().refreshTrash();
+          }
+        }
       } catch (error) {
         onToast(`回收站清理失败: ${String(error)}`, "error");
       }

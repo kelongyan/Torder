@@ -10,41 +10,18 @@ import {
   updateBrowserTask,
   updateBrowserTaskIncludingDeleted,
 } from "./browserTaskMock";
+import { filterAndSortTasks, type QueryTasksInput } from "./taskQuery";
 import {
-  filterAndSortBrowserTasks,
-  type QueryTasksInput,
-} from "./browserTaskQuery";
+  predictCreatedTask,
+  predictUpdatedTask,
+} from "../utils/taskPrediction";
 
 export function createTask(input: CreateTaskInput): Promise<Task> {
   if (!isTauri()) {
-    const now = new Date().toISOString();
-    const scheduledDate = input.scheduledDate ?? null;
-    const dueAt = input.dueAt ?? null;
-    const remindBefore = input.remindBefore ?? null;
-    const remindAt = computeRemindAt(dueAt, remindBefore);
-    const task: Task = {
-      id: `browser-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      title: input.title.trim(),
-      note: input.note?.trim() || null,
-      status: "todo",
-      priority: input.priority ?? 1,
-      listId: input.listId ?? "work",
-      scheduledDate,
-      dueAt,
-      completedAt: null,
-      sortOrder: input.sortOrder ?? 0,
-      remindBefore,
-      remindAt,
-      remindedAt: null,
-      repeatRule: input.repeatRule ?? null,
-      subtasks: cloneSubtasks(input.subtasks ?? []),
-      tags: normalizeTags(input.tags ?? []),
-      recurringRuleId: null,
-      occurrenceAt: null,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    };
+    const task = predictCreatedTask(
+      input,
+      `browser-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
     addBrowserTask(task);
     return Promise.resolve({ ...task });
   }
@@ -55,7 +32,7 @@ export function createTask(input: CreateTaskInput): Promise<Task> {
 export function queryTasks(input: QueryTasksInput): Promise<Task[]> {
   if (!isTauri()) {
     return Promise.resolve(
-      filterAndSortBrowserTasks(getBrowserTasksSnapshot(), input),
+      filterAndSortTasks(getBrowserTasksSnapshot(), input),
     );
   }
 
@@ -76,25 +53,7 @@ export function updateTask(input: UpdateTaskInput): Promise<Task> {
     const existing = findBrowserTask(input.id);
     if (!existing) return Promise.reject(new Error("任务不存在"));
 
-    const remindAt = computeRemindAt(input.dueAt, input.remindBefore);
-    const reminderScheduleChanged =
-      input.dueAt !== existing.dueAt ||
-      input.remindBefore !== existing.remindBefore;
-    const next: Task = {
-      ...existing,
-      ...input,
-      title: input.title.trim(),
-      note: input.note?.trim() || null,
-      completedAt:
-        input.status === "done"
-          ? (existing.completedAt ?? new Date().toISOString())
-          : null,
-      remindAt,
-      remindedAt: reminderScheduleChanged ? null : existing.remindedAt,
-      subtasks: cloneSubtasks(input.subtasks),
-      tags: normalizeTags(input.tags),
-      updatedAt: new Date().toISOString(),
-    };
+    const next = predictUpdatedTask(existing, input);
     updateBrowserTask(input.id, () => next);
     return Promise.resolve({ ...next });
   }
@@ -214,53 +173,4 @@ export function snoozeTaskReminder(
   }
 
   return invoke<Task>("snooze_task_reminder", { id, remindAt });
-}
-
-function computeRemindAt(
-  dueAt: string | null | undefined,
-  remindBefore: number | null | undefined,
-): string | null {
-  if (!dueAt || remindBefore === null || remindBefore === undefined) {
-    return null;
-  }
-  if (remindBefore <= 0) return dueAt;
-
-  const dueTime = new Date(dueAt).getTime();
-  if (Number.isNaN(dueTime)) return null;
-
-  const remindTime = dueTime - remindBefore * 60_000;
-  if (remindTime <= Date.now()) return null;
-  return toRfc3339Seconds(new Date(remindTime));
-}
-
-function toRfc3339Seconds(date: Date): string {
-  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
-function cloneSubtasks(tasks: Task["subtasks"]): Task["subtasks"] {
-  return tasks.map((subtask, index) => ({
-    ...subtask,
-    id: subtask.id || `subtask-${Date.now()}-${index}`,
-    title: subtask.title.trim(),
-    sortOrder: index,
-  }));
-}
-
-function normalizeTags(tags: string[]): string[] {
-  const next: string[] = [];
-  for (const tag of tags) {
-    const value = tag.trim().replace(/^#/, "");
-    if (!value || value.length > 40) continue;
-    if (
-      next.some(
-        (item) =>
-          item.toLocaleLowerCase("zh-CN") === value.toLocaleLowerCase("zh-CN"),
-      )
-    ) {
-      continue;
-    }
-    next.push(value);
-    if (next.length >= 30) break;
-  }
-  return next;
 }

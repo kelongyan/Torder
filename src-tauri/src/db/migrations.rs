@@ -547,6 +547,15 @@ const MIGRATIONS: &[Migration] = &[
             WHERE deleted_at IS NULL;
         "#,
     },
+    Migration {
+        version: 17,
+        name: "reseed_launch_at_startup_setting",
+        // 该键曾在 migration 2 插入，但被 migration 3 的
+        // `DELETE FROM settings WHERE key NOT IN ('theme')` 清掉，此处重新补种。
+        sql: r#"
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('launchAtStartup', 'false');
+        "#,
+    },
 ];
 
 /// 当前代码内置的最高 schema 版本，供备份校验与导出元数据复用。
@@ -684,5 +693,29 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(event_types, vec!["trip".to_owned(), "other".to_owned()]);
+    }
+
+    #[test]
+    fn reseeds_launch_at_startup_setting_removed_by_migration_three() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        apply_migrations_through(&mut connection, 16).unwrap();
+
+        let missing: Result<String, _> = connection.query_row(
+            "SELECT value FROM settings WHERE key = 'launchAtStartup'",
+            [],
+            |row| row.get(0),
+        );
+        assert!(missing.is_err(), "migration 3 deletes the seeded key");
+
+        apply_migrations(&mut connection).unwrap();
+
+        let value: String = connection
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'launchAtStartup'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(value, "false");
     }
 }
