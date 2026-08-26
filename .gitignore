@@ -39,6 +39,9 @@ docs/
 AGENTS.md
 CLAUDE.md
 RULE.md
+.tmp/
+output/
+codex-notes/
 
 # Tauri generated mobile project (init/build artifacts, contains 2.5GB gradle+APK)
 src-tauri/gen/
