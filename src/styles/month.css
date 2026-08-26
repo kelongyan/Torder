@@ -145,9 +145,14 @@
   border-color: var(--accent-border);
 }
 
-.month-cell:has(.month-task[draggable="true"]:active) {
+.month-cell.is-drag-over {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+}
+
+.month-cell.is-drop-pending {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 1px var(--accent-border) inset;
 }
 
 .month-cell.is-outside {
@@ -175,12 +180,11 @@
   gap: 0;
   padding: 0;
   border-radius: 12px;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--bg-secondary) 96%, transparent) 0%,
-      color-mix(in srgb, var(--bg-tertiary) 76%, transparent) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-secondary) 96%, transparent) 0%,
+    color-mix(in srgb, var(--bg-tertiary) 76%, transparent) 100%
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
     0 1px 0 rgba(0, 0, 0, 0.04);
@@ -361,8 +365,24 @@
   background: var(--bg-hover);
 }
 
-.month-task[draggable="true"] {
+.month-task.is-draggable {
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.month-task.is-dragging {
+  opacity: 0.3;
+}
+
+.calendar-task-drag-overlay {
+  width: 100%;
+  border: 1px solid var(--accent-border);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-md);
+  cursor: grabbing;
+  opacity: 0.96;
+  pointer-events: none;
 }
 
 .month-task-dot {

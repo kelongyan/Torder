@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import {
   Cloud,
   DatabaseBackup,
@@ -41,12 +41,14 @@ const settingsPanels = [
   {
     id: "sync",
     title: "WebDAV 同步",
+    navTitle: "同步",
     description: "账号、自动同步、设备与冲突",
     icon: Cloud,
   },
   {
     id: "data",
     title: "数据与备份",
+    navTitle: "数据",
     description: "备份、恢复、导入和导出",
     icon: DatabaseBackup,
     desktopOnly: true,
@@ -60,6 +62,7 @@ const settingsPanels = [
 ] satisfies Array<{
   id: SettingsPanel;
   title: string;
+  navTitle?: string;
   description: string;
   icon: LucideIcon;
   desktopOnly?: boolean;
@@ -117,7 +120,15 @@ export function SettingsDialog({
     >
       <div className="settings-layout">
         <aside className="settings-sidebar" aria-label="设置分类">
-          <nav className="settings-side-nav" role="tablist">
+          <nav
+            className="settings-side-nav"
+            role="tablist"
+            style={
+              {
+                "--settings-panel-count": visiblePanels.length,
+              } as CSSProperties
+            }
+          >
             {visiblePanels.map((panel) => {
               const Icon = panel.icon;
               const selected = panel.id === activeMeta.id;
@@ -137,7 +148,7 @@ export function SettingsDialog({
                 >
                   <Icon aria-hidden="true" />
                   <span>
-                    <strong>{panel.title}</strong>
+                    <strong>{panel.navTitle ?? panel.title}</strong>
                   </span>
                 </button>
               );

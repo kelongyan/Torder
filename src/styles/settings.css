@@ -13,6 +13,26 @@
   flex-shrink: 0;
 }
 
+.settings-dialog .dialog-header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-dialog .dialog-header > div {
+  text-align: center;
+}
+
+.settings-dialog .dialog-header h2 {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.settings-dialog .dialog-header .icon-button {
+  justify-self: end;
+}
+
 .settings-layout {
   display: grid;
   min-height: 0;
@@ -889,7 +909,8 @@
     overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--border);
-    padding: 9px 10px 8px;
+    background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+    padding: 10px 10px 9px;
     scrollbar-width: none;
   }
 
@@ -898,16 +919,39 @@
   }
 
   .settings-side-nav {
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(96px, 1fr);
-    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(
+      var(--settings-panel-count, 4),
+      minmax(0, 1fr)
+    );
+    gap: 4px;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-primary) 72%, transparent);
+    padding: 4px;
   }
 
   .settings-side-nav-item {
-    min-height: 36px;
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: 6px;
-    padding: 6px 8px;
+    min-width: 0;
+    min-height: 38px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 3px;
+    border-color: transparent;
+    border-radius: 10px;
+    padding: 5px 4px;
+    text-align: center;
+  }
+
+  .settings-side-nav-item:hover {
+    transform: none;
+  }
+
+  .settings-side-nav-item.is-active {
+    border-color: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent) 13%, var(--bg-primary));
+    box-shadow: 0 5px 14px rgba(88, 80, 236, 0.12);
   }
 
   .settings-side-nav-item svg {
@@ -916,8 +960,9 @@
   }
 
   .settings-side-nav-item strong {
-    font-size: 12px;
-    line-height: 17px;
+    max-width: 100%;
+    font-size: 11.5px;
+    line-height: 15px;
   }
 
   .settings-content {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
 import { Cloud, RefreshCw, ShieldCheck } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import {
@@ -366,6 +366,17 @@ export function SettingsSyncSection({
     }
   }
 
+  function handleSyncCredentialKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (event.key !== "Enter") return;
+    if (syncStatus?.configured || syncSetupStep !== 2 || syncBusy !== null) {
+      return;
+    }
+    event.preventDefault();
+    void handleTestSync();
+  }
+
   async function handleSaveSync() {
     if (!validateSyncForm()) return;
     if (!validateSyncEncryptionForm()) return;
@@ -692,6 +703,7 @@ export function SettingsSyncSection({
                       <input
                         type="text"
                         autoComplete="username"
+                        enterKeyHint="next"
                         value={syncUsername}
                         onChange={(event) => {
                           setSyncUsername(event.target.value);
@@ -708,10 +720,12 @@ export function SettingsSyncSection({
                       <input
                         type="password"
                         autoComplete="current-password"
+                        enterKeyHint="done"
                         value={syncPassword}
                         onChange={(event) =>
                           setSyncPassword(event.target.value)
                         }
+                        onKeyDown={handleSyncCredentialKeyDown}
                       />
                     </label>
                   </>

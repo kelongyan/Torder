@@ -189,6 +189,9 @@
   }
 }
 
+/* 结束帧用 none（防御性）：fill-mode both 会保留最后一帧，任何 transform 都会让
+   .content-motion 成为 position:fixed 的包含块。注意 Chromium 在 fill 态仍会把
+   none 计算为恒等矩阵，因此日历拖拽浮层已通过 portal 渲染到 body 来彻底规避。 */
 @keyframes content-reveal {
   from {
     opacity: 0;
@@ -196,7 +199,7 @@
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -207,7 +210,7 @@
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
   }
 }
 

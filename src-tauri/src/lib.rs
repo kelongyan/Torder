@@ -13,6 +13,19 @@ use tauri::Manager;
 
 use db::Database;
 
+#[cfg(target_os = "android")]
+fn initialize_android_tls_verifier() -> Result<(), jni::errors::Error> {
+    use jni::{objects::JObject, JavaVM};
+
+    let ctx = ndk_context::android_context();
+    let vm = ctx.vm() as *mut jni::sys::JavaVM;
+    let java_vm = unsafe { JavaVM::from_raw(vm) };
+    java_vm.attach_current_thread(|env| {
+        let context = unsafe { JObject::from_raw(env, ctx.context() as jni::sys::jobject) };
+        rustls_platform_verifier::android::init_with_env(env, context)
+    })
+}
+
 fn run_startup_backup_if_enabled(app: tauri::AppHandle) {
     use db::settings_repository::SettingsRepository;
 
@@ -80,6 +93,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            initialize_android_tls_verifier().map_err(|error| {
+                std::io::Error::other(format!(
+                    "Android TLS verifier initialization failed: {error}"
+                ))
+            })?;
+
             #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(error) = window_vibrancy::apply_mica(&window, None) {

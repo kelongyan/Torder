@@ -123,7 +123,14 @@ export function TaskCreateDialog({
           void submit();
         }}
         onKeyDown={(event) => {
-          if (event.ctrlKey && event.key === "Enter") void submit();
+          if (
+            !event.defaultPrevented &&
+            (event.ctrlKey || event.metaKey) &&
+            event.key === "Enter"
+          ) {
+            event.preventDefault();
+            void submit();
+          }
         }}
       >
         <TaskFormFields

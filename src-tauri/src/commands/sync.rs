@@ -1,5 +1,6 @@
 use chrono::Utc;
 use serde_json::json;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::db::{attachment_repository::AttachmentRepository, sync_repository, Database};
@@ -182,9 +183,15 @@ pub async fn test_sync_connection(
         Some(password) => Some(password),
         None => crate::sync::credentials::load(&connection).map_err(|error| error.to_string())?,
     };
-    engine::inspect_remote(&server_url, &remote_path, username, password)
-        .await
-        .map_err(|error| error.to_string())
+    match tokio::time::timeout(
+        Duration::from_secs(35),
+        engine::inspect_remote(&server_url, &remote_path, username, password),
+    )
+    .await
+    {
+        Ok(result) => result.map_err(|error| error.to_string()),
+        Err(_) => Err("WebDAV connection test timed out after 35 seconds".to_owned()),
+    }
 }
 
 #[tauri::command]

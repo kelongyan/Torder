@@ -1276,9 +1276,9 @@ checksum = "2cd50c473c80f6d7c3670a752354b8e569b1a7cbfdc0419ec88e5edad85e0dc7"
 
 [[package]]
 name = "futures-executor"
-version = "0.3.33"
+version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6754879cc9f2c66f88c6e5c35344bb0bdb0708b0352b1201815667c7eabc7458"
+checksum = "baf29c38818342a3b26b5b923639e7b1f4a61fc5e76102d4b1981c6dc7a7579d"
 dependencies = [
  "futures-core",
  "futures-task",
@@ -4837,7 +4837,7 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "torder"
-version = "2.5.5"
+version = "2.5.7"
 dependencies = [
  "android-native-keyring-store",
  "apple-native-keyring-store",
@@ -4847,12 +4847,15 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "flate2",
+ "jni 0.22.4",
  "keyring",
  "keyring-core",
+ "ndk-context",
  "quick-xml 0.38.4",
  "rand 0.8.7",
  "reqwest",
  "rusqlite",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "sha2",

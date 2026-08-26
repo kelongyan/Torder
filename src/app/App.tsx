@@ -89,6 +89,8 @@ import { WeekCalendar } from "../components/task/WeekCalendar";
 import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
 import type { CalendarEvent } from "../types/database";
 import type { SyncStatus } from "../types/sync";
+import { normalizeError } from "../utils/normalizeError";
+import { getTaskCalendarKey } from "../utils/taskDates";
 
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => {
@@ -572,12 +574,21 @@ function App() {
     const task =
       allTasks.find((item) => item.id === taskId) ??
       tasks.find((item) => item.id === taskId);
-    if (!task) return;
-    await patchTask(taskId, {
-      scheduledDate: dateKey,
-      ...(task.dueAt ? { dueAt: mergeTaskDate(task.dueAt, dateKey) } : {}),
-    });
-    pushToast(task.dueAt ? "日期已调整" : "计划日期已安排", "success");
+    if (!task) {
+      pushToast("任务不存在", "error");
+      return;
+    }
+    if (getTaskCalendarKey(task) === dateKey) return;
+
+    try {
+      await patchTask(taskId, {
+        scheduledDate: dateKey,
+        ...(task.dueAt ? { dueAt: mergeTaskDate(task.dueAt, dateKey) } : {}),
+      });
+      pushToast(task.dueAt ? "日期已调整" : "计划日期已安排", "success");
+    } catch (error) {
+      pushToast(`调整日期失败：${normalizeError(error)}`, "error");
+    }
   }
 
   async function handleThemeToggle() {
@@ -1061,9 +1072,7 @@ function App() {
                   onCreateTask={(date) => openTaskCreateDialog(date)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
-                  onMoveTaskDate={(taskId, date) =>
-                    void handleMoveTaskDate(taskId, date)
-                  }
+                  onMoveTaskDate={handleMoveTaskDate}
                 />
               ) : effectiveLayout === "week" ? (
                 <WeekCalendar
@@ -1074,9 +1083,7 @@ function App() {
                   onCreateTask={(date) => openTaskCreateDialog(date)}
                   onCreateEvent={openNewCalendarEvent}
                   onEditEvent={openEditCalendarEvent}
-                  onMoveTaskDate={(taskId, date) =>
-                    void handleMoveTaskDate(taskId, date)
-                  }
+                  onMoveTaskDate={handleMoveTaskDate}
                 />
               ) : (
                 <TaskCalendar

@@ -1,6 +1,6 @@
 [package]
 name = "torder"
-version = "2.5.5"
+version = "2.5.7"
 description = "Torder（今序）本地优先待办桌面应用"
 authors = ["Zhaxideler"]
 license = "MIT"
@@ -49,6 +49,9 @@ tauri-plugin-global-shortcut = "2"
 [target.'cfg(target_os = "android")'.dependencies]
 keyring-core = "1"
 android-native-keyring-store = "1"
+jni = { version = "0.22.4", default-features = false }
+ndk-context = "0.1.1"
+rustls-platform-verifier = "0.7.0"
 
 [target.'cfg(target_os = "ios")'.dependencies]
 keyring-core = "1"
