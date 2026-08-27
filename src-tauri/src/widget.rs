@@ -6,7 +6,11 @@ use crate::db::Database;
 
 pub const WIDGET_LABEL: &str = "widget";
 const WIDGET_WIDTH: f64 = 300.0;
-const WIDGET_HEIGHT: f64 = 420.0;
+/// 初始高度占位。前端 `WidgetApp` 会按任务数动态重设到
+/// `[WIDGET_MIN_HEIGHT, MAX]` 之间；这里只给一个中等默认值。
+/// 与 `src/services/widgetLayout.ts` 的常量保持口径一致。
+const WIDGET_DEFAULT_HEIGHT: f64 = 260.0;
+const WIDGET_MIN_HEIGHT: f64 = 180.0;
 const EDGE_MARGIN: f64 = 24.0;
 const TASKBAR_MARGIN: f64 = 64.0;
 
@@ -75,7 +79,8 @@ pub fn create_widget_window(app: &AppHandle) -> tauri::Result<()> {
         WebviewUrl::App("index.html#widget".into()),
     )
     .title("Torder 桌面小窗")
-    .inner_size(WIDGET_WIDTH, WIDGET_HEIGHT)
+    .inner_size(WIDGET_WIDTH, WIDGET_DEFAULT_HEIGHT)
+    .min_inner_size(WIDGET_WIDTH, WIDGET_MIN_HEIGHT)
     .position(position.x, position.y)
     .resizable(false)
     .decorations(false)
@@ -151,6 +156,6 @@ fn resolve_position(app: &AppHandle, saved_x: Option<f64>, saved_y: Option<f64>)
     let height = monitor.size().height as f64 / scale;
     LogicalPosition::new(
         left + width - WIDGET_WIDTH - EDGE_MARGIN,
-        top + height - WIDGET_HEIGHT - TASKBAR_MARGIN,
+        top + height - WIDGET_DEFAULT_HEIGHT - TASKBAR_MARGIN,
     )
 }

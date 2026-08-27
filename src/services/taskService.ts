@@ -10,7 +10,7 @@ import {
   updateBrowserTask,
   updateBrowserTaskIncludingDeleted,
 } from "./browserTaskMock";
-import { filterAndSortTasks, type QueryTasksInput } from "./taskQuery";
+import { filterAndSortTasks, type QueryTasksInput, taskPlanDateKey } from "./taskQuery";
 import {
   predictCreatedTask,
   predictUpdatedTask,
@@ -173,4 +173,31 @@ export function snoozeTaskReminder(
   }
 
   return invoke<Task>("snooze_task_reminder", { id, remindAt });
+}
+
+/**
+ * 桌面小窗专用按日期查询。
+ * 走 Rust `query_tasks_for_date`，按 `scheduled_date || date(due_at)` 精确匹配，
+ * 远小于通用 `query_tasks` 的全表返回。
+ * 浏览器模式（`pnpm dev`）下用 `filterAndSortTasks` 兜底，语义对齐。
+ */
+export function queryTasksForDate(
+  dateKey: string,
+  includeCompleted = true,
+): Promise<Task[]> {
+  if (!isTauri()) {
+    return Promise.resolve(
+      filterAndSortTasks(getBrowserTasksSnapshot(), {
+        scope: { kind: "view", view: "all" },
+        query: "",
+        sortBy: "priority",
+        showCompleted: includeCompleted,
+      }).filter((task) => taskPlanDateKey(task) === dateKey),
+    );
+  }
+
+  return invoke<Task[]>("query_tasks_for_date", {
+    dateKey,
+    includeCompleted,
+  });
 }

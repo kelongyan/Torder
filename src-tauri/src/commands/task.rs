@@ -28,6 +28,18 @@ pub fn query_tasks(
         .map_err(|error| error.to_string())
 }
 
+/// 桌面小窗专用：按日期查精简结果集，IPC 行数通常 < 20。
+#[tauri::command]
+pub fn query_tasks_for_date(
+    database: State<'_, Database>,
+    date_key: String,
+    include_completed: Option<bool>,
+) -> Result<Vec<Task>, String> {
+    TaskRepository::new(&database)
+        .query_for_widget(&date_key, include_completed.unwrap_or(true))
+        .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn update_task(database: State<'_, Database>, input: UpdateTaskInput) -> Result<Task, String> {
     TaskRepository::new(&database)

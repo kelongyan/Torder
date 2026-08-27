@@ -759,7 +759,11 @@ async function runOptimistic<T>(
     }));
     throw error;
   } finally {
-    notifyTasksChanged("main");
+    // 通知所有窗口（含自身）任务变更；附带受影响日期，widget 仅在命中显示日期时重拉
+    notifyTasksChanged("main", {
+      previousTasks: snapshot.allTasks,
+      currentTasks: get().allTasks,
+    });
   }
 }
 
@@ -823,7 +827,11 @@ async function runOptimisticBatch<T>(
     }
     throw error;
   } finally {
-    notifyTasksChanged("main");
+    // 通知所有窗口（含自身）任务变更；附带受影响日期，widget 仅在命中显示日期时重拉
+    notifyTasksChanged("main", {
+      previousTasks: snapshot.allTasks,
+      currentTasks: get().allTasks,
+    });
   }
 }
 

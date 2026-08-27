@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Check, X } from "lucide-react";
 import type { CreateTaskInput, TaskList } from "../../types/database";
 import { parseQuickAddText } from "../../utils/taskHelpers";
 
@@ -7,14 +8,22 @@ export function WidgetQuickAdd({
   defaultListId,
   targetDateKey,
   onCreate,
+  onClose,
 }: {
   lists: TaskList[];
   defaultListId: string;
   targetDateKey: string;
   onCreate: (input: CreateTaskInput) => Promise<void>;
+  onClose: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // 展开时自动聚焦
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   async function handleSubmit() {
     const text = title.trim();
@@ -37,6 +46,7 @@ export function WidgetQuickAdd({
         remindBefore: null,
       });
       setTitle("");
+      onClose();
     } finally {
       setBusy(false);
     }
@@ -45,18 +55,44 @@ export function WidgetQuickAdd({
   return (
     <div className="widget-quick-add">
       <input
+        ref={inputRef}
         className="widget-quick-add-input"
         type="text"
         name="widget-quick-add"
         value={title}
-        placeholder="添加任务，回车确认"
+        placeholder="添加任务，回车确认；ESC 取消"
         aria-label="快速添加任务"
         disabled={busy}
         onChange={(event) => setTitle(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter") void handleSubmit();
+          if (event.key === "Enter") {
+            event.preventDefault();
+            void handleSubmit();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          }
         }}
       />
+      <div className="widget-quick-add-actions">
+        <button
+          type="button"
+          className="widget-quick-add-confirm"
+          aria-label="确认"
+          disabled={busy || !title.trim()}
+          onClick={() => void handleSubmit()}
+        >
+          <Check aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="widget-quick-add-cancel"
+          aria-label="取消"
+          onClick={onClose}
+        >
+          <X aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 }

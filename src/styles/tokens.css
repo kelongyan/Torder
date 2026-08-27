@@ -14,6 +14,8 @@
   --text-primary: #f8fafc;
   --text-secondary: #c4cbd7;
   --text-muted: #8f9aab;
+  /* 次要 icon 用色，比 --text-muted 略亮，确保关闭 / 箭头 / 占位符可识别 */
+  --icon-faint: #9ba3b3;
   --accent: #7c8cff;
   --accent-hover: #aab6ff;
   --accent-bg: rgba(124, 140, 255, 0.18);
@@ -82,6 +84,8 @@
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
+  /* 次要 icon 用色，比 --text-muted 略深，确保浅色背景下关闭 / 箭头可识别 */
+  --icon-faint: #64748b;
   --accent: #4f46e5;
   --accent-hover: #6366f1;
   --accent-bg: rgba(79, 70, 229, 0.08);

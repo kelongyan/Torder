@@ -220,6 +220,40 @@ impl<'database> TaskRepository<'database> {
         Ok(tasks)
     }
 
+    /// 桌面小窗专用查询：只返回指定日期对应的任务。
+    /// 配合前端的 `taskPlanDateKey === dateKey` 过滤，少量行直接消费，
+    /// 避免通用 query 在 view="all" 时拉全表的浪费。
+    pub fn query_for_widget(
+        &self,
+        date_key: &str,
+        include_completed: bool,
+    ) -> RepositoryResult<Vec<Task>> {
+        let date_key = date_key.trim();
+        if date_key.is_empty() {
+            return Err(RepositoryError::Validation("date_key cannot be empty"));
+        }
+        let mut clauses = vec![
+            "t.deleted_at IS NULL".to_owned(),
+            "t.purged_at IS NULL".to_owned(),
+            "t.status != 'archived'".to_owned(),
+            "COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) = ?".to_owned(),
+        ];
+        if !include_completed {
+            clauses.push("t.status != 'done'".to_owned());
+        }
+        let sql = format!(
+            "{} WHERE {} ORDER BY t.priority DESC, t.due_at ASC, t.created_at DESC",
+            select_tasks_aliased(),
+            clauses.join(" AND "),
+        );
+        let connection = self.database.connect()?;
+        let mut statement = connection.prepare(&sql)?;
+        let tasks = statement
+            .query_map(params![date_key], map_task)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(tasks)
+    }
+
     pub fn update(&self, input: UpdateTaskInput) -> RepositoryResult<Task> {
         let title = validate_title(&input.title)?;
         validate_status(&input.status)?;

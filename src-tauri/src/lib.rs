@@ -200,6 +200,7 @@ pub fn run() {
             commands::task::create_task,
             commands::task::get_task,
             commands::task::query_tasks,
+            commands::task::query_tasks_for_date,
             commands::task::update_task,
             commands::task::snooze_task_reminder,
             commands::task::delete_task,
