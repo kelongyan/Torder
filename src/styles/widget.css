@@ -1,66 +1,332 @@
 /* 桌面小窗（便签式常驻窗口）。
-   窗口本体透明无边框，圆角与轻量阴影提供浮起感。
-   关键约束：避免使用 backdrop-filter。
-   透明 WebView 窗口下 backdrop-filter 的合成在 hidden/show 切换、
-   setState 触发的重绘时容易丢帧或渲染成"空白"，
-   改用实色背景 + 1px 边框 + 小阴影更稳也更省 GPU。 */
+   v4 视觉：竖版矩形（宽 280，高 320–560 由内容实测决定）——
+   日期升格为大标题、星期与进度退到第二行、条目最多换行 2 行、
+   单图钉贴顶边、右下角纸角卷影、行细格线。
+   关键约束：
+   - 避免使用 backdrop-filter（透明 WebView 窗口下合成在 hidden/show 切换、
+     setState 触发的重绘时容易丢帧或渲染成"空白"），
+     便签观感由实色渐变 + 纸纹理 radial-gradient + 投影承担。
+   - Windows Release 环境可能把透明像素合成为白色，因此便签纸本体必须
+     覆盖窗口的每一个像素，不能预留透明外边距（旋转 / 探出纸边的图钉、
+     列表上下渐隐 mask 由此放弃）。
+   - 窗口高度是实测出来的：`WidgetApp` 取
+   `list.offsetTop + listInner.offsetHeight + shell padding-bottom`。
+     所以 `.widget-list-inner` 必须保持"内容决定高度"（不能写 min-height:100%
+     之类撑满父级），否则高度只会单调增长、永不收缩。
+   - 便签主题独立于主窗主题（永远黄色便签，不跟主窗暗/亮切换）。
+   - 拖拽：region 挂在最外层 .widget-stage 且值为 "deep"（Tauri 2.11 起裸属性
+     只对「元素本身被直接点中」生效，而 .widget-shell 是全窗口覆盖，stage 永远
+     拿不到 mousedown）。"deep" = 子树任意处按下都能拖，BUTTON/INPUT 等可交互
+     元素自动排除；两处显式 "false" 例外：任务条目行（行尾空白的职责是点开主窗）、
+     以及可滚动状态的列表（否则抓细滚动条会拖窗口而不是滚动）。 */
 
-html:has(.widget-shell),
-html:has(.widget-shell) body,
-html:has(.widget-shell) #root {
-  background: transparent;
+/* === 便签纸主题 token（不放入 tokens.css，独立作用域） === */
+
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"] {
+  --note-bg-start: #fef7c3;
+  --note-bg-mid: #fdf3b4;
+  --note-bg-end: #fceea8;
+  --note-text: #3d3023;
+  --note-title: #6b4a1e;
+  --note-muted: #6b4a1e;
+  --note-check: #2e8b3d;
+  --note-rule: rgba(107, 74, 30, 0.09);
+  --note-pin-1: #ff8a4c;
+  --note-pin-2: #f56b1f;
+  --note-pin-3: #c44a0e;
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(107, 74, 30, 0.08),
+    inset 0 -18px 24px -18px rgba(107, 74, 30, 0.18);
 }
+
+/* === 透明窗（让桌面"墙"透过来，便签贴在墙上的视觉效果） === */
+
+html.widget-entry,
+html.widget-entry body,
+html.widget-entry #root {
+  background: transparent !important;
+}
+
+html.widget-entry body {
+  transition: none;
+}
+
+/* 外层 stage 撑满 WebView（见顶部约束：不能留透明边距）。 */
+.widget-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 10px;
+  /* 整页可拖（"deep"）→ 用 grab 明示"这张纸能拿起来"；
+     条目行、按钮各自有更具体的 cursor 覆盖 */
+  cursor: grab;
+  background: linear-gradient(
+    180deg,
+    var(--note-bg-start) 0%,
+    var(--note-bg-end) 100%
+  );
+}
+
+/* === 便签纸本体 === */
 
 .widget-shell {
   position: absolute;
-  inset: 8px;
+  inset: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg-secondary);
-  /* 24px 轻量阴影足够营造浮起感，避免 70px 模糊在每次重绘时重合成 */
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  /* 主渐变 + 抬头色带（通铺到纸边，比只给标题行上色更像记事本）
+     + 2 层纸纹理（竖版窄面上白点多了会像脏污） */
+  background:
+    radial-gradient(
+      circle at 22% 16%,
+      rgba(255, 255, 255, 0.25) 0%,
+      transparent 1.6%
+    ),
+    radial-gradient(
+      circle at 74% 62%,
+      rgba(255, 255, 255, 0.2) 0%,
+      transparent 1.4%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0) 96px
+    ),
+    linear-gradient(
+      180deg,
+      var(--note-bg-start) 0%,
+      var(--note-bg-mid) 50%,
+      var(--note-bg-end) 100%
+    );
+  box-shadow: var(--note-shadow);
+  padding: 42px 20px 20px; /* 顶部给图钉针尖留位（针尖到 y=36） */
+  animation: note-drop-in 0.3s ease-out;
 }
 
-/* === TitleBar === */
+.widget-shell.is-closing {
+  animation: none; /* 关闭时取消 drop-in，避免动画相互打架 */
+}
+
+/* 右下角纸张卷起阴影（替代 v3 的红色小图钉，画在不透明纸内不产生透明像素） */
+.widget-shell::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 46px;
+  height: 46px;
+  border-bottom-right-radius: 10px;
+  background: linear-gradient(
+    315deg,
+    rgba(107, 74, 30, 0.18) 0%,
+    rgba(107, 74, 30, 0.07) 38%,
+    transparent 62%
+  );
+  pointer-events: none;
+}
+
+@keyframes note-drop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 关闭动效：前端播完后调 Rust close（被拦截为 hide） */
+.widget-stage.is-closing .widget-shell {
+  opacity: 0;
+  transform: translateY(-24px) scale(0.96);
+  transition:
+    opacity 0.35s ease-out,
+    transform 0.35s ease-out;
+}
+
+.widget-stage.is-closing .widget-pin-top {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
+
+/* === 顶部橙色图钉（钉头贴近纸顶边，针尖触纸，像"钉"在纸上） === */
+
+.widget-pin-top {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 30px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.widget-pin-top .pin-head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(
+    circle at 30% 30%,
+    var(--note-pin-1) 0%,
+    var(--note-pin-2) 55%,
+    var(--note-pin-3) 100%
+  );
+  border-radius: 50%;
+  box-shadow:
+    inset -2px -3px 4px rgba(0, 0, 0, 0.25),
+    inset 2px 2px 3px rgba(255, 200, 150, 0.6),
+    0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.widget-pin-top .pin-head::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 7px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  filter: blur(0.5px);
+}
+
+.widget-pin-top .pin-needle {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 6px;
+  background: linear-gradient(180deg, #888 0%, #555 100%);
+  border-radius: 1px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* === 抬头（两行：日期大标题 + 星期/进度） === */
 
 .widget-titlebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  /* 加大上下留白 + min-height 确保品牌名与关闭按钮绝对垂直居中 */
-  padding: 10px 10px 8px 14px;
-  min-height: 36px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(107, 74, 30, 0.22);
+  margin-bottom: 8px;
   user-select: none;
 }
 
-.widget-brand {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  /* 用次级文本色，比时间"09:00"高半级，让品牌名有存在感 */
-  color: var(--text-secondary);
+.widget-titlebar-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 24px;
+}
+
+.widget-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--note-title);
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.widget-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 15px;
+  margin-top: 1px;
+}
+
+.widget-meta {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--note-muted);
+  opacity: 0.8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.widget-date-nav {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--note-title);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard);
+}
+
+.widget-date-nav:hover {
+  background: rgba(107, 74, 30, 0.12);
+}
+
+.widget-date-nav svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.75;
+}
+
+.widget-date-today-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid rgba(107, 74, 30, 0.32);
+  border-radius: 999px;
+  padding: 0 7px;
+  background: transparent;
+  color: var(--note-title);
+  font-size: 10px;
+  line-height: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color var(--motion-micro) var(--ease-standard),
+    background-color var(--motion-micro) var(--ease-standard);
+}
+
+.widget-date-today-btn:hover {
+  border-color: var(--note-title);
+  background: rgba(107, 74, 30, 0.08);
 }
 
 .widget-titlebar-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
+/* + 按钮：inline 快速新增入口，便签棕色系 */
 .widget-control {
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   border: none;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
-  /* 用 icon-faint 替代 text-muted，对比度比之前高 */
-  color: var(--icon-faint, var(--text-muted));
+  color: var(--note-title);
   cursor: pointer;
   transition:
     background-color var(--motion-micro) var(--ease-standard),
@@ -68,283 +334,311 @@ html:has(.widget-shell) #root {
 }
 
 .widget-control:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: rgba(107, 74, 30, 0.12);
 }
 
 .widget-control svg {
-  width: 14px;
-  height: 14px;
-  /* P3：呼应全局圆润风格，icon 视觉权重略加重 */
+  width: 13px;
+  height: 13px;
   stroke-width: 1.75;
 }
 
-/* + 按钮激活态：背景填色 + 主色高亮 */
 .widget-control-add.is-active {
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: rgba(107, 74, 30, 0.16);
 }
 
 .widget-control-add.is-active:hover {
-  background: var(--accent-badge-bg);
-  color: var(--accent-hover);
+  background: rgba(107, 74, 30, 0.22);
 }
 
-/* === DateBar === */
-
-.widget-datebar {
-  display: flex;
-  align-items: center;
-  /* 整体作为 pill 控件：让箭头紧贴日期文字 */
-  gap: 0;
-  padding: 4px 12px 8px;
-  user-select: none;
-}
-
-.widget-date-nav {
+/* 关闭按钮：棕色描边 + hover scale(1.1) */
+.widget-close-btn {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   border: none;
   border-radius: 6px;
-  background: transparent;
-  color: var(--icon-faint, var(--text-muted));
+  background: none;
   cursor: pointer;
+  color: var(--note-title);
+  opacity: 0.55;
   transition:
-    background-color var(--motion-micro) var(--ease-standard),
-    color var(--motion-micro) var(--ease-standard);
+    opacity 0.2s,
+    transform 0.2s;
 }
 
-.widget-date-nav:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+.widget-close-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.1);
+  background: rgba(107, 74, 30, 0.12);
 }
 
-.widget-date-nav svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 1.75;
+.widget-close-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
-/* P1-1 关键修：日期文字用 padding-inline 撑开，三件套视觉上抱成一团 */
-.widget-date-label {
-  flex: 1;
-  min-width: 0;
-  padding-inline: 8px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  /* 防止 hover 高亮带来的视觉跳变 */
-  user-select: none;
-}
-
-.widget-date-today-btn {
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  padding: 2px 8px;
-  margin-left: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-micro) var(--ease-standard),
-    color var(--motion-micro) var(--ease-standard);
-}
-
-.widget-date-today-btn:hover {
-  border-color: var(--accent-border);
-  color: var(--accent-hover);
-}
-
-/* === TaskList === */
+/* === TaskList：外层是滚动容器，内层才是内容流（实测口径） === */
 
 .widget-list {
   flex: 1;
-  overflow-y: auto;
-  padding: 4px 8px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
 }
 
+.widget-list-inner {
+  display: block;
+}
+
+.widget-list.is-scrollable {
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 74, 30, 0.25) transparent;
+}
+
+.widget-list.is-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.widget-list.is-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-list.is-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(107, 74, 30, 0.25);
+  border-radius: 3px;
+}
+
+/* 空态贴着抬头下方，其余留白是"没写字的纸面"（竖版便签不做垂直居中） */
 .widget-empty {
-  margin: auto;
-  padding: 24px 16px;
+  display: block;
+  margin: 0 auto;
+  padding: 18px 8px 0;
   text-align: center;
   font-size: 12px;
-  color: var(--text-muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-/* P3-8：空状态装饰 */
-.widget-empty-illustration {
-  width: 64px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--bg-tertiary);
-  color: var(--icon-faint, var(--text-muted));
-}
-
-.widget-empty-illustration svg {
-  width: 28px;
-  height: 28px;
-  stroke-width: 1.5;
-}
-
-.widget-empty-title {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.widget-empty-hint {
-  font-size: 11px;
-  color: var(--text-muted);
+  line-height: 20px;
+  color: var(--note-title);
+  opacity: 0.65;
 }
 
 .widget-empty-retry {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--accent);
+  text-decoration: underline;
 }
 
 .widget-empty-retry:hover {
-  color: var(--accent-hover);
+  opacity: 0.85;
 }
 
 /* === TaskItem === */
 
 .widget-item {
   display: flex;
-  /* P1-3 关键修：显式 baseline 对齐，checkbox 圆圈 / 文字 / 时间三件基线一致 */
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  transition: background-color var(--motion-micro) var(--ease-standard);
+  align-items: flex-start; /* 标题换行时复选框留在首行 */
+  gap: 8px;
+  padding: 7px 0;
+  min-height: 22px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--note-text);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.25s;
+  animation: item-fade-in 0.4s ease-out backwards;
+}
+
+/* 行细格线 = 竖版便签的行距 */
+.widget-item + .widget-item {
+  border-top: 1px solid var(--note-rule);
+}
+
+/* 前 4 项错峰入场 */
+.widget-item:nth-child(1) {
+  animation-delay: 0.12s;
+}
+.widget-item:nth-child(2) {
+  animation-delay: 0.17s;
+}
+.widget-item:nth-child(3) {
+  animation-delay: 0.22s;
+}
+.widget-item:nth-child(4) {
+  animation-delay: 0.27s;
+}
+.widget-item:nth-child(n + 5) {
+  animation-delay: 0s;
+}
+
+@keyframes item-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .widget-item:hover {
-  background: var(--bg-hover);
+  opacity: 0.85;
 }
 
-/* P2-6：18px→20px，目标更明确 */
+.widget-item.is-done {
+  opacity: 0.55;
+}
+
+.widget-item.is-done:hover {
+  opacity: 0.75;
+}
+
+/* 方形复选框 */
 .widget-item-checkbox {
-  display: grid;
-  width: 20px;
-  min-width: 20px;
-  height: 20px;
-  place-items: center;
-  border: 1.5px solid var(--border-light);
-  border-radius: 50%;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px; /* 与首行（line-height 22）视觉居中 */
+  border: 1.5px solid var(--note-title);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  color: var(--on-success);
+  color: var(--note-check);
   cursor: pointer;
   transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
+    background 0.2s,
+    border-color 0.2s,
+    opacity 0.2s;
+  padding: 0;
+}
+
+.widget-item.is-busy .widget-item-checkbox {
+  opacity: 0.4;
+  cursor: progress;
 }
 
 .widget-item-checkbox.checked {
-  border-color: var(--green);
-  background: var(--green);
+  border-color: transparent;
 }
 
 .widget-item-checkbox svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2.5;
+  width: 16px;
+  height: 16px;
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  stroke: var(--note-check);
+  stroke-width: 3;
 }
 
+.widget-item-checkbox.checked svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 标题不拉伸占满：让清单色点紧跟文字，时间钉在行尾；最多 2 行 */
 .widget-item-title {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word; /* 长 URL 等无空格 token：断字符换行，而不是被裁掉 */
   text-align: left;
   border: none;
   background: transparent;
   padding: 0;
-  font-size: 13px;
-  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--note-text);
+  font-weight: inherit;
   cursor: pointer;
-  line-height: 1.4;
+  transition:
+    text-decoration 0.3s,
+    color 0.3s;
+}
+
+.widget-item.is-high .widget-item-title {
+  font-weight: 600;
 }
 
 .widget-item-title:hover {
-  color: var(--accent-hover);
+  color: var(--note-title);
 }
 
 .widget-item.is-done .widget-item-title {
-  color: var(--text-muted);
   text-decoration: line-through;
-}
-
-.widget-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* 让时间标签也保持 baseline 对齐 */
-  line-height: 1.4;
+  text-decoration-color: var(--note-muted);
+  text-decoration-thickness: 1.5px;
+  color: var(--note-muted);
 }
 
 .widget-item-dot {
-  width: 7px;
-  height: 7px;
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  margin-top: 9px; /* 对齐首行中线 */
   border-radius: 50%;
 }
 
 .widget-item-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  line-height: 22px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--note-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* === QuickAdd (inline popover，位于 titlebar 下方) === */
+/* === QuickAdd：下划线式行内编辑（纸上书写感） === */
 
 .widget-quick-add {
   display: flex;
   align-items: center;
-  gap: 6px;
-  /* inline 模式：位于 titlebar 与 datebar 之间，inset shadow 上下分区 */
-  padding: 8px 10px;
-  box-shadow: inset 0 1px 0 var(--border-subtle),
-    inset 0 -1px 0 var(--border-subtle);
-  background: var(--bg-tertiary);
+  gap: 4px;
+  min-height: 30px;
+  padding: 2px 2px 4px;
+  border: none;
+  border-bottom: 1.5px solid rgba(107, 74, 30, 0.25);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 8px;
+  animation: item-fade-in 0.25s ease-out;
+  transition: border-color var(--motion-micro) var(--ease-standard);
+}
+
+.widget-quick-add:focus-within {
+  border-bottom-color: rgba(107, 74, 30, 0.55);
 }
 
 .widget-quick-add-input {
   flex: 1;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  padding: 6px 10px;
-  font-size: 13px;
+  height: 24px;
+  cursor: text; /* 不吃 stage 的 grab */
+  border: none;
+  background: transparent;
+  color: var(--note-text);
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 20px;
   outline: none;
-  transition:
-    border-color var(--motion-micro) var(--ease-standard),
-    box-shadow var(--motion-micro) var(--ease-standard);
 }
 
 .widget-quick-add-input::placeholder {
-  color: var(--icon-faint, var(--text-muted));
-}
-
-.widget-quick-add-input:focus {
-  border-color: var(--accent-border);
-  box-shadow: 0 0 0 3px var(--focus-ring);
+  color: var(--note-title);
+  opacity: 0.5;
 }
 
 .widget-quick-add-actions {
@@ -356,11 +650,11 @@ html:has(.widget-shell) #root {
 .widget-quick-add-confirm,
 .widget-quick-add-cancel {
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent;
   cursor: pointer;
   transition:
@@ -369,31 +663,34 @@ html:has(.widget-shell) #root {
 }
 
 .widget-quick-add-confirm {
-  color: var(--green);
+  background: var(--note-title);
+  color: var(--note-bg-start);
 }
 
 .widget-quick-add-confirm:disabled {
-  color: var(--icon-faint, var(--text-muted));
+  background: rgba(107, 74, 30, 0.1);
+  color: rgba(107, 74, 30, 0.42);
   cursor: not-allowed;
 }
 
 .widget-quick-add-confirm:not(:disabled):hover {
-  background: var(--success-bg);
-  color: var(--green);
+  background: #563a17;
+  color: var(--note-bg-start);
 }
 
 .widget-quick-add-cancel {
-  color: var(--icon-faint, var(--text-muted));
+  color: var(--note-title);
+  opacity: 0.7;
 }
 
 .widget-quick-add-cancel:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: rgba(107, 74, 30, 0.12);
+  opacity: 1;
 }
 
 .widget-quick-add-confirm svg,
 .widget-quick-add-cancel svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   stroke-width: 2;
 }

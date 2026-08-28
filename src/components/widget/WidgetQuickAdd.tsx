@@ -32,7 +32,9 @@ export function WidgetQuickAdd({
     if (!parsed.title.trim()) return;
     const listId =
       parsed.listId ??
-      (lists.some((list) => list.id === defaultListId) ? defaultListId : "work");
+      (lists.some((list) => list.id === defaultListId)
+        ? defaultListId
+        : "work");
     setBusy(true);
     try {
       await onCreate({
@@ -59,8 +61,12 @@ export function WidgetQuickAdd({
         className="widget-quick-add-input"
         type="text"
         name="widget-quick-add"
+        // 字段级提示：Chromium 按 name 累积表单历史，聚焦就会弹「保存的信息」。
+        // 权威开关在 `widget.rs` 的 general_autofill_enabled(false)——WebView2
+        // 的 Suggestions 在某些情况下不认这里的 off。
+        autoComplete="off"
         value={title}
-        placeholder="添加任务，回车确认；ESC 取消"
+        placeholder="输入事项，按 Enter 添加"
         aria-label="快速添加任务"
         disabled={busy}
         onChange={(event) => setTitle(event.target.value)}
