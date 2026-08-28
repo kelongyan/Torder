@@ -109,3 +109,42 @@
   --shadow-floating:
     0 10px 15px rgba(15, 23, 42, 0.05), 0 24px 48px rgba(15, 23, 42, 0.14);
 }
+
+/* ===== 尺寸体系（UI 精修 P0，规范见 docs/ui-refinement-plan.md §3）=====
+   与主题无关，两套配色共用。P0 只声明变量，消费方随 P1–P5 分阶段切换；
+   本阶段不改变任何视觉。 */
+:root {
+  /* 字号 8 档（§3.1）。散值映射：10.5/11.5→--text-xs、12.5→--text-sm、
+     15/17→--text-lg、25/22→--text-2xl */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 20px;
+
+  /* 控件高度 3 档（§3.2） */
+  --control-sm: 26px;
+  --control-md: 30px;
+  --control-lg: 34px;
+
+  /* 间距 4px 栅格（§3.3） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 图标 3 档（§3.4） */
+  --icon-sm: 12px;
+  --icon-md: 14px;
+  --icon-lg: 16px;
+
+  /* 圆角第三档（§3.5）。既有 --radius 10→8、--radius-sm 8→6 的取值变更
+     会立即影响全部消费方，故随 P4 圆角归位一起改，P0 保持原值零变化 */
+  --radius-lg: 12px;
+}

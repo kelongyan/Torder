@@ -84,9 +84,12 @@ select {
   background-clip: padding-box;
 }
 
+/* 图标档位见 tokens.css：--icon-sm 12 / --icon-md 14 / --icon-lg 16。
+   .icon-sm 命中 --icon-lg（16px，原值不变）；.icon-xs 的 13px 属散值，
+   随 P1 图标归位切换为 var(--icon-sm)（12px），P0 保持原值零变化。 */
 .icon-sm {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
 }
 
 .icon-xs {
