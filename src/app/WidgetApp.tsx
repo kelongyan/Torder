@@ -8,6 +8,7 @@ import {
 } from "@tauri-apps/api/window";
 import { WidgetPinTop } from "../components/widget/WidgetPin";
 import { WidgetQuickAdd } from "../components/widget/WidgetQuickAdd";
+import { WidgetResizeHandles } from "../components/widget/WidgetResizeHandles";
 import { WidgetTaskItem } from "../components/widget/WidgetTaskItem";
 import { WidgetTitleBar } from "../components/widget/WidgetTitleBar";
 import { listLists } from "../services/listService";
@@ -24,17 +25,20 @@ import {
   openTaskInMainWindow,
   saveWidgetSettings,
   type TasksChangedPayload,
+  type WidgetSettings,
 } from "../services/widgetService";
 import type { CreateTaskInput, Task, TaskList } from "../types/database";
 import { applyThemePreference } from "../utils/theme";
 import {
-  WIDGET_WIDTH,
   clampWidgetHeight,
-  widgetListNeedsScroll,
+  clampWidgetWidth,
+  type WidgetSizeMode,
 } from "../services/widgetLayout";
 
 /** 关闭淡出动效时长（与 widget.css `.widget-stage.is-closing` 保持一致） */
 const CLOSE_ANIMATION_MS = 360;
+/** 位置 / 尺寸落盘的防抖时长 */
+const GEOMETRY_FLUSH_MS = 300;
 
 export function WidgetApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -47,13 +51,37 @@ export function WidgetApp() {
   const [adding, setAdding] = useState(false);
   const [closing, setClosing] = useState(false);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingPosition = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * 待落盘的窗口几何，存**物理**像素（事件 payload 的原始单位）。
+   * 逻辑值在 flush 时用当次读到的 scaleFactor 换算 —— 便签可能被拖到另一块
+   * 缩放比不同的显示器上，挂载时抓一次的 scale 会过期。
+   */
+  const pendingGeometry = useRef<{
+    position: { x: number; y: number } | null;
+    size: { width: number; height: number } | null;
+  }>({ position: null, size: null });
+  /**
+   * 设置写入串行化。`saveWidgetSettings` 是「读整条 JSON → 合并 → 写回」，
+   * 并发调用会互相覆盖字段；而拖上边缘会同时触发 onMoved + onResized，
+   * 所以必须排队而不是并发。
+   */
+  const writeChain = useRef<Promise<unknown>>(Promise.resolve());
   const stageRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const listInnerRef = useRef<HTMLDivElement | null>(null);
   /** 实测的内容自然高度（px）；0 = 尚未测量，此时不动窗口 */
   const [naturalHeight, setNaturalHeight] = useState(0);
+  /** 实测「内容超出列表视口」→ 需要滚动 */
+  const [scrollable, setScrollable] = useState(false);
+  /**
+   * 尺寸模式。null = 尚未从设置读出，此时自动高度不介入 ——
+   * 否则持久化的手动尺寸会在设置加载完成前被自动高度抢先改掉。
+   * 不单独持久化：由「设置里有没有 h」派生（见 `widgetService.WidgetSettings`）。
+   * 单向 auto → manual，用户一旦定过尺寸就一直记住。
+   */
+  const [sizeMode, setSizeMode] = useState<WidgetSizeMode | null>(null);
+  const sizeModeRef = useRef<WidgetSizeMode | null>(null);
 
   const displayedDateKey = anchorDate ?? todayKey;
   // 事件回调里要拿最新值；闭包旧值会让"按日重拉"打错目标
@@ -73,11 +101,49 @@ export function WidgetApp() {
     }
   }, []);
 
-  const flushPosition = useCallback(() => {
-    if (!pendingPosition.current) return;
-    const { x, y } = pendingPosition.current;
-    pendingPosition.current = null;
-    void saveWidgetSettings({ x, y }).catch(() => undefined);
+  const enqueueSettings = useCallback(
+    (task: () => Promise<unknown>) => {
+      writeChain.current = writeChain.current.then(task).catch(() => undefined);
+    },
+    [],
+  );
+
+  const flushGeometry = useCallback(() => {
+    const pending = pendingGeometry.current;
+    if (!pending.position && !pending.size) return;
+    pendingGeometry.current = { position: null, size: null };
+    enqueueSettings(async () => {
+      const scale = await getCurrentWindow().scaleFactor();
+      const patch: Partial<WidgetSettings> = {};
+      if (pending.position) {
+        patch.x = Math.round(pending.position.x / scale);
+        patch.y = Math.round(pending.position.y / scale);
+      }
+      if (pending.size) {
+        patch.w = Math.round(pending.size.width / scale);
+        patch.h = Math.round(pending.size.height / scale);
+      }
+      await saveWidgetSettings(patch);
+    });
+  }, [enqueueSettings]);
+
+  const scheduleGeometryFlush = useCallback(() => {
+    if (moveTimer.current) clearTimeout(moveTimer.current);
+    moveTimer.current = setTimeout(() => {
+      moveTimer.current = null;
+      flushGeometry();
+    }, GEOMETRY_FLUSH_MS);
+  }, [flushGeometry]);
+
+  /**
+   * 用户按下 resize 热区：这一下就是「尺寸归我」的意思。
+   * 之后 `onResized` 才会开始把 w/h 落盘，下次启动就按这个尺寸开窗。
+   * 单向切换，没有回到 auto 的入口。
+   */
+  const handleResizeStart = useCallback(() => {
+    if (sizeModeRef.current === "manual") return;
+    sizeModeRef.current = "manual";
+    setSizeMode("manual");
   }, []);
 
   // 初始化：主题、设置恢复、清单与当日任务加载
@@ -92,6 +158,11 @@ export function WidgetApp() {
       const widgetSettings = await getWidgetSettings();
       if (cancelled) return;
       setAnchorDate(widgetSettings.anchorDate);
+      // 「有 h」即说明用户手动定过尺寸，据此派生模式，不另存字段
+      const restoredMode: WidgetSizeMode =
+        widgetSettings.h !== null ? "manual" : "auto";
+      sizeModeRef.current = restoredMode;
+      setSizeMode(restoredMode);
       const initialDate = widgetSettings.anchorDate ?? localDateKey(new Date());
       // 当日数据 + 清单并行加载；任务只拉一天，远小于原来的全表查询
       const [taskRows, listRows] = await Promise.all([
@@ -175,46 +246,63 @@ export function WidgetApp() {
     return () => clearInterval(timer);
   }, [refreshDate, todayKey]);
 
-  // 拖拽后的位置记忆（仅 Tauri）：onMoved 防抖写入设置键。
+  // 拖拽 / 拉伸后的几何记忆（仅 Tauri）：onMoved + onResized 合并防抖写入设置键。
   // 拖起手本身由 .widget-stage 上的 data-tauri-drag-region="deep" + Tauri 注入的
-  // drag.js 负责，这里不碰鼠标。
+  // drag.js 负责；拉伸起手由 WidgetResizeHandles 调 startResizeDragging，
+  // 这里都不碰鼠标，只记结果。
+  //
+  // 尺寸只在 manual 模式下落盘：auto 模式下自动高度自己也会调 setSize，
+  // 把那些程序化尺寸存下来会让「跟随内容」变成一个僵化的存档值。
   useEffect(() => {
     if (!isTauri()) return;
     let cancelled = false;
     let unlistenMove: (() => void) | null = null;
+    let unlistenResize: (() => void) | null = null;
     const currentWindow = getCurrentWindow();
     void (async () => {
-      const scale = await currentWindow.scaleFactor();
-      const nextUnlisten = await currentWindow.onMoved((event) => {
-        pendingPosition.current = {
-          x: Math.round(event.payload.x / scale),
-          y: Math.round(event.payload.y / scale),
-        };
-        if (moveTimer.current) clearTimeout(moveTimer.current);
-        moveTimer.current = setTimeout(() => {
-          moveTimer.current = null;
-          flushPosition();
-        }, 300);
-      });
+      const nextUnlisteners = await Promise.all([
+        currentWindow.onMoved((event) => {
+          pendingGeometry.current.position = {
+            x: event.payload.x,
+            y: event.payload.y,
+          };
+          scheduleGeometryFlush();
+        }),
+        currentWindow.onResized((event) => {
+          if (sizeModeRef.current !== "manual") return;
+          pendingGeometry.current.size = {
+            width: event.payload.width,
+            height: event.payload.height,
+          };
+          scheduleGeometryFlush();
+        }),
+      ]);
       if (cancelled) {
-        nextUnlisten();
+        nextUnlisteners.forEach((unlisten) => unlisten());
         return;
       }
-      unlistenMove = nextUnlisten;
+      [unlistenMove, unlistenResize] = nextUnlisteners;
     })();
-    const flushOnUnload = () => flushPosition();
+    const flushOnUnload = () => flushGeometry();
     window.addEventListener("beforeunload", flushOnUnload);
     return () => {
       cancelled = true;
       unlistenMove?.();
+      unlistenResize?.();
       if (moveTimer.current) clearTimeout(moveTimer.current);
       window.removeEventListener("beforeunload", flushOnUnload);
     };
-  }, [flushPosition]);
+  }, [flushGeometry, scheduleGeometryFlush]);
 
   // 实测内容自然高度：不手抄子区域像素常量，CSS 怎么改都不会和窗口尺寸错位。
   // list.offsetTop 已含 shell padding-top + 抬头 + QuickAdd（含其 margin）；
   // inner.offsetHeight 是条目流的真实高度（标题换 2 行时会变长）。
+  //
+  // 同一次测量顺带判定是否需要滚动：不能再拿自然高度和 MAX 常量比 ——
+  // manual 模式下窗口高度是用户定的，和那个常量没有关系。
+  // 因此 observe 的是 inner（内容高度）和 list（视口高度）两者。
+  // 这里不会来回抖：滚动条槽位由 CSS 恒定预留（scrollbar-gutter: stable），
+  // is-scrollable 的切换不改变内容盒宽度，也就不会反过来影响内容高度。
   useEffect(() => {
     const shell = shellRef.current;
     const list = listRef.current;
@@ -227,19 +315,24 @@ export function WidgetApp() {
       setNaturalHeight((previous) =>
         Math.abs(previous - next) < 1 ? previous : next,
       );
+      setScrollable(inner.offsetHeight > list.clientHeight + 1);
     };
     measure();
     // observe() 首次注册即回调一次，初始尺寸不依赖 effect 执行顺序
     const observer = new ResizeObserver(measure);
     observer.observe(inner);
+    observer.observe(list);
     return () => observer.disconnect();
   }, [tasks.length, adding, failed]);
 
-  // 按实测高度重设窗口；固定底边，避免向下扩出屏幕
+  // 按实测高度重设窗口；固定底边，避免向下扩出屏幕。
+  // manual 模式（用户拖过手柄）下完全不介入，否则任何内容变化都会把手动尺寸吃掉。
   useEffect(() => {
     if (!isTauri()) return;
     // 关闭动效中不再调整高度，避免与 .is-closing 动画打架
     if (closing || naturalHeight === 0) return;
+    // null = 设置还没读出来，先别动；manual = 尺寸归用户
+    if (sizeMode !== "auto") return;
     const targetHeight = clampWidgetHeight(naturalHeight);
     let cancelled = false;
     void (async () => {
@@ -252,10 +345,16 @@ export function WidgetApp() {
         ]);
         if (cancelled) return;
         const currentHeightLogical = size.height / scale;
-        if (Math.abs(currentHeightLogical - targetHeight) < 1) return;
+        // 宽度必须沿用当前实际值，不能写回常量：否则用户横向拉宽后，
+        // 任何一次内容变化都会把宽度按回默认值。clamp 只用于自愈越界存档。
+        const targetWidth = clampWidgetWidth(size.width / scale);
+        const widthChanged = Math.abs(targetWidth - size.width / scale) >= 1;
+        if (Math.abs(currentHeightLogical - targetHeight) < 1 && !widthChanged) {
+          return;
+        }
         const bottomY = pos.y / scale + currentHeightLogical;
         const newY = Math.max(0, bottomY - targetHeight);
-        await win.setSize(new LogicalSize(WIDGET_WIDTH, targetHeight));
+        await win.setSize(new LogicalSize(targetWidth, targetHeight));
         await win.setPosition(new LogicalPosition(pos.x / scale, newY));
       } catch {
         // 窗口尚未就绪 / IPC 失败时静默
@@ -264,7 +363,7 @@ export function WidgetApp() {
     return () => {
       cancelled = true;
     };
-  }, [naturalHeight, closing]);
+  }, [naturalHeight, closing, sizeMode]);
 
   /**
    * 关闭：播淡出动效（opacity → 0 + 上移 + 缩放 0.95），
@@ -363,8 +462,6 @@ export function WidgetApp() {
     notifyTasksChanged("widget");
   }
 
-  const scrollable = widgetListNeedsScroll(naturalHeight);
-
   return (
     <div
       ref={stageRef}
@@ -372,6 +469,7 @@ export function WidgetApp() {
       data-tauri-drag-region="deep"
     >
       <WidgetPinTop />
+      <WidgetResizeHandles onResizeStart={handleResizeStart} />
       <div className="widget-shell" ref={shellRef}>
         <WidgetTitleBar
           onAdd={() => setAdding((value) => !value)}

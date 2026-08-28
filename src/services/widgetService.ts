@@ -20,6 +20,13 @@ export interface WidgetSettings {
   enabled: boolean;
   x: number | null;
   y: number | null;
+  /**
+   * 窗口逻辑宽高。**只在用户手动拉伸过之后才有值**，跟随内容自适应期间恒为 null。
+   * 因此「有 h 就是用户定过尺寸」，尺寸模式由此派生，不再单独存一个字段
+   * （两个字段各存一份状态迟早会不一致）。
+   */
+  w: number | null;
+  h: number | null;
   /** null = 跟随今天；"YYYY-MM-DD" = 锚定日期 */
   anchorDate: string | null;
 }
@@ -30,6 +37,8 @@ const defaultWidgetSettings: WidgetSettings = {
   enabled: false,
   x: null,
   y: null,
+  w: null,
+  h: null,
   anchorDate: null,
 };
 
@@ -42,6 +51,8 @@ export async function getWidgetSettings(): Promise<WidgetSettings> {
       enabled: parsed.enabled === true,
       x: typeof parsed.x === "number" ? parsed.x : null,
       y: typeof parsed.y === "number" ? parsed.y : null,
+      w: typeof parsed.w === "number" ? parsed.w : null,
+      h: typeof parsed.h === "number" ? parsed.h : null,
       anchorDate: typeof parsed.anchorDate === "string" ? parsed.anchorDate : null,
     };
   } catch {

@@ -79,6 +79,96 @@ html.widget-entry body {
   );
 }
 
+/* === 八向拉伸热区 ===
+   透明覆盖层，盖在纸面边缘上。不能改成「窗口比纸大一圈、外圈留给 resize」——
+   见文件顶部约束：纸面必须覆盖窗口每一个像素，透明外边距在 Windows Release
+   下可能被合成成白色。
+   每个热区都带 data-tauri-drag-region="false"（见 WidgetResizeHandles.tsx）：
+   .widget-stage 是 "deep" 拖拽区，不显式排除的话按下热区会拖窗口而不是调大小。
+   z-index 高于 .widget-shell(auto) 与 .widget-pin-top(10)。 */
+
+.widget-resize-handle {
+  position: absolute;
+  z-index: 20;
+  background: transparent;
+  transition: background-color var(--motion-micro) var(--ease-standard);
+}
+
+.widget-resize-handle:hover {
+  background: rgba(107, 74, 30, 0.07);
+}
+
+.widget-resize-n,
+.widget-resize-s {
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.widget-resize-n {
+  top: 0;
+}
+
+.widget-resize-s {
+  bottom: 0;
+}
+
+.widget-resize-w,
+.widget-resize-e {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.widget-resize-w {
+  left: 0;
+}
+
+.widget-resize-e {
+  right: 0;
+}
+
+/* 四角在 DOM 里排在四边之后，天然盖住边热区的端点 */
+.widget-resize-nw,
+.widget-resize-ne,
+.widget-resize-sw,
+.widget-resize-se {
+  width: 14px;
+  height: 14px;
+}
+
+.widget-resize-nw,
+.widget-resize-se {
+  cursor: nwse-resize;
+}
+
+.widget-resize-ne,
+.widget-resize-sw {
+  cursor: nesw-resize;
+}
+
+.widget-resize-nw {
+  top: 0;
+  left: 0;
+}
+
+.widget-resize-ne {
+  top: 0;
+  right: 0;
+}
+
+.widget-resize-sw {
+  bottom: 0;
+  left: 0;
+}
+
+.widget-resize-se {
+  bottom: 0;
+  right: 0;
+}
+
 /* === 便签纸本体 === */
 
 .widget-shell {
@@ -392,29 +482,35 @@ html.widget-entry body {
 .widget-list {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  /* 恒定为滚动容器 + 恒定预留滚动条槽位。这不是美化，是防振荡：
+     滚动条一出现就挤窄内容 → 文字多换一行 → 内容更高 → 更需要滚动。
+     `WidgetApp` 的滚动判定是 DOM 实测的（inner.offsetHeight > list.clientHeight），
+     所以内容盒宽度必须在「有无滚动条」两种状态下完全一致，否则测量会来回抖。
+     代价是窄栏永久少一个滚动条槽位的宽度（实测 10px —— scrollbar-width: thin
+     的平台宽度优先于下面 ::-webkit-scrollbar 的 6px）。 */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 74, 30, 0.25) transparent;
 }
 
 .widget-list-inner {
   display: block;
 }
 
-.widget-list.is-scrollable {
-  overflow-y: auto;
-  padding-right: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(107, 74, 30, 0.25) transparent;
-}
+/* .is-scrollable 现在只是语义标记：滚动行为已由上面恒定的 overflow-y 提供，
+   这个类的实际职责是让 WidgetApp 挂 data-tauri-drag-region="false"
+   （否则抓 6px 细滚动条会变成拖窗口）。 */
 
-.widget-list.is-scrollable::-webkit-scrollbar {
+.widget-list::-webkit-scrollbar {
   width: 6px;
 }
 
-.widget-list.is-scrollable::-webkit-scrollbar-track {
+.widget-list::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.widget-list.is-scrollable::-webkit-scrollbar-thumb {
+.widget-list::-webkit-scrollbar-thumb {
   background: rgba(107, 74, 30, 0.25);
   border-radius: 3px;
 }
