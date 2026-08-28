@@ -58,8 +58,7 @@
   line-height: 17px;
 }
 
-.board-dot,
-.list-dot {
+.board-dot {
   display: inline-block;
   width: 9px;
   height: 9px;

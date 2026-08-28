@@ -14,18 +14,14 @@
   --text-primary: #f8fafc;
   --text-secondary: #c4cbd7;
   --text-muted: #8f9aab;
-  /* 次要 icon 用色，比 --text-muted 略亮，确保关闭 / 箭头 / 占位符可识别 */
-  --icon-faint: #9ba3b3;
   --accent: #7c8cff;
   --accent-hover: #aab6ff;
   --accent-bg: rgba(124, 140, 255, 0.18);
   --accent-border: rgba(124, 140, 255, 0.62);
-  --accent-badge-bg: rgba(124, 140, 255, 0.24);
   --red: #ff7373;
   --amber: #f5c84c;
   --blue: #4fc3f7;
   --green: #5ee19a;
-  --yellow: #f6d64d;
   --on-accent: #ffffff;
   --on-danger: #ffffff;
   --on-success: #ffffff;
@@ -36,8 +32,9 @@
   --highlight-bg: rgba(245, 200, 76, 0.24);
   --overlay-bg: rgba(9, 10, 14, 0.78);
   --scrollbar-thumb: rgba(124, 140, 255, 0.5);
-  --detail-shadow: -16px 0 36px rgba(0, 0, 0, 0.38);
   --shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 28px rgba(0, 0, 0, 0.34);
+  --shadow-md:
+    0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px rgba(0, 0, 0, 0.4);
   --shadow-lift:
     0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 42px rgba(0, 0, 0, 0.42);
   --shadow-floating:
@@ -53,7 +50,6 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --transition: var(--motion-base) var(--ease-standard);
   /* UI 字体栈：便签的 --font-note 在它前面接手写体家族（见 widget.css），
      所以这里必须是变量而不是 :root 上的裸声明，否则两处列表会各自漂移 */
   --font-ui:
@@ -87,18 +83,14 @@
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
-  /* 次要 icon 用色，比 --text-muted 略深，确保浅色背景下关闭 / 箭头可识别 */
-  --icon-faint: #64748b;
   --accent: #4f46e5;
   --accent-hover: #6366f1;
   --accent-bg: rgba(79, 70, 229, 0.08);
   --accent-border: rgba(79, 70, 229, 0.48);
-  --accent-badge-bg: rgba(79, 70, 229, 0.15);
   --red: #ef4444;
   --amber: #d97706;
   --blue: #0284c7;
   --green: #16a34a;
-  --yellow: #ca8a04;
   --on-accent: #ffffff;
   --on-danger: #ffffff;
   --on-success: #ffffff;
@@ -109,8 +101,9 @@
   --highlight-bg: rgba(217, 119, 6, 0.18);
   --overlay-bg: rgba(15, 23, 42, 0.45);
   --scrollbar-thumb: rgba(79, 70, 229, 0.32);
-  --detail-shadow: -12px 0 28px rgba(15, 23, 42, 0.08);
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.07);
+  --shadow-md:
+    0 2px 5px rgba(15, 23, 42, 0.05), 0 10px 26px rgba(15, 23, 42, 0.09);
   --shadow-lift:
     0 4px 6px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.1);
   --shadow-floating:

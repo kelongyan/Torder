@@ -29,8 +29,6 @@ export function useToast() {
           id,
           type,
           message,
-          actionLabel: actions[0]?.label,
-          onAction: actions[0]?.onClick,
           actions,
         },
       ]);

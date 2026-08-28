@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
 import { Cloud, RefreshCw, ShieldCheck } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
+import { usePresence } from "../../hooks/usePresence";
 import {
   cleanupSyncHistory,
   exportSyncDiagnostics,
@@ -77,6 +78,12 @@ export function SettingsSyncSection({
   const [syncBusy, setSyncBusy] = useState<
     "test" | "save" | "run" | "remove" | "rotate" | null
   >(null);
+
+  // 确认浮层统一走 usePresence（rendered + phase），避免裸条件渲染缺失退场动画
+  const syncRemovalPresence = usePresence(pendingSyncRemoval, 280);
+  const deviceRevokePresence = usePresence(pendingDeviceRevoke, 280);
+  const syncRotationPresence = usePresence(pendingSyncRotation, 280);
+  const syncCleanupPresence = usePresence(pendingSyncCleanup, 280);
 
   const applySyncStatus = useCallback(
     (status: SyncStatus, syncForm = false) => {
@@ -1229,8 +1236,10 @@ export function SettingsSyncSection({
         )}
       </section>
 
-      {pendingSyncRemoval && (
-        <div className="dialog-overlay restore-confirm-overlay">
+      {syncRemovalPresence.rendered && (
+        <div
+          className={`dialog-overlay restore-confirm-overlay ${syncRemovalPresence.className}`}
+        >
           <div
             className="restore-confirm-card"
             role="alertdialog"
@@ -1259,8 +1268,10 @@ export function SettingsSyncSection({
           </div>
         </div>
       )}
-      {pendingDeviceRevoke && (
-        <div className="dialog-overlay restore-confirm-overlay">
+      {deviceRevokePresence.rendered && deviceRevokePresence.value && (
+        <div
+          className={`dialog-overlay restore-confirm-overlay ${deviceRevokePresence.className}`}
+        >
           <div
             className="restore-confirm-card"
             role="alertdialog"
@@ -1268,7 +1279,8 @@ export function SettingsSyncSection({
           >
             <h3>确认撤销设备?</h3>
             <p>
-              撤销 <strong>{pendingDeviceRevoke.name}</strong> 后不能继续同步。
+              撤销 <strong>{deviceRevokePresence.value.name}</strong>{" "}
+              后不能继续同步。
             </p>
             <div className="settings-row">
               <button
@@ -1291,8 +1303,10 @@ export function SettingsSyncSection({
           </div>
         </div>
       )}
-      {pendingSyncRotation && (
-        <div className="dialog-overlay restore-confirm-overlay">
+      {syncRotationPresence.rendered && (
+        <div
+          className={`dialog-overlay restore-confirm-overlay ${syncRotationPresence.className}`}
+        >
           <div
             className="restore-confirm-card"
             role="alertdialog"
@@ -1353,8 +1367,10 @@ export function SettingsSyncSection({
           </div>
         </div>
       )}
-      {pendingSyncCleanup && (
-        <div className="dialog-overlay restore-confirm-overlay">
+      {syncCleanupPresence.rendered && (
+        <div
+          className={`dialog-overlay restore-confirm-overlay ${syncCleanupPresence.className}`}
+        >
           <div
             className="restore-confirm-card"
             role="alertdialog"

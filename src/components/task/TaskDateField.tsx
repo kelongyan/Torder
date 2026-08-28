@@ -13,7 +13,7 @@ export function TaskDateField({
   const displayValue = formatTaskScheduleDate(value) ?? "未安排";
 
   return (
-    <div className="form-field task-date-field">
+    <div className="form-field">
       <span>{label}</span>
       <div className={`task-date-control ${value ? "has-value" : ""}`}>
         <CalendarDays aria-hidden="true" className="icon-sm" />

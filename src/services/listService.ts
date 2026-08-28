@@ -17,11 +17,15 @@ export interface UpdateListInput {
 
 // 双模式共用的清单快照：浏览器模式下是唯一数据源，
 // Tauri 模式下由 IPC 结果同步，供本地派生查询解析 `l:<清单名>`。
-let listsSnapshot: TaskList[] = [
-  defaultList("work", "工作", defaultListColors.work, 0),
-  defaultList("personal", "个人", defaultListColors.personal, 1),
-  defaultList("study", "学习", defaultListColors.study, 2),
-];
+// Tauri 模式初始置空：首次 listLists() 返回前，`l:` 解析宁可无结果，
+// 也不能用一份可能与真实数据不符的预置清单集；浏览器 mock 模式保留三个预置清单。
+let listsSnapshot: TaskList[] = isTauri()
+  ? []
+  : [
+      defaultList("work", "工作", defaultListColors.work, 0),
+      defaultList("personal", "个人", defaultListColors.personal, 1),
+      defaultList("study", "学习", defaultListColors.study, 2),
+    ];
 
 export function listLists(): Promise<TaskList[]> {
   if (!isTauri()) {
@@ -33,7 +37,7 @@ export function listLists(): Promise<TaskList[]> {
   });
 }
 
-export function createList(input: CreateListInput): Promise<TaskList> {
+export async function createList(input: CreateListInput): Promise<TaskList> {
   if (!isTauri()) {
     const name = validateBrowserName(input.name);
     ensureBrowserNameAvailable(name);
@@ -42,7 +46,8 @@ export function createList(input: CreateListInput): Promise<TaskList> {
       id: `list-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       name,
       color: input.color ?? DEFAULT_LIST_COLOR,
-      sortOrder: input.sortOrder ?? listsSnapshot.length,
+      // 默认排到末尾（与 Rust 侧 create 的默认值一致），而不是依赖数组长度。
+      sortOrder: input.sortOrder ?? nextListSortOrder(),
       isDefault: false,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -57,7 +62,7 @@ export function createList(input: CreateListInput): Promise<TaskList> {
   });
 }
 
-export function updateList(input: UpdateListInput): Promise<TaskList> {
+export async function updateList(input: UpdateListInput): Promise<TaskList> {
   if (!isTauri()) {
     const index = listsSnapshot.findIndex((list) => list.id === input.id);
     if (index < 0) return Promise.reject(new Error("清单不存在"));
@@ -145,4 +150,11 @@ function compareLists(left: TaskList, right: TaskList): number {
   if (left.sortOrder !== right.sortOrder)
     return left.sortOrder - right.sortOrder;
   return left.createdAt.localeCompare(right.createdAt);
+}
+
+/** 新建清单的默认位置：排在现有清单末尾（最大 sortOrder + 1）。 */
+function nextListSortOrder(): number {
+  return (
+    listsSnapshot.reduce((max, list) => Math.max(max, list.sortOrder), -1) + 1
+  );
 }

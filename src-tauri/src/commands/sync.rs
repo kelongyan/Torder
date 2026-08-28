@@ -198,6 +198,7 @@ pub async fn test_sync_connection(
 #[allow(clippy::too_many_arguments)]
 pub async fn save_sync_config(
     database: State<'_, Database>,
+    runtime: State<'_, crate::sync::SyncRuntime>,
     server_url: String,
     remote_path: String,
     username: Option<String>,
@@ -208,6 +209,7 @@ pub async fn save_sync_config(
     confirm_remote: bool,
 ) -> Result<SyncStatus, String> {
     service::save_sync_config(
+        &runtime,
         &database,
         server_url,
         remote_path,

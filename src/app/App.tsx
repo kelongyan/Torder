@@ -159,6 +159,12 @@ function App() {
     closeDialogs,
   } = dialog;
 
+  // 稳定引用：useAppDataLoaders 的两个 [onError] effect 依赖它，内联箭头会导致每次渲染全量重拉
+  const handleDataLoadError = useCallback(
+    (nextError: string) => setAppError(nextError),
+    [],
+  );
+
   const {
     calendarEvents,
     setCalendarEvents,
@@ -166,7 +172,7 @@ function App() {
     setRecurringRules,
     recurringLoading,
     loadRecurringRules,
-  } = useAppDataLoaders((nextError) => setAppError(nextError));
+  } = useAppDataLoaders(handleDataLoadError);
 
   const { toasts, pushToast } = useToast();
   const mobile = isMobile();
@@ -379,6 +385,18 @@ function App() {
       window.removeEventListener("focus", rederive);
     };
   }, []);
+  // 稳定引用：useTrayQuickAdd / useKeyboardShortcuts 依赖它，每次渲染新建会重复订阅 IPC
+  const openTaskCreateDialog = useCallback(
+    (scheduledDate = "") => {
+      setCreateScheduledDate(scheduledDate);
+      openCreateDialog();
+    },
+    [openCreateDialog],
+  );
+  const handleOpenShortcuts = useCallback(
+    () => setShortcutsOpen(true),
+    [setShortcutsOpen],
+  );
   useTrayQuickAdd(openTaskCreateDialog, setAppError);
   useSyncLifecycle({
     setLists,
@@ -436,18 +454,13 @@ function App() {
   );
   useTaskReminder(handleReminder);
   useKeyboardShortcuts({
-    onOpenCreateDialog: () => openTaskCreateDialog(),
-    onOpenShortcuts: () => setShortcutsOpen(true),
+    onOpenCreateDialog: openTaskCreateDialog,
+    onOpenShortcuts: handleOpenShortcuts,
     onToggleBatchMode: toggleBatchMode,
     onEscape: closeEverything,
   });
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
-
-  function openTaskCreateDialog(scheduledDate = "") {
-    setCreateScheduledDate(scheduledDate);
-    openCreateDialog();
-  }
 
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查
@@ -490,6 +503,9 @@ function App() {
       await createList({
         name: data.name,
         color: data.color,
+        // 显式传末尾位置，保证两种模式下新清单排序行为一致。
+        sortOrder:
+          lists.reduce((max, list) => Math.max(max, list.sortOrder), -1) + 1,
       });
       pushToast("自定义清单已创建", "success");
     }

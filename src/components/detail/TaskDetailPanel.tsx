@@ -431,6 +431,7 @@ function TaskDetailContent({
                   void patchAndSave({
                     scheduledDate: scheduledDate || null,
                   });
+                  setEditing(null);
                 }}
               />
             </div>
@@ -459,6 +460,7 @@ function TaskDetailContent({
                 value={task.dueAt ? toDateTimeLocal(task.dueAt) : ""}
                 onChange={(dueAt) => {
                   void patchAndSave({ dueAt: fromDateTimeLocal(dueAt) });
+                  setEditing(null);
                 }}
               />
             </div>

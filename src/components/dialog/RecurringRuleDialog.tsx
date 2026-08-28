@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Repeat2 } from "lucide-react";
 import { fromDateTimeLocal } from "../../utils/taskDates";
+import { normalizeError } from "../../utils/normalizeError";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type {
   CreateRecurringRuleInput,
@@ -44,10 +45,12 @@ export function RecurringRuleDialog({
   );
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     if (submitting) return;
     setTouched(true);
+    setError(null);
     const firstDueAt = fromDateTimeLocal(draft.dueAt);
     if (!draft.title.trim() || !draft.recurrenceFrequency || !firstDueAt)
       return;
@@ -77,12 +80,16 @@ export function RecurringRuleDialog({
     if (rule) {
       try {
         await onUpdate({ id: rule.id, ...common });
+      } catch (submitError) {
+        setError(normalizeError(submitError));
       } finally {
         setSubmitting(false);
       }
     } else {
       try {
         await onCreate({ sourceTaskId: sourceTask?.id ?? null, ...common });
+      } catch (submitError) {
+        setError(normalizeError(submitError));
       } finally {
         setSubmitting(false);
       }
@@ -98,7 +105,7 @@ export function RecurringRuleDialog({
       presence={presence}
       onClose={onClose}
       width="680px"
-      overlayClassName="recurring-rule-dialog"
+      overlayClassName="recurring-rule-dialog form-dialog"
     >
       <form
         className="dialog-form recurring-rule-form"
@@ -107,6 +114,7 @@ export function RecurringRuleDialog({
           void submit();
         }}
       >
+        {error && <div className="dialog-error-msg">{error}</div>}
         <TaskFormFields
           draft={draft}
           lists={lists}
@@ -142,7 +150,8 @@ function buildInitialDraft(
   const recurrenceFrequency: RecurrenceFrequency =
     legacyFrequency === "daily" ||
     legacyFrequency === "weekly" ||
-    legacyFrequency === "monthly"
+    legacyFrequency === "monthly" ||
+    legacyFrequency === "quarterly"
       ? legacyFrequency
       : "weekly";
   const due = new Date(draft.dueAt || Date.now());

@@ -223,6 +223,9 @@ impl<'database> TaskRepository<'database> {
     /// 桌面小窗专用查询：只返回指定日期对应的任务。
     /// 配合前端的 `taskPlanDateKey === dateKey` 过滤，少量行直接消费，
     /// 避免通用 query 在 view="all" 时拉全表的浪费。
+    /// 排序语义与前端 `taskService.ts::compareWidgetTasks` 保持一致：
+    /// 有日期（`scheduled_date` 或 `date(due_at)`）的任务在前、按日期升序，
+    /// 无日期的在后；同组内 priority DESC，最后 created_at DESC。
     pub fn query_for_widget(
         &self,
         date_key: &str,
@@ -242,7 +245,11 @@ impl<'database> TaskRepository<'database> {
             clauses.push("t.status != 'done'".to_owned());
         }
         let sql = format!(
-            "{} WHERE {} ORDER BY t.priority DESC, t.due_at ASC, t.created_at DESC",
+            "{} WHERE {} ORDER BY \
+                CASE WHEN COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) IS NULL THEN 1 ELSE 0 END ASC, \
+                COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) ASC, \
+                t.priority DESC, \
+                t.created_at DESC",
             select_tasks_aliased(),
             clauses.join(" AND "),
         );

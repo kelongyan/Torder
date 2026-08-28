@@ -118,7 +118,7 @@ export function WeekCalendar({
           </div>
           <button
             type="button"
-            className="btn-primary month-add-event"
+            className="btn-primary"
             onClick={() => onCreateEvent(todayKey)}
           >
             <CalendarDays aria-hidden="true" className="icon-sm" />

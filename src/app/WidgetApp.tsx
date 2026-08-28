@@ -18,12 +18,12 @@ import {
   queryTasksForDate,
   setTaskCompleted,
 } from "../services/taskService";
-import { localDateKey, shiftDateKey } from "../services/taskQuery";
+import { localDateKey, shiftDateKey, taskPlanDateKey } from "../services/taskQuery";
 import {
   getWidgetSettings,
   notifyTasksChanged,
   openTaskInMainWindow,
-  saveWidgetSettings,
+  patchWidgetSettings,
   type TasksChangedPayload,
   type WidgetSettings,
 } from "../services/widgetService";
@@ -61,9 +61,9 @@ export function WidgetApp() {
     size: { width: number; height: number } | null;
   }>({ position: null, size: null });
   /**
-   * 设置写入串行化。`saveWidgetSettings` 是「读整条 JSON → 合并 → 写回」，
-   * 并发调用会互相覆盖字段；而拖上边缘会同时触发 onMoved + onResized，
-   * 所以必须排队而不是并发。
+   * 设置写入串行化。字段合并本身已由 Rust `patch_widget_settings` 单点完成，
+   * 跨窗口不再互相吞字段；但拖上边缘会同时触发 onMoved + onResized，
+   * 写请求仍需排队保证顺序（例如锚点写不能插进几何落盘中间）。
    */
   const writeChain = useRef<Promise<unknown>>(Promise.resolve());
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -123,7 +123,7 @@ export function WidgetApp() {
         patch.w = Math.round(pending.size.width / scale);
         patch.h = Math.round(pending.size.height / scale);
       }
-      await saveWidgetSettings(patch);
+      await patchWidgetSettings(patch);
     });
   }, [enqueueSettings]);
 
@@ -415,7 +415,8 @@ export function WidgetApp() {
     if (target !== displayedDateKeyRef.current) {
       void refreshDate(target);
     }
-    void saveWidgetSettings({ anchorDate: normalized }).catch(() => undefined);
+    // 落盘走串行队列，不与几何防抖写并发交错
+    enqueueSettings(() => patchWidgetSettings({ anchorDate: normalized }));
   }
 
   async function handleToggle(task: Task) {
@@ -448,17 +449,24 @@ export function WidgetApp() {
 
   async function handleCreate(input: CreateTaskInput) {
     const created = await createTask(input);
-    setTasks((previous) => {
-      // 过滤掉可能已存在的同 id 行（重拉兜底场景），再插入新行
-      const without = previous.filter((row) => row.id !== created.id);
-      return [...without, created].sort((a, b) => {
-        if (a.priority !== b.priority) return b.priority - a.priority;
-        const aTime = a.dueAt ?? "";
-        const bTime = b.dueAt ?? "";
-        if (aTime !== bTime) return aTime.localeCompare(bTime);
-        return b.createdAt.localeCompare(a.createdAt);
+    // 快速添加支持"明天/周X"，新任务可能落在别的日期：
+    // 只有落在当前显示日期才本地插入，否则不能混进当前列表，
+    // 改为对显示日期做一次权威重拉兜底
+    if (taskPlanDateKey(created) === displayedDateKeyRef.current) {
+      setTasks((previous) => {
+        // 过滤掉可能已存在的同 id 行（重拉兜底场景），再插入新行
+        const without = previous.filter((row) => row.id !== created.id);
+        return [...without, created].sort((a, b) => {
+          if (a.priority !== b.priority) return b.priority - a.priority;
+          const aTime = a.dueAt ?? "";
+          const bTime = b.dueAt ?? "";
+          if (aTime !== bTime) return aTime.localeCompare(bTime);
+          return b.createdAt.localeCompare(a.createdAt);
+        });
       });
-    });
+    } else {
+      void refreshDate(displayedDateKeyRef.current);
+    }
     notifyTasksChanged("widget");
   }
 

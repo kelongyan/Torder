@@ -95,7 +95,11 @@
   }
 }
 
-.select-panel.is-exiting {
+/* 浮层退场通用态：以下浮面板的 .is-exiting 规则体完全相同，
+   统一在此定义（审计 #53），各自文件不再重复 */
+.select-panel.is-exiting,
+.detail-more-menu.is-exiting,
+.view-menu.is-exiting {
   opacity: 0;
   transform: translateY(-4px) scale(0.985);
   pointer-events: none;

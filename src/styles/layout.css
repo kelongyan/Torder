@@ -895,12 +895,6 @@
   }
 }
 
-.view-menu.is-exiting {
-  opacity: 0;
-  transform: translateY(-4px) scale(0.985);
-  pointer-events: none;
-}
-
 .menu-layout-section {
   display: none;
 }

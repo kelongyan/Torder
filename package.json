@@ -10,7 +10,6 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview": "vite preview",
     "configure:android-tls": "node scripts/configure-android-tls.mjs",
     "sync:android-icons": "node scripts/sync-android-icons.mjs",
     "tauri": "tauri"

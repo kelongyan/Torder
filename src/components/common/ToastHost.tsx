@@ -18,12 +18,7 @@ export function ToastHost({ toasts }: { toasts: ToastMessage[] }) {
           >
             <Icon aria-hidden="true" className="icon-sm" />
             <span>{toast.message}</span>
-            {(toast.actions?.length
-              ? toast.actions
-              : toast.actionLabel && toast.onAction
-                ? [{ label: toast.actionLabel, onClick: toast.onAction }]
-                : []
-            ).map((action) => (
+            {toast.actions.map((action) => (
               <button
                 key={action.label}
                 type="button"

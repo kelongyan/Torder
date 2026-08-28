@@ -388,23 +388,6 @@
   padding: 14px 12px 22px;
 }
 
-.window-frame.mobile .quick-add-inline {
-  margin-bottom: 16px;
-  border-radius: var(--radius);
-}
-
-.window-frame.mobile .quick-add-input-row {
-  gap: 10px;
-}
-
-.window-frame.mobile .quick-add-input-row input {
-  font-size: 14px;
-}
-
-.window-frame.mobile .quick-add kbd {
-  display: none;
-}
-
 .window-frame.mobile .empty-state {
   min-height: clamp(220px, 46vh, 340px);
   gap: 10px;
@@ -442,7 +425,7 @@
 }
 
 .window-frame.mobile .dialog-footer,
-.window-frame.mobile .detail-footer {
+.window-frame.mobile .detail-dialog-footer {
   flex-wrap: wrap;
 }
 
@@ -882,15 +865,6 @@
     padding: 14px 12px 22px;
   }
 
-  .quick-add-inline {
-    margin-bottom: 16px;
-    border-radius: var(--radius);
-  }
-
-  .quick-add kbd {
-    display: none;
-  }
-
   .empty-state {
     min-height: clamp(220px, 46vh, 340px);
     gap: 10px;
@@ -928,7 +902,7 @@
   }
 
   .dialog-footer,
-  .detail-footer {
+  .detail-dialog-footer {
     flex-wrap: wrap;
   }
 }
@@ -990,122 +964,11 @@
   .window-frame.mobile .content-panel {
     padding: 12px 10px 20px;
   }
-
-  .quick-add-inline,
-  .window-frame.mobile .quick-add-inline {
-    padding: 8px 11px;
-  }
 }
 
 /* 移动端首页密度优化：减少快速新建和任务行的纵向占用，保留触控可用性。 */
 .window-frame.mobile .content-panel {
   padding: 12px 10px 18px;
-}
-
-.window-frame.mobile .quick-add-inline {
-  margin-bottom: 8px;
-  border-radius: var(--radius-sm);
-  padding: 7px 10px;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-}
-
-.window-frame.mobile .quick-add-inline.is-expanded {
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-  padding: 8px 10px 9px;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.window-frame.mobile .quick-add-input-row {
-  min-height: 26px;
-  gap: 8px;
-}
-
-.window-frame.mobile .quick-add-input-row .add-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.window-frame.mobile .quick-add-input-row input {
-  font-size: 13px;
-  line-height: 19px;
-}
-
-.window-frame.mobile .quick-add-more {
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
-}
-
-.window-frame.mobile .quick-add-more svg {
-  width: 15px;
-  height: 15px;
-}
-
-.window-frame.mobile .quick-add-chips-row {
-  display: flex;
-  grid-template-columns: none;
-  flex-wrap: nowrap;
-  gap: 6px;
-  align-items: center;
-  margin-top: 6px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  padding-left: 24px;
-  scrollbar-width: none;
-}
-
-.window-frame.mobile .quick-add-chips-row::-webkit-scrollbar {
-  display: none;
-}
-
-.window-frame.mobile .quick-add-date-wrap,
-.window-frame.mobile .quick-add-select {
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-.window-frame.mobile .quick-add-select {
-  width: 118px;
-  max-width: none;
-}
-
-.window-frame.mobile .quick-add-chip,
-.window-frame.mobile .quick-add-list-select .select-trigger,
-.window-frame.mobile .quick-add-remind-select .select-trigger {
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-}
-
-.window-frame.mobile .quick-add-chip {
-  gap: 5px;
-}
-
-.window-frame.mobile .quick-add-chip .chip-icon {
-  width: 12px;
-  height: 12px;
-}
-
-.window-frame.mobile .quick-add-chips-row .segmented-control {
-  width: 124px;
-  flex: 0 0 124px;
-  padding: 2px;
-}
-
-.window-frame.mobile .quick-add-chips-row .segmented-option {
-  min-height: 28px;
-  gap: 4px;
-  padding: 0 6px;
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.window-frame.mobile .quick-add-chips-row .segmented-dot {
-  width: 7px;
-  min-width: 7px;
-  height: 7px;
 }
 
 .window-frame.mobile .section-header {
@@ -1223,112 +1086,6 @@
 @media (max-width: 720px) {
   .content-panel {
     padding: 12px 10px 18px;
-  }
-
-  .quick-add-inline {
-    margin-bottom: 8px;
-    border-radius: var(--radius-sm);
-    padding: 7px 10px;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-  }
-
-  .quick-add-inline.is-expanded {
-    border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-    padding: 8px 10px 9px;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-  }
-
-  .quick-add-input-row {
-    min-height: 26px;
-    gap: 8px;
-  }
-
-  .quick-add-input-row .add-icon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .quick-add-input-row input {
-    font-size: 13px;
-    line-height: 19px;
-  }
-
-  .quick-add-more {
-    width: 26px;
-    min-width: 26px;
-    height: 26px;
-  }
-
-  .quick-add-more svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .quick-add-chips-row {
-    display: flex;
-    grid-template-columns: none;
-    flex-wrap: nowrap;
-    gap: 6px;
-    align-items: center;
-    margin-top: 6px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding-left: 24px;
-    scrollbar-width: none;
-  }
-
-  .quick-add-chips-row::-webkit-scrollbar {
-    display: none;
-  }
-
-  .quick-add-date-wrap,
-  .quick-add-select {
-    flex: 0 0 auto;
-    min-width: 0;
-  }
-
-  .quick-add-select {
-    width: 118px;
-    max-width: none;
-  }
-
-  .quick-add-chip,
-  .quick-add-list-select .select-trigger,
-  .quick-add-remind-select .select-trigger {
-    min-height: 30px;
-    padding: 0 9px;
-    font-size: 12px;
-    line-height: 18px;
-    white-space: nowrap;
-  }
-
-  .quick-add-chip {
-    gap: 5px;
-  }
-
-  .quick-add-chip .chip-icon {
-    width: 12px;
-    height: 12px;
-  }
-
-  .quick-add-chips-row .segmented-control {
-    width: 124px;
-    flex: 0 0 124px;
-    padding: 2px;
-  }
-
-  .quick-add-chips-row .segmented-option {
-    min-height: 28px;
-    gap: 4px;
-    padding: 0 6px;
-    font-size: 12px;
-    line-height: 18px;
-  }
-
-  .quick-add-chips-row .segmented-dot {
-    width: 7px;
-    min-width: 7px;
-    height: 7px;
   }
 
   .section-header {
@@ -1505,7 +1262,6 @@
   .select-panel,
   .detail-more-menu,
   .date-picker-panel,
-  .quick-add-date-panel,
   .detail-dialog,
   .toast,
   .btn-primary,
@@ -1515,10 +1271,222 @@
   .btn-complete,
   .color-picker-dot,
   .date-time-trigger,
-  .quick-add-chip,
   .batch-bar,
   .alert-banner,
   .empty-state {
     transform: none !important;
+  }
+}
+
+/* ===== 所有对话框的窄屏适配（审计 #71 从 settings.css 原样迁入，
+   内容与 settings 无关，属通用对话框移动端适配） ===== */
+@media (max-width: 720px) {
+  .dialog-overlay {
+    display: flex;
+    height: var(--app-viewport-height, 100dvh);
+    align-items: center;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top) + 12px) 14px
+      calc(env(safe-area-inset-bottom) + 12px);
+  }
+
+  .window-frame.mobile .dialog-overlay {
+    inset: var(--app-viewport-offset-top, 0px) 0 auto;
+  }
+
+  .dialog-overlay:focus-within {
+    align-items: center;
+    padding-top: calc(env(safe-area-inset-top) + 12px);
+  }
+
+  .dialog-card {
+    display: flex;
+    width: min(90vw, 380px);
+    max-height: min(82dvh, calc(var(--app-viewport-height, 100dvh) - 28px));
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 15px;
+  }
+
+  .task-create-dialog .dialog-card {
+    overflow: hidden;
+  }
+
+  .dialog-overlay:focus-within .dialog-card {
+    max-height: calc(var(--app-viewport-height, 100dvh) - 28px);
+  }
+
+  .dialog-header {
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .dialog-icon {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+  }
+
+  .dialog-header h2 {
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .dialog-header p {
+    margin-top: 1px;
+    font-size: 11.5px;
+    line-height: 16px;
+  }
+
+  .dialog-header .icon-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .dialog-form,
+  .shortcut-list {
+    min-height: 0;
+    overflow-y: auto;
+    gap: 8px;
+    padding: 10px 12px 0;
+  }
+
+  .form-title-field {
+    gap: 5px;
+  }
+
+  .form-title-field input {
+    min-height: 34px;
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .form-field {
+    gap: 5px;
+  }
+
+  .form-grid .form-field {
+    gap: 5px;
+  }
+
+  .form-field > span {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 17px;
+  }
+
+  .form-field input {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 12.5px;
+    line-height: 18px;
+  }
+
+  .form-field textarea {
+    height: 54px;
+    min-height: 54px;
+    padding: 6px 9px;
+    font-size: 12.5px;
+    line-height: 18px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 8px;
+  }
+
+  .date-time-field,
+  .recurrence-config,
+  .form-grid-full {
+    grid-column: 1 / -1;
+  }
+
+  .date-time-control {
+    grid-template-columns: minmax(0, 1fr) 30px;
+    gap: 5px;
+  }
+
+  .date-time-trigger {
+    min-height: 32px;
+    gap: 6px;
+    padding: 3px 7px;
+  }
+
+  .date-time-trigger .icon-sm {
+    width: 13px;
+    height: 13px;
+  }
+
+  .date-time-trigger strong {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .date-time-trigger small {
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .date-time-clear {
+    min-height: 32px;
+  }
+
+  .dialog-card .select-trigger {
+    min-height: 30px;
+    gap: 5px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .dialog-card .select-option {
+    min-height: 30px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .segmented-control {
+    padding: 2px;
+  }
+
+  .dialog-card .segmented-option {
+    min-height: 24px;
+    gap: 4px;
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .dialog-card .segmented-dot {
+    width: 6px;
+    min-width: 6px;
+    height: 6px;
+  }
+
+  .dialog-footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    margin: 2px -12px 0;
+    background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
+    padding: 8px 12px;
+    backdrop-filter: blur(12px);
+  }
+
+  .dialog-footer .btn-primary,
+  .dialog-footer .btn-secondary,
+  .dialog-footer .btn-danger,
+  .dialog-footer .btn-danger-solid {
+    width: 100%;
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 12.5px;
+    line-height: 18px;
   }
 }

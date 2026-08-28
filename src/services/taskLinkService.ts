@@ -14,14 +14,16 @@ export function listTaskLinks(taskId: string): Promise<TaskLink[]> {
   return invoke<TaskLink[]>("list_task_links", { taskId });
 }
 
-export function createTaskLink(input: CreateTaskLinkInput): Promise<TaskLink> {
+export async function createTaskLink(
+  input: CreateTaskLinkInput,
+): Promise<TaskLink> {
   if (!isTauri()) {
     return Promise.resolve(createBrowserTaskLink(input));
   }
   return invoke<TaskLink>("create_task_link", { input });
 }
 
-export function deleteTaskLink(id: string): Promise<void> {
+export async function deleteTaskLink(id: string): Promise<void> {
   if (!isTauri()) {
     deleteBrowserTaskLink(id);
     return Promise.resolve();

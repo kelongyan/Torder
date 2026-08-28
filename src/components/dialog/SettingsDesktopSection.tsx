@@ -4,7 +4,7 @@ import { Monitor } from "lucide-react";
 import { getSetting } from "../../services/settingsService";
 import {
   getWidgetSettings,
-  saveWidgetSettings,
+  patchWidgetSettings,
 } from "../../services/widgetService";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
@@ -56,13 +56,13 @@ export function SettingsDesktopSection({
     if (busy) return;
     setBusy(true);
     try {
-      await saveWidgetSettings({ enabled });
+      await patchWidgetSettings({ enabled });
       await invoke("set_widget_enabled", { enabled });
       setWidgetEnabled(enabled);
       onToast(enabled ? "桌面小窗已显示" : "桌面小窗已隐藏", "success");
     } catch (error) {
       // 窗口操作失败时回滚设置键，保持开关与实际一致
-      await saveWidgetSettings({ enabled: widgetEnabled }).catch(
+      await patchWidgetSettings({ enabled: widgetEnabled }).catch(
         () => undefined,
       );
       onToast(`桌面小窗设置失败: ${String(error)}`, "error");

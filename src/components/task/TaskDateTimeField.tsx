@@ -6,7 +6,12 @@ import {
   Clock3,
   X,
 } from "lucide-react";
-import { toLocalDateTimeValue } from "../../utils/taskDates";
+import {
+  isSameDay,
+  pad,
+  toDateKey,
+  toLocalDateTimeValue,
+} from "../../utils/taskDates";
 import { usePresence } from "../../hooks/usePresence";
 
 const weekdayLabels = ["一", "二", "三", "四", "五", "六", "日"];
@@ -47,7 +52,7 @@ export function TaskDateTimeField({
   }, [open]);
 
   const days = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
-  const selectedKey = value ? getDateKey(selectedDate) : "";
+  const selectedKey = value ? toDateKey(selectedDate) : "";
 
   function togglePicker() {
     if (open) {
@@ -147,7 +152,7 @@ export function TaskDateTimeField({
           role="dialog"
           aria-label={`选择${label}`}
         >
-          <div className="date-picker-calendar">
+          <div>
             <div className="date-picker-toolbar">
               <button
                 type="button"
@@ -288,9 +293,9 @@ function buildMonthGrid(month: Date) {
     date.setDate(gridStart.getDate() + index);
     return {
       date,
-      key: getDateKey(date),
+      key: toDateKey(date),
       inMonth: date.getMonth() === month.getMonth(),
-      isToday: isSameDate(date, new Date()),
+      isToday: isSameDay(date, new Date()),
     };
   });
 }
@@ -307,9 +312,9 @@ function formatDateTimeLabel(value: string): string {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
-  const dateLabel = isSameDate(date, today)
+  const dateLabel = isSameDay(date, today)
     ? "今天"
-    : isSameDate(date, tomorrow)
+    : isSameDay(date, tomorrow)
       ? "明天"
       : `${date.getFullYear()}年${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`;
 
@@ -332,8 +337,8 @@ function formatCompactDateLabel(value: string): string {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-  if (isSameDate(date, today)) return "今天";
-  if (isSameDate(date, tomorrow)) return "明天";
+  if (isSameDay(date, today)) return "今天";
+  if (isSameDay(date, tomorrow)) return "明天";
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
 }
 
@@ -341,24 +346,4 @@ function formatCompactTimeLabel(value: string): string {
   if (!value) return "时间";
   const date = getSafeDate(value);
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function getDateKey(date: Date): string {
-  return [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
-  ].join("-");
-}
-
-function isSameDate(left: Date, right: Date): boolean {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
-}
-
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
 }

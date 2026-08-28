@@ -435,13 +435,6 @@
   margin-top: 5px;
 }
 
-.month-cell-more {
-  padding: 0 6px;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 16px;
-}
-
 .month-legend {
   display: flex;
   align-items: center;

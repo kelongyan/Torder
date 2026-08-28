@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { fromDateTimeLocal } from "../../utils/taskDates";
+import { normalizeError } from "../../utils/normalizeError";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type {
   CreateRecurringRuleInput,
@@ -49,10 +50,12 @@ export function TaskCreateDialog({
   const [attachments, setAttachments] = useState<PendingTaskAttachment[]>([]);
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     if (submitting) return;
     setTouched(true);
+    setError(null);
     if (!draft.title.trim()) return;
     const dueAt = fromDateTimeLocal(draft.dueAt);
     if (draft.recurrenceFrequency) {
@@ -81,6 +84,8 @@ export function TaskCreateDialog({
           remindBefore: draft.remindBefore,
           endAt: fromDateTimeLocal(draft.recurrenceEndAt),
         });
+      } catch (submitError) {
+        setError(normalizeError(submitError));
       } finally {
         setSubmitting(false);
       }
@@ -102,6 +107,8 @@ export function TaskCreateDialog({
         },
         attachments,
       );
+    } catch (submitError) {
+      setError(normalizeError(submitError));
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +121,7 @@ export function TaskCreateDialog({
       presence={presence}
       onClose={onClose}
       width="500px"
-      overlayClassName="task-create-dialog"
+      overlayClassName="task-create-dialog form-dialog"
     >
       <form
         className="dialog-form"
@@ -133,6 +140,7 @@ export function TaskCreateDialog({
           }
         }}
       >
+        {error && <div className="dialog-error-msg">{error}</div>}
         <TaskFormFields
           draft={draft}
           lists={lists}

@@ -41,12 +41,11 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
 
   const parsed = parseSearchQuery(input.query);
   if (parsed.text) {
-    const query = parsed.text.toLocaleLowerCase("zh-CN");
+    // Rust：title LIKE %text% OR COALESCE(note,'') LIKE %text%（分字段，不允许跨字段命中）。
+    const query = foldAsciiCase(parsed.text);
     if (
-      ![task.title, task.note ?? ""]
-        .join("\n")
-        .toLocaleLowerCase("zh-CN")
-        .includes(query)
+      !foldAsciiCase(task.title).includes(query) &&
+      !foldAsciiCase(task.note ?? "").includes(query)
     ) {
       return false;
     }
@@ -55,20 +54,15 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
     return false;
   if (
     parsed.tagName !== null &&
-    !task.tags.some(
-      (tag) =>
-        tag.toLocaleLowerCase("zh-CN") ===
-        parsed.tagName!.toLocaleLowerCase("zh-CN"),
-    )
+    !task.tags.some((tag) => foldAsciiCase(tag) === foldAsciiCase(parsed.tagName!))
   ) {
     return false;
   }
   // l: 匹配清单名称（与 Rust 侧 name 子查询语义一致），解析为 ID 比较。
   if (parsed.listName !== null) {
+    const wantedName = foldAsciiCase(parsed.listName);
     const list = getListsSnapshot().find(
-      (item) =>
-        item.name.toLocaleLowerCase("zh-CN") ===
-        parsed.listName!.toLocaleLowerCase("zh-CN"),
+      (item) => foldAsciiCase(item.name) === wantedName,
     );
     if (!list || task.listId !== list.id) return false;
   }
@@ -98,19 +92,25 @@ interface ParsedSearchQuery {
 }
 
 /** 与 task_repository.rs::parse_search_query 保持同一语义。 */
-function parseSearchQuery(query: string): ParsedSearchQuery {
+function parseSearchQuery(rawQuery: string): ParsedSearchQuery {
   const textParts: string[] = [];
   let priority: number | null = null;
   let listName: string | null = null;
   let tagName: string | null = null;
   let due: "today" | "overdue" | "none" | null = null;
 
-  for (const token of query.split(/\s+/)) {
+  // Rust 侧先 trim 再 split_whitespace；空 token 一律跳过。
+  for (const token of rawQuery.trim().split(/\s+/)) {
+    if (!token) continue;
     if (token.startsWith("p:")) {
       const value = token.slice(2);
-      if (/^[0-2]$/.test(value)) {
-        priority = Number(value);
-        continue;
+      // 与 Rust value.parse::<i64>() 一致：允许 +/- 号与前导零，再检查 0..=2。
+      if (/^[+-]?\d+$/.test(value)) {
+        const number = Number(value);
+        if (number >= 0 && number <= 2) {
+          priority = number;
+          continue;
+        }
       }
     }
     if (token.startsWith("l:")) {
@@ -121,7 +121,8 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
       }
     }
     if (token.startsWith("tag:")) {
-      const name = token.slice(4).trim().replace(/^#/, "");
+      // 与 Rust trim_start_matches('#') 一致：剥掉所有前导 #。
+      const name = token.slice(4).trim().replace(/^#+/, "");
       if (name) {
         tagName = name;
         continue;
@@ -129,10 +130,14 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
     }
     if (token.startsWith("due:")) {
       const value = token.slice(4);
-      if (value === "今天" || value === "today") due = "today";
-      else if (value === "过期" || value === "overdue") due = "overdue";
-      else if (value === "无" || value === "none") due = "none";
-      if (due !== null) continue;
+      let next: ParsedSearchQuery["due"] = null;
+      if (value === "今天" || value === "today") next = "today";
+      else if (value === "过期" || value === "overdue") next = "overdue";
+      else if (value === "无" || value === "none") next = "none";
+      if (next !== null) {
+        due = next;
+        continue;
+      }
     }
     textParts.push(token);
   }
@@ -144,6 +149,14 @@ function parseSearchQuery(query: string): ParsedSearchQuery {
     tagName,
     due,
   };
+}
+
+/**
+ * SQLite COLLATE NOCASE / LIKE 只折叠 ASCII A-Z，这里保持一致，
+ * 不使用 locale 折叠（否则两种模式的大小写匹配行为会漂移）。
+ */
+function foldAsciiCase(value: string): string {
+  return value.replace(/[A-Z]/g, (char) => char.toLowerCase());
 }
 
 function matchesScope(

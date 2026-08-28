@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { ConfirmState } from "../../types/ui";
+import { normalizeError } from "../../utils/normalizeError";
 
 type ConfirmAction = "primary" | "secondary";
 
@@ -17,6 +18,11 @@ export function ConfirmDialog({
   const [pending, setPending] = useState<{
     state: ConfirmState;
     action: ConfirmAction;
+  } | null>(null);
+  // 错误与其所属的确认对话框绑定，切换到新对话框时自动不再显示，避免残留
+  const [actionError, setActionError] = useState<{
+    state: ConfirmState;
+    message: string;
   } | null>(null);
 
   if (!state) return null;
@@ -36,9 +42,13 @@ export function ConfirmDialog({
     handler: () => Promise<void>,
   ) {
     if (submitting) return;
+    setActionError(null);
     setPending({ state: confirmState, action });
     try {
       await handler();
+    } catch (error) {
+      // 回调失败时停留在对话框并提示，避免未处理 rejection 且无任何反馈
+      setActionError({ state: confirmState, message: normalizeError(error) });
     } finally {
       setPending((current) =>
         current?.state === confirmState ? null : current,
@@ -63,6 +73,11 @@ export function ConfirmDialog({
           <div>
             <h2>{state.title}</h2>
             <p>{state.body}</p>
+            {actionError && actionError.state === confirmState && (
+              <div className="dialog-error-msg" role="alert" style={{ marginTop: 10 }}>
+                {actionError.message}
+              </div>
+            )}
           </div>
         </header>
         <footer className="dialog-footer">

@@ -70,7 +70,7 @@ export function SettingsAboutSection({
         <Info aria-hidden="true" className="icon-sm" />
         关于
       </h3>
-      <div className="settings-row settings-action-row settings-about-row">
+      <div className="settings-row settings-action-row">
         <span className="settings-version">
           {appInfo ? `当前版本 v${appInfo.version}` : ""}
         </span>

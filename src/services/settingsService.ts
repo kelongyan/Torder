@@ -80,7 +80,7 @@ export async function saveAppSetting<K extends keyof AppSettings>(
   await upsertSetting(key, value);
 }
 
-export function getBrowserSettingsSnapshot(): Setting[] {
+function getBrowserSettingsSnapshot(): Setting[] {
   return browserSettings.map((setting) => ({ ...setting }));
 }
 

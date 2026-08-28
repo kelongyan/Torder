@@ -155,10 +155,10 @@ export function TaskListView({
               key={item.task.id}
               task={item.task}
               lists={lists}
-              selected={false}
+              selected={item.task.id === selectedTaskId}
               last={index === animatedTasks.length - 1}
-              batchMode={false}
-              batchSelected={false}
+              batchMode={batchMode}
+              batchSelected={batchSelectedIds.includes(item.task.id)}
               leaving={item.leaving}
               motionIndex={index}
               searchQuery={searchQuery}

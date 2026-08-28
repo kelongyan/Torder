@@ -36,9 +36,18 @@ impl<'database> ListRepository<'database> {
         let id = Uuid::new_v4().to_string();
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
+        // 默认排到现有清单末尾（最大 sort_order + 1），与前端 mock 的默认值一致。
+        let sort_order = match input.sort_order {
+            Some(sort_order) => sort_order,
+            None => transaction.query_row(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM lists WHERE deleted_at IS NULL",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?,
+        };
         transaction.execute(
             "INSERT INTO lists (id, name, color, sort_order) VALUES (?1, ?2, ?3, ?4)",
-            params![id, name, input.color, input.sort_order.unwrap_or(0)],
+            params![id, name, input.color, sort_order],
         )?;
         sync_repository::record_change(
             &transaction,
@@ -49,7 +58,7 @@ impl<'database> ListRepository<'database> {
                 "id": id,
                 "name": name,
                 "color": input.color,
-                "sortOrder": input.sort_order.unwrap_or(0),
+                "sortOrder": sort_order,
                 "isDefault": false,
                 "deletedAt": null,
             }),
@@ -99,11 +108,24 @@ impl<'database> ListRepository<'database> {
         }
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
+        let member_count: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE list_id = ?1 AND deleted_at IS NULL AND purged_at IS NULL",
+            params![id],
+            |row| row.get(0),
+        )?;
+        if member_count > 0 {
+            return Err(RepositoryError::Validation(
+                "list still contains tasks",
+            ));
+        }
         let deleted_at = chrono::Utc::now().to_rfc3339();
-        transaction.execute(
+        let updated = transaction.execute(
             "UPDATE lists SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
             params![id, deleted_at],
         )?;
+        if updated == 0 {
+            return Err(RepositoryError::NotFound("list"));
+        }
         sync_repository::record_change(
             &transaction,
             "list",

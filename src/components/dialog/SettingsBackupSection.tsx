@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DatabaseBackup, HardDrive, RefreshCw } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
+import { usePresence } from "../../hooks/usePresence";
 import {
   backupDatabase,
   listBackups,
@@ -22,6 +23,23 @@ export function SettingsBackupSection({
   const [busy, setBusy] = useState(false);
   const [backups, setBackups] = useState<string[]>([]);
   const [pendingRestore, setPendingRestore] = useState<string | null>(null);
+  // 确认浮层走 usePresence（rendered + phase），避免裸条件渲染缺失退场动画
+  const restorePresence = usePresence(pendingRestore, 280);
+
+  // 挂载时加载一次已有备份，否则恢复入口只在手动备份后才可见
+  useEffect(() => {
+    let cancelled = false;
+    void listBackups()
+      .then((nextBackups) => {
+        if (!cancelled) setBackups(nextBackups);
+      })
+      .catch(() => {
+        // 列表加载失败不打扰用户，手动备份后仍会刷新
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleBackup() {
     setBusy(true);
@@ -116,8 +134,10 @@ export function SettingsBackupSection({
         )}
       </section>
 
-      {pendingRestore && (
-        <div className="dialog-overlay restore-confirm-overlay">
+      {restorePresence.rendered && restorePresence.value && (
+        <div
+          className={`dialog-overlay restore-confirm-overlay ${restorePresence.className}`}
+        >
           <div
             className="restore-confirm-card"
             role="alertdialog"
@@ -125,7 +145,8 @@ export function SettingsBackupSection({
           >
             <h3>确认恢复备份?</h3>
             <p>
-              用 <strong>{shortName(pendingRestore)}</strong> 覆盖当前数据，不可撤销。
+              用 <strong>{shortName(restorePresence.value)}</strong>{" "}
+              覆盖当前数据，不可撤销。
             </p>
             <div className="settings-row">
               <button
@@ -140,7 +161,9 @@ export function SettingsBackupSection({
                 type="button"
                 className="btn-danger-solid"
                 disabled={busy}
-                onClick={() => void handleRestore(pendingRestore)}
+                onClick={() => {
+                  if (restorePresence.value) void handleRestore(restorePresence.value);
+                }}
               >
                 确认恢复
               </button>

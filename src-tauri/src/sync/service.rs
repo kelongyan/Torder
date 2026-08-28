@@ -103,6 +103,7 @@ pub async fn cleanup_sync_history(
 }
 
 pub async fn save_sync_config(
+    runtime: &SyncRuntime,
     database: &Database,
     server_url: String,
     remote_path: String,
@@ -113,6 +114,7 @@ pub async fn save_sync_config(
     encryption_password: Option<String>,
     confirm_remote: bool,
 ) -> Result<SyncStatus, String> {
+    let _guard = runtime.try_lock().map_err(str::to_owned)?;
     let normalized_server_url = server_url.trim().to_owned();
     let normalized_remote_path = remote_path.trim().to_owned();
     let username_provided = username.is_some();

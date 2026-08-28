@@ -12,7 +12,9 @@ import {
 } from "./browserTaskMock";
 import { filterAndSortTasks, type QueryTasksInput, taskPlanDateKey } from "./taskQuery";
 import {
+  predictCompletedTask,
   predictCreatedTask,
+  predictDeletedTask,
   predictUpdatedTask,
 } from "../utils/taskPrediction";
 
@@ -65,11 +67,8 @@ export function deleteTask(id: string): Promise<void> {
   if (!isTauri()) {
     const task = findBrowserTask(id);
     if (!task) return Promise.reject(new Error("任务不存在"));
-    const timestamp = new Date().toISOString();
-    updateBrowserTask(id, (existing) => ({
-      ...existing,
-      deletedAt: timestamp,
-    }));
+    const next = predictDeletedTask(task, new Date().toISOString());
+    updateBrowserTask(id, () => next);
     return Promise.resolve();
   }
 
@@ -133,23 +132,13 @@ export function setTaskCompleted(
   completed: boolean,
 ): Promise<Task> {
   if (!isTauri()) {
+    // 独立实现 set_completed 语义（完成时总是刷新 completedAt），
+    // 不能走 updateTask：update 语义会保留旧的 completedAt。
     const task = findBrowserTask(id);
     if (!task) return Promise.reject(new Error("任务不存在"));
-    return updateTask({
-      id: task.id,
-      title: task.title,
-      note: task.note,
-      status: completed ? "done" : "todo",
-      priority: task.priority,
-      listId: task.listId,
-      scheduledDate: task.scheduledDate,
-      dueAt: task.dueAt,
-      sortOrder: task.sortOrder,
-      remindBefore: task.remindBefore,
-      repeatRule: task.repeatRule,
-      subtasks: task.subtasks,
-      tags: task.tags,
-    });
+    const next = predictCompletedTask(task, completed);
+    updateBrowserTask(id, () => next);
+    return Promise.resolve({ ...next });
   }
 
   return invoke<Task>("set_task_completed", { id, completed });
@@ -179,7 +168,10 @@ export function snoozeTaskReminder(
  * 桌面小窗专用按日期查询。
  * 走 Rust `query_tasks_for_date`，按 `scheduled_date || date(due_at)` 精确匹配，
  * 远小于通用 `query_tasks` 的全表返回。
- * 浏览器模式（`pnpm dev`）下用 `filterAndSortTasks` 兜底，语义对齐。
+ * 排序语义两侧统一（见 Rust `query_for_widget` 的 ORDER BY）：
+ * 有日期（scheduledDate 或 dueAt 的本地日期）的任务在前、按日期升序，
+ * 无日期的在后；同组内 priority DESC，最后 created_at DESC。
+ * 浏览器模式（`pnpm dev`）下用 `compareWidgetTasks` 实现同一排序。
  */
 export function queryTasksForDate(
   dateKey: string,
@@ -187,12 +179,15 @@ export function queryTasksForDate(
 ): Promise<Task[]> {
   if (!isTauri()) {
     return Promise.resolve(
-      filterAndSortTasks(getBrowserTasksSnapshot(), {
-        scope: { kind: "view", view: "all" },
-        query: "",
-        sortBy: "priority",
-        showCompleted: includeCompleted,
-      }).filter((task) => taskPlanDateKey(task) === dateKey),
+      getBrowserTasksSnapshot()
+        .filter(
+          (task) =>
+            !task.deletedAt &&
+            task.status !== "archived" &&
+            (includeCompleted || task.status !== "done") &&
+            taskPlanDateKey(task) === dateKey,
+        )
+        .sort(compareWidgetTasks),
     );
   }
 
@@ -200,4 +195,21 @@ export function queryTasksForDate(
     dateKey,
     includeCompleted,
   });
+}
+
+/** 与 Rust `query_for_widget` 的 ORDER BY 保持同一语义（见上方注释）。 */
+function compareWidgetTasks(left: Task, right: Task): number {
+  const leftKey = taskPlanDateKey(left);
+  const rightKey = taskPlanDateKey(right);
+  const leftMissing = leftKey === null ? 1 : 0;
+  const rightMissing = rightKey === null ? 1 : 0;
+  if (leftMissing !== rightMissing) return leftMissing - rightMissing;
+  if (leftKey !== null && rightKey !== null && leftKey !== rightKey) {
+    return leftKey < rightKey ? -1 : 1;
+  }
+  if (left.priority !== right.priority) return right.priority - left.priority;
+  if (left.createdAt !== right.createdAt) {
+    return left.createdAt < right.createdAt ? 1 : -1;
+  }
+  return 0;
 }

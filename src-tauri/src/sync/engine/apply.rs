@@ -607,8 +607,13 @@ fn merged_payload(
         }
         Err(error) => return Err(error),
     };
-    let target = merged.as_object_mut().expect("sync payload object");
-    for (key, value) in operation.payload.as_object().expect("validated payload") {
+    let Some(target) = merged.as_object_mut() else {
+        return Err(RepositoryError::Validation("sync payload is not an object"));
+    };
+    let Some(payload_object) = operation.payload.as_object() else {
+        return Err(RepositoryError::Validation("sync change payload is not an object"));
+    };
+    for (key, value) in payload_object {
         target.insert(key.clone(), value.clone());
     }
     target.insert("id".to_owned(), Value::String(operation.object_id.clone()));
@@ -700,6 +705,21 @@ fn apply_operation(
                 .cloned()
                 .unwrap_or_else(|| json!([]));
             let tags = payload.get("tags").cloned().unwrap_or_else(|| json!([]));
+            if let (Some(rule_id), Some(occurrence)) = (
+                optional_string(&payload, "recurringRuleId"),
+                optional_string(&payload, "occurrenceAt"),
+            ) {
+                // 两台设备可能各自为同一 (规则, 期次) 生成不同 task id；
+                // 本地已有存活实例时幂等跳过，避免撞部分唯一索引导致整批回滚、同步卡死
+                let duplicate: bool = transaction.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM tasks WHERE recurring_rule_id = ?1 AND occurrence_at = ?2 AND deleted_at IS NULL AND purged_at IS NULL AND id <> ?3)",
+                    rusqlite::params![rule_id, occurrence, operation.object_id],
+                    |row| row.get(0),
+                )?;
+                if duplicate {
+                    return Ok(());
+                }
+            }
             transaction.execute(
                 r#"INSERT INTO tasks (
                     id, title, note, status, priority, list_id, scheduled_date, due_at, completed_at,

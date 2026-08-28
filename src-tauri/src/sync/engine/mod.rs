@@ -374,24 +374,6 @@ async fn read_remote_manifest(
     }
 }
 
-pub async fn run(
-    database: &Database,
-    server_url: &str,
-    remote_path: &str,
-    username: Option<String>,
-    password: Option<String>,
-) -> RepositoryResult<()> {
-    run_with_mode(
-        database,
-        server_url,
-        remote_path,
-        username,
-        password,
-        InitialSyncMode::Merge,
-    )
-    .await
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InitialSyncMode {
     Merge,
@@ -1758,6 +1740,149 @@ mod tests {
     fn keyring_test_guard() -> MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    #[test]
+    fn generated_occurrence_sync_payload_contains_full_insert_fields() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-sync-occurrence-payload-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let repository = RecurringRuleRepository::new(&database);
+        repository
+            .create(crate::models::CreateRecurringRuleInput {
+                source_task_id: None,
+                title: "每日同步载荷".to_owned(),
+                note: None,
+                priority: 1,
+                list_id: "work".to_owned(),
+                frequency: "daily".to_owned(),
+                interval_count: 1,
+                weekdays: Vec::new(),
+                month_day: None,
+                first_due_at: "2026-01-01T00:00:00Z".to_owned(),
+                timezone: "UTC".to_owned(),
+                generate_ahead_minutes: 0,
+                remind_before: None,
+                end_at: None,
+            })
+            .unwrap();
+        let result = repository.generate_due().unwrap();
+        assert!(result.generated_count >= 1);
+
+        let connection = database.connect().unwrap();
+        let payload_json: String = connection
+            .query_row(
+                "SELECT payload_json FROM sync_changes WHERE entity = 'task' ORDER BY revision DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let payload: Value = serde_json::from_str(&payload_json).unwrap();
+        // 接收端 has_full_insert_payload 要求这些字段齐全；缺失任一都会让本地无该任务的
+        // 设备拒收整批（"sync partial payload requires existing object"），同步永久卡死
+        for field in ["title", "status", "priority", "listId", "sortOrder", "deletedAt"] {
+            assert!(
+                payload.get(field).is_some(),
+                "generated occurrence payload misses required field: {field}"
+            );
+        }
+
+        drop(connection);
+        drop(database);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+    }
+
+    #[test]
+    fn apply_batch_skips_duplicate_recurring_occurrence() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-sync-occurrence-duplicate-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = Database::initialize(path.clone()).unwrap();
+        let repository = RecurringRuleRepository::new(&database);
+        let rule = repository
+            .create(crate::models::CreateRecurringRuleInput {
+                source_task_id: None,
+                title: "双设备同期次".to_owned(),
+                note: None,
+                priority: 1,
+                list_id: "work".to_owned(),
+                frequency: "daily".to_owned(),
+                interval_count: 1,
+                weekdays: Vec::new(),
+                month_day: None,
+                first_due_at: "2026-01-01T09:00:00Z".to_owned(),
+                timezone: "UTC".to_owned(),
+                generate_ahead_minutes: 0,
+                remind_before: None,
+                end_at: None,
+            })
+            .unwrap();
+        repository.generate_due().unwrap();
+        // generate_due 每次只落最后一个到期期次，取本地实际生成的值作为远端批次的期次
+        let occurrence: String = {
+            let connection = database.connect().unwrap();
+            let value = connection
+                .query_row(
+                    "SELECT occurrence_at FROM tasks WHERE recurring_rule_id = ?1 AND deleted_at IS NULL ORDER BY occurrence_at DESC LIMIT 1",
+                    rusqlite::params![rule.id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            drop(connection);
+            value
+        };
+
+        let batch = ChangeBatch {
+            protocol: PROTOCOL,
+            sequence: 1,
+            device_id: "remote-device".to_owned(),
+            created_at: "2026-01-02T00:00:00.000Z".to_owned(),
+            operations: vec![operation(
+                "remote-occurrence-change",
+                "task",
+                "remote-occurrence-task",
+                json!({
+                    "id": "remote-occurrence-task", "title": "远端生成的同期次实例",
+                    "status": "todo", "priority": 1, "listId": "work", "sortOrder": 0,
+                    "dueAt": occurrence, "recurringRuleId": rule.id,
+                    "occurrenceAt": occurrence, "deletedAt": null,
+                    "subtasks": [], "tags": []
+                }),
+            )],
+        };
+
+        let mut connection = database.connect().unwrap();
+        // 修复前：INSERT 命中部分唯一索引 (rule, occurrence)，整批回滚、同步卡死；
+        // 修复后：本地已有同 (规则, 期次) 存活行时幂等跳过
+        apply_batch(&mut connection, &batch).unwrap();
+
+        let live_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE recurring_rule_id = ?1 AND occurrence_at = ?2 AND deleted_at IS NULL AND purged_at IS NULL",
+                rusqlite::params![rule.id, occurrence],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(live_count, 1);
+        let remote_exists: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE id = 'remote-occurrence-task'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(remote_exists, 0);
+
+        drop(connection);
+        drop(database);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
     }
 
     #[test]

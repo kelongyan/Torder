@@ -234,6 +234,7 @@ export const useTaskStore = create<TaskState>()(
         return runOptimistic(
           get,
           set,
+          [tempId],
           (state) => ({
             allTasks: [predictCreatedTask(input, tempId), ...state.allTasks],
           }),
@@ -255,6 +256,7 @@ export const useTaskStore = create<TaskState>()(
         return runOptimistic(
           get,
           set,
+          [input.id],
           (state) => ({
             allTasks: upsertTask(
               state.allTasks,
@@ -272,6 +274,7 @@ export const useTaskStore = create<TaskState>()(
         return runOptimistic(
           get,
           set,
+          [id],
           (state) => ({
             allTasks: upsertTask(
               state.allTasks,
@@ -287,6 +290,7 @@ export const useTaskStore = create<TaskState>()(
         await runOptimistic(
           get,
           set,
+          [id],
           (state) => {
             const task = state.allTasks.find((item) => item.id === id);
             const nowIso = new Date().toISOString();
@@ -310,6 +314,7 @@ export const useTaskStore = create<TaskState>()(
         await runOptimistic(
           get,
           set,
+          [id],
           (state) => {
             const task = state.trashTasks.find((item) => item.id === id);
             const nowIso = new Date().toISOString();
@@ -337,6 +342,7 @@ export const useTaskStore = create<TaskState>()(
         await runOptimistic(
           get,
           set,
+          [id],
           (state) => ({
             trashTasks: removeTaskRow(state.trashTasks, id),
             selectedTaskId:
@@ -353,6 +359,7 @@ export const useTaskStore = create<TaskState>()(
         return runOptimistic(
           get,
           set,
+          get().trashTasks.map((task) => task.id),
           () => ({
             trashTasks: [],
             selectedTaskId: null,
@@ -553,6 +560,7 @@ export const useTaskStore = create<TaskState>()(
         return runOptimistic(
           get,
           set,
+          [id],
           (state) => ({
             allTasks: upsertTask(
               state.allTasks,
@@ -568,6 +576,7 @@ export const useTaskStore = create<TaskState>()(
         return runOptimistic(
           get,
           set,
+          [id],
           (state) => {
             const task = state.allTasks.find((item) => item.id === id);
             return task
@@ -727,12 +736,14 @@ function takeSnapshot(state: TaskState): OptimisticSnapshot {
 
 /**
  * 单行乐观更新管线：预测 apply → IPC commit → 服务端返回值对账
- * （基于当前状态按 id 替换，容忍期间的外发 loadTasks）→ 失败回滚快照。
+ * （基于当前状态按 id 替换，容忍期间的外发 loadTasks）→ 失败时按受影响 id
+ * 还原（与 runOptimisticBatch 同一做法），不覆盖期间并发成功的其它变更。
  * 不触碰 loading（只属于 loadTasks / 首次回收站拉取）。
  */
 async function runOptimistic<T>(
   get: () => TaskState,
   set: SetState,
+  ids: string[],
   apply: (state: TaskState) => Partial<TaskState>,
   commit: () => Promise<T>,
   reconcile?: (result: T, state: TaskState) => Partial<TaskState>,
@@ -752,11 +763,15 @@ async function runOptimistic<T>(
     }
     return result;
   } catch (error) {
-    set((state) => ({
-      ...snapshot,
-      error: normalizeError(error),
-      tasks: deriveTasks({ ...state, ...snapshot }),
-    }));
+    set((state) => {
+      const restorePatch = restoreFailedRows(state, snapshot, ids);
+      const merged = { ...state, ...restorePatch };
+      return {
+        ...restorePatch,
+        error: normalizeError(error),
+        tasks: deriveTasks(merged),
+      };
+    });
     throw error;
   } finally {
     // 通知所有窗口（含自身）任务变更；附带受影响日期，widget 仅在命中显示日期时重拉

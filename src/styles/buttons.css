@@ -155,3 +155,23 @@
   background: color-mix(in srgb, var(--green) 85%, white);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--green) 30%, transparent);
 }
+
+/* 紧凑图标按钮（详情面板行内操作 / 循环规则行等），单一定义，
+   原重复副本见审计 #51（detail.css / recurring.css 已删） */
+.icon-button.compact {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  box-shadow: none;
+}
+
+.icon-button.compact svg {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-button.compact.danger:hover {
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  background: var(--danger-bg);
+  color: var(--red);
+}

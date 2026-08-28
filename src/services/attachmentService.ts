@@ -21,7 +21,7 @@ export function listTaskAttachments(taskId: string): Promise<Attachment[]> {
   return invoke<Attachment[]>("list_task_attachments", { taskId });
 }
 
-export function addManagedAttachment(
+export async function addManagedAttachment(
   input: CreateAttachmentInput,
 ): Promise<Attachment> {
   if (!isTauri()) {
@@ -30,7 +30,7 @@ export function addManagedAttachment(
   return invoke<Attachment>("add_managed_attachment", { input });
 }
 
-export function addLocalAttachmentReference(
+export async function addLocalAttachmentReference(
   input: CreateAttachmentInput,
 ): Promise<Attachment> {
   if (!isTauri()) {
@@ -39,7 +39,7 @@ export function addLocalAttachmentReference(
   return invoke<Attachment>("add_local_attachment_reference", { input });
 }
 
-export function addWebLinkAttachment(
+export async function addWebLinkAttachment(
   input: CreateWebLinkAttachmentInput,
 ): Promise<Attachment> {
   if (!isTauri()) {
@@ -48,7 +48,7 @@ export function addWebLinkAttachment(
   return invoke<Attachment>("add_web_link_attachment", { input });
 }
 
-export function deleteAttachment(id: string): Promise<void> {
+export async function deleteAttachment(id: string): Promise<void> {
   if (!isTauri()) {
     deleteBrowserAttachment(id);
     return Promise.resolve();

@@ -30,7 +30,7 @@ chrono-tz = "0.10"
 argon2 = "0.5"
 base64 = "0.22"
 chacha20poly1305 = "0.10"
-reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "json"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls"] }
 quick-xml = "0.38"
 flate2 = "1"
 rand = "0.8"
@@ -61,10 +61,6 @@ apple-native-keyring-store = { version = "1.0.2", features = ["protected"] }
 # Mica 毛玻璃仅 Windows 生效（lib.rs / app.rs 引用均带 cfg(target_os="windows") 保护）
 [target.'cfg(target_os = "windows")'.dependencies]
 window-vibrancy = "0.6"
-
-[dev-dependencies]
-rusqlite = { version = "0.40.1", features = ["bundled"] }
-uuid = { version = "1.24.0", features = ["v4"] }
 
 [profile.release]
 panic = "abort"

@@ -280,10 +280,6 @@ impl<'database> AttachmentRepository<'database> {
         )
     }
 
-    pub fn mark_blob_pending_download(&self, blob_id: &str) -> RepositoryResult<()> {
-        self.update_blob_state(blob_id, "pendingDownload", None, None, None)
-    }
-
     pub fn mark_blob_downloaded(
         &self,
         blob_id: &str,
@@ -723,7 +719,16 @@ fn canonical_file(path: &str) -> RepositoryResult<PathBuf> {
             "attachment source must be a file",
         ));
     }
-    Ok(path)
+    Ok(strip_extended_length_prefix(&path))
+}
+
+// Windows 的 fs::canonicalize 返回 \\?\ 扩展长度前缀路径，
+// Shell / opener 通常无法直接处理；入库前剥掉前缀
+fn strip_extended_length_prefix(path: &Path) -> PathBuf {
+    match path.to_str() {
+        Some(value) if value.starts_with(r"\\?\") => PathBuf::from(&value[4..]),
+        _ => path.to_path_buf(),
+    }
 }
 
 fn validate_id(value: &str) -> RepositoryResult<String> {

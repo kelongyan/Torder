@@ -349,20 +349,20 @@ impl<'database> RecurringRuleRepository<'database> {
             return Err(RepositoryError::NotFound("recurring rule"));
         }
         if delete_future_tasks {
+            let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
             let future_task_ids = {
                 let mut statement = transaction.prepare(
                     r#"SELECT id FROM tasks
                        WHERE recurring_rule_id = ?1
                          AND status = 'todo'
                          AND deleted_at IS NULL
-                         AND due_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"#,
+                         AND due_at >= ?2"#,
                 )?;
                 let ids = statement
-                    .query_map(params![id], |row| row.get::<_, String>(0))?
+                    .query_map(params![id, now], |row| row.get::<_, String>(0))?
                     .collect::<Result<Vec<_>, _>>()?;
                 ids
             };
-            let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
             transaction.execute(
                 r#"
                 UPDATE tasks
@@ -371,7 +371,7 @@ impl<'database> RecurringRuleRepository<'database> {
                 WHERE recurring_rule_id = ?1
                   AND status = 'todo'
                   AND deleted_at IS NULL
-                  AND due_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                  AND due_at >= ?2
                 "#,
                 params![id, now],
             )?;
@@ -381,7 +381,7 @@ impl<'database> RecurringRuleRepository<'database> {
                     "task",
                     &task_id,
                     "delete",
-                    json!({ "id": task_id, "deletedAt": now }),
+                    current_task_payload(&transaction, &task_id)?,
                 )?;
             }
         }
@@ -443,11 +443,11 @@ impl<'database> RecurringRuleRepository<'database> {
                 let mut connection = self.database.connect()?;
                 let transaction = connection.transaction()?;
                 generated_count += insert_occurrence(&transaction, &rule, &occurrence, now)?;
-                update_next_due(&transaction, &rule.id, next_due.as_deref())?;
+                update_next_due(&transaction, &rule.id, next_due.as_deref(), rule.next_due_at.as_deref())?;
                 transaction.commit()?;
             } else if next_due.is_none() {
                 let mut connection = self.database.connect()?;
-                update_next_due_connection(&mut connection, &rule.id, None)?;
+                update_next_due_connection(&mut connection, &rule.id, None, rule.next_due_at.as_deref())?;
             }
         }
         Ok(RecurringGenerationResult { generated_count })
@@ -468,7 +468,7 @@ impl<'database> RecurringRuleRepository<'database> {
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
         let generated_count = insert_occurrence(&transaction, &rule, occurrence, now)?;
-        update_next_due(&transaction, &rule.id, next.as_deref())?;
+        update_next_due(&transaction, &rule.id, next.as_deref(), rule.next_due_at.as_deref())?;
         transaction.commit()?;
         Ok(RecurringGenerationResult { generated_count })
     }
@@ -521,8 +521,12 @@ fn insert_occurrence(
                 "listId": rule.list_id,
                 "scheduledDate": scheduled_date,
                 "dueAt": occurrence,
+                "completedAt": null,
+                "sortOrder": 0,
                 "remindBefore": rule.remind_before,
                 "remindAt": remind_at,
+                "remindedAt": null,
+                "repeatRule": null,
                 "subtasks": [],
                 "tags": [],
                 "recurringRuleId": rule.id,
@@ -538,24 +542,28 @@ fn update_next_due(
     transaction: &Transaction<'_>,
     id: &str,
     next_due_at: Option<&str>,
+    expected: Option<&str>,
 ) -> RepositoryResult<()> {
-    transaction.execute(
+    // 乐观守卫：读取游标后若规则被并发改期/跳过，陈旧计算不得覆盖用户刚写入的值
+    let updated = transaction.execute(
         r#"
         UPDATE recurring_rules
         SET next_due_at = ?2,
             enabled = CASE WHEN ?2 IS NULL THEN 0 ELSE enabled END,
             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-        WHERE id = ?1 AND deleted_at IS NULL
+        WHERE id = ?1 AND deleted_at IS NULL AND next_due_at IS ?3
         "#,
-        params![id, next_due_at],
+        params![id, next_due_at, expected],
     )?;
-    sync_repository::record_change(
-        transaction,
-        "recurringRule",
-        id,
-        "upsert",
-        next_due_change_payload(transaction, id, next_due_at)?,
-    )?;
+    if updated > 0 {
+        sync_repository::record_change(
+            transaction,
+            "recurringRule",
+            id,
+            "upsert",
+            next_due_change_payload(transaction, id, next_due_at)?,
+        )?;
+    }
     Ok(())
 }
 
@@ -563,25 +571,28 @@ fn update_next_due_connection(
     connection: &mut rusqlite::Connection,
     id: &str,
     next_due_at: Option<&str>,
+    expected: Option<&str>,
 ) -> RepositoryResult<()> {
     let transaction = connection.transaction()?;
-    transaction.execute(
+    let updated = transaction.execute(
         r#"
         UPDATE recurring_rules
         SET next_due_at = ?2,
             enabled = CASE WHEN ?2 IS NULL THEN 0 ELSE enabled END,
             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-        WHERE id = ?1 AND deleted_at IS NULL
+        WHERE id = ?1 AND deleted_at IS NULL AND next_due_at IS ?3
         "#,
-        params![id, next_due_at],
+        params![id, next_due_at, expected],
     )?;
-    sync_repository::record_change(
-        &transaction,
-        "recurringRule",
-        id,
-        "upsert",
-        next_due_change_payload(&transaction, id, next_due_at)?,
-    )?;
+    if updated > 0 {
+        sync_repository::record_change(
+            &transaction,
+            "recurringRule",
+            id,
+            "upsert",
+            next_due_change_payload(&transaction, id, next_due_at)?,
+        )?;
+    }
     transaction.commit()?;
     Ok(())
 }

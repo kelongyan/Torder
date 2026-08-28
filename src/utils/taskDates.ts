@@ -115,10 +115,15 @@ export function formatCalendarDate(dateKey: string | null): {
 }
 
 export function isOverdue(iso: string | null, status: string): boolean {
-  return status === "todo" && Boolean(iso && new Date(iso) < new Date());
+  // 与逾期视图 / 侧栏计数同口径：按「本地日期」判断（到期日早于今天即逾期），
+  // 不用精确时间戳，避免"行上标红但不在逾期视图"的口径漂移。
+  if (status !== "todo" || !iso) return false;
+  const due = new Date(iso);
+  if (Number.isNaN(due.getTime())) return false;
+  return toDateKey(due) < toDateKey(new Date());
 }
 
-function isSameDay(left: Date, right: Date): boolean {
+export function isSameDay(left: Date, right: Date): boolean {
   return (
     left.getFullYear() === right.getFullYear() &&
     left.getMonth() === right.getMonth() &&
@@ -126,7 +131,7 @@ function isSameDay(left: Date, right: Date): boolean {
   );
 }
 
-function parseDateKey(value: string): Date | null {
+export function parseDateKey(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
   const [, year, month, day] = match;
@@ -134,6 +139,6 @@ function parseDateKey(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function pad(value: number): string {
+export function pad(value: number): string {
   return String(value).padStart(2, "0");
 }

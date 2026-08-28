@@ -11,6 +11,7 @@ import {
   toDateTimeLocal,
   toLocalDateKey,
 } from "./taskDates";
+import { normalizeTags } from "./taskPrediction";
 import { taskViewCopy } from "../constants/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
 import type {
@@ -308,25 +309,6 @@ export function parseQuickAddText(
 
 export function parseTagsInput(value: string): string[] {
   return normalizeTags(value.split(/[\s,，、]+/));
-}
-
-function normalizeTags(values: string[]): string[] {
-  const tags: string[] = [];
-  for (const raw of values) {
-    const tag = raw.trim().replace(/^#/, "");
-    if (!tag || tag.length > 40) continue;
-    if (
-      tags.some(
-        (item) =>
-          item.toLocaleLowerCase("zh-CN") === tag.toLocaleLowerCase("zh-CN"),
-      )
-    ) {
-      continue;
-    }
-    tags.push(tag);
-    if (tags.length >= 30) break;
-  }
-  return tags;
 }
 
 /** 日期词 + 时间词 → ISO；无日期词时时间已过顺延到明天。 */

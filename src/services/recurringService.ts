@@ -13,13 +13,18 @@ import {
   updateBrowserTask,
 } from "./browserTaskMock";
 import { toLocalDateKey } from "../utils/taskDates";
+import { toRfc3339Seconds } from "../utils/taskPrediction";
 
 let browserRules: RecurringRule[] = [];
 
 export function listRecurringRules(): Promise<RecurringRule[]> {
   if (!isTauri()) {
+    // 与 Rust 侧 list 的 ORDER BY enabled DESC, next_due_at, created_at DESC 对齐。
     return Promise.resolve(
-      browserRules.filter((rule) => !rule.deletedAt).map(cloneRule),
+      browserRules
+        .filter((rule) => !rule.deletedAt)
+        .sort(compareRules)
+        .map(cloneRule),
     );
   }
   return invoke<RecurringRule[]>("list_recurring_rules");
@@ -30,6 +35,14 @@ export async function createRecurringRule(
 ): Promise<RecurringRule> {
   if (isTauri())
     return invoke<RecurringRule>("create_recurring_rule", { input });
+
+  // 镜像 Rust validate_input + validate_schedule，先校验再入库。
+  validateBrowserRuleInput(input);
+  // 先校验来源任务，避免规则先入数组、校验失败后泄漏（Rust 侧会回滚）。
+  const source = input.sourceTaskId
+    ? findBrowserTask(input.sourceTaskId)
+    : undefined;
+  if (input.sourceTaskId && !source) throw new Error("来源任务不存在");
 
   const now = new Date().toISOString();
   const rule: RecurringRule = {
@@ -54,9 +67,7 @@ export async function createRecurringRule(
     deletedAt: null,
   };
   browserRules = [rule, ...browserRules];
-  if (input.sourceTaskId) {
-    const source = findBrowserTask(input.sourceTaskId);
-    if (!source) throw new Error("来源任务不存在");
+  if (source) {
     updateBrowserTask(source.id, (task) => ({
       ...task,
       repeatRule: null,
@@ -74,6 +85,8 @@ export async function updateRecurringRule(
 ): Promise<RecurringRule> {
   if (isTauri())
     return invoke<RecurringRule>("update_recurring_rule", { input });
+  // 与 Rust update 一致：先校验排期合法性，失败不变更规则状态。
+  validateBrowserRuleInput(input);
   const rule = findBrowserRule(input.id);
   const weekdays = normalizeWeekdays(input.weekdays);
   const scheduleChanged =
@@ -100,7 +113,7 @@ export async function updateRecurringRule(
   return cloneRule(rule);
 }
 
-export function setRecurringRuleEnabled(
+export async function setRecurringRuleEnabled(
   id: string,
   enabled: boolean,
 ): Promise<RecurringRule> {
@@ -112,7 +125,7 @@ export function setRecurringRuleEnabled(
   return Promise.resolve(cloneRule(rule));
 }
 
-export function skipNextRecurringOccurrence(
+export async function skipNextRecurringOccurrence(
   id: string,
 ): Promise<RecurringRule> {
   if (isTauri())
@@ -126,7 +139,7 @@ export function skipNextRecurringOccurrence(
   return Promise.resolve(cloneRule(rule));
 }
 
-export function generateNextRecurringOccurrence(
+export async function generateNextRecurringOccurrence(
   id: string,
 ): Promise<RecurringGenerationResult> {
   if (isTauri())
@@ -134,12 +147,17 @@ export function generateNextRecurringOccurrence(
       "generate_next_recurring_occurrence",
       { id },
     );
+  const rule = findBrowserRule(id);
+  // 与 Rust generate_next_now 对齐：规则已结束时报错，且不变更规则状态。
+  if (!rule.nextDueAt || (rule.endAt && rule.nextDueAt > rule.endAt)) {
+    return Promise.reject(new Error("循环任务已经结束"));
+  }
   return Promise.resolve({
-    generatedCount: generateBrowserRule(findBrowserRule(id), true),
+    generatedCount: generateBrowserRule(rule, true),
   });
 }
 
-export function deleteRecurringRule(
+export async function deleteRecurringRule(
   id: string,
   deleteFutureTasks: boolean,
 ): Promise<void> {
@@ -256,6 +274,8 @@ function nextOccurrence(rule: RecurringRule, currentIso: string): string {
         return candidate.toISOString();
       }
     }
+    // 与 Rust next_occurrence 对齐：未命中时报错，而不是落进月度计算。
+    throw new Error("无法计算每周循环的下一次发生时间");
   }
 
   const months = rule.intervalCount * (rule.frequency === "quarterly" ? 3 : 1);
@@ -282,6 +302,88 @@ function startOfWeek(date: Date): Date {
 
 function normalizeWeekdays(weekdays: number[]): number[] {
   return [...new Set(weekdays)].sort((left, right) => left - right);
+}
+
+/**
+ * 镜像 Rust recurring_repository::validate_input + recurrence::validate_schedule。
+ * 时区/日期解析在前端做近似校验（Rust 用 chrono-tz 与 RFC3339 严格解析）。
+ */
+function validateBrowserRuleInput(
+  input: CreateRecurringRuleInput | UpdateRecurringRuleInput,
+): void {
+  if (!input.title.trim()) throw new Error("循环任务标题不能为空");
+  if (input.priority < 0 || input.priority > 2)
+    throw new Error("优先级必须在 0 到 2 之间");
+  if (
+    input.frequency !== "daily" &&
+    input.frequency !== "weekly" &&
+    input.frequency !== "monthly" &&
+    input.frequency !== "quarterly"
+  ) {
+    throw new Error("无效的循环频率");
+  }
+  if (
+    !Number.isInteger(input.intervalCount) ||
+    input.intervalCount < 1 ||
+    input.intervalCount > 365
+  ) {
+    throw new Error("循环间隔必须在 1 到 365 之间");
+  }
+  if (
+    input.frequency === "weekly" &&
+    (input.weekdays.length === 0 ||
+      input.weekdays.some((day) => day < 0 || day > 6))
+  ) {
+    throw new Error("每周循环必须包含有效的星期");
+  }
+  if (
+    (input.frequency === "monthly" || input.frequency === "quarterly") &&
+    (input.monthDay === null || input.monthDay < 1 || input.monthDay > 31)
+  ) {
+    throw new Error("每月/每季度循环必须指定 1 到 31 的日期");
+  }
+  if (
+    input.generateAheadMinutes < 0 ||
+    (input.remindBefore !== null && input.remindBefore < 0)
+  ) {
+    throw new Error("循环偏移量不能为负数");
+  }
+  const firstDueAt = Date.parse(input.firstDueAt);
+  if (Number.isNaN(firstDueAt)) throw new Error("首次到期时间无效");
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: input.timezone });
+  } catch {
+    throw new Error("无效的循环时区");
+  }
+  if (input.endAt !== null) {
+    const endAt = Date.parse(input.endAt);
+    if (Number.isNaN(endAt)) throw new Error("结束时间无效");
+    if (endAt < firstDueAt) throw new Error("结束时间不能早于首次到期时间");
+  }
+}
+
+/** 与 Rust 侧 ORDER BY enabled DESC, next_due_at, created_at DESC 对齐。 */
+function compareRules(left: RecurringRule, right: RecurringRule): number {
+  if (left.enabled !== right.enabled) return left.enabled ? -1 : 1;
+  const dueOrder = compareNullableTextAsc(left.nextDueAt, right.nextDueAt);
+  if (dueOrder !== 0) return dueOrder;
+  if (left.createdAt !== right.createdAt) {
+    return left.createdAt < right.createdAt ? 1 : -1;
+  }
+  return 0;
+}
+
+/** SQLite 的升序默认 NULL 排最前，这里保持一致。 */
+function compareNullableTextAsc(
+  left: string | null,
+  right: string | null,
+): number {
+  if (left === null && right === null) return 0;
+  if (left === null) return -1;
+  if (right === null) return 1;
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 function sameNumberArray(left: number[], right: number[]): boolean {
@@ -311,10 +413,6 @@ function computeOccurrenceRemindAt(
   if (Number.isNaN(occurrenceTime)) return null;
   const remindTime = occurrenceTime - remindBefore * 60_000;
   return remindTime > nowTime ? toRfc3339Seconds(new Date(remindTime)) : null;
-}
-
-function toRfc3339Seconds(date: Date): string {
-  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function findBrowserRule(id: string): RecurringRule {

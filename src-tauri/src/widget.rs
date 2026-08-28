@@ -54,24 +54,69 @@ pub fn read_widget_settings(app: &AppHandle) -> WidgetSettings {
         .unwrap_or_default()
 }
 
-/// 只改 `enabled` 字段，保留 x/y/anchorDate（托盘开关与启动自愈共用）。
-pub fn persist_widget_enabled(app: &AppHandle, enabled: bool) {
-    use crate::models::UpsertSettingInput;
+/// `widget` 设置键的读-改-写单点：在一条 IMMEDIATE 事务内完成
+/// 「读当前 JSON → 按字段合并 patch → 写回」。主窗设置开关与 widget 窗几何
+/// 防抖写分属两个窗口，此前各自 get→merge→upsert 并发执行、互相吞字段；
+/// 现在两侧都经由此函数串行化。`WidgetSettings` 未声明、仅前端消费的字段
+/// （如 `anchorDate`）原样保留，patch 中显式给出的字段（含 null）覆盖。
+///
+/// upsert SQL 须与 `settings_repository::upsert` 保持一致，改一处要同步另一处。
+pub fn patch_widget_settings(
+    app: &AppHandle,
+    patch: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    use rusqlite::{params, OptionalExtension, TransactionBehavior};
+
+    let patch_map = patch
+        .as_object()
+        .ok_or_else(|| "widget settings patch must be a JSON object".to_string())?;
 
     let database = app.state::<Database>();
-    let repository = SettingsRepository::new(&database);
-    let mut value = repository
-        .get("widget")
-        .ok()
-        .flatten()
-        .and_then(|setting| serde_json::from_str::<serde_json::Value>(&setting.value).ok())
+    let mut connection = database.connect().map_err(|error| error.to_string())?;
+    // IMMEDIATE：先拿写锁再读取，保证并发 patch 在这里完全串行
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|error| error.to_string())?;
+
+    let current = transaction
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            params!["widget"],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+
+    let mut value = current
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
         .filter(serde_json::Value::is_object)
         .unwrap_or_else(|| serde_json::json!({}));
-    value["enabled"] = serde_json::Value::Bool(enabled);
-    if let Err(error) = repository.upsert(UpsertSettingInput {
-        key: "widget".to_string(),
-        value: value.to_string(),
-    }) {
+    let merged = value
+        .as_object_mut()
+        .expect("value is checked to be an object above");
+    for (key, field) in patch_map {
+        merged.insert(key.clone(), field.clone());
+    }
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO settings (key, value) VALUES (?1, ?2)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            "#,
+            params!["widget", value.to_string()],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(value)
+}
+
+/// 只改 `enabled` 字段，保留 x/y/anchorDate（托盘开关与启动自愈共用）。
+/// 走 `patch_widget_settings` 共享同一个原子合并点。
+pub fn persist_widget_enabled(app: &AppHandle, enabled: bool) {
+    if let Err(error) = patch_widget_settings(app, &serde_json::json!({ "enabled": enabled })) {
         eprintln!("widget enabled persistence failed: {error}");
     }
 }

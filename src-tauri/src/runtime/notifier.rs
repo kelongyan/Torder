@@ -45,7 +45,10 @@ fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(
     }
 
     for task in tasks {
-        send_native_notification(app_handle, &task)?;
+        if let Err(error) = send_native_notification(app_handle, &task) {
+            eprintln!("native notification failed for task {}: {error}", task.id);
+            continue;
+        }
         if mark_task_reminded(&mut connection, &task.id)? {
             let event = ReminderEvent {
                 task_id: task.id.clone(),
@@ -65,6 +68,7 @@ fn due_reminder_tasks(connection: &Connection) -> Result<Vec<Task>, String> {
             "{} WHERE remind_at IS NOT NULL
               AND reminded_at IS NULL
               AND deleted_at IS NULL
+              AND purged_at IS NULL
               AND status = 'todo'
               AND julianday(remind_at) <= julianday('now')",
             task_repository::select_tasks()
@@ -99,7 +103,9 @@ fn mark_task_reminded(connection: &mut Connection, task_id: &str) -> Result<bool
             UPDATE tasks
             SET reminded_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ?1 AND reminded_at IS NULL
+            WHERE id = ?1
+              AND reminded_at IS NULL
+              AND (remind_at IS NULL OR julianday(remind_at) <= julianday('now'))
             "#,
             params![task_id],
         )
@@ -130,6 +136,7 @@ fn mark_task_reminded(connection: &mut Connection, task_id: &str) -> Result<bool
 
 fn open_connection(database_path: &PathBuf) -> Result<Connection, rusqlite::Error> {
     let connection = Connection::open(database_path)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
     connection.execute_batch(
         r#"
         PRAGMA foreign_keys = ON;

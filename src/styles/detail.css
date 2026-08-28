@@ -310,12 +310,6 @@
   }
 }
 
-.detail-more-menu.is-exiting {
-  opacity: 0;
-  transform: translateY(-4px) scale(0.985);
-  pointer-events: none;
-}
-
 .detail-more-menu button {
   display: flex;
   width: 100%;
@@ -428,9 +422,7 @@
   gap: 6px;
 }
 
-.task-tags span,
-.tag-pill,
-.subtask-pill {
+.task-tags span {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
@@ -441,14 +433,6 @@
   color: var(--text-muted);
   font-size: 12px;
   line-height: 18px;
-}
-
-.tag-pill {
-  color: var(--accent-hover);
-}
-
-.subtask-pill {
-  color: var(--green);
 }
 
 .attachment-section {
@@ -784,24 +768,6 @@
   color: var(--text-primary);
 }
 
-.icon-button.compact {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  box-shadow: none;
-}
-
-.icon-button.compact svg {
-  width: 14px;
-  height: 14px;
-}
-
-.icon-button.compact.danger:hover {
-  border-color: color-mix(in srgb, var(--red) 45%, transparent);
-  background: var(--danger-bg);
-  color: var(--red);
-}
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -810,14 +776,4 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
   clip-path: inset(50%);
-}
-
-.is-spinning {
-  animation: detail-spin 1s linear infinite;
-}
-
-@keyframes detail-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

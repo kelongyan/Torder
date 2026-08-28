@@ -271,7 +271,7 @@ export function PendingAttachmentSection({
   }
 
   return (
-    <section className="detail-section attachment-section pending-attachment-section">
+    <section className="detail-section attachment-section">
       <div className="detail-section-header">
         <strong>附件</strong>
         <span className="attachment-section-meta">{value.length} 个待添加</span>
@@ -368,7 +368,12 @@ function AttachmentDropZone({
         }
       })
       .then((dispose) => {
-        unlisten = dispose;
+        // 竞态防护：effect 可能在 Promise 解决前已卸载，直接释放避免累积失效监听
+        if (disposed) {
+          dispose();
+        } else {
+          unlisten = dispose;
+        }
       })
       .catch((error) => onError(normalizeError(error)));
     return () => {

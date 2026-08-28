@@ -51,10 +51,11 @@ export function listCalendarEvents(): Promise<CalendarEvent[]> {
   return invoke<CalendarEvent[]>("list_calendar_events");
 }
 
-export function createCalendarEvent(
+export async function createCalendarEvent(
   input: CreateCalendarEventInput,
 ): Promise<CalendarEvent> {
   if (!isTauri()) {
+    validateBrowserEventInput(input);
     const timestamp = new Date().toISOString();
     const event: CalendarEvent = {
       id: `event-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -73,10 +74,11 @@ export function createCalendarEvent(
   return invoke<CalendarEvent>("create_calendar_event", { input });
 }
 
-export function updateCalendarEvent(
+export async function updateCalendarEvent(
   input: UpdateCalendarEventInput,
 ): Promise<CalendarEvent> {
   if (!isTauri()) {
+    validateBrowserEventInput(input);
     const index = browserEvents.findIndex((event) => event.id === input.id);
     if (index < 0) return Promise.reject(new Error("日程事件不存在"));
     const next: CalendarEvent = {
@@ -110,4 +112,39 @@ function compareEvents(left: CalendarEvent, right: CalendarEvent): number {
   if (left.startDate !== right.startDate)
     return left.startDate.localeCompare(right.startDate);
   return left.createdAt.localeCompare(right.createdAt);
+}
+
+/** 镜像 Rust calendar_event_repository::validate_input。 */
+function validateBrowserEventInput(input: {
+  title: string;
+  eventType: CalendarEventType;
+  startDate: string;
+  endDate: string;
+}): void {
+  if (!input.title.trim()) throw new Error("日程标题不能为空");
+  if (
+    input.eventType !== "leave" &&
+    input.eventType !== "trip" &&
+    input.eventType !== "other"
+  ) {
+    throw new Error("日程类型必须是 leave、trip 或 other");
+  }
+  if (!isIsoDate(input.startDate) || !isIsoDate(input.endDate)) {
+    throw new Error("日程日期必须是 YYYY-MM-DD 格式");
+  }
+  if (input.endDate < input.startDate) {
+    throw new Error("结束日期不能早于开始日期");
+  }
+}
+
+/** 与 Rust is_iso_date 一致：严格 YYYY-MM-DD 且是真实存在的日期。 */
+function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
 }

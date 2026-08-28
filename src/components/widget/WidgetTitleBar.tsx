@@ -1,10 +1,12 @@
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { parseDateKey as parseStrictDateKey } from "../../utils/taskDates";
 
 const weekdayNames = ["日", "一", "二", "三", "四", "五", "六"];
 
+// dateKey 恒为 toDateKey 生成的 YYYY-MM-DD；兜底的无效日期与旧实现
+// 对非法输入的结果一致。
 function parseDateKey(dateKey: string): Date {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  return new Date(year, month - 1, day);
+  return parseStrictDateKey(dateKey) ?? new Date(NaN);
 }
 
 /** 抬头大标题：今天 / 明天 / 8月27日 */

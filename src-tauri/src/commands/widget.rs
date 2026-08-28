@@ -32,7 +32,7 @@ pub fn show_main_window(app: AppHandle) {
     tray::show_main_window(&app);
 }
 
-/// 设置面板开关用：显示/隐藏小窗。`enabled` 设置键本身由前端经 `upsert_setting` 写入。
+/// 设置面板开关用：显示/隐藏小窗。`enabled` 设置键由前端经 `patch_widget_settings` 写入。
 #[tauri::command]
 pub fn set_widget_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
     if enabled {
@@ -41,4 +41,16 @@ pub fn set_widget_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
         window.hide().map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+/// 原子 patch `widget` 设置键：读-改-写在 Rust 侧单条 IMMEDIATE 事务内完成，
+/// 修复跨窗口（主窗设置开关 ↔ widget 窗几何防抖写）各自 get→merge→upsert
+/// 互相吞字段的竞态；Rust `WidgetSettings` 未声明的前端字段（`anchorDate`）
+/// 原样保留。返回合并后的完整 JSON 供前端归一化。
+#[tauri::command]
+pub fn patch_widget_settings(
+    app: AppHandle,
+    patch: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    widget::patch_widget_settings(&app, &patch)
 }

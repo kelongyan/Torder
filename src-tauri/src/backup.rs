@@ -117,6 +117,7 @@ pub fn backup_database(app: &AppHandle, database: &Database) -> RepositoryResult
     fs::create_dir_all(&backup_dir)?;
 
     let connection = rusqlite::Connection::open(&db_path)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
     let stamp: String = connection.query_row(
         "SELECT strftime('%Y%m%d-%H%M%S', 'now', 'localtime')",
         [],
@@ -189,6 +190,7 @@ fn create_backup_package(
 
     let result = (|| {
         let connection = rusqlite::Connection::open(db_path)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
         vacuum_into(&connection, &snapshot_path)?;
         write_backup_package_from_snapshot(data_dir, &snapshot_path, package_path)
     })();
@@ -558,6 +560,7 @@ pub fn import_backup_selection(
 
 fn snapshot_current_database(db_path: &Path, snapshot_path: &Path) -> RepositoryResult<()> {
     let connection = rusqlite::Connection::open(db_path)?;
+    connection.busy_timeout(std::time::Duration::from_secs(5))?;
     vacuum_into(&connection, snapshot_path)
 }
 
@@ -940,6 +943,16 @@ fn import_from_prepared_backup(
     })
 }
 
+fn backup_has_table(database: &Database, table: &str) -> RepositoryResult<bool> {
+    let connection = database.connect()?;
+    let exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+        [table],
+        |row| row.get(0),
+    )?;
+    Ok(exists)
+}
+
 fn import_task_attachments(
     database: &Database,
     current_data_dir: Option<&Path>,
@@ -952,11 +965,10 @@ fn import_task_attachments(
         return Ok(());
     };
     let backup_repository = AttachmentRepository::new(backup_database);
-    let attachments = match backup_repository.list_by_task(backup_data_dir, source_task_id) {
-        Ok(attachments) => attachments,
-        Err(RepositoryError::Database(rusqlite::Error::SqliteFailure(_, _))) => return Ok(()),
-        Err(error) => return Err(error),
-    };
+    if !backup_has_table(backup_database, "task_attachments")? {
+        return Ok(());
+    }
+    let attachments = backup_repository.list_by_task(backup_data_dir, source_task_id)?;
     let repository = AttachmentRepository::new(database);
     for attachment in attachments {
         match attachment.kind.as_str() {
@@ -1006,14 +1018,11 @@ fn import_task_links(
 
     let backup_repository = TaskLinkRepository::new(backup_database);
     let repository = TaskLinkRepository::new(database);
+    if !backup_has_table(backup_database, "task_links")? {
+        return Ok(());
+    }
     for (source_task_id, target_source_task_id) in imported_task_id_map {
-        let links = match backup_repository.list_by_task(source_task_id) {
-            Ok(links) => links,
-            Err(RepositoryError::Database(rusqlite::Error::SqliteFailure(_, _))) => {
-                return Ok(());
-            }
-            Err(error) => return Err(error),
-        };
+        let links = backup_repository.list_by_task(source_task_id)?;
         for link in links {
             let Some(target_task_id) = imported_task_id_map.get(&link.target_task_id) else {
                 continue;

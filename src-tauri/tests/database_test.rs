@@ -1327,10 +1327,11 @@ fn local_reference_attachment_stays_local_and_does_not_record_sync_change() -> R
     assert_eq!(attachment.kind, "localReference");
     assert!(attachment.blob_id.is_none());
     let canonical_source = std::fs::canonicalize(&source_path)?;
-    assert_eq!(
-        attachment.local_path.as_deref(),
-        Some(canonical_source.display().to_string().as_str())
-    );
+    let canonical_source = canonical_source.display().to_string();
+    let expected_source = canonical_source
+        .strip_prefix(r"\\?\")
+        .unwrap_or(&canonical_source);
+    assert_eq!(attachment.local_path.as_deref(), Some(expected_source));
     let connection = database.connect()?;
     let blob_count: i64 =
         connection.query_row("SELECT COUNT(*) FROM attachment_blobs", [], |row| {

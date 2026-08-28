@@ -165,6 +165,12 @@
   }
 }
 
+/* .form-grid 的全宽跨格子（设置面板与多个对话框共用，审计 #55 从
+   recurring.css 迁入） */
+.form-grid-full {
+  grid-column: 1 / -1;
+}
+
 .form-field {
   display: grid;
   gap: 7px;
@@ -705,44 +711,9 @@
   padding: 12px 14px;
 }
 
-.task-create-dialog .dialog-icon {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-}
-
-.task-create-dialog .dialog-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.task-create-dialog .dialog-header h2 {
-  font-size: 15px;
-  line-height: 21px;
-}
-
-.task-create-dialog .dialog-header .icon-button {
-  width: 30px;
-  height: 30px;
-}
-
 .task-create-dialog .dialog-form {
   gap: 10px;
   padding: 13px 14px 0;
-}
-
-.task-create-dialog .form-title-field {
-  gap: 4px;
-}
-
-.task-create-dialog .form-title-field input {
-  min-height: 34px;
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 20px;
 }
 
 .task-create-dialog .form-title-error {
@@ -750,30 +721,8 @@
   line-height: 16px;
 }
 
-.task-create-dialog .form-field {
-  gap: 5px;
-}
-
-.task-create-dialog .form-grid {
-  gap: 9px 10px;
-}
-
 .task-create-dialog .form-grid .form-field {
   gap: 5px;
-}
-
-.task-create-dialog .form-field > span {
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-weight: 700;
-  line-height: 16px;
-}
-
-.task-create-dialog .form-field input {
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 12.5px;
-  line-height: 18px;
 }
 
 .task-create-dialog .form-field textarea {
@@ -805,22 +754,6 @@
   height: 20px;
 }
 
-.task-create-dialog .date-time-trigger {
-  min-height: 30px;
-  gap: 6px;
-  padding: 3px 7px;
-}
-
-.task-create-dialog .date-time-compact-trigger {
-  gap: 4px;
-  padding: 3px;
-}
-
-.task-create-dialog .date-time-trigger:hover,
-.task-create-dialog .date-time-trigger.active {
-  transform: none;
-}
-
 .task-create-dialog .date-time-trigger .icon-sm {
   width: 13px;
   height: 13px;
@@ -841,19 +774,6 @@
   display: none;
 }
 
-.task-create-dialog .date-time-trigger > .date-time-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 7px;
-  font-size: 12px;
-}
-
-.task-create-dialog .date-time-chip .icon-sm {
-  width: 12px;
-  height: 12px;
-}
-
 .task-create-dialog .date-time-clear {
   min-height: 30px;
 }
@@ -863,7 +783,115 @@
   height: 13px;
 }
 
-.task-create-dialog .date-picker-panel {
+.task-create-dialog .select-option {
+  min-height: 29px;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.task-create-dialog .segmented-control {
+  padding: 2px;
+}
+
+.task-create-dialog .dialog-footer {
+  margin: 0 -14px;
+  padding: 10px 14px;
+}
+
+/* ===== form-dialog：TaskCreateDialog / RecurringRuleDialog 共用的紧凑表单结构 =====
+   两个对话框的 overlay 上都挂了 .form-dialog 类；逐字节相同的规则体只在这里
+   保留一份，各自作用域内只留差异规则（见 recurring.css）。 */
+.form-dialog .dialog-icon {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+}
+
+.form-dialog .dialog-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.form-dialog .dialog-header h2 {
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.form-dialog .dialog-header .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+.form-dialog .form-title-field {
+  gap: 4px;
+}
+
+.form-dialog .form-title-field input {
+  min-height: 34px;
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+}
+
+.form-dialog .form-field {
+  gap: 5px;
+}
+
+.form-dialog .form-grid {
+  gap: 9px 10px;
+}
+
+.form-dialog .form-field > span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.form-dialog .form-field input {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.form-dialog .date-time-trigger {
+  min-height: 30px;
+  gap: 6px;
+  padding: 3px 7px;
+}
+
+.form-dialog .date-time-compact-trigger {
+  gap: 4px;
+  padding: 3px;
+}
+
+.form-dialog .date-time-trigger:hover,
+.form-dialog .date-time-trigger.active {
+  transform: none;
+}
+
+.form-dialog .date-time-trigger > .date-time-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+
+/* 选择器带上 .date-time-trigger > 路径，使其稳定胜过各自的
+   .date-time-trigger .icon-sm（新建对话框里触发器图标 13px、chip 内 12px） */
+.form-dialog .date-time-trigger > .date-time-chip .icon-sm {
+  width: 12px;
+  height: 12px;
+}
+
+.form-dialog .date-picker-panel {
   top: calc(100% + 8px);
   right: auto;
   bottom: auto;
@@ -886,83 +914,83 @@
   transform-origin: center top;
 }
 
-.task-create-dialog .date-picker-toolbar {
+.form-dialog .date-picker-toolbar {
   grid-template-columns: 28px 1fr 28px;
   gap: 6px;
   margin-bottom: 8px;
 }
 
-.task-create-dialog .date-picker-toolbar strong {
+.form-dialog .date-picker-toolbar strong {
   font-size: 13px;
   line-height: 19px;
 }
 
-.task-create-dialog .date-picker-nav {
+.form-dialog .date-picker-nav {
   width: 28px;
   height: 28px;
 }
 
-.task-create-dialog .date-picker-grid {
+.form-dialog .date-picker-grid {
   gap: 4px;
 }
 
-.task-create-dialog .date-picker-weekday {
+.form-dialog .date-picker-weekday {
   font-size: 11px;
   line-height: 16px;
 }
 
-.task-create-dialog .date-picker-day {
+.form-dialog .date-picker-day {
   border-radius: 7px;
   font-size: 12px;
   line-height: 16px;
 }
 
-.task-create-dialog .date-picker-time {
+.form-dialog .date-picker-time {
   padding-left: 12px;
 }
 
-.task-create-dialog .date-picker-time-title {
+.form-dialog .date-picker-time-title {
   gap: 6px;
   font-size: 12px;
   line-height: 19px;
 }
 
-.task-create-dialog .time-select-row {
+.form-dialog .time-select-row {
   gap: 6px;
   margin-top: 8px;
 }
 
-.task-create-dialog .time-select-row label {
+.form-dialog .time-select-row label {
   gap: 4px;
   font-size: 10.5px;
   line-height: 15px;
 }
 
-.task-create-dialog .time-select-row select {
+.form-dialog .time-select-row select {
   height: 30px;
   padding: 0 7px;
   font-size: 12px;
 }
 
-.task-create-dialog .quick-time-row {
+.form-dialog .quick-time-row {
   gap: 6px;
   margin-top: 8px;
 }
 
-.task-create-dialog .quick-time-row button,
-.task-create-dialog .date-picker-actions button {
+.form-dialog .quick-time-row button,
+.form-dialog .date-picker-actions button {
   min-height: 28px;
   border-radius: 7px;
   font-size: 11.5px;
   line-height: 16px;
 }
 
-.task-create-dialog .date-picker-actions {
+.form-dialog .date-picker-actions {
   gap: 6px;
   padding-top: 10px;
 }
 
-.task-create-dialog .select-trigger {
+.form-dialog .select-trigger {
   min-height: 30px;
   gap: 5px;
   padding: 0 8px;
@@ -970,30 +998,18 @@
   line-height: 18px;
 }
 
-.task-create-dialog .select-dot {
+.form-dialog .select-dot {
   width: 8px;
   min-width: 8px;
   height: 8px;
 }
 
-.task-create-dialog .select-chevron {
+.form-dialog .select-chevron {
   width: 13px;
   height: 13px;
 }
 
-.task-create-dialog .select-option {
-  min-height: 29px;
-  gap: 6px;
-  padding: 0 8px;
-  font-size: 12.5px;
-  line-height: 18px;
-}
-
-.task-create-dialog .segmented-control {
-  padding: 2px;
-}
-
-.task-create-dialog .segmented-option {
+.form-dialog .segmented-option {
   min-height: 24px;
   gap: 4px;
   padding: 0 6px;
@@ -1001,19 +1017,14 @@
   line-height: 18px;
 }
 
-.task-create-dialog .segmented-dot {
+.form-dialog .segmented-dot {
   width: 6px;
   min-width: 6px;
   height: 6px;
 }
 
-.task-create-dialog .dialog-footer {
-  margin: 0 -14px;
-  padding: 10px 14px;
-}
-
-.task-create-dialog .dialog-footer .btn-primary,
-.task-create-dialog .dialog-footer .btn-secondary {
+.form-dialog .dialog-footer .btn-primary,
+.form-dialog .dialog-footer .btn-secondary {
   min-height: 30px;
   padding: 0 12px;
   font-size: 12.5px;
@@ -1111,4 +1122,3 @@
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
   animation: check-pop var(--motion-soft) var(--ease-out) both;
 }
-

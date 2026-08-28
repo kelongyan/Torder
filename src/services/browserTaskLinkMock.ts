@@ -72,10 +72,19 @@ export function searchBrowserLinkableTasks(
     .filter((task) => !linkedIds.has(task.id))
     .filter((task) => {
       if (!normalized) return true;
-      return `${task.title} ${task.note ?? ""}`
-        .toLocaleLowerCase("zh-CN")
-        .includes(normalized);
+      // 与 Rust 一致：title、note 分别匹配（LIKE title OR LIKE note），
+      // 不允许跨字段命中。
+      return (
+        task.title.toLocaleLowerCase("zh-CN").includes(normalized) ||
+        (task.note ?? "").toLocaleLowerCase("zh-CN").includes(normalized)
+      );
     })
+    // 与 Rust ORDER BY updated_at DESC, created_at DESC 对齐。
+    .sort(
+      (left, right) =>
+        right.updatedAt.localeCompare(left.updatedAt) ||
+        right.createdAt.localeCompare(left.createdAt),
+    )
     .slice(0, Math.max(1, Math.min(limit, 20)));
 }
 

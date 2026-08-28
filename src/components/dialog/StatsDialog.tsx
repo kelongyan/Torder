@@ -4,6 +4,7 @@ import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
 import { priorityCopy } from "../../constants/taskConfig";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
+import { toLocalDateKey } from "../../utils/taskDates";
 import type { RecurringRule, Task, TaskList } from "../../types/database";
 
 const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
@@ -25,8 +26,8 @@ export function StatsDialog({
     () => buildStats(tasks, lists, recurringRules),
     [lists, recurringRules, tasks],
   );
-  const maxTrend = Math.max(1, ...stats.trend.map((item) => item.count));
-  const maxCreatedTrend = Math.max(
+  // 两组柱（新增 / 完成）共用同一归一化基数，避免相对高度误导
+  const maxTrend = Math.max(
     1,
     ...stats.trend.map((item) => item.created),
     ...stats.trend.map((item) => item.count),
@@ -96,7 +97,7 @@ export function StatsDialog({
                   style={{
                     height: `${Math.max(
                       4,
-                      Math.round((item.created / maxCreatedTrend) * 64),
+                      Math.round((item.created / maxTrend) * 64),
                     )}px`,
                   }}
                 />
@@ -245,10 +246,11 @@ function buildStats(
     date.setDate(date.getDate() - offset);
     const key = localDateKey(date);
     const count = active.filter(
-      (task) => task.status === "done" && task.completedAt?.startsWith(key),
+      (task) =>
+        task.status === "done" && toLocalDateKey(task.completedAt) === key,
     ).length;
-    const created = active.filter((task) =>
-      task.createdAt.startsWith(key),
+    const created = active.filter(
+      (task) => toLocalDateKey(task.createdAt) === key,
     ).length;
     trend.push({
       label: offset === 0 ? "今天" : weekdays[date.getDay()],
@@ -319,7 +321,8 @@ function completionStreak(tasks: Task[]): number {
   for (let index = 0; index < 366; index += 1) {
     const key = localDateKey(date);
     const hasCompleted = tasks.some(
-      (task) => task.status === "done" && task.completedAt?.startsWith(key),
+      (task) =>
+        task.status === "done" && toLocalDateKey(task.completedAt) === key,
     );
     if (!hasCompleted) break;
     streak += 1;

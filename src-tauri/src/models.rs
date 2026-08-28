@@ -166,23 +166,6 @@ pub struct CreateTaskLinkInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AttachmentBlob {
-    pub id: String,
-    pub content_sha256: String,
-    pub size_bytes: i64,
-    pub mime_type: Option<String>,
-    pub local_relative_path: String,
-    pub remote_path: Option<String>,
-    pub encryption_key_id: Option<String>,
-    pub sync_state: String,
-    pub last_error: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
-    pub deleted_at: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct Attachment {
     pub id: String,
     pub task_id: String,
@@ -220,12 +203,6 @@ pub struct CreateWebLinkAttachmentInput {
     pub task_id: String,
     pub url: String,
     pub display_name: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AttachmentQueryInput {
-    pub task_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
