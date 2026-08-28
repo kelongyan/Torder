@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "version": "2.6.2",
+  "version": "2.6.3",
   "build": {
     "beforeDevCommand": "pnpm configure:android-tls && pnpm sync:android-icons && pnpm dev",
     "beforeBuildCommand": "pnpm configure:android-tls && pnpm sync:android-icons && pnpm build"
