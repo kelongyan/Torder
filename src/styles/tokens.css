@@ -54,10 +54,13 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
   --transition: var(--motion-base) var(--ease-standard);
-  font-family:
+  /* UI 字体栈：便签的 --font-note 在它前面接手写体家族（见 widget.css），
+     所以这里必须是变量而不是 :root 上的裸声明，否则两处列表会各自漂移 */
+  --font-ui:
     "Frex Sans GB", "Source Han Sans SC", "Noto Sans SC", "Noto Sans CJK SC",
     "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
     "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 400;
   line-height: 1.55;

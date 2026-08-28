@@ -32,7 +32,11 @@
   --note-title: #6b4a1e;
   --note-muted: #6b4a1e;
   --note-check: #2e8b3d;
+  --note-high: #a3341c;
   --note-rule: rgba(107, 74, 30, 0.09);
+  /* 便签正文用 Torder Note（Xiaolai 的 GB2312 子集，只有 Regular）：
+     它只声明中文 unicode-range，所以拉丁/数字自动落到 --font-ui 的 Frex Sans */
+  --font-note: "Torder Note", var(--font-ui);
   --note-pin-1: #ff8a4c;
   --note-pin-2: #f56b1f;
   --note-pin-3: #c44a0e;
@@ -61,6 +65,10 @@ html.widget-entry body {
   display: block;
   overflow: hidden;
   border-radius: 10px;
+  font-family: var(--font-note);
+  /* 便签字体只有 Regular：伪粗会把毛笔边糊成一团，宁可原样输出常规笔画。
+     层级靠字号/颜色表达（见 .widget-title、.is-high）。 */
+  font-synthesis-weight: none;
   /* 整页可拖（"deep"）→ 用 grab 明示"这张纸能拿起来"；
      条目行、按钮各自有更具体的 cursor 覆盖 */
   cursor: grab;
@@ -232,7 +240,7 @@ html.widget-entry body {
   flex: 0 1 auto;
   min-width: 0;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--note-title);
   line-height: 24px;
   white-space: nowrap;
@@ -445,7 +453,7 @@ html.widget-entry body {
   font-size: 14px;
   line-height: 22px;
   color: var(--note-text);
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
   user-select: none;
   transition: opacity 0.25s;
@@ -568,8 +576,12 @@ html.widget-entry body {
     color 0.3s;
 }
 
+/* 优先级不再靠字重（便签字体只有 Regular），改用红笔色；
+   放在 .is-done 之前 → 完成的高优先级任务仍回归灰+删除线。
+   本条选择器比 .widget-item-title:hover 更具体，所以高优先级行的 hover
+   反馈由 .widget-item:hover 的透明度承担，不再变色。 */
 .widget-item.is-high .widget-item-title {
-  font-weight: 600;
+  color: var(--note-high);
 }
 
 .widget-item-title:hover {

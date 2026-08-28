@@ -48,6 +48,20 @@
   font-display: swap;
 }
 
+/* 便签手写体 = Xiaolai v3.126 的 GB2312 子集（来源/许可见
+   src/assets/fonts/LICENSE-TorderNote.txt），只有 Regular 一档字重。
+   unicode-range 只接管中文：拉丁字母与数字仍由 Frex Sans GB 出，
+   于是时间 "09:30" 保持等宽清晰，中文正文是手写笔触。
+   未被子集覆盖的汉字（生僻字、扩展 A/B）按字体回退规则落到下一个家族。 */
+@font-face {
+  font-family: "Torder Note";
+  src: url("../assets/fonts/TorderNote-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+3000-303F, U+4E00-9FFF, U+FF00-FFEF;
+}
+
 @font-face {
   font-family: "Source Han Sans SC";
   src:
