@@ -36,7 +36,7 @@ const settingsPanels = [
   {
     id: "appearance",
     title: "外观",
-    description: "主题模式与显示偏好",
+    description: "桌面小窗便签的纸色、透明度、字体与纸面细节",
     icon: Palette,
   },
   {

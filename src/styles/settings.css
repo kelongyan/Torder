@@ -1362,43 +1362,42 @@
    2026-08-29 用户定稿：不设设置界面内预览卡——纸面/字体效果以桌面小窗本体为预览
    （改动经 widget-settings-changed 广播实时生效）。 */
 
-.note-settings-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+/* ===== 外观分区（docs/appearance-layout-optimization-plan.md §3）=====
+   三个组（纸色/字体/纸面与显示）+ 沉底恢复按钮；组间 hairline 分隔，
+   滑杆各回所属组。间距全落 4px 栅格（check:design 门禁把关）。 */
+
+/* 组间分隔：不用盒子，跟随设置页其它分区的扁平语言 */
+.appearance-group + .appearance-group {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
 }
 
-/* 与 .settings-preference-grid .form-field > span 同款小标签风格（本布局不在该网格内） */
-.note-settings-stack .form-field > span {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
+.appearance-group-title {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
   line-height: 18px;
 }
 
-/* 两个滑杆（不透明度/字号）并排；窄屏折单列 */
-.note-slider-grid {
+/* 滑杆行（label 72px + range + 数值 48px）：覆盖 dialog.css `.form-field input`
+   的文本框化样式（min-height/边框/底色），range 只要原生轨道，accent 跟主题色 */
+.note-slider-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
-}
-
-@media (max-width: 720px) {
-  .note-slider-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 滑杆行：range + 数值并排。覆盖 dialog.css `.form-field input` 的文本框化
-   样式（min-height/边框/底色），range 只要原生轨道，accent-color 跟随主题色 */
-.note-opacity-row {
-  display: flex;
+  grid-template-columns: 72px minmax(0, 1fr) 48px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
-.note-opacity-row input[type="range"] {
-  flex: 1;
+.note-slider-row > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.note-slider-row input[type="range"] {
   min-width: 0;
   min-height: 0;
   margin: 0;
@@ -1409,31 +1408,49 @@
   cursor: pointer;
 }
 
-.note-opacity-row input[type="range"]:focus-visible {
+.note-slider-row input[type="range"]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-.note-opacity-row input[type="range"]:disabled {
+.note-slider-row input[type="range"]:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .note-slider-value {
-  flex-shrink: 0;
-  min-width: 4ch;
   text-align: right;
   color: var(--text-primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-/* 纸色色卡一排六个（原生 radio + 视觉纸样）；窄屏允许折行 */
+/* 纸色色卡：固定 5 列（10 个选项恰好 5×2，「跟随应用」不再孤行）；窄面板折 3 列 */
 
 .note-theme-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .note-theme-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 字体卡网格：2×2（此前 .note-font-grid 缺失 CSS 定义，卡片曾全宽堆叠） */
+
+.note-font-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .note-font-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* 色卡与字体卡共用卡片基座（原生 radio 隐藏、状态类由 React 驱动） */
@@ -1540,23 +1557,31 @@
   font-weight: 600;
 }
 
-/* 字体卡：字样用真实字体栈渲染（手写体字样会命中 Torder Note 缓存，见组件注释） */
+/* 字体卡：字样用真实字体栈渲染（手写体字样会命中 Torder Note 缓存，见组件注释）；
+   在共用基座上改为左对齐两行紧凑卡，长字体名/超宽字样由 CSS 省略号截断 */
 
 .note-font-card {
-  padding: 8px 12px 8px;
-  gap: 4px;
+  align-items: stretch;
+  gap: 2px;
+  padding: 8px 12px;
+  text-align: left;
 }
 
 .note-font-sample {
-  font-size: 14px;
+  overflow: hidden;
+  font-size: var(--text-md);
   line-height: 24px;
-  color: var(--text-primary);
+  text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-primary);
 }
 
 .note-font-name {
+  overflow: hidden;
   font-size: 12px;
   line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-secondary);
 }
 
@@ -1641,7 +1666,7 @@
   opacity: 0.6;
 }
 
-/* 纸面细节/显示开关行 + 恢复默认按钮行 */
+/* 纸面与显示开关行（五个开关一组，flex-wrap 自然换行） */
 
 .note-detail-toggles {
   display: flex;
@@ -1649,7 +1674,30 @@
   gap: 8px 20px;
 }
 
+/* 恢复默认外观：沉底右对齐，text 风格弱化（与「更换/移除」链接同语言） */
+
 .note-reset-row {
   display: flex;
   justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.note-reset-link {
+  border: none;
+  background: none;
+  padding: 4px 8px;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.note-reset-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.note-reset-link:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
