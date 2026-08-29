@@ -20,7 +20,11 @@
      元素自动排除；两处显式 "false" 例外：任务条目行（行尾空白的职责是点开主窗）、
      以及可滚动状态的列表（否则抓细滚动条会拖窗口而不是滚动）。 */
 
-/* === 便签纸主题 token（不放入 tokens.css，独立作用域） === */
+/* === 便签纸主题 token（不放入 tokens.css，独立作用域） ===
+   换主题 = 在下方以 [data-note-theme="<id>"] 重声明整套 token（Phase 1）；
+   --note-ink 是墨色 RGB 三元组，所有 rgba(107,74,30,α) 字面量统一从这里派生，
+   别再写裸 rgba(107,74,30,…)。--note-opacity / --font-note 运行时被
+   widgetAppearance 以 inline style 覆盖（0.3–1 / 按所选字体族）。 */
 
 :root,
 :root[data-theme="dark"],
@@ -33,7 +37,27 @@
   --note-muted: #6b4a1e;
   --note-check: #2e8b3d;
   --note-high: #a3341c;
-  --note-rule: rgba(107, 74, 30, 0.09);
+  --note-ink: 107, 74, 30;
+  /* 确认按钮 hover 的实色（墨色加深一档） */
+  --note-strong: #563a17;
+  /* 纸面纹理与顶部高光：暗色纸主题需调低（夜墨）或改向冷白 */
+  --note-texture-1: rgba(255, 255, 255, 0.25);
+  --note-texture-2: rgba(255, 255, 255, 0.2);
+  --note-sheen: rgba(255, 255, 255, 0.4);
+  --note-rule: rgba(var(--note-ink), 0.09);
+  /* 纸面不透明度：只作用于背景伪层（.widget-shell::before/::after），
+     正文不参与淡出；默认 1 = 与迁移前逐像素一致 */
+  --note-opacity: 1;
+  /* 字号基准：运行时被 widgetAppearance 以 inline style 覆盖（12–17px）。
+     派生比值按 14px 基准的历史像素值折算（16/11/12/10 → 1.15/0.8/0.86/0.72），
+     改历史字号先改这里的比值 */
+  --note-fs: 14px;
+  --note-fs-title: calc(var(--note-fs) * 1.15);
+  --note-fs-meta: calc(var(--note-fs) * 0.8);
+  --note-fs-empty: calc(var(--note-fs) * 0.86);
+  --note-fs-chip: calc(var(--note-fs) * 0.72);
+  /* 条目行高（≈22px@14）：复选框/色点的对齐 margin 由它派生，别写死像素 */
+  --note-lh-item: calc(var(--note-fs) * 1.57);
   /* 便签正文用 Torder Note（Xiaolai 的 GB2312 子集，只有 Regular）：
      它只声明中文 unicode-range，所以拉丁/数字自动落到 --font-ui 的 Frex Sans */
   --font-note: "Torder Note", var(--font-ui);
@@ -42,8 +66,196 @@
   --note-pin-3: #c44a0e;
   --note-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 0 0 1px rgba(107, 74, 30, 0.08),
-    inset 0 -18px 24px -18px rgba(107, 74, 30, 0.18);
+    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.18);
+}
+
+/* === 主题集（Phase 1，方案见 docs/widget-personalization-plan.md §6） ===
+   经典黄即上方 :root 默认值，未带 data-note-theme 属性时生效。
+   每套主题必须【完整声明】全部 --note-* token——漏一条就继承经典黄（部分回退）；
+   --note-fs* / --note-opacity / --font-note 不属于主题（运行时 inline 注入），勿在此声明。
+   双选择器是特异性地基，不是风格问题：widget 窗口把属性挂在 <html> 上，
+   经典默认块在该元素命中的是 :root[data-theme="dark"]（特异性 0,2,0），
+   裸属性选择器（0,1,0）无论源序多靠后都赢不了它；:root[data-note-theme=…]
+   打成 0,2,0 平局后靠源序获胜。裸 [data-note-theme=…] 那条服务设置界面
+   预览卡/色卡等元素级用法（元素自身声明对子树的胜利靠继承，无需更高特异性）。
+   定色原则：正文对纸底对比度 ≥ 7:1；--note-high（红笔）每张纸单独校准；
+   图钉保持橙色系不随主题变（品牌锚点，夜墨下对比也够）。 */
+
+[data-note-theme="cloud"],
+:root[data-note-theme="cloud"] {
+  --note-bg-start: #ffffff;
+  --note-bg-mid: #f6f8fb;
+  --note-bg-end: #eaeff5;
+  --note-text: #334155;
+  --note-title: #3f4c63;
+  --note-muted: #64748b;
+  --note-check: #16a34a;
+  --note-high: #dc2626;
+  --note-ink: 51, 65, 85;
+  --note-strong: #1e293b;
+  --note-texture-1: rgba(255, 255, 255, 0.35);
+  --note-texture-2: rgba(255, 255, 255, 0.3);
+  --note-sheen: rgba(255, 255, 255, 0.5);
+  --note-rule: rgba(var(--note-ink), 0.1);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.06),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
+}
+
+[data-note-theme="kraft"],
+:root[data-note-theme="kraft"] {
+  --note-bg-start: #e9d7b4;
+  --note-bg-mid: #e2cca3;
+  --note-bg-end: #d9bf8e;
+  --note-text: #4a3a28;
+  --note-title: #6b4a1e;
+  --note-muted: #7a6142;
+  --note-check: #2e7d32;
+  --note-high: #b23a20;
+  --note-ink: 90, 66, 40;
+  --note-strong: #5b4632;
+  --note-texture-1: rgba(255, 255, 255, 0.18);
+  --note-texture-2: rgba(255, 255, 255, 0.14);
+  --note-sheen: rgba(255, 255, 255, 0.25);
+  --note-rule: rgba(var(--note-ink), 0.12);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.1),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.16);
+}
+
+[data-note-theme="mint"],
+:root[data-note-theme="mint"] {
+  --note-bg-start: #e4f5eb;
+  --note-bg-mid: #d9efe1;
+  --note-bg-end: #cde8d6;
+  --note-text: #2f4838;
+  --note-title: #3a6b52;
+  --note-muted: #5f8a74;
+  --note-check: #1f8a4c;
+  --note-high: #c2453a;
+  --note-ink: 47, 90, 64;
+  --note-strong: #2c5940;
+  --note-texture-1: rgba(255, 255, 255, 0.28);
+  --note-texture-2: rgba(255, 255, 255, 0.22);
+  --note-sheen: rgba(255, 255, 255, 0.35);
+  --note-rule: rgba(var(--note-ink), 0.1);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.14);
+}
+
+[data-note-theme="sakura"],
+:root[data-note-theme="sakura"] {
+  --note-bg-start: #fdeff1;
+  --note-bg-mid: #fbdfe4;
+  --note-bg-end: #f7d2da;
+  --note-text: #6d3a44;
+  --note-title: #a05a68;
+  --note-muted: #b07a86;
+  --note-check: #2e8b57;
+  --note-high: #c0392b;
+  --note-ink: 150, 74, 90;
+  --note-strong: #8a4450;
+  --note-texture-1: rgba(255, 255, 255, 0.3);
+  --note-texture-2: rgba(255, 255, 255, 0.25);
+  --note-sheen: rgba(255, 255, 255, 0.4);
+  --note-rule: rgba(var(--note-ink), 0.1);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
+}
+
+[data-note-theme="night"],
+:root[data-note-theme="night"] {
+  --note-bg-start: #2a2a30;
+  --note-bg-mid: #252529;
+  --note-bg-end: #1f1f24;
+  --note-text: #e6e1d5;
+  --note-title: #d9c89a;
+  --note-muted: #a79d88;
+  --note-check: #7fd89b;
+  --note-high: #ff8f7d;
+  --note-ink: 230, 225, 213;
+  --note-strong: #c4b385;
+  --note-texture-1: rgba(255, 255, 255, 0.05);
+  --note-texture-2: rgba(255, 255, 255, 0.04);
+  --note-sheen: rgba(255, 255, 255, 0.06);
+  --note-rule: rgba(var(--note-ink), 0.14);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 -18px 24px -18px rgba(0, 0, 0, 0.45);
+}
+
+[data-note-theme="sky"],
+:root[data-note-theme="sky"] {
+  --note-bg-start: #e8f1fa;
+  --note-bg-mid: #dce9f7;
+  --note-bg-end: #cfe0f2;
+  --note-text: #2b3a4d;
+  --note-title: #2f5d8a;
+  --note-muted: #5f7d99;
+  --note-check: #1f8a70;
+  --note-high: #c0392b;
+  --note-ink: 43, 58, 77;
+  --note-strong: #234869;
+  --note-texture-1: rgba(255, 255, 255, 0.32);
+  --note-texture-2: rgba(255, 255, 255, 0.26);
+  --note-sheen: rgba(255, 255, 255, 0.45);
+  --note-rule: rgba(var(--note-ink), 0.1);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.14);
+}
+
+[data-note-theme="lilac"],
+:root[data-note-theme="lilac"] {
+  --note-bg-start: #f0edfa;
+  --note-bg-mid: #e8e4f7;
+  --note-bg-end: #ded9f2;
+  --note-text: #453a63;
+  --note-title: #5f4f9e;
+  --note-muted: #8a80ab;
+  --note-check: #2e8b57;
+  --note-high: #c0392b;
+  --note-ink: 90, 80, 130;
+  --note-strong: #4f4380;
+  --note-texture-1: rgba(255, 255, 255, 0.3);
+  --note-texture-2: rgba(255, 255, 255, 0.24);
+  --note-sheen: rgba(255, 255, 255, 0.4);
+  --note-rule: rgba(var(--note-ink), 0.1);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
+}
+
+[data-note-theme="slate"],
+:root[data-note-theme="slate"] {
+  --note-bg-start: #f2f3f5;
+  --note-bg-mid: #eaecef;
+  --note-bg-end: #e0e3e8;
+  --note-text: #37414d;
+  --note-title: #4a5866;
+  --note-muted: #7d8b99;
+  --note-check: #16a34a;
+  --note-high: #dc2626;
+  --note-ink: 55, 65, 77;
+  --note-strong: #2f3b47;
+  --note-texture-1: rgba(255, 255, 255, 0.4);
+  --note-texture-2: rgba(255, 255, 255, 0.32);
+  --note-sheen: rgba(255, 255, 255, 0.5);
+  --note-rule: rgba(var(--note-ink), 0.1);
+  --note-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1px rgba(var(--note-ink), 0.07),
+    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
 }
 
 /* === 透明窗（让桌面"墙"透过来，便签贴在墙上的视觉效果） === */
@@ -95,7 +307,7 @@ html.widget-entry body {
 }
 
 .widget-resize-handle:hover {
-  background: rgba(107, 74, 30, 0.07);
+  background: rgba(var(--note-ink), 0.07);
 }
 
 .widget-resize-n,
@@ -177,24 +389,33 @@ html.widget-entry body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* 背景与内阴影迁到 ::before（z-index:-1 由 isolation 困在本元素层叠上下文内，
+     画在自身背景之上、流内正文之下）——个性化透明度只淡出纸面（伪层
+     opacity: var(--note-opacity)），文字/按钮保持不透明。 */
+  isolation: isolate;
+  padding: 42px 20px 20px; /* 顶部给图钉针尖留位（针尖到 y=36） */
+  animation: note-drop-in 0.3s ease-out;
+}
+
+.widget-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   /* 主渐变 + 抬头色带（通铺到纸边，比只给标题行上色更像记事本）
      + 2 层纸纹理（竖版窄面上白点多了会像脏污） */
   background:
     radial-gradient(
       circle at 22% 16%,
-      rgba(255, 255, 255, 0.25) 0%,
+      var(--note-texture-1) 0%,
       transparent 1.6%
     ),
     radial-gradient(
       circle at 74% 62%,
-      rgba(255, 255, 255, 0.2) 0%,
+      var(--note-texture-2) 0%,
       transparent 1.4%
     ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.4) 0%,
-      rgba(255, 255, 255, 0) 96px
-    ),
+    linear-gradient(180deg, var(--note-sheen) 0%, rgba(255, 255, 255, 0) 96px),
     linear-gradient(
       180deg,
       var(--note-bg-start) 0%,
@@ -202,15 +423,15 @@ html.widget-entry body {
       var(--note-bg-end) 100%
     );
   box-shadow: var(--note-shadow);
-  padding: 42px 20px 20px; /* 顶部给图钉针尖留位（针尖到 y=36） */
-  animation: note-drop-in 0.3s ease-out;
+  opacity: var(--note-opacity, 1);
 }
 
 .widget-shell.is-closing {
   animation: none; /* 关闭时取消 drop-in，避免动画相互打架 */
 }
 
-/* 右下角纸张卷起阴影（替代 v3 的红色小图钉，画在不透明纸内不产生透明像素） */
+/* 右下角纸张卷起阴影（替代 v3 的红色小图钉，画在不透明纸内不产生透明像素）；
+   随纸面伪层一起按 --note-opacity 淡出，保持半透明时投影同步变淡 */
 .widget-shell::after {
   content: "";
   position: absolute;
@@ -221,10 +442,11 @@ html.widget-entry body {
   border-bottom-right-radius: 10px;
   background: linear-gradient(
     315deg,
-    rgba(107, 74, 30, 0.18) 0%,
-    rgba(107, 74, 30, 0.07) 38%,
+    rgba(var(--note-ink), 0.18) 0%,
+    rgba(var(--note-ink), 0.07) 38%,
     transparent 62%
   );
+  opacity: var(--note-opacity, 1);
   pointer-events: none;
 }
 
@@ -314,7 +536,7 @@ html.widget-entry body {
 
 .widget-titlebar {
   padding-bottom: 8px;
-  border-bottom: 1px dashed rgba(107, 74, 30, 0.22);
+  border-bottom: 1px dashed rgba(var(--note-ink), 0.22);
   margin-bottom: 8px;
   user-select: none;
 }
@@ -329,10 +551,10 @@ html.widget-entry body {
 .widget-title {
   flex: 0 1 auto;
   min-width: 0;
-  font-size: 16px;
+  font-size: var(--note-fs-title);
   font-weight: 400;
   color: var(--note-title);
-  line-height: 24px;
+  line-height: 1.5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -349,8 +571,8 @@ html.widget-entry body {
 
 .widget-meta {
   min-width: 0;
-  font-size: 11px;
-  line-height: 14px;
+  font-size: var(--note-fs-meta);
+  line-height: 1.27;
   color: var(--note-muted);
   opacity: 0.8;
   letter-spacing: 0.02em;
@@ -376,7 +598,7 @@ html.widget-entry body {
 }
 
 .widget-date-nav:hover {
-  background: rgba(107, 74, 30, 0.12);
+  background: rgba(var(--note-ink), 0.12);
 }
 
 .widget-date-nav svg {
@@ -388,13 +610,13 @@ html.widget-entry body {
 .widget-date-today-btn {
   margin-left: auto;
   flex-shrink: 0;
-  border: 1px solid rgba(107, 74, 30, 0.32);
+  border: 1px solid rgba(var(--note-ink), 0.32);
   border-radius: 999px;
   padding: 0 7px;
   background: transparent;
   color: var(--note-title);
-  font-size: 10px;
-  line-height: 15px;
+  font-size: var(--note-fs-chip);
+  line-height: 1.5;
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -404,7 +626,7 @@ html.widget-entry body {
 
 .widget-date-today-btn:hover {
   border-color: var(--note-title);
-  background: rgba(107, 74, 30, 0.08);
+  background: rgba(var(--note-ink), 0.08);
 }
 
 .widget-titlebar-actions {
@@ -432,7 +654,7 @@ html.widget-entry body {
 }
 
 .widget-control:hover {
-  background: rgba(107, 74, 30, 0.12);
+  background: rgba(var(--note-ink), 0.12);
 }
 
 .widget-control svg {
@@ -442,11 +664,11 @@ html.widget-entry body {
 }
 
 .widget-control-add.is-active {
-  background: rgba(107, 74, 30, 0.16);
+  background: rgba(var(--note-ink), 0.16);
 }
 
 .widget-control-add.is-active:hover {
-  background: rgba(107, 74, 30, 0.22);
+  background: rgba(var(--note-ink), 0.22);
 }
 
 /* 关闭按钮：棕色描边 + hover scale(1.1) */
@@ -469,7 +691,7 @@ html.widget-entry body {
 .widget-close-btn:hover {
   opacity: 0.95;
   transform: scale(1.1);
-  background: rgba(107, 74, 30, 0.12);
+  background: rgba(var(--note-ink), 0.12);
 }
 
 .widget-close-btn svg {
@@ -491,7 +713,7 @@ html.widget-entry body {
   overflow-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(107, 74, 30, 0.25) transparent;
+  scrollbar-color: rgba(var(--note-ink), 0.25) transparent;
 }
 
 .widget-list-inner {
@@ -511,7 +733,7 @@ html.widget-entry body {
 }
 
 .widget-list::-webkit-scrollbar-thumb {
-  background: rgba(107, 74, 30, 0.25);
+  background: rgba(var(--note-ink), 0.25);
   border-radius: 3px;
 }
 
@@ -521,8 +743,8 @@ html.widget-entry body {
   margin: 0 auto;
   padding: 18px 8px 0;
   text-align: center;
-  font-size: 12px;
-  line-height: 20px;
+  font-size: var(--note-fs-empty);
+  line-height: 1.67;
   color: var(--note-title);
   opacity: 0.65;
 }
@@ -545,9 +767,9 @@ html.widget-entry body {
   align-items: flex-start; /* 标题换行时复选框留在首行 */
   gap: 8px;
   padding: 7px 0;
-  min-height: 22px;
-  font-size: 14px;
-  line-height: 22px;
+  min-height: var(--note-lh-item);
+  font-size: var(--note-fs);
+  line-height: var(--note-lh-item);
   color: var(--note-text);
   font-weight: 400;
   cursor: pointer;
@@ -606,7 +828,8 @@ html.widget-entry body {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  margin-top: 2px; /* 与首行（line-height 22）视觉居中 */
+  /* 与首行（行高随 --note-fs 缩放）视觉居中 */
+  margin-top: calc((var(--note-lh-item) - 18px) / 2);
   border: 1.5px solid var(--note-title);
   border-radius: 4px;
   display: flex;
@@ -662,8 +885,8 @@ html.widget-entry body {
   background: transparent;
   padding: 0;
   font-family: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: inherit;
+  line-height: inherit;
   color: var(--note-text);
   font-weight: inherit;
   cursor: pointer;
@@ -695,15 +918,16 @@ html.widget-entry body {
   flex-shrink: 0;
   width: 5px;
   height: 5px;
-  margin-top: 9px; /* 对齐首行中线 */
+  /* 对齐首行中线（行高随 --note-fs 缩放） */
+  margin-top: calc((var(--note-lh-item) - 5px) / 2);
   border-radius: 50%;
 }
 
 .widget-item-time {
   margin-left: auto;
   flex-shrink: 0;
-  line-height: 22px;
-  font-size: 11px;
+  line-height: inherit;
+  font-size: var(--note-fs-meta);
   color: var(--note-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -717,7 +941,7 @@ html.widget-entry body {
   min-height: 30px;
   padding: 2px 2px 4px;
   border: none;
-  border-bottom: 1.5px solid rgba(107, 74, 30, 0.25);
+  border-bottom: 1.5px solid rgba(var(--note-ink), 0.25);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -727,20 +951,20 @@ html.widget-entry body {
 }
 
 .widget-quick-add:focus-within {
-  border-bottom-color: rgba(107, 74, 30, 0.55);
+  border-bottom-color: rgba(var(--note-ink), 0.55);
 }
 
 .widget-quick-add-input {
   flex: 1;
   min-width: 0;
-  height: 24px;
+  height: calc(var(--note-fs) * 1.7);
   cursor: text; /* 不吃 stage 的 grab */
   border: none;
   background: transparent;
   color: var(--note-text);
   padding: 0 2px;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: var(--note-fs);
+  line-height: 1.43;
   outline: none;
 }
 
@@ -776,13 +1000,13 @@ html.widget-entry body {
 }
 
 .widget-quick-add-confirm:disabled {
-  background: rgba(107, 74, 30, 0.1);
-  color: rgba(107, 74, 30, 0.42);
+  background: rgba(var(--note-ink), 0.1);
+  color: rgba(var(--note-ink), 0.42);
   cursor: not-allowed;
 }
 
 .widget-quick-add-confirm:not(:disabled):hover {
-  background: #563a17;
+  background: var(--note-strong);
   color: var(--note-bg-start);
 }
 
@@ -792,7 +1016,7 @@ html.widget-entry body {
 }
 
 .widget-quick-add-cancel:hover {
-  background: rgba(107, 74, 30, 0.12);
+  background: rgba(var(--note-ink), 0.12);
   opacity: 1;
 }
 
@@ -801,4 +1025,38 @@ html.widget-entry body {
   width: 12px;
   height: 12px;
   stroke-width: 2;
+}
+
+/* === 纸面细节开关（Phase 4） ===
+   类挂在 widget 窗口的 <html> 上，由 widgetAppearance.applyWidgetAppearance
+   按 noteTexture/noteRules/notePin/noteDots 驱动；全部是"关掉"的覆盖态。 */
+
+/* 关纸张纹理：背景只剩主渐变（覆盖 ::before 的四层背景） */
+.note-no-texture .widget-shell::before {
+  background: linear-gradient(
+    180deg,
+    var(--note-bg-start) 0%,
+    var(--note-bg-mid) 50%,
+    var(--note-bg-end) 100%
+  );
+}
+
+/* 关行格线 */
+.note-no-rules .widget-item + .widget-item {
+  border-top: none;
+}
+
+/* 关顶部图钉：针尖留位（padding-top 42）一并收紧到常规 20，
+   实测高度链路（list.offsetTop 含 padding-top）自动跟上 */
+.note-no-pin .widget-pin-top {
+  display: none;
+}
+
+.note-no-pin .widget-shell {
+  padding-top: 20px;
+}
+
+/* 关清单色点 */
+.note-no-dots .widget-item-dot {
+  display: none;
 }

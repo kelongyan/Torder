@@ -254,6 +254,12 @@ pub fn run() {
             commands::widget::set_widget_enabled,
             #[cfg(desktop)]
             commands::widget::patch_widget_settings,
+            #[cfg(desktop)]
+            commands::widget::import_note_font,
+            #[cfg(desktop)]
+            commands::widget::read_note_font_bytes,
+            #[cfg(desktop)]
+            commands::widget::remove_note_font,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Torder");

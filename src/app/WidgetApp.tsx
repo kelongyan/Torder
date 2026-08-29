@@ -18,7 +18,11 @@ import {
   queryTasksForDate,
   setTaskCompleted,
 } from "../services/taskService";
-import { localDateKey, shiftDateKey, taskPlanDateKey } from "../services/taskQuery";
+import {
+  localDateKey,
+  shiftDateKey,
+  taskPlanDateKey,
+} from "../services/taskQuery";
 import {
   getWidgetSettings,
   notifyTasksChanged,
@@ -27,6 +31,13 @@ import {
   type TasksChangedPayload,
   type WidgetSettings,
 } from "../services/widgetService";
+import {
+  applyWidgetAppearance,
+  ensureCustomNoteFont,
+  listenAppTheme,
+  listenWidgetSettings,
+  type WidgetAppearance,
+} from "../services/widgetAppearance";
 import type { CreateTaskInput, Task, TaskList } from "../types/database";
 import { applyThemePreference } from "../utils/theme";
 import {
@@ -50,6 +61,10 @@ export function WidgetApp() {
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
   const [closing, setClosing] = useState(false);
+  /** 隐藏已完成条目（noteHideDone）；外观广播同步，唯一的行为型外观字段 */
+  const [hideDone, setHideDone] = useState(false);
+  /** 最新外观快照：应用主题广播（跟随应用）重解析纸色时读取 */
+  const appearanceRef = useRef<WidgetAppearance | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * 待落盘的窗口几何，存**物理**像素（事件 payload 的原始单位）。
@@ -101,12 +116,9 @@ export function WidgetApp() {
     }
   }, []);
 
-  const enqueueSettings = useCallback(
-    (task: () => Promise<unknown>) => {
-      writeChain.current = writeChain.current.then(task).catch(() => undefined);
-    },
-    [],
-  );
+  const enqueueSettings = useCallback((task: () => Promise<unknown>) => {
+    writeChain.current = writeChain.current.then(task).catch(() => undefined);
+  }, []);
 
   const flushGeometry = useCallback(() => {
     const pending = pendingGeometry.current;
@@ -157,6 +169,14 @@ export function WidgetApp() {
       setDefaultListId(settings.defaultListId);
       const widgetSettings = await getWidgetSettings();
       if (cancelled) return;
+      // 自定义字体要先注册再应用外观，否则 custom 栈落到 var(--font-ui) 渲染
+      if (widgetSettings.noteFont === "custom") {
+        await ensureCustomNoteFont();
+      }
+      // 权威外观（缓存只保证首帧不闪，这里读 SQLite/设置键后覆盖）
+      appearanceRef.current = widgetSettings;
+      applyWidgetAppearance(widgetSettings);
+      setHideDone(widgetSettings.noteHideDone);
       setAnchorDate(widgetSettings.anchorDate);
       // 「有 h」即说明用户手动定过尺寸，据此派生模式，不另存字段
       const restoredMode: WidgetSizeMode =
@@ -226,6 +246,41 @@ export function WidgetApp() {
       unlisteners.forEach((unlisten) => unlisten());
     };
   }, [refreshDate]);
+
+  // 外观设置广播：其它窗口（主窗外观分区）patch 后即时同步到这里。
+  // payload 在写入端已归一化，applyWidgetAppearance 幂等——widget 自己的
+  // 几何写入触发的广播只是空操作重放，无需按来源排除。
+  // noteFont === "custom" 时先确保字体字节已注册（导入动作发生在主窗）。
+  // noteHideDone 是行为字段，绕过 CSS 直接进条目派生。
+  // Tauri 走 emit/listen，mock 走 BroadcastChannel，两条路径注册方式一致。
+  useEffect(() => {
+    return listenWidgetSettings((settings) => {
+      appearanceRef.current = settings;
+      void (async () => {
+        if (settings.noteFont === "custom") {
+          await ensureCustomNoteFont();
+        }
+        applyWidgetAppearance(settings);
+      })();
+      setHideDone(settings.noteHideDone);
+    });
+  }, []);
+
+  // 应用主题广播（「跟随应用」主题的数据源）：更新自身 data-theme 后，
+  // auto 主题重解析纸色（亮→经典黄 / 暗→夜墨）。
+  useEffect(
+    () =>
+      listenAppTheme((dark) => {
+        const root = document.documentElement;
+        root.classList.toggle("dark", dark);
+        root.dataset.theme = dark ? "dark" : "light";
+        const current = appearanceRef.current;
+        if (current?.noteTheme === "auto") {
+          applyWidgetAppearance(current);
+        }
+      }),
+    [],
+  );
 
   // 跟随今天模式下的跨午夜翻页：检查频率从 60s 提到 5min（跨日瞬间精度不重要），
   // 跨日后如果处于跟随模式则顺带刷新当日；锚定模式不刷。
@@ -349,7 +404,10 @@ export function WidgetApp() {
         // 任何一次内容变化都会把宽度按回默认值。clamp 只用于自愈越界存档。
         const targetWidth = clampWidgetWidth(size.width / scale);
         const widthChanged = Math.abs(targetWidth - size.width / scale) >= 1;
-        if (Math.abs(currentHeightLogical - targetHeight) < 1 && !widthChanged) {
+        if (
+          Math.abs(currentHeightLogical - targetHeight) < 1 &&
+          !widthChanged
+        ) {
           return;
         }
         const bottomY = pos.y / scale + currentHeightLogical;
@@ -384,8 +442,10 @@ export function WidgetApp() {
   }, [closing]);
 
   // 数据已经按日期过滤过；这里只做"已完成沉底"的本地派生，
-  // 不改后端 priority / dueAt 顺序，也不额外发 IPC
-  const { displayedTasks, progressLabel } = useMemo(() => {
+  // 不改后端 priority / dueAt 顺序，也不额外发 IPC。
+  // hideDone（noteHideDone）把已完成条目从列表剔除，但进度标签仍统计全部，
+  // 让用户知道被藏了多少。
+  const { displayedTasks, progressLabel, allDone } = useMemo(() => {
     const pending: Task[] = [];
     const finished: Task[] = [];
     for (const task of tasks) {
@@ -397,8 +457,12 @@ export function WidgetApp() {
         : finished.length === 0
           ? `共 ${tasks.length} 项`
           : `共 ${tasks.length} 项 · 已完成 ${finished.length}`;
-    return { displayedTasks: [...pending, ...finished], progressLabel: label };
-  }, [tasks]);
+    return {
+      displayedTasks: hideDone ? pending : [...pending, ...finished],
+      progressLabel: label,
+      allDone: tasks.length > 0 && finished.length === tasks.length,
+    };
+  }, [tasks, hideDone]);
 
   const listColorById = useMemo(
     () => new Map(lists.map((list) => [list.id, list.color])),
@@ -517,7 +581,9 @@ export function WidgetApp() {
             ) : displayedTasks.length === 0 ? (
               <p className="widget-empty">
                 {displayedDateKey === todayKey
-                  ? "今天没有安排，点 + 记一笔"
+                  ? allDone
+                    ? "今天的事都做完啦"
+                    : "今天没有安排，点 + 记一笔"
                   : "这天还没有安排"}
               </p>
             ) : (

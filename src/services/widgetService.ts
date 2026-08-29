@@ -1,7 +1,13 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
-import { getSetting, upsertSetting } from "./settingsService";
+import { getSetting } from "./settingsService";
 import { taskPlanDateKey } from "./taskQuery";
+import {
+  defaultWidgetAppearance,
+  normalizeAppearance,
+  publishWidgetSettings,
+  type WidgetAppearance,
+} from "./widgetAppearance";
 import type { Task } from "../types/database";
 
 export type TasksChangedSource = "main" | "widget";
@@ -16,7 +22,7 @@ export interface TasksChangedPayload {
   affectedDateKeys: string[];
 }
 
-export interface WidgetSettings {
+export interface WidgetSettings extends WidgetAppearance {
   enabled: boolean;
   x: number | null;
   y: number | null;
@@ -32,8 +38,16 @@ export interface WidgetSettings {
 }
 
 const WIDGET_SETTING_KEY = "widget";
+/**
+ * mock 模式的权威存储。settingsService 的浏览器 mock 是**内存态**（刷新即重置），
+ * 而 widget 几何/外观必须跨刷新保持——否则启动缓存（持久）会被权威读取（重置为
+ * 默认）覆盖，出现「闪一下又弹回」。所以 mock 的 `widget` 键单独落 localStorage，
+ * 与 Tauri 的 SQLite 设置键语义对齐（该键仅本服务消费，无其它读取方）。
+ */
+const WIDGET_MOCK_STORE_KEY = "torder.widget-settings";
 
 const defaultWidgetSettings: WidgetSettings = {
+  ...defaultWidgetAppearance,
   enabled: false,
   x: null,
   y: null,
@@ -43,6 +57,7 @@ const defaultWidgetSettings: WidgetSettings = {
 };
 
 export async function getWidgetSettings(): Promise<WidgetSettings> {
+  if (!isTauri()) return readMockStore();
   const setting = await getSetting(WIDGET_SETTING_KEY);
   if (!setting) return { ...defaultWidgetSettings };
   try {
@@ -51,6 +66,24 @@ export async function getWidgetSettings(): Promise<WidgetSettings> {
     );
   } catch {
     return { ...defaultWidgetSettings };
+  }
+}
+
+function readMockStore(): WidgetSettings {
+  try {
+    const raw = window.localStorage.getItem(WIDGET_MOCK_STORE_KEY);
+    if (raw) return normalizeWidgetSettings(JSON.parse(raw));
+  } catch {
+    // 存档损坏走默认
+  }
+  return { ...defaultWidgetSettings };
+}
+
+function writeMockStore(next: WidgetSettings): void {
+  try {
+    window.localStorage.setItem(WIDGET_MOCK_STORE_KEY, JSON.stringify(next));
+  } catch {
+    // localStorage 不可用（隐私模式）：mock 退化为会话内有效
   }
 }
 
@@ -63,7 +96,11 @@ function normalizeWidgetSettings(
     y: typeof parsed.y === "number" ? parsed.y : null,
     w: typeof parsed.w === "number" ? parsed.w : null,
     h: typeof parsed.h === "number" ? parsed.h : null,
-    anchorDate: typeof parsed.anchorDate === "string" ? parsed.anchorDate : null,
+    anchorDate:
+      typeof parsed.anchorDate === "string" ? parsed.anchorDate : null,
+    // 外观字段（noteTheme/noteOpacity/noteFont/...）的守卫与默认值单点在
+    // widgetAppearance.normalizeAppearance，非法值一律回默认
+    ...normalizeAppearance(parsed),
   };
 }
 
@@ -73,21 +110,33 @@ function normalizeWidgetSettings(
  * 主窗开关与 widget 窗几何防抖写分属两个窗口，各自 get→merge→upsert 会
  * 互相吞字段；Rust 单点串行合并后不再竞态，且 `anchorDate` 等 Rust
  * `WidgetSettings` 未声明的前端字段原样保留。
- * 浏览器 mock：单窗环境无跨窗竞态，本地 get→merge→upsert 即可。
+ * 浏览器 mock：权威存储见 `WIDGET_MOCK_STORE_KEY`（localStorage 持久化，
+ * 单窗环境无跨窗竞态，本地 get→merge→write 即可）。
+ *
+ * 两条路径成功后都经 `publishWidgetSettings` 写通外观启动缓存并广播
+ * `widget-settings-changed`（外观分区 → widget 窗的实时同步通道，
+ * 几何写入触发的广播由接收方幂等吸收）。
  */
 export async function patchWidgetSettings(
   patch: Partial<WidgetSettings>,
 ): Promise<WidgetSettings> {
   if (!isTauri()) {
     const current = await getWidgetSettings();
-    const next: WidgetSettings = { ...current, ...patch };
-    await upsertSetting(WIDGET_SETTING_KEY, next);
+    // 与 Tauri 路径同口径：合并结果先归一化再返回/发布（非法 patch 值回默认）
+    const next = normalizeWidgetSettings({ ...current, ...patch });
+    writeMockStore(next);
+    publishWidgetSettings(next);
     return next;
   }
-  const merged = await invoke<Partial<WidgetSettings>>("patch_widget_settings", {
-    patch,
-  });
-  return normalizeWidgetSettings(merged);
+  const merged = await invoke<Partial<WidgetSettings>>(
+    "patch_widget_settings",
+    {
+      patch,
+    },
+  );
+  const next = normalizeWidgetSettings(merged);
+  publishWidgetSettings(next);
+  return next;
 }
 
 /** 收集 tasks 中所有非空 `taskPlanDateKey`，去重返回。 */
@@ -149,7 +198,10 @@ export function notifyTasksChanged(
     const mergedKeys = pendingAnyDate ? [] : [...(pendingDateKeys ?? [])];
     pendingAnyDate = false;
     pendingDateKeys = null;
-    const payload: TasksChangedPayload = { source, affectedDateKeys: mergedKeys };
+    const payload: TasksChangedPayload = {
+      source,
+      affectedDateKeys: mergedKeys,
+    };
     void emit("tasks-changed", payload).catch(() => undefined);
   }, 150);
 }

@@ -30,7 +30,9 @@ const EDGE_MARGIN: f64 = 24.0;
 const TASKBAR_MARGIN: f64 = 64.0;
 
 /// `widget` 设置键的 JSON 形状（前端 `widgetService.ts` 写入，两端字段须一致；
-/// `anchorDate` / `sizeMode` 仅前端消费，serde 忽略未知字段，故此处不声明）。
+/// `anchorDate` / `sizeMode` / `note*` 外观字段（noteTheme/noteOpacity/noteFont/
+/// noteFontSize/noteTexture/noteRules/notePin/noteDots/noteHideDone）仅前端消费，
+/// serde 忽略未知字段，故此处不声明）。
 ///
 /// `w`/`h` 只在 manual 模式下由前端写入、切回 auto 时清空。所以这里"有值就用"
 /// 是安全的：不会出现按陈旧尺寸建窗、前端再跳一下的闪烁。
