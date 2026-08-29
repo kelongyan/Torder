@@ -1356,3 +1356,300 @@
   width: 100%;
   margin-top: 12px;
 }
+
+/* === 桌面便签个性化（设置 → 外观，方案 docs/widget-personalization-plan.md §4） ===
+   纸面 token 全部来自 widget.css 的 [data-note-theme] 主题块（含 :root 默认经典黄）。
+   2026-08-29 用户定稿：不设设置界面内预览卡——纸面/字体效果以桌面小窗本体为预览
+   （改动经 widget-settings-changed 广播实时生效）。 */
+
+.note-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 与 .settings-preference-grid .form-field > span 同款小标签风格（本布局不在该网格内） */
+.note-settings-stack .form-field > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+/* 两个滑杆（不透明度/字号）并排；窄屏折单列 */
+.note-slider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+@media (max-width: 720px) {
+  .note-slider-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 滑杆行：range + 数值并排。覆盖 dialog.css `.form-field input` 的文本框化
+   样式（min-height/边框/底色），range 只要原生轨道，accent-color 跟随主题色 */
+.note-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.note-opacity-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.note-opacity-row input[type="range"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.note-opacity-row input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.note-slider-value {
+  flex-shrink: 0;
+  min-width: 4ch;
+  text-align: right;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 纸色色卡一排六个（原生 radio + 视觉纸样）；窄屏允许折行 */
+
+.note-theme-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 色卡与字体卡共用卡片基座（原生 radio 隐藏、状态类由 React 驱动） */
+
+.note-theme-swatch,
+.note-font-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.note-theme-swatch:hover,
+.note-font-card:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+}
+
+.note-theme-swatch.is-active,
+.note-font-card.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.note-theme-swatch:focus-within,
+.note-font-card:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* 覆盖 dialog.css `.form-field input` 的文本框化样式：radio 只做语义载体 */
+.note-theme-swatch input,
+.note-font-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.note-theme-swatch-paper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 52px;
+  height: 66px;
+  padding: 13px 9px 0;
+  border-radius: 7px;
+  /* 与 .widget-shell::before 同款主渐变（token 随 label 的 data-note-theme 切换） */
+  background: linear-gradient(
+    180deg,
+    var(--note-bg-start) 0%,
+    var(--note-bg-mid) 55%,
+    var(--note-bg-end) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(var(--note-ink), 0.14);
+}
+
+.note-theme-swatch-line {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--note-text);
+  opacity: 0.8;
+}
+
+.note-theme-swatch-line.is-title {
+  width: 62%;
+  background: var(--note-title);
+  opacity: 1;
+}
+
+.note-theme-swatch-line.is-short {
+  width: 78%;
+}
+
+.note-theme-swatch-line.is-check {
+  width: 34%;
+  background: var(--note-check);
+  opacity: 1;
+}
+
+.note-theme-swatch-name {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+.note-theme-swatch.is-active .note-theme-swatch-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 字体卡：字样用真实字体栈渲染（手写体字样会命中 Torder Note 缓存，见组件注释） */
+
+.note-font-card {
+  padding: 7px 12px 6px;
+  gap: 3px;
+}
+
+.note-font-sample {
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.note-font-name {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+.note-font-card.is-active .note-font-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 「跟随应用」色卡：亮/暗拼色纸样（日/月各占一半） */
+.note-theme-swatch-paper.is-auto {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  background: linear-gradient(90deg, #fef7c3 0% 50%, #2a2a30 50% 100%);
+}
+
+.note-theme-swatch-paper.is-auto svg {
+  width: 14px;
+  height: 14px;
+}
+
+.note-theme-swatch-paper.is-auto svg:first-child {
+  color: #a3762a; /* 暖金，黄半边可读 */
+}
+
+.note-theme-swatch-paper.is-auto svg:last-child {
+  color: #d9c89a; /* 浅金，暗半边可读 */
+}
+
+/* 「导入字体」卡（非 radio 的按钮卡）：虚线边示意空槽位 */
+.note-font-card.note-font-import {
+  border-style: dashed;
+  color: var(--text-secondary);
+}
+
+.note-font-card.note-font-import:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.note-font-card.note-font-import:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* 自定义字体的操作行：完整文件名 + 更换/移除 */
+.note-font-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.note-font-current {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.note-font-link {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.note-font-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.note-font-link.is-danger {
+  color: var(--red);
+}
+
+.note-font-link:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* 纸面细节/显示开关行 + 恢复默认按钮行 */
+
+.note-detail-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.note-reset-row {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -180,7 +180,9 @@ export function SettingsDialog({
               </>
             )}
 
-            {activeMeta.id === "appearance" && <SettingsAppearanceSection />}
+            {activeMeta.id === "appearance" && (
+              <SettingsAppearanceSection onToast={onToast} />
+            )}
 
             {activeMeta.id === "sync" && (
               <SettingsSyncSection
