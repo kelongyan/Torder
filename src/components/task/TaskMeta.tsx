@@ -11,9 +11,12 @@ import type { Task, TaskList } from "../../types/database";
 export function TaskMeta({
   task,
   list,
+  hideDue = false,
 }: {
   task: Task;
   list: TaskList | null;
+  /** 今天视图时间轴：时间已在行首槽位展示，隐藏右侧日期标签避免重复。 */
+  hideDue?: boolean;
 }) {
   const dueLabel = formatTaskDate(task.dueAt);
   const scheduleLabel = formatTaskScheduleDate(task.scheduledDate);
@@ -47,7 +50,7 @@ export function TaskMeta({
       >
         {list?.name ?? "未分类"}
       </span>
-      {dueLabel && (
+      {!hideDue && dueLabel && (
         <span className={`due-label ${urgencyClass}`}>
           <Calendar aria-hidden="true" className="icon-xs" />
           {dueLabel}

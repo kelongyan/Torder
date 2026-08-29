@@ -287,6 +287,51 @@ kbd {
   }
 }
 
+/* ===== 今天视图时间轴（提案 D 试点）：行首时间槽 + now 指示线 ===== */
+.task-time {
+  flex: 0 0 38px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-now-line {
+  display: flex;
+  align-items: center;
+  margin: 2px 0;
+}
+
+.task-now-min {
+  flex: 0 0 38px;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 18px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-now-track {
+  position: relative;
+  flex: 1;
+  margin-left: 10px;
+  border-top: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.task-now-track::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 7px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
 .task-content {
   min-width: 0;
   flex: 1;

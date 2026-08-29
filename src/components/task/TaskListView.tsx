@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
 import type { Task, TaskList, TaskScope } from "../../types/database";
+import { useAnimatedTasks } from "../../hooks/useAnimatedTasks";
 import { EmptyState } from "../common/EmptyState";
 import { SectionHeader } from "../common/SectionHeader";
 import { TaskRow } from "./TaskRow";
+import { TaskTodayAgenda } from "./TaskTodayAgenda";
 
 export function TaskListView({
   tasks,
@@ -53,6 +55,7 @@ export function TaskListView({
   onReorder: (sourceId: string, targetId: string) => void;
 }) {
   const deletedView = scope.kind === "view" && scope.view === "deleted";
+  const todayView = scope.kind === "view" && scope.view === "today";
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const animatedTasks = useAnimatedTasks(tasks);
   const activeTasks = animatedTasks.filter(
@@ -176,6 +179,20 @@ export function TaskListView({
             />
           ))}
         </>
+      ) : todayView ? (
+        <TaskTodayAgenda
+          items={animatedTasks}
+          lists={lists}
+          selectedTaskId={selectedTaskId}
+          batchMode={batchMode}
+          batchSelectedIds={batchSelectedIds}
+          searchQuery={searchQuery}
+          onOpen={onOpen}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onToggleBatchSelected={onToggleBatchSelected}
+          onReorder={onReorder}
+        />
       ) : (
         <>
           {activeTasks.length > 0 && (
@@ -251,41 +268,4 @@ export function TaskListView({
       )}
     </div>
   );
-}
-
-interface AnimatedTask {
-  task: Task;
-  leaving: boolean;
-}
-
-function useAnimatedTasks(tasks: Task[]): AnimatedTask[] {
-  const [items, setItems] = useState<AnimatedTask[]>(
-    tasks.map((task) => ({ task, leaving: false })),
-  );
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      const nextIds = new Set(tasks.map((task) => task.id));
-      setItems((current) => [
-        ...tasks.map((task) => ({ task, leaving: false })),
-        ...current
-          .filter((item) => !nextIds.has(item.task.id) && !item.leaving)
-          .map((item) => ({ ...item, leaving: true })),
-      ]);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [tasks]);
-
-  useEffect(() => {
-    if (!items.some((item) => item.leaving)) return;
-
-    const timeoutId = window.setTimeout(() => {
-      setItems((current) => current.filter((item) => !item.leaving));
-    }, 280);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [items]);
-
-  return items;
 }

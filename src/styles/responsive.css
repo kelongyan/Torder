@@ -1030,6 +1030,11 @@
   height: 12px;
 }
 
+.window-frame.mobile .task-time,
+.window-frame.mobile .task-now-min {
+  flex-basis: 32px;
+}
+
 .window-frame.mobile .task-actions {
   position: absolute;
   top: 7px;
@@ -1100,6 +1105,11 @@
     gap: 4px;
     margin-top: 4px;
     justify-content: flex-start;
+  }
+
+  .task-time,
+  .task-now-min {
+    flex-basis: 32px;
   }
 
   .list-badge,

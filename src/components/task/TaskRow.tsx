@@ -15,6 +15,7 @@ export function TaskRow({
   motionIndex = 0,
   searchQuery,
   deleted = false,
+  timeGutter,
   onOpen,
   onToggle,
   onDelete,
@@ -38,6 +39,8 @@ export function TaskRow({
   searchQuery: string;
   /** 回收站视图：任务已软删除，行内操作变为恢复。 */
   deleted?: boolean;
+  /** 今天视图时间轴（提案 D）：行首 HH:mm 时间槽；出现时隐藏元信息里的日期标签。 */
+  timeGutter?: string;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -80,6 +83,8 @@ export function TaskRow({
       }}
       onClick={handleRowClick}
     >
+      {timeGutter && <span className="task-time">{timeGutter}</span>}
+
       {batchMode ? (
         <button
           type="button"
@@ -119,7 +124,7 @@ export function TaskRow({
             </span>
           )}
         </div>
-        <TaskMeta task={task} list={list} />
+        <TaskMeta task={task} list={list} hideDue={Boolean(timeGutter)} />
       </div>
 
       {!batchMode && (
