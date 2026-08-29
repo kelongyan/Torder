@@ -323,7 +323,6 @@
 .btn-add-list:hover {
   background: var(--bg-hover);
   color: var(--accent);
-  transform: scale(1.1);
 }
 
 .nav-item {
@@ -360,7 +359,6 @@
 .nav-item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  transform: translateX(2px);
 }
 
 .nav-item.active {
@@ -387,11 +385,6 @@
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 8px color-mix(in srgb, currentColor 30%, transparent);
-  transition: transform var(--motion-fast) var(--ease-spring);
-}
-
-.nav-item:hover .list-dot {
-  transform: scale(1.2);
 }
 
 .nav-item-title {
@@ -441,7 +434,6 @@
 .sidebar-action-btn:hover {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--accent);
-  transform: scale(1.1);
 }
 
 .sidebar-action-btn.danger:hover {
@@ -735,7 +727,6 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 12%, transparent);
-  transform: translateY(-1px);
 }
 
 .icon-button.active {
@@ -932,7 +923,6 @@
 .menu-item:hover {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--text-primary);
-  transform: translateX(2px);
 }
 
 .menu-item.active {

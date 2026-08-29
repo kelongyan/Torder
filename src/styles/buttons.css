@@ -21,10 +21,9 @@
   will-change: transform;
 }
 
+/* D3 动效收敛：仅主操作按钮保留 hover 浮起，次级按钮只做颜色过渡 */
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover:not(:disabled),
-  .btn-secondary:hover:not(:disabled),
-  .btn-danger:hover:not(:disabled),
   .btn-danger-solid:hover:not(:disabled) {
     transform: translateY(-1px);
   }

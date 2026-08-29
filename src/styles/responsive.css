@@ -1490,3 +1490,41 @@
     line-height: 18px;
   }
 }
+
+/* ===== §3.6 粗指针触摸保底（UI 精修 P6）=====
+   桌面紧凑密度不牺牲触屏可用性：pointer: coarse 时表单控件与菜单保持
+   40px 触摸目标；勾选框用扩展热区而非放大视觉圆点，不打乱时间线对齐。 */
+@media (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-danger-solid,
+  .btn-complete,
+  .select-trigger,
+  .select-option,
+  .segmented-option,
+  .menu-item,
+  .detail-more-menu button,
+  .form-field input,
+  .form-field textarea,
+  .task-date-control,
+  .date-time-trigger {
+    min-height: 40px;
+  }
+
+  .search-box {
+    height: 40px;
+  }
+
+  .task-check,
+  .batch-check {
+    position: relative;
+  }
+
+  .task-check::before,
+  .batch-check::before {
+    content: "";
+    position: absolute;
+    inset: -11px; /* 18px 视觉 + 双向扩展 → 40px 热区 */
+  }
+}

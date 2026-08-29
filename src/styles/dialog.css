@@ -316,9 +316,7 @@
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-spring);
-  will-change: transform;
+    background-color var(--motion-fast) var(--ease-standard);
 }
 
 .date-time-trigger:hover,
@@ -326,7 +324,6 @@
   border-color: var(--accent);
   background: var(--bg-hover);
   box-shadow: 0 0 0 3px var(--focus-ring);
-  transform: translateY(-1px);
 }
 
 .date-time-control.has-value .date-time-trigger {
@@ -422,7 +419,7 @@
 .date-time-clear:hover {
   background: color-mix(in srgb, var(--text-muted) 12%, transparent);
   color: var(--text-primary);
-  transform: translateY(-50%) scale(1.04);
+  transform: translateY(-50%);
 }
 
 .date-time-clear svg {
@@ -502,7 +499,6 @@
   border-color: var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent-hover);
-  transform: scale(1.04);
 }
 
 .date-picker-nav svg {
@@ -546,7 +542,6 @@
   border-color: var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent-hover);
-  transform: scale(1.04);
 }
 
 .date-picker-day.muted {
@@ -768,19 +763,6 @@
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
-}
-
-/* P1 移除 form-dialog 与基础值等价的尺寸覆写（30px 档已由基础层承担），
-   仅保留结构性差异：form-title-field（P4 处理）、compact 触发器、chip、
-   圆点尺寸、date-picker-panel 布局与栅格间距（P5 处理） */
-.form-dialog .date-time-trigger:hover,
-.form-dialog .date-time-trigger.active {
-  transform: none;
-}
-
-.form-dialog .date-time-trigger:hover,
-.form-dialog .date-time-trigger.active {
-  transform: none;
 }
 
 .form-dialog .date-time-trigger > .date-time-chip {

@@ -218,10 +218,6 @@ kbd {
     color-mix(in srgb, var(--priority-color) 46%, transparent);
 }
 
-.task-item:hover .timeline-dot {
-  transform: translateY(-50%) scale(1.16);
-}
-
 .timeline-dot.completed-dot {
   background: var(--green);
 }
@@ -437,7 +433,6 @@ mark {
 .task-actions button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  transform: scale(1.04);
 }
 
 .task-actions svg {
@@ -506,7 +501,6 @@ mark {
 .batch-bar button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .batching .task-item {

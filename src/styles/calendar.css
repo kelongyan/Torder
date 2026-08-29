@@ -22,7 +22,6 @@
 
 .calendar-group:hover {
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
 }
 
 .calendar-group > header {

@@ -133,7 +133,6 @@
 .weekday-picker button:hover {
   border-color: var(--accent-border);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .weekday-picker button.selected {
@@ -236,7 +235,6 @@
 .recurring-rule-row:hover {
   border-color: var(--border-light);
   background: var(--bg-tertiary);
-  transform: translateY(-1px);
 }
 
 .recurring-rule-row.paused {

@@ -23,7 +23,6 @@
 
 .board-column:hover {
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
 }
 
 .board-column:has(.board-card[draggable="true"]:active) {
