@@ -35,7 +35,7 @@
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
-  padding: 14px 15px;
+  padding: 12px;
 }
 
 .board-column h2 {
@@ -68,15 +68,15 @@
 
 .board-cards {
   display: grid;
-  gap: 11px;
-  padding: 13px;
+  gap: 10px;
+  padding: 12px;
 }
 
 .board-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-primary);
-  padding: 13px;
+  padding: 12px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard),
