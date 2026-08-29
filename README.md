@@ -75,7 +75,7 @@ pnpm tauri android build --apk
 
 欢迎提交 Issue 或 Pull Request。也可以通过邮箱联系我：
 
-- Email: zhaxideler@163.com
+- Email: kelongyan@yeah.net
 
 ## License
 
