@@ -41,6 +41,8 @@ kbd {
   margin: 0;
 }
 
+/* ===== 任务行：静奢极简（提案 A+C 第一批）=====
+   去卡片化：无边框透明行 + 发丝分隔线；优先级以左缘 3px 色条唯一编码。 */
 .task-item {
   position: relative;
   display: flex;
@@ -49,16 +51,11 @@ kbd {
   align-items: center;
   gap: 10px;
   overflow: hidden;
-  margin-bottom: 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 48%, transparent);
-  padding: 6px 10px 6px 42px;
-  box-shadow: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  padding: 8px 12px 8px 16px;
   transition:
-    border-color 180ms var(--ease-standard),
     background-color 180ms var(--ease-standard),
-    box-shadow 180ms var(--ease-standard),
     max-height var(--motion-soft) var(--ease-standard),
     margin var(--motion-soft) var(--ease-standard),
     padding var(--motion-soft) var(--ease-standard),
@@ -68,26 +65,21 @@ kbd {
     calc(var(--item-index, 0) * 18ms) both;
 }
 
-:root[data-theme="dark"] .task-item {
-  border-color: rgba(226, 232, 240, 0.1);
-  background: color-mix(in srgb, #191a21 68%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+/* 左缘优先级色条：高红 / 中黄 / 低蓝（--priority-color 见下方类） */
+.task-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--priority-color, transparent);
+  opacity: 0.9;
 }
 
 .task-item:hover {
-  border-color: var(--border-light);
-  background: var(--bg-secondary);
-  box-shadow:
-    0 4px 14px color-mix(in srgb, var(--text-primary) 6%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-:root[data-theme="dark"] .task-item:hover {
-  border-color: rgba(226, 232, 240, 0.24);
-  background: #20222a;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.065),
-    0 10px 28px rgba(0, 0, 0, 0.22);
+  background: color-mix(in srgb, var(--bg-hover) 55%, transparent);
 }
 
 .task-item:active {
@@ -95,11 +87,11 @@ kbd {
 }
 
 .task-item.selected {
-  border-color: var(--accent-border);
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
-  box-shadow:
-    0 8px 28px color-mix(in srgb, var(--accent) 18%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.task-item.selected::before {
+  opacity: 1;
 }
 
 .task-item[draggable="true"] {
@@ -107,7 +99,7 @@ kbd {
 }
 
 .task-item.is-dragging {
-  border-color: var(--accent);
+  background: var(--accent-bg);
   opacity: 0.6;
   transform: scale(0.99);
 }
@@ -116,7 +108,7 @@ kbd {
   max-height: 0;
   min-height: 0;
   overflow: hidden;
-  margin: 0;
+  border-bottom-color: transparent;
   padding-top: 0;
   padding-bottom: 0;
   pointer-events: none;
@@ -129,10 +121,9 @@ kbd {
   text-decoration: line-through;
 }
 
-/* 回收站视图：整行弱化，占位勾位置留空 */
+/* 回收站视图：整行弱化 */
 .task-item.deleted {
   opacity: 0.72;
-  background: color-mix(in srgb, var(--bg-tertiary) 55%, transparent);
 }
 
 .task-item.deleted:hover {
@@ -149,55 +140,7 @@ kbd {
   height: 18px;
 }
 
-.timeline-node {
-  position: absolute;
-  top: -5px;
-  bottom: -6px;
-  left: 12px;
-  width: 28px;
-}
-
-.timeline-node::before {
-  position: absolute;
-  top: calc(50% - 5px);
-  left: 4px;
-  width: 22px;
-  height: 10px;
-  border-bottom: 1px solid var(--tree-branch);
-  border-left: 1px solid var(--tree-line);
-  border-bottom-left-radius: 9px;
-  content: "";
-}
-
-.timeline-dot {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  z-index: 1;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  transform: translateY(-50%);
-  transition:
-    background-color var(--motion-soft) var(--ease-standard),
-    box-shadow var(--motion-soft) var(--ease-standard),
-    transform var(--motion-soft) var(--ease-out);
-}
-
-.timeline-line {
-  position: absolute;
-  top: calc(50% + 9px);
-  bottom: -12px;
-  left: 4px;
-  width: 1px;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    var(--tree-line),
-    color-mix(in srgb, var(--tree-line) 52%, transparent)
-  );
-}
-
+/* 优先级色（唯一编码：行左缘色条） */
 .priority-high {
   --priority-color: var(--red);
 }
@@ -210,16 +153,9 @@ kbd {
   --priority-color: var(--blue);
 }
 
-.timeline-dot.priority-high,
-.timeline-dot.priority-medium,
-.timeline-dot.priority-low {
-  background: var(--priority-color);
-  box-shadow: 0 0 10px
-    color-mix(in srgb, var(--priority-color) 46%, transparent);
-}
-
-.timeline-dot.completed-dot {
+.task-item.completed::before {
   background: var(--green);
+  opacity: 0.45;
 }
 
 .task-check,
@@ -230,7 +166,7 @@ kbd {
   height: 18px;
   place-items: center;
   border: 1px solid var(--border-light);
-  border-radius: 50%;
+  border-radius: 6px; /* 圆角方块（Things 式），不再是圆形 */
   background: transparent;
   color: var(--on-success);
   margin-top: 0;
@@ -240,10 +176,6 @@ kbd {
     box-shadow var(--motion-fast) var(--ease-standard),
     transform var(--motion-fast) var(--ease-spring);
   will-change: transform;
-}
-
-.batch-check {
-  border-radius: var(--radius-sm);
 }
 
 .task-check.compact {
@@ -270,6 +202,27 @@ kbd {
 .batch-check svg {
   width: 14px;
   height: 14px;
+}
+
+/* 对勾画入：勾选时笔画从 0 描到全长（lucide Check 路径长约 23） */
+.task-check svg path,
+.batch-check svg path {
+  stroke-dasharray: 24;
+}
+
+.task-check.checked svg path,
+.batch-check.checked svg path {
+  animation: check-draw var(--motion-fast) var(--ease-out);
+}
+
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .task-content {
@@ -385,6 +338,15 @@ mark {
 
 .due-label.overdue {
   color: var(--red);
+}
+
+.due-label.today {
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
+.due-label.tomorrow {
+  color: var(--text-secondary);
 }
 
 .status-pill {

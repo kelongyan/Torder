@@ -6,7 +6,6 @@ import {
   toLocalDateKey,
 } from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
-import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";
 
 export function TaskMeta({
@@ -22,6 +21,16 @@ export function TaskMeta({
   const showSchedule =
     scheduleLabel && (!task.dueAt || task.scheduledDate !== dueDateKey);
   const overdue = isOverdue(task.dueAt, task.status);
+  // 日期紧急度着色（提案 §3-A/C）：今天 accent、明天次级、逾期红、其余灰
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const urgencyClass = overdue
+    ? "overdue"
+    : dueDateKey && dueDateKey === toLocalDateKey(new Date().toISOString())
+      ? "today"
+      : task.dueAt && dueDateKey === toLocalDateKey(tomorrow.toISOString())
+        ? "tomorrow"
+        : "";
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
   const completedSubtasks = task.subtasks.filter(
     (subtask) => subtask.completed,
@@ -38,13 +47,8 @@ export function TaskMeta({
       >
         {list?.name ?? "未分类"}
       </span>
-      <span
-        className={`priority-pill ${priorityCopy[task.priority].className}`}
-      >
-        {priorityCopy[task.priority].label}
-      </span>
       {dueLabel && (
-        <span className={`due-label ${overdue ? "overdue" : ""}`}>
+        <span className={`due-label ${urgencyClass}`}>
           <Calendar aria-hidden="true" className="icon-xs" />
           {dueLabel}
         </span>

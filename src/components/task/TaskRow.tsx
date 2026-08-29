@@ -9,7 +9,6 @@ export function TaskRow({
   task,
   lists,
   selected,
-  last,
   batchMode,
   batchSelected,
   leaving = false,
@@ -32,7 +31,6 @@ export function TaskRow({
   task: Task;
   lists: TaskList[];
   selected: boolean;
-  last: boolean;
   batchMode: boolean;
   batchSelected: boolean;
   leaving?: boolean;
@@ -63,7 +61,7 @@ export function TaskRow({
 
   return (
     <article
-      className={`task-item ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
+      className={`task-item ${priorityCopy[task.priority].className} ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
         leaving ? "is-leaving" : ""
       } ${deleted ? "deleted" : ""} ${dragging ? "is-dragging" : ""}`}
       style={{ "--item-index": motionIndex } as CSSProperties}
@@ -82,15 +80,6 @@ export function TaskRow({
       }}
       onClick={handleRowClick}
     >
-      {!batchMode && (
-        <div className="timeline-node" aria-hidden="true">
-          <span
-            className={`timeline-dot ${completed ? "completed-dot" : priorityCopy[task.priority].className}`}
-          />
-          {!last && <span className="timeline-line" />}
-        </div>
-      )}
-
       {batchMode ? (
         <button
           type="button"

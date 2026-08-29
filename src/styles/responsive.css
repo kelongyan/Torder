@@ -980,36 +980,7 @@
 .window-frame.mobile .task-item {
   min-height: 58px;
   gap: 8px;
-  border-radius: var(--radius-sm);
-  padding: 8px 38px 8px 36px;
-}
-
-.window-frame.mobile .timeline-node {
-  top: -5px;
-  bottom: -6px;
-  left: 12px;
-  width: 22px;
-}
-
-.window-frame.mobile .timeline-node::before {
-  top: calc(50% - 5px);
-  left: 3px;
-  width: 18px;
-  height: 10px;
-}
-
-.window-frame.mobile .timeline-dot {
-  top: 50%;
-  left: 0;
-  width: 8px;
-  height: 8px;
-}
-
-.window-frame.mobile .timeline-line {
-  top: calc(50% + 8px);
-  bottom: -11px;
-  left: 3px;
-  width: 1px;
+  padding: 8px 38px 8px 16px;
 }
 
 .window-frame.mobile .task-check,
@@ -1097,36 +1068,7 @@
   .task-item {
     min-height: 58px;
     gap: 8px;
-    border-radius: var(--radius-sm);
-    padding: 8px 38px 8px 36px;
-  }
-
-  .timeline-node {
-    top: -5px;
-    bottom: -6px;
-    left: 12px;
-    width: 22px;
-  }
-
-  .timeline-node::before {
-    top: calc(50% - 5px);
-    left: 3px;
-    width: 18px;
-    height: 10px;
-  }
-
-  .timeline-dot {
-    top: 50%;
-    left: 0;
-    width: 8px;
-    height: 8px;
-  }
-
-  .timeline-line {
-    top: calc(50% + 8px);
-    bottom: -11px;
-    left: 3px;
-    width: 1px;
+    padding: 8px 38px 8px 16px;
   }
 
   .task-check,

@@ -156,7 +156,6 @@ export function TaskListView({
               task={item.task}
               lists={lists}
               selected={item.task.id === selectedTaskId}
-              last={index === animatedTasks.length - 1}
               batchMode={batchMode}
               batchSelected={batchSelectedIds.includes(item.task.id)}
               leaving={item.leaving}
@@ -183,10 +182,6 @@ export function TaskListView({
                   task={item.task}
                   lists={lists}
                   selected={item.task.id === selectedTaskId}
-                  last={
-                    index === activeTasks.length - 1 &&
-                    completedTasks.length === 0
-                  }
                   batchMode={batchMode}
                   batchSelected={batchSelectedIds.includes(item.task.id)}
                   leaving={item.leaving}
@@ -220,7 +215,6 @@ export function TaskListView({
                   task={item.task}
                   lists={lists}
                   selected={item.task.id === selectedTaskId}
-                  last={index === completedTasks.length - 1}
                   batchMode={batchMode}
                   batchSelected={batchSelectedIds.includes(item.task.id)}
                   leaving={item.leaving}
