@@ -31,9 +31,9 @@ const EXCLUDE = new Set(["widget.css"]);
 
 /** 阶段基线（超过即失败）。随 P1–P6 逐阶段下调。 */
 const THRESHOLDS = {
-  fontSizes: 16, // P0 实测 16；目标 8（P4/P5 收紧）
-  controlHeights: 11, // P0 实测 14 → P1 11（24/26/28/30/32 为目标档；34/36/38/40/42/44 分属 P2 主头侧栏、P4 详情设置、P6 移动端与装饰 SVG）
-  oddSpacing: 188, // P0 实测 202 → P1 188；目标 0（P5 收紧）
+  fontSizes: 15, // P0 16 → P2 15（主头 25px 已归位）；目标 8（P4/P5 收紧）
+  controlHeights: 11, // P1 11（24/26/28/30/32 目标档 + 34/36/38/40/42/44 分属 P4 详情设置、P6 移动端与装饰 SVG）
+  oddSpacing: 184, // P0 202 → P1 188 → P2 184；目标 0（P5 收紧）
 };
 
 function collect() {

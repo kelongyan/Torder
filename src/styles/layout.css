@@ -4,7 +4,7 @@
   height: 100vh;
   /* dvh：移动端 WebView 弹软键盘时视口收缩，100vh 会被遮挡（P1-4） */
   height: 100dvh;
-  grid-template-rows: 38px minmax(0, 1fr);
+  grid-template-rows: 36px minmax(0, 1fr);
   overflow: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -19,8 +19,8 @@
 
 .window-titlebar {
   display: grid;
-  height: 38px;
-  min-height: 38px;
+  height: 36px;
+  min-height: 36px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   border-bottom: 1px solid var(--border);
@@ -130,8 +130,8 @@
 
 .sidebar {
   display: flex;
-  width: 260px;
-  min-width: 260px;
+  width: 240px;
+  min-width: 240px;
   height: 100%;
   flex-direction: column;
   border-right: 1px solid var(--border);
@@ -149,7 +149,7 @@
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 23px 20px 19px;
+  padding: 16px 16px 12px;
 }
 
 .drawer-close,
@@ -164,17 +164,17 @@
 }
 
 .brand-logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   box-shadow: var(--shadow);
 }
 
 .brand-title {
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: var(--text-lg);
   font-weight: 700;
-  line-height: 23px;
+  line-height: 22px;
   letter-spacing: 0;
 }
 
@@ -187,7 +187,7 @@
 
 .search-box {
   display: flex;
-  height: 40px;
+  height: 32px;
   align-items: center;
   gap: 8px;
   margin: 0 16px 16px;
@@ -330,14 +330,14 @@
   position: relative;
   display: grid;
   width: 100%;
-  min-height: 40px;
+  min-height: 32px;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
-  padding: 7px 10px 8px;
+  padding: 6px 10px;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
@@ -495,12 +495,12 @@
 
 .main-header {
   display: flex;
-  min-height: 76px;
+  min-height: 56px;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--border);
-  padding: 17px 24px;
+  padding: var(--space-1) var(--space-6);
   transition:
     background-color var(--motion-theme) var(--ease-standard),
     border-color var(--motion-theme) var(--ease-standard);
@@ -531,9 +531,9 @@
 .main-header h1 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 25px;
+  font-size: var(--text-2xl);
   font-weight: 700;
-  line-height: 32px;
+  line-height: 28px;
   letter-spacing: 0;
 }
 
@@ -959,7 +959,7 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 26px 28px;
+  padding: var(--space-5) var(--space-6);
 }
 
 .content-motion {
