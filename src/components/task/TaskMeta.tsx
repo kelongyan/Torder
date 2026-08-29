@@ -6,15 +6,17 @@ import {
   toLocalDateKey,
 } from "../../utils/taskDates";
 import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
-import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";
 
 export function TaskMeta({
   task,
   list,
+  hideDue = false,
 }: {
   task: Task;
   list: TaskList | null;
+  /** 今天视图时间轴：时间已在行首槽位展示，隐藏右侧日期标签避免重复。 */
+  hideDue?: boolean;
 }) {
   const dueLabel = formatTaskDate(task.dueAt);
   const scheduleLabel = formatTaskScheduleDate(task.scheduledDate);
@@ -22,6 +24,16 @@ export function TaskMeta({
   const showSchedule =
     scheduleLabel && (!task.dueAt || task.scheduledDate !== dueDateKey);
   const overdue = isOverdue(task.dueAt, task.status);
+  // 日期紧急度着色（提案 §3-A/C）：今天 accent、明天次级、逾期红、其余灰
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const urgencyClass = overdue
+    ? "overdue"
+    : dueDateKey && dueDateKey === toLocalDateKey(new Date().toISOString())
+      ? "today"
+      : task.dueAt && dueDateKey === toLocalDateKey(tomorrow.toISOString())
+        ? "tomorrow"
+        : "";
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
   const completedSubtasks = task.subtasks.filter(
     (subtask) => subtask.completed,
@@ -38,13 +50,8 @@ export function TaskMeta({
       >
         {list?.name ?? "未分类"}
       </span>
-      <span
-        className={`priority-pill ${priorityCopy[task.priority].className}`}
-      >
-        {priorityCopy[task.priority].label}
-      </span>
-      {dueLabel && (
-        <span className={`due-label ${overdue ? "overdue" : ""}`}>
+      {!hideDue && dueLabel && (
+        <span className={`due-label ${urgencyClass}`}>
           <Calendar aria-hidden="true" className="icon-xs" />
           {dueLabel}
         </span>

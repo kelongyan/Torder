@@ -9,7 +9,7 @@
 
 .recurring-rule-dialog .dialog-card {
   max-height: min(760px, calc(100vh - 36px));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .recurring-rule-form {
@@ -27,20 +27,14 @@
   height: 58px;
   min-height: 58px;
   max-height: 110px;
-  padding: 6px 9px;
-  font-size: 12.5px;
+  padding: 6px 8px;
+  font-size: 12px;
   line-height: 18px;
 }
 
 .recurring-rule-dialog .date-time-trigger .icon-sm {
   width: 12px;
   height: 12px;
-}
-
-.recurring-rule-dialog .date-time-clear {
-  right: 5px;
-  width: 24px;
-  height: 24px;
 }
 
 .recurring-rule-form .dialog-footer {
@@ -71,7 +65,7 @@
 }
 
 .recurrence-month-end-note {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 18px;
@@ -112,7 +106,7 @@
 }
 
 .recurrence-weekdays {
-  gap: 9px;
+  gap: 8px;
 }
 
 .weekday-picker {
@@ -139,7 +133,6 @@
 .weekday-picker button:hover {
   border-color: var(--accent-border);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .weekday-picker button.selected {
@@ -172,12 +165,12 @@
 
 .recurring-toolbar strong {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 21px;
 }
 
 .recurring-toolbar span {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 18px;
@@ -185,14 +178,14 @@
 
 .primary-action {
   display: inline-flex;
-  min-height: 38px;
+  min-height: var(--control-md);
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
   border-radius: var(--radius-sm);
   background: var(--accent);
-  padding: 0 13px;
+  padding: 0 var(--space-3);
   color: var(--on-accent);
   font-size: 13px;
   font-weight: 700;
@@ -226,7 +219,7 @@
     minmax(180px, 1.45fr) minmax(145px, 1fr) minmax(155px, 1fr)
     minmax(72px, 0.5fr) auto;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-secondary);
@@ -242,7 +235,6 @@
 .recurring-rule-row:hover {
   border-color: var(--border-light);
   background: var(--bg-tertiary);
-  transform: translateY(-1px);
 }
 
 .recurring-rule-row.paused {
@@ -288,7 +280,7 @@
 .recurring-rule-main span,
 .recurring-rule-schedule small,
 .recurring-rule-next span {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--text-muted);
   font-size: 11px;
   line-height: 16px;
@@ -382,7 +374,7 @@
   min-height: 300px;
   place-items: center;
   align-content: center;
-  gap: 7px;
+  gap: 8px;
   color: var(--text-muted);
   text-align: center;
 }
@@ -390,7 +382,7 @@
 .recurring-empty svg {
   width: 34px;
   height: 34px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: var(--accent);
 }
 

@@ -6,7 +6,7 @@
   border: 1px solid var(--danger-border);
   border-radius: var(--radius);
   background: var(--danger-bg);
-  padding: 11px 13px;
+  padding: 12px 12px;
   color: var(--red);
   font-size: 13px;
   line-height: 20px;
@@ -34,7 +34,7 @@
   min-height: 240px;
   place-items: center;
   align-content: center;
-  gap: 9px;
+  gap: 8px;
   color: var(--text-muted);
   text-align: center;
   animation: empty-state-in var(--motion-panel) var(--ease-out) both;
@@ -100,7 +100,7 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-secondary);
-  padding: 11px 13px;
+  padding: 12px 12px;
   color: var(--text-primary);
   font-size: 13px;
   line-height: 20px;
@@ -145,7 +145,7 @@
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-sm);
   background: var(--accent-bg);
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--accent-hover);
   font-size: 12px;
   font-weight: 700;

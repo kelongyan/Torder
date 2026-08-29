@@ -23,7 +23,6 @@
 
 .board-column:hover {
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
 }
 
 .board-column:has(.board-card[draggable="true"]:active) {
@@ -35,7 +34,7 @@
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
-  padding: 14px 15px;
+  padding: 12px;
 }
 
 .board-column h2 {
@@ -52,7 +51,7 @@
 .board-column header span:last-child {
   border-radius: 999px;
   background: var(--bg-tertiary);
-  padding: 2px 7px 3px;
+  padding: 2px 8px 4px;
   color: var(--text-muted);
   font-size: 11px;
   line-height: 17px;
@@ -68,15 +67,15 @@
 
 .board-cards {
   display: grid;
-  gap: 11px;
-  padding: 13px;
+  gap: 10px;
+  padding: 12px;
 }
 
 .board-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-primary);
-  padding: 13px;
+  padding: 12px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard),
@@ -126,7 +125,7 @@
 }
 
 .board-card p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 20px;

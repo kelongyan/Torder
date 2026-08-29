@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint .",
+    "check:design": "node scripts/check-design-tokens.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "configure:android-tls": "node scripts/configure-android-tls.mjs",

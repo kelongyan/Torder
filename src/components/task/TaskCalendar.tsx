@@ -46,7 +46,6 @@ export function TaskCalendar({
                 task={task}
                 lists={lists}
                 selected={selectedTaskId === task.id}
-                last={index === group.tasks.length - 1}
                 batchMode={false}
                 batchSelected={false}
                 motionIndex={index}
