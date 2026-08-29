@@ -9,13 +9,13 @@ export function TaskRow({
   task,
   lists,
   selected,
-  last,
   batchMode,
   batchSelected,
   leaving = false,
   motionIndex = 0,
   searchQuery,
   deleted = false,
+  timeGutter,
   onOpen,
   onToggle,
   onDelete,
@@ -32,7 +32,6 @@ export function TaskRow({
   task: Task;
   lists: TaskList[];
   selected: boolean;
-  last: boolean;
   batchMode: boolean;
   batchSelected: boolean;
   leaving?: boolean;
@@ -40,6 +39,8 @@ export function TaskRow({
   searchQuery: string;
   /** 回收站视图：任务已软删除，行内操作变为恢复。 */
   deleted?: boolean;
+  /** 今天视图时间轴（提案 D）：行首 HH:mm 时间槽；出现时隐藏元信息里的日期标签。 */
+  timeGutter?: string;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -63,7 +64,7 @@ export function TaskRow({
 
   return (
     <article
-      className={`task-item ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
+      className={`task-item ${priorityCopy[task.priority].className} ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
         leaving ? "is-leaving" : ""
       } ${deleted ? "deleted" : ""} ${dragging ? "is-dragging" : ""}`}
       style={{ "--item-index": motionIndex } as CSSProperties}
@@ -82,14 +83,7 @@ export function TaskRow({
       }}
       onClick={handleRowClick}
     >
-      {!batchMode && (
-        <div className="timeline-node" aria-hidden="true">
-          <span
-            className={`timeline-dot ${completed ? "completed-dot" : priorityCopy[task.priority].className}`}
-          />
-          {!last && <span className="timeline-line" />}
-        </div>
-      )}
+      {timeGutter && <span className="task-time">{timeGutter}</span>}
 
       {batchMode ? (
         <button
@@ -120,15 +114,17 @@ export function TaskRow({
       )}
 
       <div className="task-content">
-        <h3>
-          <HighlightedText text={task.title} query={searchQuery} />
-        </h3>
-        {task.note && (
-          <p>
-            <HighlightedText text={task.note} query={searchQuery} />
-          </p>
-        )}
-        <TaskMeta task={task} list={list} />
+        <div className="task-title-line">
+          <h3>
+            <HighlightedText text={task.title} query={searchQuery} />
+          </h3>
+          {task.note && (
+            <span className="task-note">
+              <HighlightedText text={task.note} query={searchQuery} />
+            </span>
+          )}
+        </div>
+        <TaskMeta task={task} list={list} hideDue={Boolean(timeGutter)} />
       </div>
 
       {!batchMode && (

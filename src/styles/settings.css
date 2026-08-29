@@ -56,7 +56,7 @@
 .settings-side-nav-item {
   display: grid;
   width: 100%;
-  min-height: 38px;
+  min-height: 32px;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
@@ -64,7 +64,7 @@
   border-radius: var(--radius-sm);
   outline: none;
   background: transparent;
-  padding: 7px 9px;
+  padding: 6px 8px;
   color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
@@ -117,28 +117,28 @@
 .settings-content {
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 24px 24px;
+  padding: 16px 20px 20px;
 }
 
 .settings-content-head {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   margin-bottom: 16px;
 }
 
 .settings-content-head h3 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 700;
-  line-height: 28px;
+  line-height: 26px;
   letter-spacing: 0;
 }
 
 .settings-content-head p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
 }
 
@@ -148,7 +148,7 @@
 }
 
 .settings-dialog .dialog-footer {
-  padding: 12px 18px;
+  padding: 12px 16px;
 }
 
 /* 设置内按钮紧凑化：30px 高 / 12.5px 字，与列表页 36px 主按钮区分开 */
@@ -158,7 +158,7 @@
   min-height: 30px;
   gap: 6px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
 }
 
@@ -181,8 +181,8 @@
 .settings-section-title {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 0 0 9px;
+  gap: 8px;
+  margin: 0 0 8px;
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
@@ -227,7 +227,7 @@
   border-left: 2px solid var(--accent-border);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
-  padding: 6px 9px;
+  padding: 6px 8px;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 18px;
@@ -247,11 +247,11 @@
 .settings-preference-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px 10px;
+  gap: 8px 10px;
 }
 
 .settings-preference-grid .form-field {
-  gap: 5px;
+  gap: 4px;
 }
 
 .settings-preference-grid .form-field > span {
@@ -262,7 +262,7 @@
 }
 
 .settings-section-hint .icon-xs {
-  margin-right: 5px;
+  margin-right: 4px;
   vertical-align: -2px;
 }
 
@@ -274,16 +274,16 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
-  padding: 9px;
+  padding: 8px;
 }
 
 .settings-import-panel {
   display: grid;
-  gap: 9px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
-  padding: 9px;
+  padding: 8px;
 }
 
 .settings-import-panel > input[type="file"] {
@@ -292,9 +292,9 @@
 
 .settings-import-backup {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   border-top: 1px solid var(--border);
-  padding-top: 9px;
+  padding-top: 8px;
 }
 
 .settings-import-backup-head {
@@ -315,10 +315,10 @@
   border-radius: var(--radius-sm);
   outline: none;
   background: var(--bg-secondary);
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--text-primary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .settings-import-backup select:focus {
@@ -330,9 +330,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(3, auto) auto;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border-top: 1px solid var(--border);
-  padding-top: 9px;
+  padding-top: 8px;
 }
 
 .settings-import-preview strong,
@@ -359,7 +359,7 @@
 .settings-import-preview label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 18px;
@@ -397,12 +397,12 @@
 .sync-config-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px 10px;
+  gap: 8px 10px;
 }
 
 .sync-progress {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   margin: 10px 0 2px;
   color: var(--text-secondary);
   font-size: 12px;
@@ -422,7 +422,7 @@
 .sync-progress-steps > span {
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  padding: 5px 6px;
+  padding: 4px 6px;
   color: var(--text-muted);
   text-align: center;
 }
@@ -435,7 +435,7 @@
 }
 
 .sync-config-grid .form-field {
-  gap: 5px;
+  gap: 4px;
 }
 
 .sync-config-grid .form-field > span {
@@ -452,10 +452,10 @@
   border-radius: var(--radius-sm);
   outline: none;
   background: var(--bg-tertiary);
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--text-primary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .sync-config-grid input:focus {
@@ -497,13 +497,13 @@
 
 .sync-encryption-copy strong {
   color: var(--text-primary);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
 }
 
 .sync-encryption-copy span {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 16px;
 }
 
@@ -523,7 +523,7 @@
   grid-column: 1 / -1;
   margin: 0;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 16px;
 }
 
@@ -536,7 +536,7 @@
 .sync-setup-steps > span {
   min-width: 0;
   border-bottom: 2px solid var(--border);
-  padding: 5px 4px 7px;
+  padding: 4px 4px 8px;
   color: var(--text-muted);
   font-size: 11px;
   line-height: 16px;
@@ -552,7 +552,7 @@
 .sync-initial-mode-list {
   display: grid;
   min-width: 0;
-  gap: 7px;
+  gap: 8px;
   margin: 0;
   border: 0;
   padding: 0;
@@ -571,7 +571,7 @@
   min-height: 52px;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
@@ -628,7 +628,7 @@
   gap: 8px;
   border-left: 2px solid var(--accent);
   background: color-mix(in srgb, var(--accent-bg) 45%, var(--bg-tertiary));
-  padding: 9px 10px;
+  padding: 8px 10px;
 }
 
 .sync-inspection-copy {
@@ -654,7 +654,7 @@
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border-top: 1px solid var(--border-light);
   padding-top: 8px;
   color: var(--text-secondary);
@@ -707,13 +707,13 @@
     var(--danger-bg, var(--bg-secondary)) 55%,
     var(--bg-secondary)
   );
-  padding: 8px 9px;
+  padding: 8px 8px;
 }
 
 .sync-conflict-diff {
   grid-column: 1 / -1;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   border-top: 1px solid var(--border-light);
   padding-top: 6px;
 }
@@ -721,7 +721,7 @@
 .sync-conflict-diff-row {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 5px;
+  gap: 4px;
   align-items: baseline;
   font-size: 10px;
   line-height: 14px;
@@ -730,7 +730,7 @@
 .sync-conflict-diff-head {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 5px;
+  gap: 4px;
   color: var(--text-muted);
   font-size: 10px;
   line-height: 14px;
@@ -756,7 +756,7 @@
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;
-  padding: 2px 3px;
+  padding: 2px 4px;
   text-align: left;
 }
 
@@ -808,7 +808,7 @@
   grid-column: 1 / -1;
   flex-shrink: 0;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
 }
 
 @media (max-width: 720px) {
@@ -829,7 +829,7 @@
     border-right: 0;
     border-bottom: 1px solid var(--border);
     background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
-    padding: 10px 10px 9px;
+    padding: 10px 10px 8px;
     scrollbar-width: none;
   }
 
@@ -856,10 +856,10 @@
     min-height: 38px;
     grid-template-columns: 1fr;
     justify-items: center;
-    gap: 3px;
+    gap: 4px;
     border-color: transparent;
     border-radius: 10px;
-    padding: 5px 4px;
+    padding: 4px 4px;
     text-align: center;
   }
 
@@ -880,7 +880,7 @@
 
   .settings-side-nav-item strong {
     max-width: 100%;
-    font-size: 11.5px;
+    font-size: 11px;
     line-height: 15px;
   }
 
@@ -894,12 +894,12 @@
   }
 
   .settings-content-head h3 {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 23px;
   }
 
   .settings-content-head p {
-    font-size: 11.5px;
+    font-size: 11px;
     line-height: 16px;
   }
 
@@ -953,7 +953,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
     border-top: 1px solid var(--border-light);
-    padding-top: 5px;
+    padding-top: 4px;
   }
 
   .sync-conflict-diff-row > span {
@@ -962,7 +962,7 @@
 
   .sync-conflict-value {
     min-height: 44px;
-    padding: 6px 7px;
+    padding: 6px 8px;
   }
 
   .sync-conflict-value code {
@@ -988,7 +988,7 @@
   justify-content: space-between;
   gap: 10px;
   border-top: 1px solid var(--border-light);
-  padding: 7px 0 0;
+  padding: 8px 0 0;
 }
 
 .sync-device-copy {
@@ -1020,9 +1020,9 @@
 .settings-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
   cursor: pointer;
   user-select: none;
@@ -1096,7 +1096,7 @@
 .settings-list-label {
   margin-top: 10px;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 16px;
   letter-spacing: 0.02em;
@@ -1104,7 +1104,7 @@
 
 .settings-backup-list {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   margin-top: 6px;
 }
 
@@ -1131,7 +1131,7 @@
 
 .settings-version {
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
   font-variant-numeric: tabular-nums;
 }
@@ -1189,7 +1189,7 @@
 .restore-confirm-card h3 {
   margin: 0 0 8px;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 23px;
 }
@@ -1235,7 +1235,7 @@
 
 .stats-metric strong {
   color: var(--text-primary);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 28px;
 }
@@ -1445,7 +1445,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 8px 8px 7px;
+  padding: 8px 8px 8px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-tertiary);
@@ -1491,10 +1491,10 @@
 .note-theme-swatch-paper {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   width: 52px;
   height: 66px;
-  padding: 13px 9px 0;
+  padding: 12px 8px 0;
   border-radius: 7px;
   /* 与 .widget-shell::before 同款主渐变（token 随 label 的 data-note-theme 切换） */
   background: linear-gradient(
@@ -1543,12 +1543,12 @@
 /* 字体卡：字样用真实字体栈渲染（手写体字样会命中 Torder Note 缓存，见组件注释） */
 
 .note-font-card {
-  padding: 7px 12px 6px;
-  gap: 3px;
+  padding: 8px 12px 8px;
+  gap: 4px;
 }
 
 .note-font-sample {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 24px;
   color: var(--text-primary);
   white-space: nowrap;

@@ -24,9 +24,7 @@ export function toLocalDateKey(iso: string | null): string | null {
 }
 
 export function toLocalDateTimeValue(date: Date): string {
-  return (
-    toDateKey(date) + `T${pad(date.getHours())}:${pad(date.getMinutes())}`
-  );
+  return toDateKey(date) + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function getDefaultDueAtLocal(now = new Date()): string {
@@ -76,6 +74,15 @@ export function formatTaskScheduleDate(dateKey: string | null): string | null {
   tomorrow.setDate(now.getDate() + 1);
   if (isSameDay(date, tomorrow)) return "明天";
   return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+/** HH:mm（与 formatTaskDate 的时间段同格式），用于今天视图时间槽 / now 指示线。 */
+export function formatTimeOfDay(date: Date): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 export function formatTaskDateTime(iso: string | null): string {

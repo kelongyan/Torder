@@ -139,7 +139,7 @@
   grid-template-columns: 19px minmax(0, 1fr) auto;
   justify-items: stretch;
   gap: 10px;
-  padding: 7px 9px;
+  padding: 8px 8px;
   font-size: 13px;
 }
 
@@ -169,7 +169,7 @@
   grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
   grid-template-areas: "nav title theme menu";
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-primary) 94%, transparent);
   padding: 8px 10px;
@@ -194,7 +194,7 @@
   grid-area: title;
   min-width: 0;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 
 .window-frame.mobile .main-header-logo {
@@ -214,7 +214,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 23px;
 }
 
@@ -222,7 +222,7 @@
   margin: 1px 0 0;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -332,7 +332,7 @@
 .window-frame.mobile .menu-layout-section {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 5px;
+  gap: 4px;
 }
 
 .window-frame.mobile .menu-layout-section .menu-label,
@@ -345,12 +345,12 @@
 }
 
 .window-frame.mobile .menu-label {
-  padding: 6px 8px 3px;
+  padding: 6px 8px 4px;
 }
 
 .window-frame.mobile .menu-item {
   min-height: 34px;
-  padding: 5px 8px;
+  padding: 4px 8px;
 }
 
 .window-frame.mobile .menu-layout-section .menu-item {
@@ -359,7 +359,7 @@
   grid-template-columns: 1fr;
   justify-items: center;
   gap: 0;
-  padding: 6px 3px;
+  padding: 6px 4px;
   text-align: center;
 }
 
@@ -381,7 +381,7 @@
 }
 
 .window-frame.mobile .menu-separator {
-  margin: 5px 4px;
+  margin: 4px 4px;
 }
 
 .window-frame.mobile .content-panel {
@@ -643,7 +643,7 @@
     grid-template-columns: 19px minmax(0, 1fr) auto;
     justify-items: stretch;
     gap: 10px;
-    padding: 7px 9px;
+    padding: 8px 8px;
     font-size: 13px;
   }
 
@@ -677,7 +677,7 @@
     grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
     grid-template-areas: "nav title theme menu";
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     padding: 8px 10px;
   }
 
@@ -699,14 +699,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 17px;
+    font-size: 16px;
     line-height: 23px;
   }
 
   .main-header p {
     margin: 1px 0 0;
     overflow: hidden;
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 15px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -809,7 +809,7 @@
   .menu-layout-section {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px;
+    gap: 4px;
   }
 
   .menu-layout-section .menu-label,
@@ -822,12 +822,12 @@
   }
 
   .menu-label {
-    padding: 6px 8px 3px;
+    padding: 6px 8px 4px;
   }
 
   .menu-item {
     min-height: 34px;
-    padding: 5px 8px;
+    padding: 4px 8px;
   }
 
   .menu-layout-section .menu-item {
@@ -836,7 +836,7 @@
     grid-template-columns: 1fr;
     justify-items: center;
     gap: 0;
-    padding: 6px 3px;
+    padding: 6px 4px;
     text-align: center;
   }
 
@@ -858,7 +858,7 @@
   }
 
   .menu-separator {
-    margin: 5px 4px;
+    margin: 4px 4px;
   }
 
   .content-panel {
@@ -930,13 +930,13 @@
 
   .main-header {
     grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
-    gap: 7px 5px;
+    gap: 8px 4px;
     padding: 8px 10px;
   }
 
   .window-frame.mobile .main-header {
     grid-template-columns: 36px minmax(0, 1fr) 34px 34px;
-    gap: 7px 5px;
+    gap: 8px 4px;
     padding: 8px 10px;
   }
 
@@ -946,12 +946,12 @@
 
   .main-header h1,
   .window-frame.mobile .main-header h1 {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 23px;
   }
 
   .window-frame.mobile .main-header-left {
-    gap: 7px;
+    gap: 8px;
   }
 
   .window-frame.mobile .main-header-logo {
@@ -972,6 +972,7 @@
 }
 
 .window-frame.mobile .section-header {
+  top: -12px;
   margin: 10px 0 6px;
   font-size: 11px;
   line-height: 16px;
@@ -980,36 +981,7 @@
 .window-frame.mobile .task-item {
   min-height: 58px;
   gap: 8px;
-  border-radius: var(--radius-sm);
-  padding: 7px 38px 7px 36px;
-}
-
-.window-frame.mobile .timeline-node {
-  top: -5px;
-  bottom: -6px;
-  left: 12px;
-  width: 22px;
-}
-
-.window-frame.mobile .timeline-node::before {
-  top: calc(50% - 5px);
-  left: 3px;
-  width: 18px;
-  height: 10px;
-}
-
-.window-frame.mobile .timeline-dot {
-  top: 50%;
-  left: 0;
-  width: 8px;
-  height: 8px;
-}
-
-.window-frame.mobile .timeline-line {
-  top: calc(50% + 8px);
-  bottom: -11px;
-  left: 3px;
-  width: 1px;
+  padding: 8px 38px 8px 16px;
 }
 
 .window-frame.mobile .task-check,
@@ -1027,18 +999,17 @@
 }
 
 .window-frame.mobile .task-content h3 {
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
-.window-frame.mobile .task-content p {
-  margin-top: 2px;
+.window-frame.mobile .task-note {
   font-size: 12px;
   line-height: 17px;
 }
 
 .window-frame.mobile .task-meta {
-  gap: 5px;
+  gap: 4px;
   margin-top: 4px;
   justify-content: flex-start;
 }
@@ -1048,7 +1019,7 @@
 .window-frame.mobile .due-label,
 .window-frame.mobile .status-pill,
 .window-frame.mobile .today-badge {
-  gap: 3px;
+  gap: 4px;
   padding: 1px 6px;
   font-size: 11px;
   line-height: 15px;
@@ -1057,6 +1028,11 @@
 .window-frame.mobile .task-meta .icon-xs {
   width: 12px;
   height: 12px;
+}
+
+.window-frame.mobile .task-time,
+.window-frame.mobile .task-now-min {
+  flex-basis: 32px;
 }
 
 .window-frame.mobile .task-actions {
@@ -1089,6 +1065,7 @@
   }
 
   .section-header {
+    top: -12px;
     margin: 14px 0 8px;
     font-size: 11px;
     line-height: 16px;
@@ -1097,36 +1074,7 @@
   .task-item {
     min-height: 58px;
     gap: 8px;
-    border-radius: var(--radius-sm);
-    padding: 7px 38px 7px 36px;
-  }
-
-  .timeline-node {
-    top: -5px;
-    bottom: -6px;
-    left: 12px;
-    width: 22px;
-  }
-
-  .timeline-node::before {
-    top: calc(50% - 5px);
-    left: 3px;
-    width: 18px;
-    height: 10px;
-  }
-
-  .timeline-dot {
-    top: 50%;
-    left: 0;
-    width: 8px;
-    height: 8px;
-  }
-
-  .timeline-line {
-    top: calc(50% + 8px);
-    bottom: -11px;
-    left: 3px;
-    width: 1px;
+    padding: 8px 38px 8px 16px;
   }
 
   .task-check,
@@ -1144,20 +1092,24 @@
   }
 
   .task-content h3 {
-    font-size: 13px;
-    line-height: 19px;
+    font-size: 14px;
+    line-height: 20px;
   }
 
-  .task-content p {
-    margin-top: 2px;
+  .task-note {
     font-size: 12px;
     line-height: 17px;
   }
 
   .task-meta {
-    gap: 5px;
+    gap: 4px;
     margin-top: 4px;
     justify-content: flex-start;
+  }
+
+  .task-time,
+  .task-now-min {
+    flex-basis: 32px;
   }
 
   .list-badge,
@@ -1165,7 +1117,7 @@
   .due-label,
   .status-pill,
   .today-badge {
-    gap: 3px;
+    gap: 4px;
     padding: 1px 6px;
     font-size: 11px;
     line-height: 15px;
@@ -1336,7 +1288,7 @@
 
   .dialog-header p {
     margin-top: 1px;
-    font-size: 11.5px;
+    font-size: 11px;
     line-height: 16px;
   }
 
@@ -1354,23 +1306,23 @@
   }
 
   .form-title-field {
-    gap: 5px;
+    gap: 4px;
   }
 
   .form-title-field input {
     min-height: 34px;
     border-radius: var(--radius-sm);
-    padding: 5px 10px;
+    padding: 4px 10px;
     font-size: 14px;
     line-height: 20px;
   }
 
   .form-field {
-    gap: 5px;
+    gap: 4px;
   }
 
   .form-grid .form-field {
-    gap: 5px;
+    gap: 4px;
   }
 
   .form-field > span {
@@ -1381,16 +1333,16 @@
 
   .form-field input {
     min-height: 32px;
-    padding: 0 9px;
-    font-size: 12.5px;
+    padding: 0 8px;
+    font-size: 12px;
     line-height: 18px;
   }
 
   .form-field textarea {
     height: 54px;
     min-height: 54px;
-    padding: 6px 9px;
-    font-size: 12.5px;
+    padding: 6px 8px;
+    font-size: 12px;
     line-height: 18px;
   }
 
@@ -1407,13 +1359,13 @@
 
   .date-time-control {
     grid-template-columns: minmax(0, 1fr) 30px;
-    gap: 5px;
+    gap: 4px;
   }
 
   .date-time-trigger {
     min-height: 32px;
     gap: 6px;
-    padding: 3px 7px;
+    padding: 4px 8px;
   }
 
   .date-time-trigger .icon-sm {
@@ -1437,7 +1389,7 @@
 
   .dialog-card .select-trigger {
     min-height: 30px;
-    gap: 5px;
+    gap: 4px;
     padding: 0 8px;
     font-size: 12px;
     line-height: 17px;
@@ -1456,7 +1408,7 @@
   .dialog-card .segmented-option {
     min-height: 24px;
     gap: 4px;
-    padding: 0 5px;
+    padding: 0 4px;
     font-size: 12px;
     line-height: 17px;
   }
@@ -1485,8 +1437,46 @@
   .dialog-footer .btn-danger-solid {
     width: 100%;
     min-height: 32px;
-    padding: 0 9px;
-    font-size: 12.5px;
+    padding: 0 8px;
+    font-size: 12px;
     line-height: 18px;
+  }
+}
+
+/* ===== §3.6 粗指针触摸保底（UI 精修 P6）=====
+   桌面紧凑密度不牺牲触屏可用性：pointer: coarse 时表单控件与菜单保持
+   40px 触摸目标；勾选框用扩展热区而非放大视觉圆点，不打乱时间线对齐。 */
+@media (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-danger-solid,
+  .btn-complete,
+  .select-trigger,
+  .select-option,
+  .segmented-option,
+  .menu-item,
+  .detail-more-menu button,
+  .form-field input,
+  .form-field textarea,
+  .task-date-control,
+  .date-time-trigger {
+    min-height: 40px;
+  }
+
+  .search-box {
+    height: 40px;
+  }
+
+  .task-check,
+  .batch-check {
+    position: relative;
+  }
+
+  .task-check::before,
+  .batch-check::before {
+    content: "";
+    position: absolute;
+    inset: -11px; /* 18px 视觉 + 双向扩展 → 40px 热区 */
   }
 }

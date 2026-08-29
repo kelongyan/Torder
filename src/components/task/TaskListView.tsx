@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
 import type { Task, TaskList, TaskScope } from "../../types/database";
+import { useAnimatedTasks } from "../../hooks/useAnimatedTasks";
 import { EmptyState } from "../common/EmptyState";
 import { SectionHeader } from "../common/SectionHeader";
 import { TaskRow } from "./TaskRow";
+import { TaskTodayAgenda } from "./TaskTodayAgenda";
 
 export function TaskListView({
   tasks,
@@ -53,6 +55,7 @@ export function TaskListView({
   onReorder: (sourceId: string, targetId: string) => void;
 }) {
   const deletedView = scope.kind === "view" && scope.view === "deleted";
+  const todayView = scope.kind === "view" && scope.view === "today";
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const animatedTasks = useAnimatedTasks(tasks);
   const activeTasks = animatedTasks.filter(
@@ -63,6 +66,11 @@ export function TaskListView({
   );
   const activeCount = activeTasks.filter((item) => !item.leaving).length;
   const completedCount = completedTasks.filter((item) => !item.leaving).length;
+  // 分组头完成进度（提案 §3-A）：done/total 挂在第一个分组头上
+  const progress =
+    completedCount > 0 && activeCount + completedCount > 0
+      ? { done: completedCount, total: activeCount + completedCount }
+      : undefined;
 
   if (loading && tasks.length === 0) {
     return (
@@ -156,7 +164,6 @@ export function TaskListView({
               task={item.task}
               lists={lists}
               selected={item.task.id === selectedTaskId}
-              last={index === animatedTasks.length - 1}
               batchMode={batchMode}
               batchSelected={batchSelectedIds.includes(item.task.id)}
               leaving={item.leaving}
@@ -172,21 +179,34 @@ export function TaskListView({
             />
           ))}
         </>
+      ) : todayView ? (
+        <TaskTodayAgenda
+          items={animatedTasks}
+          lists={lists}
+          selectedTaskId={selectedTaskId}
+          batchMode={batchMode}
+          batchSelectedIds={batchSelectedIds}
+          searchQuery={searchQuery}
+          onOpen={onOpen}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onToggleBatchSelected={onToggleBatchSelected}
+          onReorder={onReorder}
+        />
       ) : (
         <>
           {activeTasks.length > 0 && (
             <>
-              <SectionHeader label={`进行中 · ${activeCount}`} />
+              <SectionHeader
+                label={`进行中 · ${activeCount}`}
+                progress={progress}
+              />
               {activeTasks.map((item, index) => (
                 <TaskRow
                   key={item.task.id}
                   task={item.task}
                   lists={lists}
                   selected={item.task.id === selectedTaskId}
-                  last={
-                    index === activeTasks.length - 1 &&
-                    completedTasks.length === 0
-                  }
                   batchMode={batchMode}
                   batchSelected={batchSelectedIds.includes(item.task.id)}
                   leaving={item.leaving}
@@ -213,14 +233,16 @@ export function TaskListView({
           )}
           {completedTasks.length > 0 && (
             <>
-              <SectionHeader label={`已完成 · ${completedCount}`} />
+              <SectionHeader
+                label={`已完成 · ${completedCount}`}
+                progress={activeTasks.length === 0 ? progress : undefined}
+              />
               {completedTasks.map((item, index) => (
                 <TaskRow
                   key={item.task.id}
                   task={item.task}
                   lists={lists}
                   selected={item.task.id === selectedTaskId}
-                  last={index === completedTasks.length - 1}
                   batchMode={batchMode}
                   batchSelected={batchSelectedIds.includes(item.task.id)}
                   leaving={item.leaving}
@@ -249,41 +271,4 @@ export function TaskListView({
       )}
     </div>
   );
-}
-
-interface AnimatedTask {
-  task: Task;
-  leaving: boolean;
-}
-
-function useAnimatedTasks(tasks: Task[]): AnimatedTask[] {
-  const [items, setItems] = useState<AnimatedTask[]>(
-    tasks.map((task) => ({ task, leaving: false })),
-  );
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      const nextIds = new Set(tasks.map((task) => task.id));
-      setItems((current) => [
-        ...tasks.map((task) => ({ task, leaving: false })),
-        ...current
-          .filter((item) => !nextIds.has(item.task.id) && !item.leaving)
-          .map((item) => ({ ...item, leaving: true })),
-      ]);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [tasks]);
-
-  useEffect(() => {
-    if (!items.some((item) => item.leaving)) return;
-
-    const timeoutId = window.setTimeout(() => {
-      setItems((current) => current.filter((item) => !item.leaving));
-    }, 280);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [items]);
-
-  return items;
 }

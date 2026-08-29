@@ -10,12 +10,12 @@
 
 .detail-dialog {
   display: flex;
-  width: min(100%, 620px);
+  width: min(100%, 600px);
   max-height: min(720px, calc(100vh - 40px));
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-light);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   box-shadow: var(--shadow-floating);
   will-change: opacity, transform;
@@ -37,7 +37,7 @@
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding: 8px 12px 8px 18px;
+  padding: 8px 12px 8px 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -68,7 +68,7 @@
   background: transparent;
   padding: 0;
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 26px;
   text-align: left;
@@ -118,7 +118,7 @@
   min-width: 0;
   flex-direction: column;
   gap: 2px;
-  min-height: 52px;
+  min-height: 46px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-tertiary);
@@ -147,7 +147,7 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--text-primary);
   font-size: 13px;
   line-height: 18px;
@@ -214,9 +214,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 11px;
+  gap: 12px;
   border-top: 1px solid var(--border);
-  padding: 13px 18px;
+  padding: 12px 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -248,14 +248,14 @@
 }
 
 .detail-title-editing input {
-  min-height: 40px;
-  padding: 0 13px;
+  min-height: var(--control-md);
+  padding: 0 12px;
 }
 
 .detail-note-editing textarea {
   resize: vertical;
   min-height: 78px;
-  padding: 10px 13px;
+  padding: 10px 12px;
 }
 
 .detail-title-editing input:focus,
@@ -313,9 +313,9 @@
 .detail-more-menu button {
   display: flex;
   width: 100%;
-  min-height: 36px;
+  min-height: var(--control-md);
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -447,14 +447,14 @@
 
 .attachment-composer {
   display: grid;
-  gap: 9px;
+  gap: 8px;
 }
 
 .attachment-drop-zone {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-height: 52px;
   border: 1px dashed color-mix(in srgb, var(--border-light) 80%, transparent);
   border-radius: var(--radius-sm);
@@ -504,7 +504,7 @@
   border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--accent) 9%, var(--bg-secondary));
-  padding: 9px 10px;
+  padding: 8px 10px;
 }
 
 .attachment-mode-panel > div:first-child {
@@ -550,19 +550,19 @@
 
 .attachment-list {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .attachment-row {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-height: 42px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  padding: 6px 7px 6px 9px;
+  padding: 6px 8px 6px 8px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard);
@@ -583,8 +583,8 @@
 }
 
 .attachment-row-icon svg {
-  width: 15px;
-  height: 15px;
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .attachment-row-main {
@@ -616,11 +616,11 @@
 .attachment-inline-alert {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: 8px;
   border: 1px solid color-mix(in srgb, var(--red) 32%, var(--border));
   border-radius: var(--radius-sm);
   background: var(--danger-bg);
-  padding: 8px 9px;
+  padding: 8px 8px;
   color: var(--red);
   font-size: 12px;
   line-height: 18px;
@@ -642,7 +642,7 @@
 }
 
 .task-link-section {
-  gap: 11px;
+  gap: 12px;
 }
 
 .task-link-search {
@@ -676,7 +676,7 @@
 .task-link-candidates,
 .task-link-list {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .task-link-candidates {
@@ -695,12 +695,12 @@
   min-width: 0;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
-  padding: 7px 8px;
+  padding: 8px 8px;
   text-align: left;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
@@ -742,7 +742,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
@@ -750,8 +750,8 @@
 }
 
 .task-link-open > svg {
-  width: 15px;
-  height: 15px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--accent-hover);
 }
 

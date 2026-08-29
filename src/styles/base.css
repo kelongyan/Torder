@@ -84,14 +84,15 @@ select {
   background-clip: padding-box;
 }
 
+/* 图标档位见 tokens.css：--icon-sm 12 / --icon-md 14 / --icon-lg 16。 */
 .icon-sm {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
 }
 
 .icon-xs {
-  width: 13px;
-  height: 13px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 @keyframes theme-out {
