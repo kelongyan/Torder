@@ -275,8 +275,8 @@
 }
 
 .month-cell-add svg {
-  width: 13px;
-  height: 13px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .month-cell:hover .month-cell-add {

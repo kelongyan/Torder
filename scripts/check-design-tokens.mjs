@@ -29,11 +29,11 @@ const stylesDir = join(
 );
 const EXCLUDE = new Set(["widget.css"]);
 
-/** 阶段基线（超过即失败）。初始值 = P0 实测现状，随 P1–P6 逐阶段下调。 */
+/** 阶段基线（超过即失败）。随 P1–P6 逐阶段下调。 */
 const THRESHOLDS = {
-  fontSizes: 16, // P0 实测 16；目标 8（P1/P4/P5 收紧）
-  controlHeights: 14, // P0 实测 14；目标 ≤4（P1 收紧）
-  oddSpacing: 202, // P0 实测 202；目标 0（P5 收紧）
+  fontSizes: 16, // P0 实测 16；目标 8（P4/P5 收紧）
+  controlHeights: 11, // P0 实测 14 → P1 11（24/26/28/30/32 为目标档；34/36/38/40/42/44 分属 P2 主头侧栏、P4 详情设置、P6 移动端与装饰 SVG）
+  oddSpacing: 188, // P0 实测 202 → P1 188；目标 0（P5 收紧）
 };
 
 function collect() {
@@ -50,7 +50,10 @@ function collect() {
       fontSizes.add(match[1]);
     }
 
-    for (const match of css.matchAll(/(?:min-height|height):\s*(\d+)px/g)) {
+    // (?<![-a-z]) 排除 line-height / max-height 等同名前缀属性
+    for (const match of css.matchAll(
+      /(?<![-a-z])(?:min-height|height):\s*(\d+)px/g,
+    )) {
       const value = Number(match[1]);
       if (value >= 24 && value <= 44) controlHeights.add(String(value));
     }

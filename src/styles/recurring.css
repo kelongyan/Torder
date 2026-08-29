@@ -37,12 +37,6 @@
   height: 12px;
 }
 
-.recurring-rule-dialog .date-time-clear {
-  right: 5px;
-  width: 24px;
-  height: 24px;
-}
-
 .recurring-rule-form .dialog-footer {
   position: sticky;
   bottom: -1px;
@@ -185,14 +179,14 @@
 
 .primary-action {
   display: inline-flex;
-  min-height: 38px;
+  min-height: var(--control-md);
   align-items: center;
   justify-content: center;
   gap: 7px;
   border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
   border-radius: var(--radius-sm);
   background: var(--accent);
-  padding: 0 13px;
+  padding: 0 var(--space-3);
   color: var(--on-accent);
   font-size: 13px;
   font-weight: 700;

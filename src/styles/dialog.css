@@ -193,7 +193,7 @@
 }
 
 .form-field input {
-  min-height: 36px;
+  min-height: var(--control-md);
   padding: 0 11px;
 }
 
@@ -204,39 +204,8 @@
   padding: 8px 11px;
 }
 
-.dialog-card .select-trigger {
-  min-height: 34px;
-  gap: 7px;
-  padding: 0 10px;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.dialog-card .select-option {
-  min-height: 32px;
-  gap: 7px;
-  padding: 0 9px;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.dialog-card .segmented-control {
-  padding: 2px;
-}
-
-.dialog-card .segmented-option {
-  min-height: 28px;
-  gap: 5px;
-  padding: 0 7px;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.dialog-card .segmented-dot {
-  width: 7px;
-  min-width: 7px;
-  height: 7px;
-}
+/* P1 移除 .dialog-card 下的 select/segmented 尺寸覆写层（34/32/28），
+   与全局基础值（30/28/26）统一，见 docs/ui-refinement-plan.md P1 */
 
 .form-field input:focus,
 .form-field textarea:focus {
@@ -256,7 +225,7 @@
 .task-date-control {
   position: relative;
   display: flex;
-  min-height: 38px;
+  min-height: var(--control-md);
   align-items: center;
   gap: 8px;
   border: 1px solid var(--border);
@@ -323,8 +292,8 @@
 }
 
 .task-date-clear svg {
-  width: 13px;
-  height: 13px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .date-time-control {
@@ -334,14 +303,14 @@
 
 .date-time-trigger {
   display: flex;
-  min-height: 38px;
+  min-height: var(--control-md);
   width: 100%;
   align-items: center;
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
-  padding: 4px 9px;
+  padding: 2px 8px;
   color: var(--text-primary);
   text-align: left;
   transition:
@@ -384,7 +353,7 @@
   color: var(--text-primary);
   font-size: 12.5px;
   font-weight: 600;
-  line-height: 17px;
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -392,11 +361,12 @@
 .date-time-trigger small {
   color: var(--text-muted);
   font-size: 10.5px;
-  line-height: 13px;
+  line-height: 12px;
 }
 
 .date-time-compact-trigger {
   min-width: 0;
+  min-height: var(--control-md);
 }
 
 .date-time-chip {
@@ -633,7 +603,7 @@
 
 .time-select-row select {
   width: 100%;
-  height: 38px;
+  height: var(--control-md);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   outline: 0;
@@ -657,7 +627,7 @@
 
 .quick-time-row button,
 .date-picker-actions button {
-  min-height: 32px;
+  min-height: var(--control-md);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
@@ -738,25 +708,11 @@
   gap: 5px;
 }
 
-.task-create-dialog .task-date-control {
-  min-height: 30px;
-  gap: 6px;
-  padding: 0 7px;
-}
-
-.task-create-dialog .task-date-control.has-value input {
-  padding-right: 22px;
-}
-
-.task-create-dialog .task-date-clear {
-  right: 4px;
-  width: 20px;
-  height: 20px;
-}
-
-.task-create-dialog .date-time-trigger .icon-sm {
-  width: 13px;
-  height: 13px;
+/* P1 移除 task-create-dialog 的尺寸覆写（基础值已统一为 30px 档）；
+   保留结构性规则：清除按钮列布局与 small 隐藏（单行化触发器） */
+.task-create-dialog .date-time-control {
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 5px;
 }
 
 .task-create-dialog .date-time-trigger > span {
@@ -764,35 +720,8 @@
   min-width: 0;
 }
 
-.task-create-dialog .date-time-trigger strong {
-  display: block;
-  font-size: 12px;
-  line-height: 18px;
-}
-
 .task-create-dialog .date-time-trigger small {
   display: none;
-}
-
-.task-create-dialog .date-time-clear {
-  min-height: 30px;
-}
-
-.task-create-dialog .date-time-clear svg {
-  width: 13px;
-  height: 13px;
-}
-
-.task-create-dialog .select-option {
-  min-height: 29px;
-  gap: 6px;
-  padding: 0 8px;
-  font-size: 12.5px;
-  line-height: 18px;
-}
-
-.task-create-dialog .segmented-control {
-  padding: 2px;
 }
 
 .task-create-dialog .dialog-footer {
@@ -818,11 +747,6 @@
 .form-dialog .dialog-header h2 {
   font-size: 15px;
   line-height: 21px;
-}
-
-.form-dialog .dialog-header .icon-button {
-  width: 30px;
-  height: 30px;
 }
 
 .form-dialog .form-title-field {
@@ -853,22 +777,12 @@
   line-height: 16px;
 }
 
-.form-dialog .form-field input {
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 12.5px;
-  line-height: 18px;
-}
-
-.form-dialog .date-time-trigger {
-  min-height: 30px;
-  gap: 6px;
-  padding: 3px 7px;
-}
-
-.form-dialog .date-time-compact-trigger {
-  gap: 4px;
-  padding: 3px;
+/* P1 移除 form-dialog 与基础值等价的尺寸覆写（30px 档已由基础层承担），
+   仅保留结构性差异：form-title-field（P4 处理）、compact 触发器、chip、
+   圆点尺寸、date-picker-panel 布局与栅格间距（P5 处理） */
+.form-dialog .date-time-trigger:hover,
+.form-dialog .date-time-trigger.active {
+  transform: none;
 }
 
 .form-dialog .date-time-trigger:hover,
@@ -915,7 +829,7 @@
 }
 
 .form-dialog .date-picker-toolbar {
-  grid-template-columns: 28px 1fr 28px;
+  grid-template-columns: 32px 1fr 32px;
   gap: 6px;
   margin-bottom: 8px;
 }
@@ -923,11 +837,6 @@
 .form-dialog .date-picker-toolbar strong {
   font-size: 13px;
   line-height: 19px;
-}
-
-.form-dialog .date-picker-nav {
-  width: 28px;
-  height: 28px;
 }
 
 .form-dialog .date-picker-grid {
@@ -966,70 +875,15 @@
   line-height: 15px;
 }
 
-.form-dialog .time-select-row select {
-  height: 30px;
-  padding: 0 7px;
-  font-size: 12px;
-}
-
 .form-dialog .quick-time-row {
   gap: 6px;
   margin-top: 8px;
 }
 
-.form-dialog .quick-time-row button,
-.form-dialog .date-picker-actions button {
-  min-height: 28px;
-  border-radius: 7px;
-  font-size: 11.5px;
-  line-height: 16px;
-}
+/* P1 移除 form-dialog 的 quick-time / date-picker-actions / time-select /
+   select-trigger / select-chevron / segmented-option / footer 按钮尺寸覆写，
+   全部回落到基础值（28/30 档统一） */
 
-.form-dialog .date-picker-actions {
-  gap: 6px;
-  padding-top: 10px;
-}
-
-.form-dialog .select-trigger {
-  min-height: 30px;
-  gap: 5px;
-  padding: 0 8px;
-  font-size: 12.5px;
-  line-height: 18px;
-}
-
-.form-dialog .select-dot {
-  width: 8px;
-  min-width: 8px;
-  height: 8px;
-}
-
-.form-dialog .select-chevron {
-  width: 13px;
-  height: 13px;
-}
-
-.form-dialog .segmented-option {
-  min-height: 24px;
-  gap: 4px;
-  padding: 0 6px;
-  font-size: 12.5px;
-  line-height: 18px;
-}
-
-.form-dialog .segmented-dot {
-  width: 6px;
-  min-width: 6px;
-  height: 6px;
-}
-
-.form-dialog .dialog-footer .btn-primary,
-.form-dialog .dialog-footer .btn-secondary {
-  min-height: 30px;
-  padding: 0 12px;
-  font-size: 12.5px;
-  line-height: 18px;
-}
 
 .shortcut-row {
   display: flex;

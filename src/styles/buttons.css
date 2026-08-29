@@ -3,12 +3,12 @@
 .btn-danger,
 .btn-danger-solid {
   display: inline-flex;
-  min-height: 34px;
+  min-height: var(--control-md);
   align-items: center;
   justify-content: center;
   gap: 6px;
   border-radius: var(--radius-sm);
-  padding: 0 13px;
+  padding: 0 var(--space-3);
   font-size: 13px;
   font-weight: 600;
   line-height: 19px;
@@ -93,12 +93,12 @@
 /* 主操作按钮(标记完成/恢复) */
 .btn-complete {
   display: inline-flex;
-  min-height: 34px;
+  min-height: var(--control-md);
   align-items: center;
   justify-content: center;
   gap: 6px;
   border-radius: var(--radius-sm);
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   font-size: 13px;
   font-weight: 600;
   line-height: 19px;
@@ -159,15 +159,15 @@
 /* 紧凑图标按钮（详情面板行内操作 / 循环规则行等），单一定义，
    原重复副本见审计 #51（detail.css / recurring.css 已删） */
 .icon-button.compact {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  min-width: var(--control-sm);
   box-shadow: none;
 }
 
 .icon-button.compact svg {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 .icon-button.compact.danger:hover {

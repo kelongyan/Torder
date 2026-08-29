@@ -8,7 +8,7 @@
 
 .select-trigger {
   display: flex;
-  min-height: 36px;
+  min-height: var(--control-md);
   width: 100%;
   align-items: center;
   gap: 8px;
@@ -108,7 +108,7 @@
 .select-option {
   display: flex;
   width: 100%;
-  min-height: 33px;
+  min-height: 28px; /* 选项行比控件本体矮一档 */
   align-items: center;
   gap: 8px;
   border: 0;
@@ -161,7 +161,7 @@
 
 .segmented-option {
   display: inline-flex;
-  min-height: 30px;
+  min-height: var(--control-sm);
   flex: 1;
   align-items: center;
   justify-content: center;

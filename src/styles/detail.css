@@ -313,7 +313,7 @@
 .detail-more-menu button {
   display: flex;
   width: 100%;
-  min-height: 36px;
+  min-height: var(--control-md);
   align-items: center;
   gap: 9px;
   border: 0;
@@ -583,8 +583,8 @@
 }
 
 .attachment-row-icon svg {
-  width: 15px;
-  height: 15px;
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 .attachment-row-main {
@@ -750,8 +750,8 @@
 }
 
 .task-link-open > svg {
-  width: 15px;
-  height: 15px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--accent-hover);
 }
 

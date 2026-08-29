@@ -619,8 +619,8 @@
 }
 
 .header-create-button svg {
-  width: 15px;
-  height: 15px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--accent);
 }
 
@@ -705,8 +705,8 @@
 
 .icon-button {
   display: inline-grid;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -750,8 +750,8 @@
 }
 
 .icon-button .theme-icon {
-  width: 17px;
-  height: 17px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
   transition:
     transform var(--motion-soft) var(--ease-spring),
     color var(--motion-fast) var(--ease-standard);
@@ -768,19 +768,19 @@
 }
 
 .icon-button .menu-icon {
-  width: 17px;
-  height: 17px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
   transition: transform var(--motion-fast) var(--ease-spring);
 }
 
 .sync-status-button {
   position: relative;
-  flex: 0 0 36px;
+  flex: 0 0 32px;
 }
 
 .sync-status-icon {
-  width: 17px;
-  height: 17px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
 }
 
 .sync-status-button.state-success {
@@ -804,8 +804,8 @@
   top: -5px;
   right: -5px;
   display: grid;
-  min-width: 17px;
-  height: 17px;
+  min-width: 16px;
+  height: 16px;
   place-items: center;
   border: 2px solid var(--bg-primary);
   border-radius: 999px;
@@ -814,7 +814,7 @@
   color: var(--on-danger);
   font-size: 9px;
   font-weight: 700;
-  line-height: 13px;
+  line-height: 12px;
 }
 
 .icon-button:hover .menu-icon {
@@ -911,7 +911,7 @@
 .menu-item {
   display: grid;
   width: 100%;
-  min-height: 36px;
+  min-height: var(--control-md);
   grid-template-columns: 18px 1fr 18px;
   align-items: center;
   gap: 10px;

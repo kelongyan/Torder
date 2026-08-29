@@ -41,14 +41,6 @@ kbd {
   margin: 0;
 }
 
-.trash-toolbar .btn-danger {
-  min-height: 32px;
-  gap: 6px;
-  padding: 0 10px;
-  font-size: 12px;
-  line-height: 18px;
-}
-
 .task-item {
   position: relative;
   display: flex;
@@ -449,8 +441,8 @@ mark {
 }
 
 .task-actions svg {
-  width: 15px;
-  height: 15px;
+  width: var(--icon-md);
+  height: var(--icon-md);
 }
 
 @media (max-width: 720px) {
