@@ -16,17 +16,51 @@ kbd {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
+/* 分组头：粘性置顶 + 毛玻璃底（提案 A+C 第二批），滚动时悬挂在内容区顶部。
+   top 抵消 content-panel 的 padding-top，钉在滚动区顶缘而非 padding 内侧。 */
 .section-header {
-  margin: 12px 0 6px;
+  position: sticky;
+  top: calc(var(--space-5) * -1);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 0;
+  background: color-mix(in srgb, var(--bg-primary) 86%, transparent);
+  padding: 6px 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: 700;
   line-height: 16px;
+  letter-spacing: 0.2px;
+  backdrop-filter: blur(14px);
   animation: subtle-rise var(--motion-soft) var(--ease-out) both;
 }
 
 .list-container > .section-header:first-child {
   margin-top: 0;
+}
+
+/* 完成进度：微型环形 + done/total */
+.section-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.section-progress-track {
+  stroke: var(--border-light);
+}
+
+.section-progress-fill {
+  stroke: var(--green);
+  transition: stroke-dashoffset var(--motion-soft) var(--ease-out);
 }
 
 .trash-toolbar {
@@ -39,6 +73,9 @@ kbd {
 
 .trash-toolbar .section-header {
   margin: 0;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 /* ===== 任务行：静奢极简（提案 A+C 第一批）=====
@@ -116,9 +153,34 @@ kbd {
   transform: translateY(-3px) scale(0.99);
 }
 
+/* 完成划线：从左向右扫过（提案 §3-A 完成仪式感），替换原 text-decoration */
 .task-item.completed .task-content h3 {
   color: var(--text-muted);
-  text-decoration: line-through;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 calc(50% + 2px);
+  background-size: 100% 1px;
+  animation: strike-sweep var(--motion-soft) var(--ease-out) both;
+}
+
+/* 搜索高亮让位于划线，保证扫过线条连续 */
+.task-item.completed .task-content h3 mark {
+  background: transparent;
+}
+
+.task-item.completed .task-note {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+@keyframes strike-sweep {
+  from {
+    background-size: 0 1px;
+  }
+
+  to {
+    background-size: 100% 1px;
+  }
 }
 
 /* 回收站视图：整行弱化 */
@@ -232,33 +294,45 @@ kbd {
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
   column-gap: 12px;
-  row-gap: 1px;
+}
+
+/* 标题行：标题 + 备注（· 分隔）行内接排，备注先截断（提案 §3-A） */
+.task-title-line {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
 }
 
 .task-content h3 {
   margin: 0;
+  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 600;
-  line-height: 20px;
-  letter-spacing: 0;
+  line-height: 22px;
+  letter-spacing: -0.2px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition:
-    color var(--motion-theme) var(--ease-standard),
-    text-decoration-color var(--motion-fast) var(--ease-standard);
+  transition: color var(--motion-theme) var(--ease-standard);
 }
 
-.task-content p {
-  margin: 0;
+.task-note {
+  min-width: 0;
+  flex: 0 999 auto; /* 备注先截断，标题保持完整 */
   overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: color var(--motion-theme) var(--ease-standard);
+}
+
+.task-note::before {
+  content: "·";
+  margin: 0 4px;
 }
 
 mark {
@@ -281,7 +355,7 @@ mark {
 
 .task-meta {
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 1;
   max-width: 265px;
   flex-wrap: nowrap;
 }
@@ -419,7 +493,7 @@ mark {
 
 .batch-bar {
   position: sticky;
-  top: 0;
+  top: calc(var(--space-5) * -1);
   z-index: 5;
   display: flex;
   flex-wrap: wrap;

@@ -954,7 +954,9 @@
 
 .content-motion {
   min-height: 100%;
-  animation: content-reveal var(--motion-panel) var(--ease-out) both;
+  /* fill 用 backwards：both 会在结束后残留 identity transform，
+     困住内容区所有 position:sticky（分组头 / 批量条） */
+  animation: content-reveal var(--motion-panel) var(--ease-out) backwards;
 }
 
 .content-motion-month,

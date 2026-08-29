@@ -63,6 +63,11 @@ export function TaskListView({
   );
   const activeCount = activeTasks.filter((item) => !item.leaving).length;
   const completedCount = completedTasks.filter((item) => !item.leaving).length;
+  // 分组头完成进度（提案 §3-A）：done/total 挂在第一个分组头上
+  const progress =
+    completedCount > 0 && activeCount + completedCount > 0
+      ? { done: completedCount, total: activeCount + completedCount }
+      : undefined;
 
   if (loading && tasks.length === 0) {
     return (
@@ -175,7 +180,7 @@ export function TaskListView({
         <>
           {activeTasks.length > 0 && (
             <>
-              <SectionHeader label={`进行中 · ${activeCount}`} />
+              <SectionHeader label={`进行中 · ${activeCount}`} progress={progress} />
               {activeTasks.map((item, index) => (
                 <TaskRow
                   key={item.task.id}
@@ -208,7 +213,10 @@ export function TaskListView({
           )}
           {completedTasks.length > 0 && (
             <>
-              <SectionHeader label={`已完成 · ${completedCount}`} />
+              <SectionHeader
+                label={`已完成 · ${completedCount}`}
+                progress={activeTasks.length === 0 ? progress : undefined}
+              />
               {completedTasks.map((item, index) => (
                 <TaskRow
                   key={item.task.id}

@@ -972,6 +972,7 @@
 }
 
 .window-frame.mobile .section-header {
+  top: -12px;
   margin: 10px 0 6px;
   font-size: 11px;
   line-height: 16px;
@@ -998,12 +999,11 @@
 }
 
 .window-frame.mobile .task-content h3 {
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
-.window-frame.mobile .task-content p {
-  margin-top: 2px;
+.window-frame.mobile .task-note {
   font-size: 12px;
   line-height: 17px;
 }
@@ -1060,6 +1060,7 @@
   }
 
   .section-header {
+    top: -12px;
     margin: 14px 0 8px;
     font-size: 11px;
     line-height: 16px;
@@ -1086,12 +1087,11 @@
   }
 
   .task-content h3 {
-    font-size: 13px;
-    line-height: 19px;
+    font-size: 14px;
+    line-height: 20px;
   }
 
-  .task-content p {
-    margin-top: 2px;
+  .task-note {
     font-size: 12px;
     line-height: 17px;
   }

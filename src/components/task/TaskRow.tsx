@@ -109,14 +109,16 @@ export function TaskRow({
       )}
 
       <div className="task-content">
-        <h3>
-          <HighlightedText text={task.title} query={searchQuery} />
-        </h3>
-        {task.note && (
-          <p>
-            <HighlightedText text={task.note} query={searchQuery} />
-          </p>
-        )}
+        <div className="task-title-line">
+          <h3>
+            <HighlightedText text={task.title} query={searchQuery} />
+          </h3>
+          {task.note && (
+            <span className="task-note">
+              <HighlightedText text={task.note} query={searchQuery} />
+            </span>
+          )}
+        </div>
         <TaskMeta task={task} list={list} />
       </div>
 
