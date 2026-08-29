@@ -8,7 +8,7 @@ kbd {
   border: 1px solid var(--border-light);
   border-radius: 5px;
   background: var(--bg-tertiary);
-  padding: 2px 7px 3px;
+  padding: 2px 8px 4px;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
@@ -467,12 +467,12 @@ mark {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 15px;
+  gap: 8px;
+  margin-bottom: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-secondary);
-  padding: 11px 13px;
+  padding: 12px 12px;
   box-shadow: var(--shadow);
   animation: batch-bar-in var(--motion-panel) var(--ease-out) both;
 }
@@ -489,7 +489,7 @@ mark {
   display: inline-flex;
   min-height: 32px;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);

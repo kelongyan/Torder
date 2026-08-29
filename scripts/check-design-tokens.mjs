@@ -29,11 +29,11 @@ const stylesDir = join(
 );
 const EXCLUDE = new Set(["widget.css"]);
 
-/** 阶段基线（超过即失败）。随 P1–P6 逐阶段下调。 */
+/** 阶段基线（超过即失败）。P5 完成后的终值。 */
 const THRESHOLDS = {
-  fontSizes: 15, // P0 16 → P2 15（主头 25px 已归位）；目标 8（P4/P5 收紧）
-  controlHeights: 11, // P1 11（24/26/28/30/32 目标档 + 34/36/38/40/42/44 分属 P4 详情设置、P6 移动端与装饰 SVG）
-  oddSpacing: 184, // P0 202 → P1 188 → P2 184；目标 0（P5 收紧）
+  fontSizes: 8, // P4 达成 §3.1 目标：10/11/12/13/14/16/18/20
+  controlHeights: 11, // 24/26/28/30/32 目标档 + 34/36/40/42/44 存量（装饰 SVG、P6 移动端触控目标）
+  oddSpacing: 0, // P5 达成：padding/margin/gap 无奇数 px（1px 分隔线豁免）
 };
 
 function collect() {

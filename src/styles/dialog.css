@@ -77,7 +77,7 @@
 }
 
 .dialog-header p {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 19px;
@@ -156,7 +156,7 @@
 }
 
 .form-grid .form-field {
-  gap: 7px;
+  gap: 8px;
 }
 
 @media (max-width: 560px) {
@@ -173,7 +173,7 @@
 
 .form-field {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .form-field input,
@@ -194,14 +194,14 @@
 
 .form-field input {
   min-height: var(--control-md);
-  padding: 0 11px;
+  padding: 0 12px;
 }
 
 .form-field textarea {
   resize: vertical;
   height: 84px;
   min-height: 84px;
-  padding: 8px 11px;
+  padding: 8px 12px;
 }
 
 /* P1 移除 .dialog-card 下的 select/segmented 尺寸覆写层（34/32/28），
@@ -231,7 +231,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--text-primary);
   transition:
     border-color var(--motion-fast) var(--ease-standard),
@@ -334,7 +334,7 @@
 }
 
 .date-time-control.has-value .date-time-compact-trigger {
-  padding-right: 31px;
+  padding-right: 32px;
 }
 
 .date-time-trigger > span {
@@ -374,10 +374,10 @@
   min-width: 0;
   height: 22px;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--bg-secondary) 68%, transparent);
-  padding: 0 7px;
+  padding: 0 8px;
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 650;
@@ -663,7 +663,7 @@
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 9px;
+  gap: 8px;
   border-top: 1px solid var(--border);
   padding: 12px 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
@@ -683,7 +683,7 @@
 
 .task-create-dialog .dialog-form {
   gap: 10px;
-  padding: 13px 14px 0;
+  padding: 12px 14px 0;
 }
 
 .task-create-dialog .form-title-error {
@@ -692,27 +692,27 @@
 }
 
 .task-create-dialog .form-grid .form-field {
-  gap: 5px;
+  gap: 4px;
 }
 
 .task-create-dialog .form-field textarea {
   height: 54px;
   min-height: 54px;
-  padding: 6px 9px;
+  padding: 6px 8px;
   font-size: 12px;
   line-height: 18px;
 }
 
 .task-create-dialog .date-time-control {
   grid-template-columns: minmax(0, 1fr) 30px;
-  gap: 5px;
+  gap: 4px;
 }
 
 /* P1 移除 task-create-dialog 的尺寸覆写（基础值已统一为 30px 档）；
    保留结构性规则：清除按钮列布局与 small 隐藏（单行化触发器） */
 .task-create-dialog .date-time-control {
   grid-template-columns: minmax(0, 1fr) 30px;
-  gap: 5px;
+  gap: 4px;
 }
 
 .task-create-dialog .date-time-trigger > span {
@@ -756,11 +756,11 @@
 /* P4 移除 form-dialog 的 form-title-field input 与 picker 标题字号覆写，
    统一到基础值（32px 高标题输入 / 16px 面板标题） */
 .form-dialog .form-field {
-  gap: 5px;
+  gap: 4px;
 }
 
 .form-dialog .form-grid {
-  gap: 9px 10px;
+  gap: 8px 10px;
 }
 
 .form-dialog .form-field > span {
@@ -787,7 +787,7 @@
   display: inline-flex;
   align-items: center;
   height: 22px;
-  padding: 0 7px;
+  padding: 0 8px;
   font-size: 12px;
 }
 

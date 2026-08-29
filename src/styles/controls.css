@@ -16,7 +16,7 @@
   border-radius: var(--radius-sm);
   outline: none;
   background: var(--bg-tertiary);
-  padding: 0 11px;
+  padding: 0 12px;
   color: var(--text-primary);
   font-size: 13px;
   line-height: 19px;
@@ -114,7 +114,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 19px;
@@ -151,7 +151,7 @@
 .segmented-control {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
@@ -165,7 +165,7 @@
   flex: 1;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   border: 0;
   border-radius: calc(var(--radius-sm) - 1px);
   background: transparent;

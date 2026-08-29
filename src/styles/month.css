@@ -46,7 +46,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
-  padding: 7px 8px;
+  padding: 8px 8px;
 }
 
 .month-unscheduled header {
@@ -110,7 +110,7 @@
 .week-cell-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 1px;
@@ -129,13 +129,13 @@
 .month-cell {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  padding: 5px 6px;
+  padding: 4px 6px;
   transition:
     border-color var(--motion-theme) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard);
@@ -204,7 +204,7 @@
 
 .week-cell .month-cell-top {
   border-bottom: 1px solid var(--border-subtle);
-  padding: 11px 12px 10px;
+  padding: 12px 12px 10px;
 }
 
 .week-cell-top {
@@ -348,7 +348,7 @@
   display: flex;
   min-height: 20px;
   align-items: flex-start;
-  gap: 5px;
+  gap: 4px;
   width: 100%;
   overflow: hidden;
   border: 0;
@@ -421,7 +421,7 @@
 }
 
 .week-cell-body {
-  gap: 5px;
+  gap: 4px;
   overflow-y: visible;
   padding: 10px 10px 12px;
 }
@@ -432,7 +432,7 @@
 }
 
 .week-cell-body .month-task-dot {
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .month-legend {
