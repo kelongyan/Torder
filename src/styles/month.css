@@ -22,7 +22,7 @@
 
 .month-title {
   margin: 0 6px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   min-width: 132px;
   text-align: center;
@@ -57,13 +57,13 @@
 
 .month-unscheduled strong {
   color: var(--text-primary);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 17px;
 }
 
 .month-unscheduled > header span {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 15px;
 }
 

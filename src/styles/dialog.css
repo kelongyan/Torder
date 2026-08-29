@@ -29,7 +29,7 @@
   max-height: min(720px, calc(100vh - 36px));
   overflow: auto;
   border: 1px solid var(--border-light);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   box-shadow: var(--shadow-floating);
   will-change: opacity, transform;
@@ -58,7 +58,7 @@
   align-items: flex-start;
   gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding: 18px;
+  padding: 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -70,7 +70,7 @@
 .dialog-header h2 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 24px;
   letter-spacing: 0;
@@ -79,7 +79,7 @@
 .dialog-header p {
   margin: 3px 0 0;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 19px;
 }
 
@@ -107,7 +107,7 @@
 .shortcut-list {
   display: grid;
   gap: 16px;
-  padding: 18px;
+  padding: 16px;
 }
 
 .form-title-field {
@@ -122,10 +122,10 @@
   outline: none;
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 600;
-  line-height: 22px;
-  padding: 7px 13px;
+  line-height: 20px;
+  padding: 6px 12px;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard),
@@ -351,7 +351,7 @@
 .date-time-trigger strong {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 16px;
   text-overflow: ellipsis;
@@ -360,7 +360,7 @@
 
 .date-time-trigger small {
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 12px;
 }
 
@@ -476,7 +476,7 @@
 
 .date-picker-toolbar strong {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 22px;
   text-align: center;
@@ -665,14 +665,14 @@
   justify-content: flex-end;
   gap: 9px;
   border-top: 1px solid var(--border);
-  padding: 13px 18px;
+  padding: 12px 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
 .task-create-dialog .dialog-card {
   max-height: min(640px, calc(100vh - 48px));
   overflow: visible;
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
 }
 
 .task-create-dialog .dialog-header {
@@ -687,7 +687,7 @@
 }
 
 .task-create-dialog .form-title-error {
-  font-size: 11.5px;
+  font-size: 11px;
   line-height: 16px;
 }
 
@@ -699,7 +699,7 @@
   height: 54px;
   min-height: 54px;
   padding: 6px 9px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
 }
 
@@ -745,7 +745,7 @@
 }
 
 .form-dialog .dialog-header h2 {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 21px;
 }
 
@@ -753,15 +753,8 @@
   gap: 4px;
 }
 
-.form-dialog .form-title-field input {
-  min-height: 34px;
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 20px;
-}
-
+/* P4 移除 form-dialog 的 form-title-field input 与 picker 标题字号覆写，
+   统一到基础值（32px 高标题输入 / 16px 面板标题） */
 .form-dialog .form-field {
   gap: 5px;
 }
@@ -772,7 +765,7 @@
 
 .form-dialog .form-field > span {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 16px;
 }
@@ -834,11 +827,6 @@
   margin-bottom: 8px;
 }
 
-.form-dialog .date-picker-toolbar strong {
-  font-size: 13px;
-  line-height: 19px;
-}
-
 .form-dialog .date-picker-grid {
   gap: 4px;
 }
@@ -871,7 +859,7 @@
 
 .form-dialog .time-select-row label {
   gap: 4px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
 }
 

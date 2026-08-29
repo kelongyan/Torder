@@ -10,12 +10,12 @@
 
 .detail-dialog {
   display: flex;
-  width: min(100%, 620px);
+  width: min(100%, 600px);
   max-height: min(720px, calc(100vh - 40px));
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-light);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   box-shadow: var(--shadow-floating);
   will-change: opacity, transform;
@@ -37,7 +37,7 @@
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding: 8px 12px 8px 18px;
+  padding: 8px 12px 8px 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -68,7 +68,7 @@
   background: transparent;
   padding: 0;
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 26px;
   text-align: left;
@@ -118,7 +118,7 @@
   min-width: 0;
   flex-direction: column;
   gap: 2px;
-  min-height: 52px;
+  min-height: 46px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-tertiary);
@@ -216,7 +216,7 @@
   justify-content: space-between;
   gap: 11px;
   border-top: 1px solid var(--border);
-  padding: 13px 18px;
+  padding: 12px 16px;
   transition: border-color var(--motion-theme) var(--ease-standard);
 }
 
@@ -248,8 +248,8 @@
 }
 
 .detail-title-editing input {
-  min-height: 40px;
-  padding: 0 13px;
+  min-height: var(--control-md);
+  padding: 0 12px;
 }
 
 .detail-note-editing textarea {

@@ -214,7 +214,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 23px;
 }
 
@@ -222,7 +222,7 @@
   margin: 1px 0 0;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -699,14 +699,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 17px;
+    font-size: 16px;
     line-height: 23px;
   }
 
   .main-header p {
     margin: 1px 0 0;
     overflow: hidden;
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 15px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -946,7 +946,7 @@
 
   .main-header h1,
   .window-frame.mobile .main-header h1 {
-    font-size: 17px;
+    font-size: 16px;
     line-height: 23px;
   }
 
@@ -1336,7 +1336,7 @@
 
   .dialog-header p {
     margin-top: 1px;
-    font-size: 11.5px;
+    font-size: 11px;
     line-height: 16px;
   }
 
@@ -1382,7 +1382,7 @@
   .form-field input {
     min-height: 32px;
     padding: 0 9px;
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 18px;
   }
 
@@ -1390,7 +1390,7 @@
     height: 54px;
     min-height: 54px;
     padding: 6px 9px;
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 18px;
   }
 
@@ -1486,7 +1486,7 @@
     width: 100%;
     min-height: 32px;
     padding: 0 9px;
-    font-size: 12.5px;
+    font-size: 12px;
     line-height: 18px;
   }
 }

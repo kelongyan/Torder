@@ -9,7 +9,7 @@
 
 .recurring-rule-dialog .dialog-card {
   max-height: min(760px, calc(100vh - 36px));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .recurring-rule-form {
@@ -28,7 +28,7 @@
   min-height: 58px;
   max-height: 110px;
   padding: 6px 9px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 18px;
 }
 
@@ -166,7 +166,7 @@
 
 .recurring-toolbar strong {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 21px;
 }
 
