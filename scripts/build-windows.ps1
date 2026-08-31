@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 <#
-  build-windows.ps1 — Torder Windows 安装包一键打包（16GB 低内存机规则）
+  build-windows.ps1 — Torder Windows 安装包一键打包
 
   用法:
     pwsh scripts/build-windows.ps1                  # 打包 + 校验 + 清理旧版安装包
@@ -23,7 +23,8 @@ Set-Location $root
 $env:CARGO_HOME = "D:\cargo"
 $env:RUSTUP_HOME = "D:\rustup"
 $env:PATH = "D:\cargo\bin;C:\Program Files (x86)\NSIS;$env:PATH"
-$env:CARGO_BUILD_JOBS = "4"
+# 并行编译任务数：跟随 CPU 逻辑核数（默认 28 核全开；内存不足时可手动改小，如 "4"）
+$env:CARGO_BUILD_JOBS = "$env:NUMBER_OF_PROCESSORS"
 
 # 2. 前置检查
 if (-not (Get-Command makensis.exe -ErrorAction SilentlyContinue)) {
@@ -31,7 +32,7 @@ if (-not (Get-Command makensis.exe -ErrorAction SilentlyContinue)) {
 }
 
 # 3. 构建（tauri.conf.json 的 beforeBuildCommand 会自动跑 pnpm build，无需手动前置）
-Write-Host "[build] pnpm tauri build (CARGO_BUILD_JOBS=4)..." -ForegroundColor Cyan
+Write-Host "[build] pnpm tauri build (CARGO_BUILD_JOBS=$env:CARGO_BUILD_JOBS)..." -ForegroundColor Cyan
 pnpm tauri build
 if ($LASTEXITCODE -ne 0) { throw "pnpm tauri build 失败 (exit $LASTEXITCODE)" }
 

@@ -19,9 +19,18 @@ fn initial_sync_mode_defaults_to_merge_and_rejects_unknown_values() {
     assert!(validate_initial_sync_mode(InitialSyncMode::Download, 0, 1).is_ok());
     assert!(validate_initial_sync_mode(InitialSyncMode::Download, 1, 1).is_err());
 }
+use super::*;
+use crate::db::attachment_repository::AttachmentRepository;
+use crate::db::database::Database;
+use crate::db::recurring_repository::RecurringRuleRepository;
+use crate::db::sync_repository;
+use crate::error::RepositoryError;
+use crate::models::SyncChange;
 use crate::sync::credentials;
 use crate::sync::engine::apply::resolve_conflict;
-use crate::sync::manifest::Snapshot;
+use crate::sync::manifest::{ChangeBatch, ChangeOperation, Manifest, ManifestDevice, Snapshot};
+use crate::sync::webdav::WebDavClient;
+use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};

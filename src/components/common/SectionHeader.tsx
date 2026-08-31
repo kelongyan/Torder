@@ -1,3 +1,5 @@
+import { ChevronRight } from "lucide-react";
+
 const RING_RADIUS = 6;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -15,7 +17,11 @@ export function SectionHeader({
 
   return (
     <div className="section-header">
+      <span className="section-header-chevron" aria-hidden="true">
+        <ChevronRight />
+      </span>
       <span className="section-header-label">{label}</span>
+      <span className="section-header-rule" aria-hidden="true" />
       {progress && (
         <span
           className="section-progress"

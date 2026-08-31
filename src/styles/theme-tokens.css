@@ -1,0 +1,198 @@
+/* R0 theme layer: design color roles plus aliases used by current components.
+   Motion tokens and component animations remain defined in their existing files. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --wallpaper-base: #0b0f18;
+  --wallpaper:
+    radial-gradient(
+      92% 72% at 14% 10%,
+      rgba(58, 96, 176, 0.72) 0%,
+      rgba(58, 96, 176, 0) 62%
+    ),
+    radial-gradient(
+      72% 62% at 86% 14%,
+      rgba(116, 82, 172, 0.6) 0%,
+      rgba(116, 82, 172, 0) 58%
+    ),
+    radial-gradient(
+      82% 72% at 74% 90%,
+      rgba(26, 118, 130, 0.52) 0%,
+      rgba(26, 118, 130, 0) 60%
+    ),
+    radial-gradient(
+      62% 52% at 28% 96%,
+      rgba(158, 88, 116, 0.34) 0%,
+      rgba(158, 88, 116, 0) 62%
+    ),
+    linear-gradient(168deg, #131c2e 0%, #0b0f18 52%, #0d1220 100%);
+  --mica: rgba(22, 25, 32, 0.6);
+  --mica-side: rgba(15, 18, 24, 0.42);
+  --titlebar: rgba(255, 255, 255, 0.014);
+  --pop: rgba(34, 37, 46, 0.88);
+  --pop-line: rgba(255, 255, 255, 0.13);
+  --scrim: rgba(6, 8, 13, 0.5);
+  --hover: rgba(255, 255, 255, 0.055);
+  --hover-strong: rgba(255, 255, 255, 0.085);
+  --active-bg: rgba(255, 255, 255, 0.075);
+  --sunken: rgba(0, 0, 0, 0.22);
+  --stroke: rgba(255, 255, 255, 0.07);
+  --stroke-mid: rgba(255, 255, 255, 0.11);
+  --stroke-strong: rgba(255, 255, 255, 0.2);
+  --text-1: #eef0f5;
+  --text-2: rgba(235, 239, 247, 0.63);
+  --text-3: rgba(235, 239, 247, 0.38);
+  --accent: #6e9bff;
+  --accent-hi: #86adff;
+  --accent-soft: rgba(110, 155, 255, 0.16);
+  --accent-line: rgba(110, 155, 255, 0.4);
+  --on-accent: #0b1020;
+  --done: #43c48d;
+  --danger: #f2796b;
+  --warn: #e8b04b;
+  --p-blue: #6e9bff;
+  --p-violet: #a98af5;
+  --p-teal: #4bc0c8;
+  --p-amber: #e8b04b;
+  --p-rose: #f0819e;
+  --p-green: #43c48d;
+  --shadow-window:
+    0 2px 4px rgba(0, 0, 0, 0.28), 0 24px 48px -12px rgba(0, 0, 0, 0.62),
+    0 48px 120px -24px rgba(0, 0, 0, 0.7);
+  --shadow-pop:
+    0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 28px -8px rgba(0, 0, 0, 0.5);
+  --shadow-card:
+    0 1px 2px rgba(0, 0, 0, 0.24), 0 6px 16px -6px rgba(0, 0, 0, 0.4);
+  --caption-close: #c42b1c;
+  --bg-primary: var(--wallpaper-base);
+  --bg-secondary: var(--mica);
+  --bg-tertiary: var(--mica-side);
+  --bg-hover: var(--hover-strong);
+  --bg-active: var(--active-bg);
+  --border: var(--stroke);
+  --border-light: var(--stroke-strong);
+  --border-subtle: var(--stroke);
+  --tree-line: var(--stroke-mid);
+  --tree-branch: var(--stroke-strong);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
+  --accent-hover: var(--accent-hi);
+  --accent-bg: var(--accent-soft);
+  --accent-border: var(--accent-line);
+  --red: var(--danger);
+  --amber: var(--warn);
+  --blue: var(--p-blue);
+  --green: var(--done);
+  --on-danger: #fff;
+  --on-success: #0b1020;
+  --focus-ring: color-mix(in srgb, var(--accent) 28%, transparent);
+  --danger-bg: color-mix(in srgb, var(--danger) 16%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 44%, transparent);
+  --success-bg: color-mix(in srgb, var(--done) 16%, transparent);
+  --highlight-bg: color-mix(in srgb, var(--warn) 24%, transparent);
+  --overlay-bg: var(--scrim);
+  --scrollbar-thumb: var(--accent-line);
+  --shadow: var(--shadow-card);
+  --shadow-md: var(--shadow-pop);
+  --shadow-lift: var(--shadow-pop);
+  --shadow-floating: var(--shadow-window);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --wallpaper-base: #dfe4ee;
+  --wallpaper:
+    radial-gradient(
+      80% 65% at 14% 12%,
+      rgba(148, 176, 232, 0.72) 0%,
+      rgba(148, 176, 232, 0) 60%
+    ),
+    radial-gradient(
+      70% 60% at 88% 16%,
+      rgba(206, 190, 226, 0.66) 0%,
+      rgba(206, 190, 226, 0) 58%
+    ),
+    radial-gradient(
+      78% 66% at 76% 92%,
+      rgba(168, 214, 214, 0.6) 0%,
+      rgba(168, 214, 214, 0) 60%
+    ),
+    radial-gradient(
+      60% 50% at 26% 92%,
+      rgba(232, 206, 200, 0.55) 0%,
+      rgba(232, 206, 200, 0) 62%
+    ),
+    linear-gradient(168deg, #eef1f7 0%, #e4e9f2 54%, #eceff5 100%);
+  --mica: rgba(249, 250, 252, 0.78);
+  --mica-side: rgba(255, 255, 255, 0.34);
+  --titlebar: rgba(255, 255, 255, 0.24);
+  --pop: rgba(253, 253, 254, 0.94);
+  --pop-line: rgba(16, 24, 40, 0.1);
+  --scrim: rgba(28, 36, 56, 0.28);
+  --hover: rgba(16, 24, 40, 0.045);
+  --hover-strong: rgba(16, 24, 40, 0.075);
+  --active-bg: rgba(16, 24, 40, 0.055);
+  --sunken: rgba(255, 255, 255, 0.62);
+  --stroke: rgba(16, 24, 40, 0.08);
+  --stroke-mid: rgba(16, 24, 40, 0.12);
+  --stroke-strong: rgba(16, 24, 40, 0.22);
+  --text-1: #171a20;
+  --text-2: rgba(28, 33, 43, 0.66);
+  --text-3: rgba(28, 33, 43, 0.42);
+  --accent: #3b6fe0;
+  --accent-hi: #2d5fcf;
+  --accent-soft: rgba(59, 111, 224, 0.1);
+  --accent-line: rgba(59, 111, 224, 0.38);
+  --on-accent: #fff;
+  --done: #1f9d67;
+  --danger: #d9564a;
+  --warn: #bd8318;
+  --p-blue: #3b6fe0;
+  --p-violet: #7d5bd0;
+  --p-teal: #1c9aa4;
+  --p-amber: #bd8318;
+  --p-rose: #d2456c;
+  --p-green: #1f9d67;
+  --shadow-window:
+    0 2px 4px rgba(20, 28, 48, 0.1), 0 24px 48px -14px rgba(20, 28, 48, 0.24),
+    0 48px 110px -30px rgba(20, 28, 48, 0.28);
+  --shadow-pop:
+    0 2px 6px rgba(20, 28, 48, 0.09), 0 12px 28px -10px rgba(20, 28, 48, 0.18);
+  --shadow-card:
+    0 1px 2px rgba(20, 28, 48, 0.06), 0 6px 16px -8px rgba(20, 28, 48, 0.12);
+  --caption-close: #c42b1c;
+  --bg-primary: var(--wallpaper-base);
+  --bg-secondary: var(--mica);
+  --bg-tertiary: var(--mica-side);
+  --bg-hover: var(--hover-strong);
+  --bg-active: var(--active-bg);
+  --border: var(--stroke);
+  --border-light: var(--stroke-strong);
+  --border-subtle: var(--stroke);
+  --tree-line: var(--stroke-mid);
+  --tree-branch: var(--stroke-strong);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
+  --accent-hover: var(--accent-hi);
+  --accent-bg: var(--accent-soft);
+  --accent-border: var(--accent-line);
+  --red: var(--danger);
+  --amber: var(--warn);
+  --blue: var(--p-blue);
+  --green: var(--done);
+  --on-danger: #fff;
+  --on-success: #fff;
+  --focus-ring: color-mix(in srgb, var(--accent) 22%, transparent);
+  --danger-bg: color-mix(in srgb, var(--danger) 12%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 34%, transparent);
+  --success-bg: color-mix(in srgb, var(--done) 12%, transparent);
+  --highlight-bg: color-mix(in srgb, var(--warn) 20%, transparent);
+  --overlay-bg: var(--scrim);
+  --scrollbar-thumb: var(--accent-line);
+  --shadow: var(--shadow-card);
+  --shadow-md: var(--shadow-pop);
+  --shadow-lift: var(--shadow-pop);
+  --shadow-floating: var(--shadow-window);
+}

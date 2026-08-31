@@ -86,8 +86,8 @@ pub(crate) async fn cleanup_remote_history(
 
 #[derive(Debug)]
 pub(crate) struct RemoteAttachmentCleanupCandidate {
-    remote_path: String,
-    delete_sequence: i64,
+    pub(crate) remote_path: String,
+    pub(crate) delete_sequence: i64,
 }
 
 pub(crate) async fn cleanup_remote_attachment_blobs(

@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+*.tsbuildinfo
 .playwright-cli
 .playwright-mcp/
 android-test-*.png

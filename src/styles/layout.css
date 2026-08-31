@@ -6,15 +6,11 @@
   height: 100dvh;
   grid-template-rows: 36px minmax(0, 1fr);
   overflow: hidden;
-  background: var(--bg-primary);
+  background: var(--mica);
   color: var(--text-primary);
   transition:
     background-color var(--motion-theme) var(--ease-standard),
     color var(--motion-theme) var(--ease-standard);
-}
-
-:root[data-theme="dark"] .window-frame {
-  background: linear-gradient(180deg, #13141a 0%, #0f1015 100%);
 }
 
 .window-titlebar {
@@ -24,17 +20,12 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
+  background: var(--titlebar);
   backdrop-filter: blur(12px);
   transition:
     background-color var(--motion-theme) var(--ease-standard),
     border-color var(--motion-theme) var(--ease-standard);
   user-select: none;
-}
-
-:root[data-theme="dark"] .window-titlebar {
-  border-bottom-color: var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
 }
 
 .window-titlebar-brand {
