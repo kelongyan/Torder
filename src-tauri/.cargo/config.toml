@@ -2,3 +2,11 @@
 # windows_raw_dylib: 改用运行时 DLL 导入而非编译时静态符号，
 # 显著降低 windows crate 编译阶段的内存占用。
 rustflags = ["--cfg", "windows_raw_dylib"]
+# 并行编译任务数：28 物理核全部投入（96GB 内存余量充足，28 个 rustc 峰值约 30-56GB）
+jobs = 28
+# 增量编译显式开启（默认即 true，明确化防回退）
+incremental = true
+
+# 网络重试与超时：避免偶发源下载失败打断长编译
+[net]
+retry = 5
