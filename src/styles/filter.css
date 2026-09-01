@@ -1,0 +1,120 @@
+/* filter.css —— R04 排序菜单 + 筛选面板。
+   浮层外壳复用 .view-menu（layout.css），这里只补筛选行、底栏与工具栏圆点。 */
+
+/* ============ 浮层尺寸 ============ */
+
+/* 排序菜单沿用 .view-menu 默认 220px */
+
+.filter-panel {
+  width: 246px;
+}
+
+/* ============ 筛选行 ============ */
+
+.filter-row {
+  /* .menu-item 已是 18px / 1fr / 18px 三列 grid，这里只保证文字可截断 */
+  min-width: 0;
+}
+
+.filter-row > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 勾：平时占位不显示，选中才出现，避免行宽跳动 */
+.filter-check {
+  opacity: 0;
+  color: var(--accent);
+  transition: opacity var(--motion-fast) var(--ease-standard);
+}
+
+.filter-row.active .filter-check {
+  opacity: 1;
+}
+
+/* 项目色点：8px 圆点 + 16% 主色光环，居中落在 18px 图标列里 */
+.filter-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.filter-dot--none {
+  background: var(--text-muted);
+  box-shadow: none;
+}
+
+/* ============ 底栏 ============ */
+
+.filter-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 7px 8px 3px;
+  border-top: 1px solid var(--border);
+}
+
+.filter-count {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 16px;
+}
+
+.filter-clear {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.filter-clear:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.filter-clear:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ============ 工具栏按钮上的「已筛选」小点 ============ */
+
+.icon-button.has-filter {
+  position: relative;
+  color: var(--accent);
+}
+
+.icon-button.has-filter::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* 降序时排序按钮轻微标记方向，避免与升序混淆 */
+.icon-button.is-desc .menu-icon {
+  transform: scaleY(-1);
+}

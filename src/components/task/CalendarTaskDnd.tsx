@@ -26,7 +26,7 @@ import {
 import { createPortal } from "react-dom";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task } from "../../types/database";
-import { getTaskCalendarKey } from "../../utils/taskDates";
+import { getTaskCalendarKey, toDateKey } from "../../utils/taskDates";
 
 type CalendarTaskDragData = {
   kind: "task";
@@ -267,10 +267,28 @@ export function CalendarDateDropZone({
 }
 
 function CalendarTaskContent({ task }: { task: Task }) {
+  // 设计稿 V-3：任务块按状态染色（四类）
+  //  - is-done：已完成（灰色）
+  //  - is-overdue：未完成且 dueAt 早于今天（红）
+  //  - is-today：任务落在今天格内（蓝）
+  //  - 其余：沿用 priority-* 染色（listColor 不可得时）
+  const todayKey = useMemo(() => toDateKey(new Date()), []);
+  const dueKey = task.dueAt ? toDateKey(new Date(task.dueAt)) : null;
+  const isDone = task.status === "done";
+  const isOverdue = !isDone && dueKey !== null && dueKey < todayKey;
+  const taskDateKey = getTaskCalendarKey(task);
+  const isToday = taskDateKey !== null && taskDateKey === todayKey;
+  const statusClass = isDone
+    ? "is-done"
+    : isOverdue
+      ? "is-overdue"
+      : isToday
+        ? "is-today"
+        : "";
   return (
     <>
       <span
-        className={`month-task-dot ${priorityCopy[task.priority].className}`}
+        className={`month-task-dot ${priorityCopy[task.priority].className} ${statusClass}`}
         aria-hidden="true"
       />
       <span className="month-task-title">{task.title}</span>

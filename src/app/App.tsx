@@ -17,6 +17,7 @@ import type {
   UpdateTaskInput,
   UpdateRecurringRuleInput,
 } from "../types/database";
+import { countTaskFilter } from "../types/database";
 import {
   defaultAppSettings,
   type AppSettings,
@@ -57,6 +58,7 @@ import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
 import { WindowTitleBar } from "../components/layout/WindowTitleBar";
+import { ViewSummary } from "../components/layout/ViewSummary";
 import { SavedViewDialog } from "../components/dialog/SavedViewDialog";
 
 import { useAppInit } from "../hooks/useAppInit";
@@ -216,6 +218,8 @@ function App() {
     layout,
     searchQuery,
     sortBy,
+    sortAsc,
+    filter,
     showCompleted,
     allTasks,
     tasks,
@@ -228,6 +232,12 @@ function App() {
     setLayout,
     setSearchQuery,
     setSortBy,
+    setSortAsc,
+    toggleFilterList,
+    toggleFilterTag,
+    toggleFilterPriority,
+    toggleFilterCompleted,
+    clearFilter,
     setShowCompleted,
     applyViewState,
     addTask,
@@ -267,6 +277,18 @@ function App() {
     () => buildCounts(allTasks, lists, showCompleted),
     [allTasks, lists, showCompleted],
   );
+  /** R04 筛选面板的标签组：取自全部任务，去重后按字典序稳定排列。 */
+  const availableTags = useMemo(() => {
+    const seen = new Set<string>();
+    for (const task of allTasks) {
+      for (const tag of task.tags) {
+        const value = tag.trim();
+        if (value) seen.add(value);
+      }
+    }
+    return [...seen].sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
+  }, [allTasks]);
+  const filterCount = useMemo(() => countTaskFilter(filter), [filter]);
   const activeSavedViewId = useMemo(
     () =>
       settings.savedViews.find(
@@ -289,6 +311,26 @@ function App() {
   const deletedViewActive =
     !recurringViewActive && scope.kind === "view" && scope.view === "deleted";
   const effectiveLayout = deletedViewActive ? "list" : layout;
+  /** 主头副标用的视图摘要：done/total/overdue。deleted 与 recurring 视图返回 null。
+   * 「当前时间」依赖下面 nowMs（每分钟刷新一次），避免在组件渲染期直接读 Date.now() 触发
+   * react-hooks/purity 报错，也避免 overdue 计数随每次重渲染轻微漂移。 */
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const viewSummary = useMemo(() => {
+    if (recurringViewActive || deletedViewActive) return null;
+    const total = tasks.length;
+    const done = tasks.filter((task) => task.status === "done").length;
+    const overdue = tasks.filter(
+      (task) =>
+        task.status !== "done" &&
+        task.dueAt !== null &&
+        new Date(task.dueAt).getTime() < nowMs - 24 * 60 * 60 * 1000,
+    ).length;
+    return { done, total, overdue };
+  }, [deletedViewActive, nowMs, recurringViewActive, tasks]);
   const contentKey = useMemo(
     () =>
       [
@@ -963,6 +1005,16 @@ function App() {
     setMenuOpen(false);
   }
 
+  async function handleSortAscToggle() {
+    await setSortAsc(!sortAsc);
+    pushToast(sortAsc ? "已改为降序" : "已改为升序", "success");
+  }
+
+  async function handleClearFilter() {
+    await clearFilter();
+    pushToast("已清除全部筛选条件", "success");
+  }
+
   async function handleShowCompletedChange() {
     await setShowCompleted(!showCompleted);
     setMenuOpen(false);
@@ -1016,11 +1068,22 @@ function App() {
         <main className="main">
           <MainHeader
             title={currentTitle}
-            meta={recurringViewActive ? null : undefined}
+            meta={
+              recurringViewActive || !viewSummary
+                ? recurringViewActive
+                  ? null
+                  : undefined
+                : <ViewSummary {...viewSummary} />
+            }
             taskCount={tasks.length}
             layout={effectiveLayout}
             theme={settings.theme}
             sortBy={sortBy}
+            sortAsc={sortAsc}
+            filter={filter}
+            filterCount={filterCount}
+            lists={lists}
+            tags={availableTags}
             showCompleted={showCompleted}
             onOpenSidebar={openMobileSidebar}
             onOpenCreate={() => openTaskCreateDialog()}
@@ -1029,6 +1092,12 @@ function App() {
             onMenuToggle={() => setMenuOpen((open) => !open)}
             menuOpen={menuOpen}
             onSortChange={(nextSort) => void handleSortChange(nextSort)}
+            onSortAscToggle={() => void handleSortAscToggle()}
+            onToggleFilterList={(listId) => void toggleFilterList(listId)}
+            onToggleFilterTag={(tag) => void toggleFilterTag(tag)}
+            onToggleFilterPriority={(priority) => void toggleFilterPriority(priority)}
+            onToggleFilterCompleted={() => void toggleFilterCompleted()}
+            onClearFilter={() => void handleClearFilter()}
             onShowCompletedChange={() => void handleShowCompletedChange()}
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}

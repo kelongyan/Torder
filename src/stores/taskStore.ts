@@ -26,17 +26,24 @@ import type {
   CreateTaskInput,
   SystemView,
   Task,
+  TaskFilter,
   TaskLayout,
+  TaskPriority,
   TaskScope,
   TaskSortBy,
   UpdateTaskInput,
 } from "../types/database";
+import { countTaskFilter, emptyTaskFilter } from "../types/database";
 
 interface TaskState {
   scope: TaskScope;
   layout: TaskLayout;
   searchQuery: string;
   sortBy: TaskSortBy;
+  /** R04：排序方向。true 升序（早的/小的在前），false 降序。 */
+  sortAsc: boolean;
+  /** R04：筛选面板多选条件（项目 / 标签 / 优先级 / 包含已完成）。 */
+  filter: TaskFilter;
   showCompleted: boolean;
   allTasks: Task[];
   tasks: Task[];
@@ -52,6 +59,12 @@ interface TaskState {
   setLayout: (layout: TaskLayout) => void;
   setSearchQuery: (query: string) => Promise<void>;
   setSortBy: (sortBy: TaskSortBy) => Promise<void>;
+  setSortAsc: (sortAsc: boolean) => Promise<void>;
+  toggleFilterList: (listId: string) => Promise<void>;
+  toggleFilterTag: (tag: string) => Promise<void>;
+  toggleFilterPriority: (priority: TaskPriority) => Promise<void>;
+  toggleFilterCompleted: () => Promise<void>;
+  clearFilter: () => Promise<void>;
   setShowCompleted: (showCompleted: boolean) => Promise<void>;
   applyViewState: (state: {
     scope: TaskScope;
@@ -106,6 +119,8 @@ export const useTaskStore = create<TaskState>()(
       layout: "list",
       searchQuery: "",
       sortBy: "priority",
+      sortAsc: true,
+      filter: emptyTaskFilter,
       showCompleted: true,
       allTasks: [],
       tasks: [],
@@ -146,6 +161,45 @@ export const useTaskStore = create<TaskState>()(
 
       setSortBy: async (sortBy) => {
         set((state) => ({ sortBy, tasks: deriveTasks({ ...state, sortBy }) }));
+      },
+
+      setSortAsc: async (sortAsc) => {
+        set((state) => ({ sortAsc, tasks: deriveTasks({ ...state, sortAsc }) }));
+      },
+
+      toggleFilterList: async (listId) => {
+        set((state) => patchFilter(state, (filter) => ({
+          ...filter,
+          listIds: toggleValue(filter.listIds, listId),
+        })));
+      },
+
+      toggleFilterTag: async (tag) => {
+        set((state) => patchFilter(state, (filter) => ({
+          ...filter,
+          tags: toggleValue(filter.tags, tag),
+        })));
+      },
+
+      toggleFilterPriority: async (priority) => {
+        set((state) => patchFilter(state, (filter) => ({
+          ...filter,
+          priorities: toggleValue(filter.priorities, priority),
+        })));
+      },
+
+      toggleFilterCompleted: async () => {
+        set((state) => patchFilter(state, (filter) => ({
+          ...filter,
+          includeCompleted: !filter.includeCompleted,
+        })));
+      },
+
+      clearFilter: async () => {
+        set((state) => {
+          const filter = emptyTaskFilter;
+          return { filter, tasks: deriveTasks({ ...state, filter }) };
+        });
       },
 
       setShowCompleted: async (showCompleted) => {
@@ -641,6 +695,8 @@ export const useTaskStore = create<TaskState>()(
         scope: state.scope,
         layout: state.layout,
         sortBy: state.sortBy,
+        sortAsc: state.sortAsc,
+        filter: state.filter,
         showCompleted: state.showCompleted,
       }),
     },
@@ -669,6 +725,8 @@ function deriveTasks(view: {
   scope: TaskScope;
   searchQuery: string;
   sortBy: TaskSortBy;
+  sortAsc: boolean;
+  filter: TaskFilter;
   showCompleted: boolean;
 }): Task[] {
   const source = isDeletedScope(view.scope) ? view.trashTasks : view.allTasks;
@@ -676,8 +734,35 @@ function deriveTasks(view: {
     scope: view.scope,
     query: view.searchQuery,
     sortBy: view.sortBy,
+    sortAsc: view.sortAsc,
+    filter: view.filter,
     showCompleted: view.showCompleted,
   });
+}
+
+/** 筛选面板：改完 filter 立即按新条件重派生（选中/取消都是同一条路径）。 */
+function patchFilter(
+  state: TaskState,
+  next: (filter: TaskFilter) => TaskFilter,
+): Partial<TaskState> {
+  const filter = next(state.filter);
+  return {
+    filter,
+    selectedTaskId: null,
+    batchSelectedIds: [],
+    tasks: deriveTasks({ ...state, filter }),
+  };
+}
+
+function toggleValue<T>(list: T[], value: T): T[] {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
+}
+
+/** R04 工具栏按钮上的「已筛选」条件数（0 表示无条件）。 */
+export function selectFilterCount(state: TaskState): number {
+  return countTaskFilter(state.filter);
 }
 
 function buildUpdateInput(

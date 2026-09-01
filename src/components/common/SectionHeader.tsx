@@ -1,6 +1,7 @@
-const RING_RADIUS = 6;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
+/**
+ * 粘性分组头：左侧折叠箭头 + 标题，右侧完成进度（线性条 + done/total）。
+ * 滚动时悬挂在内容区顶部（由 .section-header 的 sticky + 毛玻璃底承载）。
+ */
 export function SectionHeader({
   label,
   progress,
@@ -21,35 +22,22 @@ export function SectionHeader({
           className="section-progress"
           title={`已完成 ${progress.done}/${progress.total}`}
         >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
-            focusable="false"
+          <span
+            className="section-progress-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={progress.total}
+            aria-valuenow={progress.done}
+            aria-label={`已完成 ${progress.done}/${progress.total}`}
           >
-            <circle
-              className="section-progress-track"
-              cx="8"
-              cy="8"
-              r={RING_RADIUS}
-              fill="none"
-              strokeWidth="2"
-            />
-            <circle
+            <span
               className="section-progress-fill"
-              cx="8"
-              cy="8"
-              r={RING_RADIUS}
-              fill="none"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={RING_CIRCUMFERENCE * (1 - ratio)}
-              transform="rotate(-90 8 8)"
+              style={{ width: `${ratio * 100}%` }}
             />
-          </svg>
-          {progress.done}/{progress.total}
+          </span>
+          <span className="section-progress-text">
+            {progress.done}/{progress.total}
+          </span>
         </span>
       )}
     </div>

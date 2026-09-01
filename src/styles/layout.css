@@ -856,6 +856,48 @@
   position: relative;
 }
 
+/* 主头副标内的视图摘要：进度条 + 已完成 / 逾期 */
+.view-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.view-summary-bar {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.view-summary-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  height: 100%;
+  background: var(--green);
+  transition: width var(--motion-soft) var(--ease-out);
+}
+
+.view-summary-text {
+  color: var(--text-secondary);
+}
+
+.view-summary-overdue {
+  color: var(--red);
+  font-weight: 600;
+}
+
 .view-menu {
   position: absolute;
   top: calc(100% + 8px);

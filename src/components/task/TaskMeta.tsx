@@ -42,13 +42,12 @@ export function TaskMeta({
   return (
     <div className="task-meta">
       <span
-        className="list-badge"
-        style={{
-          color: listColor,
-          backgroundColor: `${listColor}24`,
-        }}
+        className="list-inline"
+        style={{ color: listColor }}
+        title={list?.name ?? "未分类"}
       >
-        {list?.name ?? "未分类"}
+        <span className="list-dot" aria-hidden="true" />
+        <span className="list-inline-name">{list?.name ?? "未分类"}</span>
       </span>
       {!hideDue && dueLabel && (
         <span className={`due-label ${urgencyClass}`}>

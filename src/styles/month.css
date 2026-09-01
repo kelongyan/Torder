@@ -405,6 +405,21 @@
   background: var(--text-muted);
 }
 
+/* R0X 月历状态色（设计稿 V-3）：状态优先于 priority
+   is-done（已完成）· is-overdue（已逾期）· is-today（今日）。 */
+.month-task-dot.is-done {
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+
+.month-task-dot.is-overdue {
+  background: var(--red);
+}
+
+.month-task-dot.is-today {
+  background: var(--blue);
+}
+
 .month-task-title {
   display: block;
   overflow: visible;
@@ -435,11 +450,19 @@
   margin-top: 4px;
 }
 
+/* 月历图例（设计稿 V-3）：任务状态色块 + 日程事件类型 */
 .month-legend {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
-  padding: 2px 4px;
+  gap: 24px;
+  padding: 8px 4px 4px;
+}
+
+.month-legend-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .month-legend-item {
@@ -447,18 +470,45 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 11px;
+  line-height: 16px;
 }
 
-.month-legend-icon.leave {
-  color: var(--green);
+.month-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--text-muted);
 }
 
-.month-legend-icon.trip {
-  color: var(--blue);
+.month-legend-swatch.is-leave {
+  background: var(--green);
 }
 
-.month-legend-icon.other {
-  color: var(--amber);
+.month-legend-swatch.is-trip {
+  background: var(--blue);
+}
+
+.month-legend-swatch.is-other {
+  background: var(--amber);
+}
+
+.month-legend-swatch.is-today {
+  background: var(--blue);
+}
+
+.month-legend-swatch.is-overdue {
+  background: var(--red);
+}
+
+.month-legend-swatch.is-done {
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+
+.month-legend-swatch.is-selected {
+  background: transparent;
+  border: 2px solid var(--blue);
+  width: 14px;
+  height: 14px;
 }

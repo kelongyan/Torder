@@ -1,8 +1,10 @@
-import { useRef, useEffect } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  ArrowDownUp,
   Cloud,
   CloudAlert,
   CloudOff,
+  Filter,
   Menu,
   MoreHorizontal,
   Moon,
@@ -13,9 +15,12 @@ import {
 import logoUrl from "../../assets/torder-logo.png";
 import { layoutOptions } from "../../constants/taskConfig";
 import { usePresence } from "../../hooks/usePresence";
-import type { TaskLayout } from "../../types/database";
+import type { TaskFilter, TaskLayout, TaskList } from "../../types/database";
+import type { TaskSortBy } from "../../types/database";
 import type { ThemePreference } from "../../types/settings";
 import type { SyncStatus } from "../../types/sync";
+import { FilterPanel } from "../common/FilterPanel";
+import { SortMenu } from "../common/SortMenu";
 import { ViewMenu } from "../common/ViewMenu";
 
 export function MainHeader({
@@ -25,6 +30,11 @@ export function MainHeader({
   layout,
   theme,
   sortBy,
+  sortAsc,
+  filter,
+  filterCount,
+  lists,
+  tags,
   showCompleted,
   onOpenSidebar,
   onOpenCreate,
@@ -33,6 +43,12 @@ export function MainHeader({
   onMenuToggle,
   menuOpen,
   onSortChange,
+  onSortAscToggle,
+  onToggleFilterList,
+  onToggleFilterTag,
+  onToggleFilterPriority,
+  onToggleFilterCompleted,
+  onClearFilter,
   onShowCompletedChange,
   onOpenSettings,
   onOpenStats,
@@ -40,11 +56,16 @@ export function MainHeader({
   showLayoutControls = true,
 }: {
   title: string;
-  meta?: string | null;
+  meta?: string | ReactNode | null;
   taskCount: number;
   layout: TaskLayout;
   theme: ThemePreference;
-  sortBy: import("../../types/database").TaskSortBy;
+  sortBy: TaskSortBy;
+  sortAsc: boolean;
+  filter: TaskFilter;
+  filterCount: number;
+  lists: TaskList[];
+  tags: string[];
   showCompleted: boolean;
   onOpenSidebar?: () => void;
   onOpenCreate?: () => void;
@@ -52,7 +73,13 @@ export function MainHeader({
   onThemeToggle: () => void;
   onMenuToggle: () => void;
   menuOpen: boolean;
-  onSortChange: (sortBy: import("../../types/database").TaskSortBy) => void;
+  onSortChange: (sortBy: TaskSortBy) => void;
+  onSortAscToggle: () => void;
+  onToggleFilterList: (listId: string) => void;
+  onToggleFilterTag: (tag: string) => void;
+  onToggleFilterPriority: (priority: 0 | 1 | 2) => void;
+  onToggleFilterCompleted: () => void;
+  onClearFilter: () => void;
   onShowCompletedChange: () => void;
   onOpenSettings: () => void;
   onOpenStats: () => void;
@@ -61,6 +88,12 @@ export function MainHeader({
 }) {
   const menuPresence = usePresence(menuOpen, 280);
   const menuAnchorRef = useRef<HTMLDivElement>(null);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const sortPresence = usePresence(sortOpen, 280);
+  const filterPresence = usePresence(filterOpen, 280);
+  const sortAnchorRef = useRef<HTMLDivElement>(null);
+  const filterAnchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -80,11 +113,48 @@ export function MainHeader({
     };
   }, [menuOpen, onMenuToggle]);
 
-  const handleSortSelect = (
-    newSortBy: import("../../types/database").TaskSortBy,
-  ) => {
+  // R04：排序与筛选是两个独立浮层，点外部 / Esc 各自收起，互不影响 ··· 主菜单
+  useEffect(() => {
+    if (!sortOpen && !filterOpen) return;
+
+    const handlePointerDownOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (
+        sortOpen &&
+        sortAnchorRef.current &&
+        !sortAnchorRef.current.contains(target)
+      ) {
+        setSortOpen(false);
+      }
+      if (
+        filterOpen &&
+        filterAnchorRef.current &&
+        !filterAnchorRef.current.contains(target)
+      ) {
+        setFilterOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSortOpen(false);
+      setFilterOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDownOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDownOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [filterOpen, sortOpen]);
+
+  const handleSortSelect = (newSortBy: TaskSortBy) => {
     onSortChange(newSortBy);
-    onMenuToggle();
+    setSortOpen(false);
+  };
+
+  const handleDirectionToggle = () => {
+    onSortAscToggle();
   };
 
   const handleShowCompletedToggle = () => {
@@ -200,6 +270,54 @@ export function MainHeader({
             )}
           </button>
         )}
+
+        <div className="menu-anchor" ref={sortAnchorRef}>
+          <button
+            type="button"
+            className={`icon-button sort-menu-btn ${sortOpen ? "active" : ""} ${sortAsc ? "" : "is-desc"}`}
+            onClick={() => setSortOpen((open) => !open)}
+            aria-label="排序"
+            title={`排序 · 当前${sortAsc ? "升序" : "降序"}`}
+            aria-expanded={sortOpen}
+          >
+            <ArrowDownUp aria-hidden="true" className="menu-icon" />
+          </button>
+          {sortPresence.rendered && (
+            <SortMenu
+              sortBy={sortBy}
+              sortAsc={sortAsc}
+              presence={sortPresence.phase}
+              onSortChange={handleSortSelect}
+              onDirectionToggle={handleDirectionToggle}
+            />
+          )}
+        </div>
+
+        <div className="menu-anchor" ref={filterAnchorRef}>
+          <button
+            type="button"
+            className={`icon-button filter-panel-btn ${filterOpen ? "active" : ""} ${filterCount > 0 ? "has-filter" : ""}`}
+            onClick={() => setFilterOpen((open) => !open)}
+            aria-label={filterCount > 0 ? `筛选 · ${filterCount} 个条件` : "筛选"}
+            title={filterCount > 0 ? `筛选 · ${filterCount} 个条件` : "筛选"}
+            aria-expanded={filterOpen}
+          >
+            <Filter aria-hidden="true" className="menu-icon" />
+          </button>
+          {filterPresence.rendered && (
+            <FilterPanel
+              lists={lists}
+              tags={tags}
+              filter={filter}
+              presence={filterPresence.phase}
+              onToggleList={onToggleFilterList}
+              onToggleTag={onToggleFilterTag}
+              onTogglePriority={onToggleFilterPriority}
+              onToggleCompleted={onToggleFilterCompleted}
+              onClear={onClearFilter}
+            />
+          )}
+        </div>
 
         <button
           type="button"
