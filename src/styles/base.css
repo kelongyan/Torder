@@ -14,7 +14,8 @@ body,
 }
 
 body {
-  background: var(--bg-primary);
+  background-color: var(--wallpaper-base);
+  background-image: var(--wallpaper);
   transition:
     background-color var(--motion-theme) var(--ease-standard),
     color var(--motion-theme) var(--ease-standard);

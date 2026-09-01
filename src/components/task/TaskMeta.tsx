@@ -63,7 +63,15 @@ export function TaskMeta({
       )}
       {task.subtasks.length > 0 && (
         <span className="subtask-pill">
-          {completedSubtasks}/{task.subtasks.length}
+          <span>
+            {completedSubtasks}/{task.subtasks.length}
+          </span>
+          <i
+            aria-hidden="true"
+            style={{
+              width: `${(completedSubtasks / task.subtasks.length) * 100}%`,
+            }}
+          />
         </span>
       )}
       {task.tags.slice(0, 3).map((tag) => (

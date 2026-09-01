@@ -1,5 +1,7 @@
+import { ChevronRight } from "lucide-react";
+
 /**
- * 粘性分组头：左侧折叠箭头 + 标题，右侧完成进度（线性条 + done/total）。
+ * 粘性分组头：折叠箭头 + 标题 + 分隔线，右侧完成进度（线性条 + done/total）。
  * 滚动时悬挂在内容区顶部（由 .section-header 的 sticky + 毛玻璃底承载）。
  */
 export function SectionHeader({
@@ -16,7 +18,11 @@ export function SectionHeader({
 
   return (
     <div className="section-header">
+      <span className="section-header-chevron" aria-hidden="true">
+        <ChevronRight />
+      </span>
       <span className="section-header-label">{label}</span>
+      <span className="section-header-rule" aria-hidden="true" />
       {progress && (
         <span
           className="section-progress"

@@ -1,5 +1,14 @@
 import type { CSSProperties } from "react";
-import { Check, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  Flag,
+  GripVertical,
+  MoreHorizontal,
+  Pencil,
+  RotateCcw,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { priorityCopy } from "../../constants/taskConfig";
 import type { Task, TaskList } from "../../types/database";
 import { HighlightedText } from "../common/HighlightedText";
@@ -85,6 +94,10 @@ export function TaskRow({
     >
       {timeGutter && <span className="task-time">{timeGutter}</span>}
 
+      <span className="task-grip" aria-hidden="true">
+        <GripVertical />
+      </span>
+
       {batchMode ? (
         <button
           type="button"
@@ -115,6 +128,15 @@ export function TaskRow({
 
       <div className="task-content">
         <div className="task-title-line">
+          {task.priority > 0 && (
+            <span
+              className={`task-priority-icon ${priorityCopy[task.priority].className}`}
+              title={`${priorityCopy[task.priority].label}优先级`}
+              aria-label={`${priorityCopy[task.priority].label}优先级`}
+            >
+              <Flag aria-hidden="true" />
+            </span>
+          )}
           <h3>
             <HighlightedText text={task.title} query={searchQuery} />
           </h3>
@@ -129,8 +151,28 @@ export function TaskRow({
 
       {!batchMode && (
         <div className="task-actions">
+          {!deleted && (
+            <button
+              type="button"
+              className="task-action-soon"
+              disabled
+              aria-label="星标 · 暂未开放"
+              title="星标 · 暂未开放"
+            >
+              <Star aria-hidden="true" />
+            </button>
+          )}
           {deleted ? (
             <>
+              <button
+                type="button"
+                className="task-action-soon"
+                disabled
+                aria-label="更多操作 · 暂未开放"
+                title="更多操作 · 暂未开放"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 onClick={(event) => {
@@ -156,6 +198,15 @@ export function TaskRow({
             </>
           ) : (
             <>
+              <button
+                type="button"
+                className="task-action-soon"
+                disabled
+                aria-label="更多操作 · 暂未开放"
+                title="更多操作 · 暂未开放"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 onClick={(event) => {

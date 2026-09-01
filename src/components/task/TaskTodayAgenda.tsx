@@ -63,6 +63,13 @@ export function TaskTodayAgenda({
   const insertAt = agendaItems.findIndex(
     ({ task }) => task.dueAt && minuteOfDay(task.dueAt) > nowMinutes,
   );
+  const liveItems = items.filter(({ leaving }) => !leaving);
+  const completedCount = liveItems.filter(
+    ({ task }) => task.status === "done",
+  ).length;
+  const overdueCount = overdueItems.filter(({ leaving }) => !leaving).length;
+  const totalCount = liveItems.length;
+  const remainingCount = Math.max(0, totalCount - completedCount);
 
   function renderRow(
     { task, leaving }: AnimatedTask,
@@ -100,6 +107,22 @@ export function TaskTodayAgenda({
 
   return (
     <>
+      <div className="task-pace" aria-label="今日节奏">
+        <span className="task-pace-bar" aria-hidden="true">
+          <i
+            style={{
+              width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+            }}
+          />
+        </span>
+        <span className="task-pace-text">
+          <strong>{completedCount}</strong>/{totalCount} 项已完成
+        </span>
+        {overdueCount > 0 && (
+          <span className="task-pace-overdue">逾期 {overdueCount}</span>
+        )}
+        <span className="task-pace-left">还有 {remainingCount} 项待推进</span>
+      </div>
       {overdueItems.length > 0 && (
         <Fragment key="overdue">
           <SectionHeader label={`逾期 · ${liveCount(overdueItems)}`} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Pencil, Trash2 } from "lucide-react";
+import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Task, TaskList, TaskScope } from "../../types/database";
 import { useAnimatedTasks } from "../../hooks/useAnimatedTasks";
 import { EmptyState } from "../common/EmptyState";
@@ -268,6 +268,14 @@ export function TaskListView({
             </>
           )}
         </>
+      )}
+      {!deletedView && !batchMode && (
+        <div className="task-composer-placeholder" aria-disabled="true">
+          <span className="task-composer-plus" aria-hidden="true">
+            <Plus />
+          </span>
+          <span>快速新建 · 暂未开放</span>
+        </div>
       )}
     </div>
   );
