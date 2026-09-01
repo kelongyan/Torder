@@ -2,8 +2,8 @@
 .settings-dialog .dialog-card {
   display: flex;
   width: min(94vw, 920px);
-  height: min(720px, calc(100vh - 36px));
-  max-height: calc(100vh - 36px);
+  height: min(720px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
   flex-direction: column;
   overflow: hidden;
 }
@@ -1700,4 +1700,313 @@
 .note-reset-link:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+/* ---------- R7 设置对齐设计稿 settings.css（2026-09-01） ---------- */
+
+/* 壳：左导航 186px（设计稿 .set-nav） */
+.settings-layout {
+  grid-template-columns: 186px minmax(0, 1fr);
+}
+
+.settings-side-nav-item {
+  position: relative;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+/* 设计稿 .set-nav item is-on：主色软底 + 左缘 3×16 accent 药丸 */
+.settings-side-nav-item.is-active {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.settings-side-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(-50%);
+}
+
+/* 页脚：自动保存文案（设计稿 sheet__foot） */
+.settings-footer .settings-footer-note {
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+/* 应用主题三卡（设计稿 settings-theme.css .theme-card，缩略色为固定示意值） */
+.theme-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.theme-card {
+  display: flex;
+  width: 116px;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 11px;
+  background: var(--mica-side);
+  padding: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.theme-card:hover {
+  color: var(--text-1);
+}
+
+.theme-card.is-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  color: var(--text-1);
+}
+
+.theme-card-preview {
+  position: relative;
+  display: block;
+  height: 62px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.theme-card-preview .pv-side {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 26%;
+}
+
+.theme-card-preview .pv-line {
+  position: absolute;
+  top: 12px;
+  left: 34%;
+  width: 52%;
+  height: 5px;
+  border-radius: 999px;
+}
+
+.theme-card-preview .pv-line.short {
+  top: 24px;
+  width: 34%;
+}
+
+.preview-light {
+  background: #eef1f7;
+}
+
+.preview-light .pv-side {
+  background: #d9e0ec;
+}
+
+.preview-light .pv-line {
+  background: #b8c2d4;
+}
+
+.preview-dark {
+  background: #10141d;
+}
+
+.preview-dark .pv-side {
+  background: #1c2230;
+}
+
+.preview-dark .pv-line {
+  background: #333d51;
+}
+
+.preview-system {
+  background: linear-gradient(90deg, #eef1f7 0 50%, #10141d 50% 100%);
+}
+
+.preview-system .pv-side {
+  background: linear-gradient(90deg, #d9e0ec 0 50%, #1c2230 50% 100%);
+}
+
+.preview-system .pv-line {
+  background: #94a0b8;
+}
+
+.theme-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 2px 2px;
+}
+
+/* ---------- T-09/T-10/T-11 灰显占位（§13 规则 4） ---------- */
+.set-ph-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--mica-side);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.set-ph-title {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.set-ph-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.set-ph-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.set-ph-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.set-ph-chips {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.set-ph-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.set-ph-chip.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.set-ph-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--sunken);
+  padding: 4px 10px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.set-ph-picker i {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 10px;
+}
+
+.set-ph-switch {
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--stroke-mid);
+  padding: 2px;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.set-ph-switch i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.set-ph-switch.is-on {
+  background: var(--accent);
+}
+
+.set-ph-switch.is-on i {
+  transform: translateX(14px);
+}
+
+.set-ph-kbd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.set-ph-kbd-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.set-ph-kbd-row kbd {
+  border: 1px solid var(--stroke-mid);
+  border-radius: 4px;
+  background: var(--hover);
+  padding: 1px 6px;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+}
+
+.set-ph-swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.set-ph-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.set-ph-swatch.is-on {
+  box-shadow:
+    0 0 0 2px var(--mica),
+    0 0 0 4px var(--swatch);
+}
+
+.set-ph-note {
+  margin: 2px 0 0;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+.set-ph-link {
+  color: var(--text-3);
+  font-size: 12px;
+  text-decoration: underline;
 }

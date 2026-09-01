@@ -1,4 +1,5 @@
-import { Calendar, CalendarDays } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Calendar, CalendarDays, ListTodo } from "lucide-react";
 import {
   formatTaskDate,
   formatTaskScheduleDate,
@@ -62,15 +63,20 @@ export function TaskMeta({
         </span>
       )}
       {task.subtasks.length > 0 && (
-        <span className="subtask-pill">
-          <span>
+        <span
+          className="subtask-meta"
+          title={`子任务 ${completedSubtasks}/${task.subtasks.length}`}
+        >
+          <ListTodo aria-hidden="true" className="icon-xs" />
+          <span className="subtask-meta-count">
             {completedSubtasks}/{task.subtasks.length}
           </span>
           <i
+            className="subtask-meta-bar"
             aria-hidden="true"
             style={{
-              width: `${(completedSubtasks / task.subtasks.length) * 100}%`,
-            }}
+              "--subtask-done": `${(completedSubtasks / task.subtasks.length) * 100}%`,
+            } as CSSProperties}
           />
         </span>
       )}

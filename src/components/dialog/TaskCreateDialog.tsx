@@ -120,7 +120,7 @@ export function TaskCreateDialog({
       icon={Plus}
       presence={presence}
       onClose={onClose}
-      width="500px"
+      width="620px"
       overlayClassName="task-create-dialog form-dialog"
     >
       <form
@@ -159,7 +159,7 @@ export function TaskCreateDialog({
         )}
         <DialogFooter
           onCancel={onClose}
-          submitLabel={draft.recurrenceFrequency ? "创建循环任务" : "创建任务"}
+          submitLabel={draft.recurrenceFrequency ? "创建循环任务" : "创建事项"}
           submitting={submitting}
         />
       </form>

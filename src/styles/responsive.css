@@ -232,6 +232,16 @@
   display: contents;
 }
 
+/* R3 新增工具组的移动端兼容：占位组/批量钮不上移动端，应用组打散保留原 grid 区位 */
+.window-frame.mobile .tool-group {
+  display: contents;
+}
+
+.window-frame.mobile .tool-group--soon,
+.window-frame.mobile .batch-toggle-btn {
+  display: none;
+}
+
 .window-frame.mobile .header-view-toolbar {
   display: none;
 }
@@ -1003,10 +1013,6 @@
   line-height: 20px;
 }
 
-.window-frame.mobile .task-note {
-  font-size: 12px;
-  line-height: 17px;
-}
 
 .window-frame.mobile .task-meta {
   gap: 4px;
@@ -1096,10 +1102,6 @@
     line-height: 20px;
   }
 
-  .task-note {
-    font-size: 12px;
-    line-height: 17px;
-  }
 
   .task-meta {
     gap: 4px;
@@ -1478,5 +1480,27 @@
     content: "";
     position: absolute;
     inset: -11px; /* 18px 视觉 + 双向扩展 → 40px 热区 */
+  }
+}
+
+/* R3：≤1080 视图标题 25→22px、副标题隐藏（设计稿 responsive.css，仅桌面宽度段） */
+@media (max-width: 1080px) and (min-width: 721px) {
+  .main-header h1 {
+    font-size: 22px;
+  }
+
+  .main-header-copy p {
+    display: none;
+  }
+}
+
+/* R3/D10：≤1080 分段按钮只留图标（设计稿 responsive 降级，副标题同步隐藏） */
+@media (max-width: 1080px) and (min-width: 721px) {
+  .layout-tabs button {
+    padding: 0 9px;
+  }
+
+  .layout-tabs button span {
+    display: none;
   }
 }

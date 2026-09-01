@@ -77,14 +77,13 @@ export function TaskDetailPanel({
   const presentTask = detailPresence.value;
 
   return (
-    <div
-      className={`dialog-overlay detail-overlay ${
+    /* R6：详情抽屉 = 非模态第三列（设计稿 detail.css flex 0 0 min(392px,42%)），
+       挤压列表而非遮盖；≤1080 转右侧覆盖。关闭走顶部关闭钮 / Esc。 */
+    <aside
+      className={`detail-drawer ${
         detailPresence.rendered ? detailPresence.className : "hidden"
       }`}
-      role="presentation"
-      onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      aria-label="任务详情"
     >
       {presentTask && (
         <TaskDetailContent
@@ -102,7 +101,7 @@ export function TaskDetailPanel({
           onToast={onToast}
         />
       )}
-    </div>
+    </aside>
   );
 }
 

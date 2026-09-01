@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { Plus } from "lucide-react";
 import type { Task, TaskList } from "../../types/database";
 import { TaskCard } from "./TaskCard";
 
@@ -67,6 +68,14 @@ export function TaskBoard({
             />
             <h2>{column.title}</h2>
             <span>{column.tasks.length}</span>
+            {/* T-13 · 在此列新建：未开发，纯灰显占位（§13 规则 4） */}
+            <span
+              className="board-column-add ui-placeholder"
+              aria-disabled="true"
+              aria-label="在此列新建"
+            >
+              <Plus aria-hidden="true" />
+            </span>
           </header>
           <div className="board-cards">
             {column.tasks.map((task, taskIndex) => (

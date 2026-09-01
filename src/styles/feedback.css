@@ -80,13 +80,18 @@
   animation: shimmer 1.5s infinite;
 }
 
+/* P5 对齐设计稿 toast：底部居中、入场从下方浮起（z 序沿用真项目结构） */
 .toast-host {
   position: fixed;
-  top: 18px;
-  right: 18px;
+  top: auto;
+  bottom: 18px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   z-index: 70;
   display: grid;
   gap: 10px;
+  justify-items: center;
   pointer-events: none;
 }
 
@@ -97,16 +102,17 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  background: var(--bg-secondary);
-  padding: 12px 12px;
-  color: var(--text-primary);
-  font-size: 13px;
-  line-height: 20px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--pop-line);
+  border-radius: 999px;
+  background: var(--pop);
+  backdrop-filter: blur(24px) saturate(160%);
+  padding: 10px 16px;
+  color: var(--text-1);
+  font-size: 12.5px;
+  line-height: 18px;
+  box-shadow: var(--shadow-pop);
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
   transition:
     opacity var(--motion-soft) var(--ease-out),
     transform var(--motion-soft) var(--ease-out);
@@ -117,22 +123,22 @@
 @starting-style {
   .toast {
     opacity: 0;
-    transform: translateX(18px);
+    transform: translateY(18px);
   }
 }
 
 .toast.is-leaving {
   opacity: 0;
-  transform: translateX(12px);
+  transform: translateY(12px);
   pointer-events: none;
 }
 
 .toast.success svg {
-  color: var(--green);
+  color: var(--done);
 }
 
 .toast.error svg {
-  color: var(--red);
+  color: var(--danger);
 }
 
 .toast.info svg {
@@ -345,4 +351,43 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* ---------- R5 空态对齐设计稿 empty.css（2026-09-01） ---------- */
+.empty-art {
+  position: relative;
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--hover);
+}
+
+.empty-art > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+
+/* 圆底内的两条列表线示意 */
+.empty-art-lines::before,
+.empty-art-lines::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--stroke-mid);
+  transform: translateX(-50%);
+}
+
+.empty-art-lines::before {
+  bottom: 16px;
+  width: 26px;
+}
+
+.empty-art-lines::after {
+  bottom: 8px;
+  width: 12px;
 }

@@ -21,10 +21,22 @@ import { SettingsAboutSection } from "./SettingsAboutSection";
 import { SettingsPreferencesSection } from "./SettingsPreferencesSection";
 import { SettingsDesktopSection } from "./SettingsDesktopSection";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
+import {
+  SettingsPlaceholderSection,
+  SettingsAboutPlaceholders,
+} from "./SettingsPlaceholderSection";
 import type { AppSettings } from "../../types/settings";
 import type { TaskList } from "../../types/database";
 
-type SettingsPanel = "general" | "appearance" | "sync" | "data" | "about";
+type SettingsPanel =
+  | "general"
+  | "appearance"
+  | "defaults"
+  | "notifications"
+  | "sync"
+  | "data"
+  | "shortcuts"
+  | "about";
 
 const settingsPanels = [
   {
@@ -36,8 +48,22 @@ const settingsPanels = [
   {
     id: "appearance",
     title: "外观",
-    description: "桌面小窗便签的纸色、透明度、字体与纸面细节",
+    description: "应用主题、强调色与桌面便签外观",
     icon: Palette,
+  },
+  {
+    id: "defaults",
+    title: "事项默认值",
+    description: "新建事项的默认项目、截止与优先级",
+    icon: Settings2,
+    placeholder: "defaults" as const,
+  },
+  {
+    id: "notifications",
+    title: "提醒与通知",
+    description: "系统通知、提示音与每日回顾节奏",
+    icon: Settings2,
+    placeholder: "notifications" as const,
   },
   {
     id: "sync",
@@ -55,6 +81,13 @@ const settingsPanels = [
     desktopOnly: true,
   },
   {
+    id: "shortcuts",
+    title: "快捷键",
+    description: "全局、事项与导航快捷键速查",
+    icon: Settings2,
+    placeholder: "shortcuts" as const,
+  },
+  {
     id: "about",
     title: "关于",
     description: "版本信息与更新",
@@ -67,6 +100,7 @@ const settingsPanels = [
   description: string;
   icon: LucideIcon;
   desktopOnly?: boolean;
+  placeholder?: "defaults" | "notifications" | "shortcuts";
 }>;
 
 export function SettingsDialog({
@@ -114,7 +148,7 @@ export function SettingsDialog({
     <DialogShell
       title="设置"
       icon={Settings}
-      width="920px"
+      width="800px"
       presence={presence}
       overlayClassName="settings-dialog"
       onClose={onClose}
@@ -181,7 +215,16 @@ export function SettingsDialog({
             )}
 
             {activeMeta.id === "appearance" && (
-              <SettingsAppearanceSection onToast={onToast} />
+              <SettingsAppearanceSection
+                settings={settings}
+                onSettingsChange={onSettingsChange}
+                onToast={onToast}
+              />
+            )}
+
+            {/* T-10：事项默认值 / 提醒与通知 / 快捷键——未开发，灰显结构（§13 规则 4） */}
+            {activeMeta.placeholder && (
+              <SettingsPlaceholderSection variant={activeMeta.placeholder} />
             )}
 
             {activeMeta.id === "sync" && (
@@ -214,13 +257,18 @@ export function SettingsDialog({
             )}
 
             {activeMeta.id === "about" && (
-              <SettingsAboutSection onToast={onToast} />
+              <>
+                <SettingsAboutSection onToast={onToast} />
+                {/* T-11：更新日志 / 开源许可——灰显占位 */}
+                <SettingsAboutPlaceholders />
+              </>
             )}
           </div>
         </div>
       </div>
 
-      <footer className="dialog-footer">
+      <footer className="dialog-footer settings-footer">
+        <span className="settings-footer-note">所有更改已自动保存到本机</span>
         <button type="button" className="btn-secondary" onClick={onClose}>
           完成
         </button>

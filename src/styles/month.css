@@ -512,3 +512,151 @@
   width: 14px;
   height: 14px;
 }
+
+/* ---------- R5 当日面板 + 设计稿对齐（2026-09-01） ---------- */
+
+/* 布局：左月格 + 右 264px 当日面板（设计稿 .month__side）；≤1080 面板下移 */
+.month-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.month-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.month-grid {
+  grid-auto-rows: minmax(96px, 1fr);
+}
+
+/* 今天 = 主色实底圆数字（设计稿 is-today） */
+.month-cell.is-today {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.is-today .month-cell-date {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* 选中日 = 主色描边 + 软底（设计稿 is-sel） */
+.month-cell.is-sel {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+/* 跨月格弱化（设计稿 45%） */
+.month-cell.is-outside {
+  opacity: 0.45;
+}
+
+.month-cell-more {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 10.5px;
+  line-height: 17px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.month-side {
+  display: flex;
+  width: 264px;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--mica-side);
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.month-side-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-1);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.month-side-head span {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.month-side-empty {
+  margin: 8px 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.month-side-list {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.month-side-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 7px 8px;
+  color: var(--text-1);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.month-side-item:hover {
+  background: var(--hover);
+}
+
+.month-side-time {
+  flex-shrink: 0;
+  min-width: 38px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-side-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-side-item.is-done .month-side-title {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+@media (max-width: 1080px) {
+  .month-layout {
+    flex-wrap: wrap;
+  }
+
+  .month-side {
+    width: 100%;
+  }
+}

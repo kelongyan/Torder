@@ -9,6 +9,7 @@ import { TaskTodayAgenda } from "./TaskTodayAgenda";
 
 export function TaskListView({
   tasks,
+  completedToday = [],
   lists,
   loading,
   selectedTaskId,
@@ -32,6 +33,8 @@ export function TaskListView({
   onReorder,
 }: {
   tasks: Task[];
+  /** D4 今日已完成段：completedAt 在今天的已完成任务（App 层从 allTasks 筛出）。 */
+  completedToday?: Task[];
   lists: TaskList[];
   loading: boolean;
   selectedTaskId: string | null;
@@ -182,6 +185,7 @@ export function TaskListView({
       ) : todayView ? (
         <TaskTodayAgenda
           items={animatedTasks}
+          completedItems={completedToday}
           lists={lists}
           selectedTaskId={selectedTaskId}
           batchMode={batchMode}
@@ -274,7 +278,7 @@ export function TaskListView({
           <span className="task-composer-plus" aria-hidden="true">
             <Plus />
           </span>
-          <span>快速新建 · 暂未开放</span>
+          <span>快速新建</span>
         </div>
       )}
     </div>

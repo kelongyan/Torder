@@ -58,7 +58,6 @@ import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
 import { WindowTitleBar } from "../components/layout/WindowTitleBar";
-import { ViewSummary } from "../components/layout/ViewSummary";
 import { SavedViewDialog } from "../components/dialog/SavedViewDialog";
 
 import { useAppInit } from "../hooks/useAppInit";
@@ -311,26 +310,35 @@ function App() {
   const deletedViewActive =
     !recurringViewActive && scope.kind === "view" && scope.view === "deleted";
   const effectiveLayout = deletedViewActive ? "list" : layout;
-  /** 主头副标用的视图摘要：done/total/overdue。deleted 与 recurring 视图返回 null。
-   * 「当前时间」依赖下面 nowMs（每分钟刷新一次），避免在组件渲染期直接读 Date.now() 触发
-   * react-hooks/purity 报错，也避免 overdue 计数随每次重渲染轻微漂移。 */
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-  const viewSummary = useMemo(() => {
-    if (recurringViewActive || deletedViewActive) return null;
-    const total = tasks.length;
-    const done = tasks.filter((task) => task.status === "done").length;
-    const overdue = tasks.filter(
-      (task) =>
-        task.status !== "done" &&
-        task.dueAt !== null &&
-        new Date(task.dueAt).getTime() < nowMs - 24 * 60 * 60 * 1000,
-    ).length;
-    return { done, total, overdue };
-  }, [deletedViewActive, nowMs, recurringViewActive, tasks]);
+  // R3：视图副标题按设计稿映射（今天=日期、计划=接下来 7 天、已完成=最近 30 天、回收站=保留 30 天）。
+  // 原头部 ViewSummary 进度与分组头进度重复且挤压标题，撤掉后由 MainHeader 显示「N 项 · 布局」兜底。
+  // D4 今日已完成段：从 allTasks 筛 completedAt 在今天的任务（不动 taskQuery/Rust 查询语义）。
+  const completedTodayTasks = useMemo(
+    () =>
+      allTasks.filter((task) => {
+        if (task.status !== "done" || !task.completedAt) return false;
+        try {
+          return (
+            new Date(task.completedAt).toDateString() ===
+            new Date().toDateString()
+          );
+        } catch {
+          return false;
+        }
+      }),
+    [allTasks],
+  );
+  const scopeSubtitle = useMemo(() => {
+    if (recurringViewActive || scope.kind !== "view") return null;
+    if (scope.view === "today") {
+      const now = new Date();
+      return `${now.getMonth() + 1}月${now.getDate()}日 星期${"日一二三四五六"[now.getDay()]}`;
+    }
+    if (scope.view === "planned") return "接下来 7 天";
+    if (scope.view === "completed") return "最近 30 天";
+    if (scope.view === "deleted") return "保留 30 天";
+    return null;
+  }, [recurringViewActive, scope]);
   const contentKey = useMemo(
     () =>
       [
@@ -1068,13 +1076,8 @@ function App() {
         <main className="main">
           <MainHeader
             title={currentTitle}
-            meta={
-              recurringViewActive || !viewSummary
-                ? recurringViewActive
-                  ? null
-                  : undefined
-                : <ViewSummary {...viewSummary} />
-            }
+            detailOpen={Boolean(selectedTask)}
+            meta={scopeSubtitle}
             taskCount={tasks.length}
             layout={effectiveLayout}
             theme={settings.theme}
@@ -1085,6 +1088,7 @@ function App() {
             lists={lists}
             tags={availableTags}
             showCompleted={showCompleted}
+            batchMode={batchMode}
             onOpenSidebar={openMobileSidebar}
             onOpenCreate={() => openTaskCreateDialog()}
             onLayoutChange={setLayout}
@@ -1101,6 +1105,7 @@ function App() {
             onShowCompletedChange={() => void handleShowCompletedChange()}
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}
+            onToggleBatchMode={toggleBatchMode}
             syncStatus={syncStatus}
             showLayoutControls={!recurringViewActive && !deletedViewActive}
           />
@@ -1146,6 +1151,7 @@ function App() {
               ) : effectiveLayout === "list" ? (
                 <TaskListView
                   tasks={tasks}
+                  completedToday={completedTodayTasks}
                   lists={lists}
                   loading={loading}
                   selectedTaskId={selectedTaskId}
@@ -1185,6 +1191,7 @@ function App() {
               ) : effectiveLayout === "month" ? (
                 <MonthCalendar
                   tasks={tasks}
+                  lists={lists}
                   events={calendarEvents}
                   showCompleted={showCompleted}
                   onOpenTask={(task) => selectTask(task.id)}
@@ -1233,6 +1240,20 @@ function App() {
               </button>
             )}
         </main>
+
+        {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
+        <TaskDetailPanel
+          task={selectedTask}
+          lists={lists}
+          busy={loading}
+          onClose={() => selectTask(null)}
+          onSave={handleSaveTask}
+          onToggle={(task) => void handleToggleTask(task)}
+          onDelete={requestDeleteTask}
+          onOpenRecurring={openTaskRecurring}
+          onOpenTask={selectTask}
+          onToast={pushToast}
+        />
       </div>
 
       {createPresence.rendered && (
@@ -1252,18 +1273,6 @@ function App() {
         />
       )}
 
-      <TaskDetailPanel
-        task={selectedTask}
-        lists={lists}
-        busy={loading}
-        onClose={() => selectTask(null)}
-        onSave={handleSaveTask}
-        onToggle={(task) => void handleToggleTask(task)}
-        onDelete={requestDeleteTask}
-        onOpenRecurring={openTaskRecurring}
-        onOpenTask={selectTask}
-        onToast={pushToast}
-      />
 
       {recurringDialogPresence.rendered && (
         <RecurringRuleDialog

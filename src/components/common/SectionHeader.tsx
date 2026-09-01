@@ -7,9 +7,12 @@ import { ChevronRight } from "lucide-react";
 export function SectionHeader({
   label,
   progress,
+  tone,
 }: {
   label: string;
   progress?: { done: number; total: number };
+  /** R4：逾期等警示组用红色标题（设计稿 .group--alert）。 */
+  tone?: "danger";
 }) {
   const ratio =
     progress && progress.total > 0
@@ -17,7 +20,9 @@ export function SectionHeader({
       : 0;
 
   return (
-    <div className="section-header">
+    <div
+      className={`section-header ${tone === "danger" ? "section-header--danger" : ""}`}
+    >
       <span className="section-header-chevron" aria-hidden="true">
         <ChevronRight />
       </span>

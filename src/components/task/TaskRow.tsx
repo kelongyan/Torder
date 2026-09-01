@@ -140,11 +140,7 @@ export function TaskRow({
           <h3>
             <HighlightedText text={task.title} query={searchQuery} />
           </h3>
-          {task.note && (
-            <span className="task-note">
-              <HighlightedText text={task.note} query={searchQuery} />
-            </span>
-          )}
+          {/* D6：行内备注移除（忠于设计稿两行层级），备注在详情面板查看 */}
         </div>
         <TaskMeta task={task} list={list} hideDue={Boolean(timeGutter)} />
       </div>
@@ -156,8 +152,8 @@ export function TaskRow({
               type="button"
               className="task-action-soon"
               disabled
-              aria-label="星标 · 暂未开放"
-              title="星标 · 暂未开放"
+              aria-label="星标"
+              aria-disabled="true"
             >
               <Star aria-hidden="true" />
             </button>
@@ -168,8 +164,8 @@ export function TaskRow({
                 type="button"
                 className="task-action-soon"
                 disabled
-                aria-label="更多操作 · 暂未开放"
-                title="更多操作 · 暂未开放"
+                aria-label="更多操作"
+                aria-disabled="true"
               >
                 <MoreHorizontal aria-hidden="true" />
               </button>
@@ -202,8 +198,8 @@ export function TaskRow({
                 type="button"
                 className="task-action-soon"
                 disabled
-                aria-label="更多操作 · 暂未开放"
-                title="更多操作 · 暂未开放"
+                aria-label="更多操作"
+                aria-disabled="true"
               >
                 <MoreHorizontal aria-hidden="true" />
               </button>

@@ -1,5 +1,7 @@
 import {
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Filter,
   Plus,
   Repeat2,
@@ -18,6 +20,10 @@ import { listScope, viewScope } from "../../stores/taskStore";
 import type { TaskList, TaskScope } from "../../types/database";
 import type { SavedTaskView, SavedViewIcon } from "../../types/settings";
 import { SidebarItem } from "./SidebarItem";
+import {
+  toggleSidebarCollapsed,
+  useSidebarCollapsed,
+} from "../../hooks/useSidebarCollapsed";
 
 const savedViewIcons: Record<SavedViewIcon, LucideIcon> = {
   filter: Filter,
@@ -70,14 +76,29 @@ export function Sidebar({
   onOpenRecurring: () => void;
   onClose?: () => void;
 }) {
+  const collapsed = useSidebarCollapsed();
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
         <img src={logoUrl} alt="" className="brand-logo" />
-        <div>
+        <div className="brand-text">
           <div className="brand-title">Torder</div>
           <div className="brand-subtitle">待办清单</div>
         </div>
+        <button
+          type="button"
+          className="brand-collapse"
+          onClick={toggleSidebarCollapsed}
+          aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
+          title={collapsed ? "展开侧栏 (Ctrl B)" : "折叠侧栏 (Ctrl B)"}
+        >
+          {collapsed ? (
+            <ChevronRight aria-hidden="true" className="icon-sm" />
+          ) : (
+            <ChevronLeft aria-hidden="true" className="icon-sm" />
+          )}
+        </button>
         {onClose && (
           <button
             type="button"
@@ -91,26 +112,42 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="search-box">
-        <Search aria-hidden="true" className="search-icon" />
-        <input
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索"
-          aria-label="搜索任务"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            className="search-clear"
-            onClick={() => onSearchChange("")}
-            aria-label="清空搜索"
-            title="清空搜索"
-          >
-            <X aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      {collapsed ? (
+        <button
+          type="button"
+          className="search-box collapsed-search"
+          onClick={toggleSidebarCollapsed}
+          aria-label="展开侧栏并搜索"
+          title="展开侧栏并搜索"
+        >
+          <Search aria-hidden="true" className="search-icon" />
+        </button>
+      ) : (
+        <div className="search-box">
+          <Search aria-hidden="true" className="search-icon" />
+          <input
+            id="sidebar-search-input"
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="搜索"
+            aria-label="搜索任务"
+          />
+          <kbd className="search-kbd" aria-hidden="true">
+            Ctrl F
+          </kbd>
+          {searchQuery && (
+            <button
+              type="button"
+              className="search-clear"
+              onClick={() => onSearchChange("")}
+              aria-label="清空搜索"
+              title="清空搜索"
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      )}
 
       <nav className="sidebar-nav" aria-label="任务视图">
         <div className="nav-group-header">
@@ -129,6 +166,7 @@ export function Sidebar({
                 ? undefined
                 : (counts.views[item.view] ?? 0)
             }
+            alert={item.view === "overdue" && (counts.views[item.view] ?? 0) > 0}
             onClick={() => onScopeChange(viewScope(item.view))}
           />
         ))}
@@ -194,6 +232,17 @@ export function Sidebar({
             onDelete={!list.isDefault ? () => onDeleteList(list) : undefined}
           />
         ))}
+
+        {/* T-07 · 标签分组：功能未开发，纯灰显占位（DESIGN.md §13 规则 4，不接业务） */}
+        <div
+          className="nav-group-header tags-placeholder ui-placeholder"
+          aria-disabled="true"
+        >
+          <span className="nav-group-label">标签</span>
+          <span className="btn-add-list" aria-hidden="true">
+            <Plus className="icon-xs" />
+          </span>
+        </div>
       </nav>
     </aside>
   );

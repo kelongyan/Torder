@@ -52,3 +52,7 @@ src-tauri/gen/
 
 # Android release signing keystore (never commit credentials)
 src-tauri/*.keystore
+
+# tsc 编译 vite.config.ts 的副产物
+vite.config.d.ts
+vite.config.js

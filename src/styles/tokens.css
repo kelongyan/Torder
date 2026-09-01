@@ -1,44 +1,11 @@
+/* ===== 尺寸 / 动效 / 字体层 =====
+   本文件只承载与主题无关的尺寸体系（P0 建立）、动效时长、缓动与 UI 字体栈。
+   主题颜色（含旧名别名 --bg-primary/--accent-bg 等）唯一来源是
+   theme-tokens.css（R0 对齐层，后加载）。2026-09-01 已清理本文件中
+   被对齐层完全覆盖的死色值；新组件请引用对齐层 token，勿在此新增颜色。 */
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-primary: #111217;
-  --bg-secondary: #1a1b22;
-  --bg-tertiary: #242632;
-  --bg-hover: #303342;
-  --bg-active: rgba(124, 140, 255, 0.2);
-  --border: rgba(226, 232, 240, 0.14);
-  --border-light: rgba(226, 232, 240, 0.24);
-  --border-subtle: rgba(226, 232, 240, 0.1);
-  --tree-line: rgba(226, 232, 240, 0.18);
-  --tree-branch: rgba(226, 232, 240, 0.28);
-  --text-primary: #f8fafc;
-  --text-secondary: #c4cbd7;
-  --text-muted: #8f9aab;
-  --accent: #7c8cff;
-  --accent-hover: #aab6ff;
-  --accent-bg: rgba(124, 140, 255, 0.18);
-  --accent-border: rgba(124, 140, 255, 0.62);
-  --red: #ff7373;
-  --amber: #f5c84c;
-  --blue: #4fc3f7;
-  --green: #5ee19a;
-  --on-accent: #ffffff;
-  --on-danger: #ffffff;
-  --on-success: #ffffff;
-  --focus-ring: rgba(124, 140, 255, 0.28);
-  --danger-bg: rgba(255, 115, 115, 0.15);
-  --danger-border: rgba(255, 115, 115, 0.4);
-  --success-bg: rgba(94, 225, 154, 0.15);
-  --highlight-bg: rgba(245, 200, 76, 0.24);
-  --overlay-bg: rgba(9, 10, 14, 0.78);
-  --scrollbar-thumb: rgba(124, 140, 255, 0.5);
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 28px rgba(0, 0, 0, 0.34);
-  --shadow-md:
-    0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px rgba(0, 0, 0, 0.4);
-  --shadow-lift:
-    0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 42px rgba(0, 0, 0, 0.42);
-  --shadow-floating:
-    0 1px 0 rgba(255, 255, 255, 0.06), 0 26px 70px rgba(0, 0, 0, 0.52);
   --radius: 10px;
   --radius-sm: 8px;
   --motion-micro: 120ms;
@@ -66,48 +33,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: #e2e8f0;
-  --bg-active: #e0e7ff;
-  --border: rgba(15, 23, 42, 0.08);
-  --border-light: rgba(15, 23, 42, 0.14);
-  --border-subtle: rgba(15, 23, 42, 0.06);
-  --tree-line: rgba(100, 116, 139, 0.22);
-  --tree-branch: rgba(100, 116, 139, 0.32);
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --accent: #4f46e5;
-  --accent-hover: #6366f1;
-  --accent-bg: rgba(79, 70, 229, 0.08);
-  --accent-border: rgba(79, 70, 229, 0.48);
-  --red: #ef4444;
-  --amber: #d97706;
-  --blue: #0284c7;
-  --green: #16a34a;
-  --on-accent: #ffffff;
-  --on-danger: #ffffff;
-  --on-success: #ffffff;
-  --focus-ring: rgba(79, 70, 229, 0.2);
-  --danger-bg: rgba(239, 68, 68, 0.08);
-  --danger-border: rgba(239, 68, 68, 0.28);
-  --success-bg: rgba(22, 163, 74, 0.1);
-  --highlight-bg: rgba(217, 119, 6, 0.18);
-  --overlay-bg: rgba(15, 23, 42, 0.45);
-  --scrollbar-thumb: rgba(79, 70, 229, 0.32);
-  --shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.07);
-  --shadow-md:
-    0 2px 5px rgba(15, 23, 42, 0.05), 0 10px 26px rgba(15, 23, 42, 0.09);
-  --shadow-lift:
-    0 4px 6px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.1);
-  --shadow-floating:
-    0 10px 15px rgba(15, 23, 42, 0.05), 0 24px 48px rgba(15, 23, 42, 0.14);
 }
 
 /* ===== 尺寸体系（UI 精修 P0，规范见 docs/ui-refinement-plan.md §3）=====

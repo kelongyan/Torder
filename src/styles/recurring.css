@@ -8,7 +8,7 @@
 }
 
 .recurring-rule-dialog .dialog-card {
-  max-height: min(760px, calc(100vh - 36px));
+  max-height: min(760px, calc(100vh - 40px));
   border-radius: var(--radius-lg);
 }
 

@@ -22,7 +22,11 @@ export function EmptyState({
 
   return (
     <div className="empty-state">
-      <Icon aria-hidden="true" />
+      {/* R5 对齐设计稿 empty.css：76px 圆底 + 两条列表线示意 */}
+      <div className="empty-art" aria-hidden="true">
+        <span className="empty-art-lines" />
+        <Icon />
+      </div>
       <h2>{copy.title}</h2>
       {copy.body && <p>{copy.body}</p>}
     </div>

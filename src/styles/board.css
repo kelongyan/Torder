@@ -178,3 +178,29 @@
   text-overflow: ellipsis;
   max-width: 110px;
 }
+
+/* ---------- R5 对齐设计稿 board.css（2026-09-01） ---------- */
+.board-view {
+  gap: 12px;
+}
+
+.board-column {
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--mica-side);
+}
+
+/* T-13 在此列新建：灰显占位钮（设计稿列头 + 号） */
+.board-column-add {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  place-items: center;
+  border-radius: var(--radius-sm);
+}
+
+.board-column-add svg {
+  width: 14px;
+  height: 14px;
+}

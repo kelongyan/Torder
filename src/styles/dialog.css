@@ -6,7 +6,8 @@
   place-items: center;
   background: var(--overlay-bg);
   padding: 18px;
-  backdrop-filter: blur(6px); /* 静态模糊，不再逐帧动画，避免昂贵的模糊重算 */
+  /* R6 对齐设计稿 .scrim：blur(3px) saturate(120%) */
+  backdrop-filter: blur(3px) saturate(120%);
   opacity: 1;
   transition: opacity var(--motion-soft) var(--ease-standard);
   will-change: opacity;
@@ -24,21 +25,22 @@
   pointer-events: none;
 }
 
+/* R6 对齐设计稿 .dialog：620 标准、704 上限、14px 圆角、--mica 材质 + 自身模糊 */
 .dialog-card {
-  width: min(100%, 540px);
-  max-height: min(720px, calc(100vh - 36px));
+  width: min(100%, 620px);
+  max-height: min(704px, calc(100vh - 64px));
   overflow: auto;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
+  border: 1px solid var(--pop-line);
+  border-radius: 14px;
+  background: var(--mica);
+  backdrop-filter: blur(48px) saturate(170%);
   box-shadow: var(--shadow-floating);
   will-change: opacity, transform;
 }
 
 :root[data-theme="dark"] .dialog-card {
-  border-color: var(--border-light);
-  background: #1b1c24;
-  box-shadow: var(--shadow-floating);
+  border-color: var(--pop-line);
+  background: var(--mica);
 }
 
 .dialog-overlay.is-entering .dialog-card {
@@ -50,7 +52,7 @@
 }
 
 .confirm-card {
-  max-width: 430px;
+  max-width: 420px;
 }
 
 .dialog-header {
@@ -665,9 +667,9 @@
 }
 
 .task-create-dialog .dialog-card {
-  max-height: min(640px, calc(100vh - 48px));
+  max-height: min(704px, calc(100vh - 48px));
   overflow: visible;
-  border-radius: var(--radius-lg);
+  border-radius: 14px;
 }
 
 .task-create-dialog .dialog-header {

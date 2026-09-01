@@ -1,16 +1,21 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownUp,
+  CheckSquare,
   Cloud,
   CloudAlert,
   CloudOff,
+  Command,
   Filter,
+  Flame,
   Menu,
   MoreHorizontal,
   Moon,
   Plus,
   RefreshCw,
+  Sparkles,
   Sun,
+  TrendingUp,
 } from "lucide-react";
 import logoUrl from "../../assets/torder-logo.png";
 import { layoutOptions } from "../../constants/taskConfig";
@@ -36,6 +41,7 @@ export function MainHeader({
   lists,
   tags,
   showCompleted,
+  batchMode,
   onOpenSidebar,
   onOpenCreate,
   onLayoutChange,
@@ -52,8 +58,10 @@ export function MainHeader({
   onShowCompletedChange,
   onOpenSettings,
   onOpenStats,
+  onToggleBatchMode,
   syncStatus,
   showLayoutControls = true,
+  detailOpen = false,
 }: {
   title: string;
   meta?: string | ReactNode | null;
@@ -67,6 +75,7 @@ export function MainHeader({
   lists: TaskList[];
   tags: string[];
   showCompleted: boolean;
+  batchMode: boolean;
   onOpenSidebar?: () => void;
   onOpenCreate?: () => void;
   onLayoutChange: (layout: TaskLayout) => void;
@@ -83,8 +92,11 @@ export function MainHeader({
   onShowCompletedChange: () => void;
   onOpenSettings: () => void;
   onOpenStats: () => void;
+  onToggleBatchMode: () => void;
   syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
+  /** R6：详情抽屉打开时头部工具收紧（占位组隐藏、分段图标化），避免溢出到抽屉下方。 */
+  detailOpen?: boolean;
 }) {
   const menuPresence = usePresence(menuOpen, 280);
   const menuAnchorRef = useRef<HTMLDivElement>(null);
@@ -94,6 +106,28 @@ export function MainHeader({
   const filterPresence = usePresence(filterOpen, 280);
   const sortAnchorRef = useRef<HTMLDivElement>(null);
   const filterAnchorRef = useRef<HTMLDivElement>(null);
+
+  // D11 滑动拇指分段：拇指滑到当前选中项下方（非列表/看板视图无选中时隐藏）
+  const segRef = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState({ x: 0, w: 0, on: false });
+  useLayoutEffect(() => {
+    const el = segRef.current;
+    if (!el) return;
+    const update = () => {
+      const active = el.querySelector<HTMLButtonElement>(
+        ".layout-tabs button.active",
+      );
+      if (!active) {
+        setThumb((prev) => ({ ...prev, on: false }));
+        return;
+      }
+      setThumb({ x: active.offsetLeft, w: active.offsetWidth, on: true });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [layout, showLayoutControls]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -215,22 +249,22 @@ export function MainHeader({
       </div>
 
       <div
-        className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"}`}
+        className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"} ${detailOpen ? "compact" : ""}`}
       >
         {showLayoutControls && (
           <div className="header-view-toolbar">
-            {onOpenCreate && (
-              <button
-                type="button"
-                className="header-create-button"
-                onClick={onOpenCreate}
-              >
-                <Plus aria-hidden="true" className="icon-sm" />
-                <span>新建</span>
-              </button>
-            )}
-
-            <div className="layout-tabs" aria-label="布局切换">
+            <div className="layout-tabs" aria-label="布局切换" ref={segRef}>
+              {/* D11 滑动拇指：选中项浮起卡片，切换时 160ms 平移 */}
+              <span
+                className="seg-thumb"
+                aria-hidden="true"
+                style={{
+                  transform: `translateX(${thumb.x}px)`,
+                  width: `${thumb.w}px`,
+                  opacity: thumb.on ? 1 : 0,
+                }}
+              />
+              {/* D10（用户拍板，推翻 D9）：5 种布局全部分段展示，按设计稿 seg 规格收紧排布 */}
               {layoutOptions.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -249,26 +283,6 @@ export function MainHeader({
               })}
             </div>
           </div>
-        )}
-
-        {syncStatus?.configured && (
-          <button
-            type="button"
-            className={`icon-button sync-status-button state-${syncStatus.state}`}
-            onClick={onOpenSettings}
-            aria-label={syncLabel}
-            title={syncLabel}
-          >
-            <SyncIcon
-              aria-hidden="true"
-              className={`sync-status-icon ${syncStatus.state === "syncing" ? "is-spinning" : ""}`}
-            />
-            {syncStatus.conflictCount > 0 && (
-              <span className="sync-status-count">
-                {Math.min(syncStatus.conflictCount, 99)}
-              </span>
-            )}
-          </button>
         )}
 
         <div className="menu-anchor" ref={sortAnchorRef}>
@@ -319,46 +333,132 @@ export function MainHeader({
           )}
         </div>
 
-        <button
-          type="button"
-          className="icon-button theme-toggle-btn"
-          onClick={onThemeToggle}
-          aria-label="切换主题"
-          title="切换主题"
-        >
-          {theme === "dark" ? (
-            <Sun aria-hidden="true" className="theme-icon sun" />
-          ) : (
-            <Moon aria-hidden="true" className="theme-icon moon" />
-          )}
-        </button>
-
-        <div className="menu-anchor" ref={menuAnchorRef}>
+        {showLayoutControls && (
           <button
             type="button"
-            className={`icon-button menu-toggle-btn ${menuOpen ? "active" : ""}`}
-            onClick={onMenuToggle}
-            aria-label="更多设置"
-            aria-expanded={menuOpen}
+            className={`icon-button batch-toggle-btn ${batchMode ? "active" : ""}`}
+            onClick={onToggleBatchMode}
+            aria-label="批量选择"
+            title="批量选择 (B)"
+            aria-pressed={batchMode}
           >
-            <MoreHorizontal aria-hidden="true" className="menu-icon" />
+            <CheckSquare aria-hidden="true" className="menu-icon" />
           </button>
-          {menuPresence.rendered && (
-            <ViewMenu
-              layout={showLayoutControls ? layout : undefined}
-              sortBy={sortBy}
-              showCompleted={showCompleted}
-              presence={menuPresence.phase}
-              onLayoutChange={
-                showLayoutControls ? handleLayoutSelect : undefined
-              }
-              onSortChange={handleSortSelect}
-              onShowCompletedChange={handleShowCompletedToggle}
-              onOpenSettings={onOpenSettings}
-              onOpenStats={onOpenStats}
-            />
-          )}
+        )}
+
+        {/* T-01~T-04 · 命令面板/迷你窗/每日回顾/专注模式：未开发，纯灰显占位（§13 规则 4） */}
+        <div className="tool-group tool-group--soon">
+          <button
+            type="button"
+            className="icon-button ui-placeholder"
+            aria-disabled="true"
+            tabIndex={-1}
+            aria-label="命令面板"
+          >
+            <Command aria-hidden="true" className="menu-icon" />
+          </button>
+          <button
+            type="button"
+            className="icon-button ui-placeholder"
+            aria-disabled="true"
+            tabIndex={-1}
+            aria-label="迷你窗"
+          >
+            <Sparkles aria-hidden="true" className="menu-icon" />
+          </button>
+          <button
+            type="button"
+            className="icon-button ui-placeholder"
+            aria-disabled="true"
+            tabIndex={-1}
+            aria-label="每日回顾"
+          >
+            <TrendingUp aria-hidden="true" className="menu-icon" />
+          </button>
+          <button
+            type="button"
+            className="icon-button ui-placeholder"
+            aria-disabled="true"
+            tabIndex={-1}
+            aria-label="专注模式"
+          >
+            <Flame aria-hidden="true" className="menu-icon" />
+          </button>
         </div>
+
+        <div className="tool-group tool-group--app">
+          <button
+            type="button"
+            className="icon-button theme-toggle-btn"
+            onClick={onThemeToggle}
+            aria-label="切换主题"
+            title="切换主题"
+          >
+            {theme === "dark" ? (
+              <Sun aria-hidden="true" className="theme-icon sun" />
+            ) : (
+              <Moon aria-hidden="true" className="theme-icon moon" />
+            )}
+          </button>
+
+          {syncStatus?.configured && (
+            <button
+              type="button"
+              className={`icon-button sync-status-button state-${syncStatus.state}`}
+              onClick={onOpenSettings}
+              aria-label={syncLabel}
+              title={syncLabel}
+            >
+              <SyncIcon
+                aria-hidden="true"
+                className={`sync-status-icon ${syncStatus.state === "syncing" ? "is-spinning" : ""}`}
+              />
+              {syncStatus.conflictCount > 0 && (
+                <span className="sync-status-count">
+                  {Math.min(syncStatus.conflictCount, 99)}
+                </span>
+              )}
+            </button>
+          )}
+
+          <div className="menu-anchor" ref={menuAnchorRef}>
+            <button
+              type="button"
+              className={`icon-button menu-toggle-btn ${menuOpen ? "active" : ""}`}
+              onClick={onMenuToggle}
+              aria-label="更多设置"
+              aria-expanded={menuOpen}
+            >
+              <MoreHorizontal aria-hidden="true" className="menu-icon" />
+            </button>
+            {menuPresence.rendered && (
+              <ViewMenu
+                layout={showLayoutControls ? layout : undefined}
+                sortBy={sortBy}
+                showCompleted={showCompleted}
+                presence={menuPresence.phase}
+                onLayoutChange={
+                  showLayoutControls ? handleLayoutSelect : undefined
+                }
+                onSortChange={handleSortSelect}
+                onShowCompletedChange={handleShowCompletedToggle}
+                onOpenSettings={onOpenSettings}
+                onOpenStats={onOpenStats}
+              />
+            )}
+          </div>
+        </div>
+
+        {showLayoutControls && onOpenCreate && (
+          <button
+            type="button"
+            className="header-create-button"
+            onClick={onOpenCreate}
+          >
+            <Plus aria-hidden="true" className="icon-sm" />
+            <span>新建事项</span>
+          </button>
+        )}
       </div>
     </header>
   );
