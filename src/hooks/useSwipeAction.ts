@@ -13,6 +13,8 @@ export interface SwipeActionOptions {
   onAction: (direction: SwipeDirection) => void;
   /** 未达阈值释放时的回弹完成回调（可做轻微错位提示） */
   onSnapBack?: () => void;
+  /** 拖动期间加到元素上的 class（供 CSS 关闭 transition 实现跟手拖动） */
+  swipeClass?: string;
 }
 
 /**
@@ -46,10 +48,17 @@ export function useSwipeAction(options: SwipeActionOptions) {
     let horizontal = false;
     let acted = false;
 
+    const setSwipeClass = (on: boolean) => {
+      const { swipeClass } = opts.current;
+      if (!swipeClass) return;
+      element.classList.toggle(swipeClass, on);
+    };
+
     const setOffset = (px: number) => {
       element.style.setProperty("--swipe-x", `${px.toFixed(1)}px`);
     };
     const settle = () => {
+      setSwipeClass(false);
       element.style.removeProperty("--swipe-x");
     };
     const onTouchStart = (event: TouchEvent) => {
@@ -71,6 +80,7 @@ export function useSwipeAction(options: SwipeActionOptions) {
       }
       if (!horizontal) return;
       event.preventDefault();
+      setSwipeClass(true);
       const { maxDrag = 120 } = opts.current;
       const raw = dx;
       // 反向不做（单方向动作），正反向都允许负方向轻微回弹则由 snapBack 归位

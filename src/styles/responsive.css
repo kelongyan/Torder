@@ -1682,3 +1682,42 @@
 .window-frame.mobile .command-palette-card .command-palette-list {
   max-height: min(52dvh, calc(var(--app-viewport-height, 100dvh) * 0.5));
 }
+
+/* ===== M2.1 任务行滑动操作（mobile only） =====
+   行位移由 useSwipeAction 的 --swipe-x 驱动；跟手拖动期间关 transition，
+   释放后由 .task-item 既有 transform 180ms 过渡回弹。 */
+.window-frame.mobile .task-item {
+  transform: translateX(var(--swipe-x, 0px));
+}
+
+.window-frame.mobile .task-item.is-swiping {
+  transition: none;
+}
+
+/* ===== M2.4 空状态移动端 extended-FAB 化 + 手势提示 ===== */
+.empty-hint {
+  display: none;
+}
+
+.window-frame.mobile .empty-hint {
+  display: block;
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.window-frame.mobile .empty-primary-action {
+  min-height: 48px;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 10px 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.window-frame.mobile .empty-primary-action:hover {
+  background: var(--accent-hover);
+  color: var(--on-accent);
+}

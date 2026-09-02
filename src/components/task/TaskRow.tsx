@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { priorityCopy } from "../../constants/taskConfig";
+import { useSwipeAction } from "../../hooks/useSwipeAction";
 import type { Task, TaskList } from "../../types/database";
 import { HighlightedText } from "../common/HighlightedText";
 import { TaskMeta } from "./TaskMeta";
@@ -69,6 +70,22 @@ export function TaskRow({
   const completed = task.status === "done";
   const list = lists.find((item) => item.id === task.listId) ?? null;
 
+  // M2.1 移动端滑动手势：左滑完成 / 右滑详情（回收站行与批量模式下行内为复选，不触发）
+  const { ref: swipeRef } = useSwipeAction({
+    swipeClass: "is-swiping",
+    threshold: 88,
+    onAction: (direction) => {
+      if (deleted || batchMode) return;
+      if (direction === "left") {
+        navigator.vibrate?.(12);
+        onToggle(task);
+      } else {
+        navigator.vibrate?.(8);
+        onOpen(task);
+      }
+    },
+  });
+
   function handleRowClick() {
     if (batchMode) onToggleBatchSelected(task.id);
     else if (!deleted) onOpen(task);
@@ -76,6 +93,7 @@ export function TaskRow({
 
   return (
     <article
+      ref={swipeRef}
       className={`task-item ${priorityCopy[task.priority].className} ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
         leaving ? "is-leaving" : ""
       } ${deleted ? "deleted" : ""} ${dragging ? "is-dragging" : ""}`}

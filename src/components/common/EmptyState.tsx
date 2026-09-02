@@ -47,6 +47,12 @@ export function EmptyState({
           新建第一个事项
         </button>
       )}
+      {/* M2.4 移动端操作提示（仅空态引导场景；CSS 默认隐藏，mobile 显示） */}
+      {showPrimary && (
+        <p className="empty-hint" aria-hidden="true">
+          左滑完成任务 · 右滑查看详情
+        </p>
+      )}
     </div>
   );
 }
