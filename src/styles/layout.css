@@ -612,11 +612,7 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  background: var(--bg-primary);
-}
-
-:root[data-theme="dark"] .main {
-  background: linear-gradient(180deg, #111217 0%, #0f1015 100%);
+  background: var(--mica);
 }
 
 .main-header {
@@ -1136,6 +1132,7 @@
   flex: 1;
   overflow: auto;
   padding: var(--space-5) var(--space-6);
+  background: var(--mica);
 }
 
 .content-motion {

@@ -30,7 +30,9 @@ export function BottomNav({
         onClick={() => onLayoutChange("list")}
         aria-label="列表视图"
       >
-        <List aria-hidden="true" />
+        <span className="bottom-nav-icon-pill">
+          <List aria-hidden="true" />
+        </span>
         <span>列表</span>
       </button>
 
@@ -40,7 +42,9 @@ export function BottomNav({
         onClick={() => onLayoutChange("board")}
         aria-label="看板视图"
       >
-        <Kanban aria-hidden="true" />
+        <span className="bottom-nav-icon-pill">
+          <Kanban aria-hidden="true" />
+        </span>
         <span>看板</span>
       </button>
 
@@ -61,7 +65,9 @@ export function BottomNav({
         onClick={() => onLayoutChange("calendar")}
         aria-label="日历视图"
       >
-        <Calendar aria-hidden="true" />
+        <span className="bottom-nav-icon-pill">
+          <Calendar aria-hidden="true" />
+        </span>
         <span>日历</span>
       </button>
 
@@ -71,7 +77,9 @@ export function BottomNav({
         onClick={onOpenSettings}
         aria-label="设置"
       >
-        <Settings aria-hidden="true" />
+        <span className="bottom-nav-icon-pill">
+          <Settings aria-hidden="true" />
+        </span>
         <span>设置</span>
       </button>
     </nav>

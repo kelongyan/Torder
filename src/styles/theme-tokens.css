@@ -1,80 +1,63 @@
 /* R0 theme layer: design color roles plus aliases used by current components.
    Motion tokens and component animations remain defined in their existing files. */
 
-/* S2 backdrop-filter 两档规格（2026-09-02 主题优化）：
-   --blur-panel 小浮板（控件弹层 / hover 卡 / 侧栏抽屉），
-   --blur-overlay 大浮层（对话框 / 菜单 / 命令面板 / toast）。scrim 遮罩保持 3px 不入档。 */
+/* S2 backdrop-filter 两档规格：纯净高斯模糊，去除过高 saturate 偏色 */
 :root {
-  --blur-panel: blur(20px) saturate(140%);
-  --blur-overlay: blur(32px) saturate(150%);
+  --blur-panel: blur(16px);
+  --blur-overlay: blur(24px);
 }
 
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --wallpaper-base: #0b0f18;
+  --wallpaper-base: #282a36;
   --wallpaper:
     radial-gradient(
-      92% 72% at 14% 10%,
-      rgba(58, 96, 176, 0.6) 0%,
-      rgba(58, 96, 176, 0) 62%
+      120% 70% at 50% 0%,
+      rgba(189, 147, 249, 0.08) 0%,
+      rgba(40, 42, 54, 0) 70%
     ),
-    radial-gradient(
-      72% 62% at 86% 14%,
-      rgba(116, 82, 172, 0.5) 0%,
-      rgba(116, 82, 172, 0) 58%
-    ),
-    radial-gradient(
-      82% 72% at 74% 90%,
-      rgba(26, 118, 130, 0.44) 0%,
-      rgba(26, 118, 130, 0) 60%
-    ),
-    radial-gradient(
-      62% 52% at 28% 96%,
-      rgba(158, 88, 116, 0.28) 0%,
-      rgba(158, 88, 116, 0) 62%
-    ),
-    linear-gradient(168deg, #131c2e 0%, #0b0f18 52%, #0d1220 100%);
-  --mica: rgba(19, 24, 36, 0.92);
-  --mica-side: rgba(15, 19, 28, 0.66);
-  --titlebar: rgba(255, 255, 255, 0.014);
-  --pop: rgba(30, 34, 44, 0.96);
-  --pop-line: rgba(255, 255, 255, 0.14);
-  --scrim: rgba(6, 8, 13, 0.55);
-  --hover: rgba(255, 255, 255, 0.06);
-  --hover-strong: rgba(255, 255, 255, 0.1);
-  --active-bg: rgba(255, 255, 255, 0.09);
-  --sunken: rgba(0, 0, 0, 0.22);
-  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --stroke: rgba(255, 255, 255, 0.1);
-  --stroke-mid: rgba(255, 255, 255, 0.15);
-  --stroke-strong: rgba(255, 255, 255, 0.24);
-  --text-1: #f2f4f8;
-  --text-2: rgba(235, 239, 247, 0.74);
-  --text-3: rgba(235, 239, 247, 0.5);
-  --accent: #6e9bff;
-  --accent-hi: #86adff;
-  --accent-soft: rgba(110, 155, 255, 0.18);
-  --accent-line: rgba(110, 155, 255, 0.4);
-  --on-accent: #0b1020;
-  --done: #43c48d;
-  --danger: #f2796b;
-  --warn: #e8b04b;
-  --p-blue: #6e9bff;
-  --p-violet: #a98af5;
-  --p-teal: #4bc0c8;
-  --p-amber: #e8b04b;
-  --p-rose: #f0819e;
-  --p-green: #43c48d;
+    #282a36;
+  --mica: #282a36;
+  --mica-side: #21222c;
+  --titlebar: rgba(255, 255, 255, 0.02);
+  --pop: #343746;
+  --pop-line: rgba(255, 255, 255, 0.12);
+  --scrim: rgba(33, 34, 44, 0.7);
+  --hover: rgba(68, 71, 90, 0.45);
+  --hover-strong: rgba(68, 71, 90, 0.75);
+  --active-bg: #44475a;
+  --sunken: rgba(33, 34, 44, 0.7);
+  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --stroke: rgba(98, 114, 164, 0.28);
+  --stroke-mid: rgba(98, 114, 164, 0.45);
+  --stroke-strong: rgba(98, 114, 164, 0.7);
+  --text-1: #f8f8f2;
+  --text-2: #c3ccdb;
+  --text-3: #6272a4;
+  --accent: #bd93f9;
+  --accent-hi: #d1b3ff;
+  --accent-soft: rgba(189, 147, 249, 0.18);
+  --accent-line: rgba(189, 147, 249, 0.45);
+  --on-accent: #282a36;
+  --done: #50fa7b;
+  --danger: #ff5555;
+  --warn: #ffb86c;
+  --p-blue: #8be9fd;
+  --p-violet: #bd93f9;
+  --p-teal: #8be9fd;
+  --p-amber: #ffb86c;
+  --p-rose: #ff79c6;
+  --p-green: #50fa7b;
   --shadow-window:
-    0 2px 4px rgba(0, 0, 0, 0.28), 0 24px 48px -12px rgba(0, 0, 0, 0.62),
-    0 48px 120px -24px rgba(0, 0, 0, 0.7);
+    0 2px 4px rgba(0, 0, 0, 0.35), 0 24px 48px -12px rgba(0, 0, 0, 0.7),
+    0 48px 120px -24px rgba(0, 0, 0, 0.8);
   --shadow-pop:
-    0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 28px -8px rgba(0, 0, 0, 0.5);
+    0 4px 20px -2px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
   --shadow-card:
-    0 1px 2px rgba(0, 0, 0, 0.24), 0 6px 16px -6px rgba(0, 0, 0, 0.4);
-  --caption-close: #c42b1c;
-  --bg-primary: var(--wallpaper-base);
+    0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --caption-close: #ff5555;
+  --bg-primary: var(--mica);
   --bg-secondary: var(--mica);
   --bg-tertiary: var(--mica-side);
   --bg-hover: var(--hover-strong);
@@ -94,13 +77,13 @@
   --amber: var(--warn);
   --blue: var(--p-blue);
   --green: var(--done);
-  --on-danger: #fff;
-  --on-success: #0b1020;
-  --focus-ring: color-mix(in srgb, var(--accent) 28%, transparent);
+  --on-danger: #ffffff;
+  --on-success: #282a36;
+  --focus-ring: color-mix(in srgb, var(--accent) 35%, transparent);
   --danger-bg: color-mix(in srgb, var(--danger) 16%, transparent);
   --danger-border: color-mix(in srgb, var(--danger) 44%, transparent);
   --success-bg: color-mix(in srgb, var(--done) 16%, transparent);
-  --highlight-bg: color-mix(in srgb, var(--warn) 24%, transparent);
+  --highlight-bg: color-mix(in srgb, #f1fa8c 22%, transparent);
   --overlay-bg: var(--scrim);
   --scrollbar-thumb: var(--stroke-mid);
   --shadow: var(--shadow-card);
@@ -111,68 +94,53 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --wallpaper-base: #eef1f6;
+  --wallpaper-base: #f4f6fa;
   --wallpaper:
     radial-gradient(
-      80% 65% at 14% 12%,
-      rgba(148, 176, 232, 0.5) 0%,
-      rgba(148, 176, 232, 0) 60%
+      100% 60% at 50% 0%,
+      rgba(220, 230, 248, 0.4) 0%,
+      rgba(244, 246, 250, 0) 70%
     ),
-    radial-gradient(
-      70% 60% at 88% 16%,
-      rgba(206, 190, 226, 0.44) 0%,
-      rgba(206, 190, 226, 0) 58%
-    ),
-    radial-gradient(
-      78% 66% at 76% 92%,
-      rgba(168, 214, 214, 0.4) 0%,
-      rgba(168, 214, 214, 0) 60%
-    ),
-    radial-gradient(
-      60% 50% at 26% 92%,
-      rgba(232, 206, 200, 0.34) 0%,
-      rgba(232, 206, 200, 0) 62%
-    ),
-    linear-gradient(168deg, #f5f7fa 0%, #e9edf5 54%, #eef1f7 100%);
-  --mica: rgba(252, 253, 255, 0.92);
-  --mica-side: rgba(255, 255, 255, 0.52);
-  --titlebar: rgba(255, 255, 255, 0.24);
-  --pop: rgba(254, 254, 255, 0.97);
-  --pop-line: rgba(16, 24, 40, 0.1);
-  --scrim: rgba(28, 36, 56, 0.28);
-  --hover: rgba(16, 24, 40, 0.05);
-  --hover-strong: rgba(16, 24, 40, 0.085);
-  --active-bg: rgba(16, 24, 40, 0.065);
-  --sunken: rgba(16, 24, 40, 0.045);
-  --inset-hi: inset 0 0 0 0 transparent;
-  --stroke: rgba(16, 24, 40, 0.11);
-  --stroke-mid: rgba(16, 24, 40, 0.15);
-  --stroke-strong: rgba(16, 24, 40, 0.26);
-  --text-1: #171a20;
-  --text-2: rgba(28, 33, 43, 0.74);
-  --text-3: rgba(28, 33, 43, 0.58);
-  --accent: #3b6fe0;
-  --accent-hi: #2d5fcf;
-  --accent-soft: rgba(59, 111, 224, 0.1);
-  --accent-line: rgba(59, 111, 224, 0.38);
-  --on-accent: #fff;
-  --done: #1f9d67;
-  --danger: #d9564a;
-  --warn: #bd8318;
-  --p-blue: #3b6fe0;
-  --p-violet: #7d5bd0;
-  --p-teal: #1c9aa4;
-  --p-amber: #bd8318;
-  --p-rose: #d2456c;
-  --p-green: #1f9d67;
+    linear-gradient(180deg, #f8fafd 0%, #f1f4f9 100%);
+  --mica: #ffffff;
+  --mica-side: #edf1f7;
+  --titlebar: rgba(255, 255, 255, 0.6);
+  --pop: #ffffff;
+  --pop-line: rgba(15, 23, 42, 0.08);
+  --scrim: rgba(15, 23, 42, 0.32);
+  --hover: rgba(15, 23, 42, 0.04);
+  --hover-strong: rgba(15, 23, 42, 0.07);
+  --active-bg: rgba(15, 23, 42, 0.06);
+  --sunken: rgba(15, 23, 42, 0.035);
+  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --stroke: rgba(15, 23, 42, 0.08);
+  --stroke-mid: rgba(15, 23, 42, 0.13);
+  --stroke-strong: rgba(15, 23, 42, 0.22);
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --accent: #2563eb;
+  --accent-hi: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.08);
+  --accent-line: rgba(37, 99, 235, 0.28);
+  --on-accent: #ffffff;
+  --done: #059669;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --p-blue: #2563eb;
+  --p-violet: #9333ea;
+  --p-teal: #0d9488;
+  --p-amber: #d97706;
+  --p-rose: #e11d48;
+  --p-green: #059669;
   --shadow-window:
-    0 2px 4px rgba(20, 28, 48, 0.1), 0 24px 48px -14px rgba(20, 28, 48, 0.24),
-    0 48px 110px -30px rgba(20, 28, 48, 0.28);
+    0 2px 4px rgba(15, 23, 42, 0.06), 0 24px 48px -14px rgba(15, 23, 42, 0.14),
+    0 48px 110px -30px rgba(15, 23, 42, 0.18);
   --shadow-pop:
-    0 2px 6px rgba(20, 28, 48, 0.09), 0 12px 28px -10px rgba(20, 28, 48, 0.18);
+    0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
   --shadow-card:
-    0 1px 2px rgba(20, 28, 48, 0.05), 0 6px 18px -12px rgba(20, 28, 48, 0.1);
-  --caption-close: #c42b1c;
+    0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.03);
+  --caption-close: #dc2626;
   --bg-primary: var(--wallpaper-base);
   --bg-secondary: var(--mica);
   --bg-tertiary: var(--mica-side);
@@ -193,13 +161,13 @@
   --amber: var(--warn);
   --blue: var(--p-blue);
   --green: var(--done);
-  --on-danger: #fff;
-  --on-success: #fff;
-  --focus-ring: color-mix(in srgb, var(--accent) 22%, transparent);
-  --danger-bg: color-mix(in srgb, var(--danger) 12%, transparent);
-  --danger-border: color-mix(in srgb, var(--danger) 34%, transparent);
-  --success-bg: color-mix(in srgb, var(--done) 12%, transparent);
-  --highlight-bg: color-mix(in srgb, var(--warn) 20%, transparent);
+  --on-danger: #ffffff;
+  --on-success: #ffffff;
+  --focus-ring: color-mix(in srgb, var(--accent) 24%, transparent);
+  --danger-bg: color-mix(in srgb, var(--danger) 10%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 30%, transparent);
+  --success-bg: color-mix(in srgb, var(--done) 10%, transparent);
+  --highlight-bg: color-mix(in srgb, var(--warn) 18%, transparent);
   --overlay-bg: var(--scrim);
   --scrollbar-thumb: var(--stroke-mid);
   --shadow: var(--shadow-card);

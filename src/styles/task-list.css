@@ -27,7 +27,7 @@ kbd {
   justify-content: space-between;
   gap: 8px;
   margin: 12px 0 0;
-  background: color-mix(in srgb, var(--bg-primary) 86%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
   padding: 6px 0;
   color: var(--text-2);
   font-size: 12.5px;
@@ -126,23 +126,26 @@ kbd {
   margin-top: 10px;
 }
 
-/* ===== 任务行：静奢极简（提案 A+C 第一批）=====
-   去卡片化：无边框透明行 + 发丝分隔线；优先级以左缘 3px 色条唯一编码。 */
+/* ===== 任务行：现代精致微卡片（告别空荡死黑，建立清晰表面层级） ===== */
 .task-item {
   position: relative;
   display: flex;
   max-height: 120px;
-  min-height: 44px;
+  min-height: 48px;
   align-items: center;
   gap: 12px;
   overflow: hidden;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: transparent;
-  padding: calc(var(--space-2) + 1px) var(--space-2) var(--space-2)
+  background: color-mix(in srgb, var(--pop) 40%, transparent);
+  margin-bottom: 6px;
+  padding: calc(var(--space-2) + 2px) var(--space-3) calc(var(--space-2) + 2px)
     calc(var(--space-6) + 2px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   transition:
     background-color 180ms var(--ease-standard),
+    border-color 180ms var(--ease-standard),
+    box-shadow 180ms var(--ease-standard),
     max-height var(--motion-soft) var(--ease-standard),
     margin var(--motion-soft) var(--ease-standard),
     padding var(--motion-soft) var(--ease-standard),
@@ -152,20 +155,32 @@ kbd {
     calc(var(--item-index, 0) * 18ms) both;
 }
 
-/* 左缘原本是优先级条；现在改为勾选框内圈 + 标题前点缀（详情见 .priority-*） */
-
 .task-item:hover {
-  background: color-mix(in srgb, var(--bg-hover) 55%, transparent);
+  background: color-mix(in srgb, var(--pop) 70%, transparent);
+  border-color: var(--stroke-mid);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
 .task-item:active {
   transform: scale(0.997);
 }
 
+:root[data-theme="light"] .task-item {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+:root[data-theme="light"] .task-item:hover {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.16);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
 /* R4 选中态对齐设计稿 is-sel：主色软底 + 1px 内描边 + 左缘 3px×56% 竖条 */
 .task-item.selected {
   background: var(--accent-soft);
-  border-color: transparent;
+  border-color: var(--accent-line);
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
