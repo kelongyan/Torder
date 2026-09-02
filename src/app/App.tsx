@@ -51,6 +51,7 @@ import {
 } from "../utils/taskHelpers";
 
 import { Sidebar } from "../components/layout/Sidebar";
+import { BottomNav } from "../components/layout/BottomNav";
 import { MainHeader } from "../components/layout/MainHeader";
 import { TaskListView } from "../components/task/TaskListView";
 import { TaskBoard } from "../components/task/TaskBoard";
@@ -198,6 +199,28 @@ function App() {
 
   const { toasts, pushToast } = useToast();
   const mobile = isMobile();
+
+  // M3.2 移动端滚动折叠：捕获 .content-panel 滚动，向下隐藏主 header。
+  const [mobileHeaderHidden, setMobileHeaderHidden] = useState(false);
+  const lastContentScroll = useRef(0);
+  useEffect(() => {
+    if (!mobile) return;
+    const onScrollCapture = () => {
+      const panel = document.querySelector<HTMLElement>(".content-panel");
+      if (!panel) return;
+      const y = panel.scrollTop;
+      const delta = y - lastContentScroll.current;
+      lastContentScroll.current = y;
+      if (y <= 4) {
+        setMobileHeaderHidden(false);
+        return;
+      }
+      setMobileHeaderHidden(delta > 6);
+    };
+    window.addEventListener("scroll", onScrollCapture, true);
+    return () => window.removeEventListener("scroll", onScrollCapture, true);
+  }, [mobile]);
+
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1405,6 +1428,7 @@ function App() {
           <MainHeader
             title={currentTitle}
             detailOpen={Boolean(selectedTask)}
+            headerHidden={mobile && mobileHeaderHidden}
             meta={scopeSubtitle}
             taskCount={tasks.length}
             layout={effectiveLayout}
@@ -1566,7 +1590,8 @@ function App() {
             !selectedTask &&
             !batchMode &&
             !recurringViewActive &&
-            !deletedViewActive && (
+            !deletedViewActive &&
+            !mobile && (
               <button
                 type="button"
                 className="mobile-create-fab"
@@ -1582,6 +1607,19 @@ function App() {
               </button>
             )}
         </main>
+
+        {/* M3.1 移动端底部导航（含中央新建 FAB）；横屏/桌面不渲染 */}
+        {mobile && (
+          <BottomNav
+            layout={effectiveLayout}
+            onLayoutChange={(next) => setLayout(next)}
+            onCreate={() => {
+              navigator.vibrate?.(8);
+              openTaskCreateDialog();
+            }}
+            onOpenSettings={openSettingsDialog}
+          />
+        )}
 
         {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
         <TaskDetailPanel

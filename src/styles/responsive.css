@@ -1721,3 +1721,120 @@
   background: var(--accent-hover);
   color: var(--on-accent);
 }
+
+/* ===== M3.1 底部导航 + 中央新建 FAB（mobile only） ===== */
+.window-frame.mobile .bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr 1fr 76px 1fr 1fr;
+  height: var(--bottom-nav-height);
+  padding-bottom: var(--safe-bottom);
+  border-top: 1px solid var(--border);
+  background: var(--bottom-nav-bg);
+  backdrop-filter: var(--blur-overlay);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.window-frame.mobile .bottom-nav-item {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 0 calc(2px + var(--safe-bottom) / 2);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 13px;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.window-frame.mobile .bottom-nav-item svg {
+  width: 22px;
+  height: 22px;
+}
+
+.window-frame.mobile .bottom-nav-item.active {
+  color: var(--accent);
+}
+
+.window-frame.mobile .bottom-nav-item.active svg {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+.window-frame.mobile .bottom-nav-fab-slot {
+  position: relative;
+}
+
+.window-frame.mobile .bottom-nav-fab {
+  position: absolute;
+  bottom: calc(10px + var(--safe-bottom));
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  transform: translateX(-50%);
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--accent) 36%, transparent),
+    0 6px 14px rgba(0, 0, 0, 0.24);
+  transition: transform var(--motion-fast) var(--ease-spring), background-color var(--motion-fast) var(--ease-standard);
+}
+
+.window-frame.mobile .bottom-nav-fab svg {
+  width: 26px;
+  height: 26px;
+}
+
+.window-frame.mobile .bottom-nav-fab:active {
+  transform: translateX(-50%) scale(0.92);
+}
+
+/* 内容区底部给 BottomNav 让位 */
+.window-frame.mobile .content-panel {
+  padding-bottom: calc(var(--bottom-nav-height) + 20px);
+}
+
+/* ===== M3.2 header 滚动折叠 + 横屏 ===== */
+.window-frame.mobile .main-header {
+  transition:
+    transform 220ms var(--motion-mobile-exit),
+    opacity 180ms var(--ease-standard),
+    background-color var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard);
+}
+
+.window-frame.mobile .main-header.is-collapsed {
+  opacity: 0;
+  transform: translateY(-104%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window-frame.mobile .main-header.is-collapsed {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+/* 横屏（高度受限）：隐藏 BottomNav，内容底边距还原；侧栏常驻由 ≥768 宽规则接管 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .window-frame.mobile .bottom-nav {
+    display: none;
+  }
+
+  .window-frame.mobile .content-panel {
+    padding-bottom: 18px;
+  }
+}

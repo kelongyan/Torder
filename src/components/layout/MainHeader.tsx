@@ -63,6 +63,7 @@ export function MainHeader({
   syncStatus,
   showLayoutControls = true,
   detailOpen = false,
+  headerHidden = false,
 }: {
   title: string;
   meta?: string | ReactNode | null;
@@ -100,6 +101,8 @@ export function MainHeader({
   showLayoutControls?: boolean;
   /** R6：详情抽屉打开时头部工具收紧（占位组隐藏、分段图标化），避免溢出到抽屉下方。 */
   detailOpen?: boolean;
+  /** M3.2 移动端滚动折叠：向下滚动内容时整个主 header 收起（顶部滑出），true 表示收起。 */
+  headerHidden?: boolean;
 }) {
   const menuPresence = usePresence(menuOpen, 280);
   const menuAnchorRef = useRef<HTMLDivElement>(null);
@@ -231,7 +234,7 @@ export function MainHeader({
 
   return (
     <header
-      className={`main-header ${showLayoutControls ? "" : "no-layout-tabs"} ${syncStatus?.configured ? "has-sync-status" : ""}`}
+      className={`main-header ${showLayoutControls ? "" : "no-layout-tabs"} ${syncStatus?.configured ? "has-sync-status" : ""} ${headerHidden ? "is-collapsed" : ""}`}
     >
       <button
         type="button"
