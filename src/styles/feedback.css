@@ -357,17 +357,32 @@
 .empty-art {
   position: relative;
   display: grid;
-  width: 76px;
-  height: 76px;
+  width: 96px;
+  height: 96px;
   place-items: center;
-  border-radius: 50%;
-  background: var(--hover);
+  border: 1px solid var(--stroke);
+  border-radius: 28px;
+  background: linear-gradient(180deg, var(--hover), transparent 75%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* 手作分隔线：empty-art 底部外侧的虚线，呼应"笔记/手帐"气质 */
+.empty-art::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  bottom: -14px;
+  left: -6px;
+  border-top: 1.5px dashed var(--stroke);
 }
 
 .empty-art > svg {
-  width: 28px;
-  height: 28px;
-  color: var(--accent);
+  width: 34px;
+  height: 34px;
+  color: var(--text-secondary);
+  opacity: 0.85;
 }
 
 /* 圆底内的两条列表线示意 */

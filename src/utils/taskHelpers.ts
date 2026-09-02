@@ -1,7 +1,7 @@
 import {
   Calendar,
   CheckCircle2,
-  ListTodo,
+  FolderOpen,
   Star,
   type LucideIcon,
 } from "lucide-react";
@@ -228,11 +228,11 @@ export function getEmptyCopy(scope: TaskScope): {
           ? CheckCircle2
           : scope.view === "important"
             ? Star
-            : ListTodo;
+            : FolderOpen;
     return { icon, title: copy.emptyTitle, body: copy.emptyBody };
   }
   return {
-    icon: ListTodo,
+    icon: FolderOpen,
     title: "清单为空",
     body: "",
   };

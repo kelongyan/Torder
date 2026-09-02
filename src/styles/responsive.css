@@ -1710,16 +1710,27 @@
 
 .window-frame.mobile .empty-primary-action {
   min-height: 48px;
-  border-color: transparent;
-  background: var(--accent);
-  color: var(--on-accent);
+  border-color: var(--accent-line);
+  background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
+  color: var(--accent);
   padding: 10px 22px;
-  box-shadow: var(--shadow-card);
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 4px 14px -4px rgba(0, 0, 0, 0.16);
+  backdrop-filter: var(--blur-panel);
 }
 
-.window-frame.mobile .empty-primary-action:hover {
-  background: var(--accent-hover);
+.window-frame.mobile .empty-primary-action:hover,
+.window-frame.mobile .empty-primary-action:focus-visible {
+  background: var(--accent);
   color: var(--on-accent);
+  border-color: transparent;
+}
+
+.window-frame.mobile .empty-primary-action:active {
+  transform: scale(0.97);
 }
 
 /* ===== M3.1 底部导航 + 中央新建 FAB（mobile only） ===== */
@@ -1781,14 +1792,20 @@
   height: 56px;
   transform: translateX(-50%);
   place-items: center;
-  border: 0;
+  border: 1.5px solid var(--accent-line);
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  color: var(--accent);
   box-shadow:
-    0 10px 22px color-mix(in srgb, var(--accent) 36%, transparent),
-    0 6px 14px rgba(0, 0, 0, 0.24);
-  transition: transform var(--motion-fast) var(--ease-spring), background-color var(--motion-fast) var(--ease-standard);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 16px rgba(0, 0, 0, 0.24),
+    0 2px 6px rgba(0, 0, 0, 0.16);
+  backdrop-filter: var(--blur-panel);
+  transition:
+    transform var(--motion-fast) var(--ease-spring),
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .window-frame.mobile .bottom-nav-fab svg {
@@ -1797,7 +1814,10 @@
 }
 
 .window-frame.mobile .bottom-nav-fab:active {
-  transform: translateX(-50%) scale(0.92);
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  transform: translateX(-50%) scale(0.94);
 }
 
 /* 内容区底部给 BottomNav 让位 */
