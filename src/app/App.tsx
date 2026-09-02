@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   AlertCircle,
@@ -411,6 +411,130 @@ function App() {
     selectTask(null);
     clearBatchSelection();
   }, [closeDialogs, clearBatchSelection, selectTask, setRecurringViewActive]);
+
+  // M1.5 移动端系统返回：按弹层栈从内到外逐层关闭，返回 false 表示无层可关
+  // （此时 WebView 可自行后退/退出）。
+  const closeTopLayer = useCallback((): boolean => {
+    if (dialog.confirmState) {
+      setConfirmState(null);
+      return true;
+    }
+    if (dialog.settingsOpen) {
+      setSettingsOpen(false);
+      return true;
+    }
+    if (dialog.statsOpen) {
+      setStatsOpen(false);
+      return true;
+    }
+    if (dialog.batchEditOpen) {
+      setBatchEditOpen(false);
+      return true;
+    }
+    if (dialog.commandPaletteOpen) {
+      setCommandPaletteOpen(false);
+      return true;
+    }
+    if (dialog.shortcutsOpen) {
+      setShortcutsOpen(false);
+      return true;
+    }
+    if (dialog.createOpen) {
+      setCreateOpen(false);
+      return true;
+    }
+    if (dialog.listDialogOpen || dialog.editingList) {
+      setListDialogOpen(false);
+      dialog.setEditingList(null);
+      return true;
+    }
+    if (dialog.recurringDialogOpen) {
+      setRecurringDialogOpen(false);
+      return true;
+    }
+    if (dialog.calendarEventDialogOpen) {
+      setCalendarEventDialogOpen(false);
+      return true;
+    }
+    if (savedViewDialogOpen) {
+      setSavedViewDialogOpen(false);
+      return true;
+    }
+    if (recurringViewActive) {
+      setRecurringViewActive(false);
+      return true;
+    }
+    if (selectedTask) {
+      selectTask(null);
+      return true;
+    }
+    if (menuOpen) {
+      setMenuOpen(false);
+      return true;
+    }
+    if (mobileSidebarOpen) {
+      setMobileSidebarOpen(false);
+      return true;
+    }
+    return false;
+  }, [
+    menuOpen,
+    mobileSidebarOpen,
+    recurringViewActive,
+    savedViewDialogOpen,
+    selectedTask,
+    selectTask,
+    setBatchEditOpen,
+    setCalendarEventDialogOpen,
+    setCommandPaletteOpen,
+    setConfirmState,
+    setCreateOpen,
+    setListDialogOpen,
+    setMenuOpen,
+    setMobileSidebarOpen,
+    setRecurringDialogOpen,
+    setRecurringViewActive,
+    setSavedViewDialogOpen,
+    setSettingsOpen,
+    setShortcutsOpen,
+    setStatsOpen,
+    dialog,
+  ]);
+
+  // M1.5：每当有弹层新打开，向历史栈推入一帧，让系统返回先走 popstate。
+  const layerCount =
+    (dialog.confirmState ? 1 : 0) +
+    (dialog.settingsOpen ? 1 : 0) +
+    (dialog.statsOpen ? 1 : 0) +
+    (dialog.batchEditOpen ? 1 : 0) +
+    (dialog.commandPaletteOpen ? 1 : 0) +
+    (dialog.shortcutsOpen ? 1 : 0) +
+    (dialog.createOpen ? 1 : 0) +
+    (dialog.listDialogOpen || dialog.editingList ? 1 : 0) +
+    (dialog.recurringDialogOpen ? 1 : 0) +
+    (dialog.calendarEventDialogOpen ? 1 : 0) +
+    (savedViewDialogOpen ? 1 : 0) +
+    (recurringViewActive ? 1 : 0) +
+    (selectedTask ? 1 : 0) +
+    (menuOpen ? 1 : 0) +
+    (mobileSidebarOpen ? 1 : 0);
+  const prevLayerCount = useRef<number | null>(null);
+  useEffect(() => {
+    const previous = prevLayerCount.current;
+    prevLayerCount.current = layerCount;
+    if (previous === null || layerCount <= previous) return;
+    window.history.pushState(null, "");
+  }, [layerCount]);
+
+  useEffect(() => {
+    if (!mobile || !isTauri()) return;
+    const onPopState = () => {
+      void closeTopLayer();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [closeTopLayer, mobile]);
+
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
   }, [setCommandPaletteOpen]);
@@ -1446,7 +1570,11 @@ function App() {
               <button
                 type="button"
                 className="mobile-create-fab"
-                onClick={() => openTaskCreateDialog()}
+                onClick={() => {
+                  // M1.4 触感：新建入口 tap（desktop no-op）
+                  navigator.vibrate?.(8);
+                  openTaskCreateDialog();
+                }}
                 aria-label="新建任务"
                 title="新建任务"
               >

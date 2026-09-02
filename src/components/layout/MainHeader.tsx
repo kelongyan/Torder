@@ -254,6 +254,9 @@ export function MainHeader({
       <div
         className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"} ${detailOpen ? "compact" : ""}`}
       >
+        {/* 分组一：视图工具（布局分段 / 排序 / 筛选 / 批量 / 命令 / 未开发占位）。
+            桌面端 display:contents 保持既有展平布局；移动端独立为工具行（M1.1）。 */}
+        <div className="header-tools">
         {showLayoutControls && (
           <div className="header-view-toolbar">
             <div className="layout-tabs" aria-label="布局切换" ref={segRef}>
@@ -389,7 +392,10 @@ export function MainHeader({
             <Flame aria-hidden="true" className="menu-icon" />
           </button>
         </div>
+        </div>
 
+        {/* 分组二：应用操作（主题 / 同步状态 / 更多）。桌面 display:contents；移动端主行。 */}
+        <div className="header-app">
         <div className="tool-group tool-group--app">
           <button
             type="button"
@@ -451,6 +457,7 @@ export function MainHeader({
               />
             )}
           </div>
+        </div>
         </div>
 
         {showLayoutControls && onOpenCreate && (

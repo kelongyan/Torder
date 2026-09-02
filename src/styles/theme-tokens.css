@@ -290,3 +290,45 @@
   --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
   --on-accent: #fff;
 }
+
+/* ===== 移动端专属 token（M0.2，仅 mobile 作用域内生效，不影响桌面）=====
+   全部由既有 token 推导，不引入新色/新阴影/新圆角。 */
+.window-frame.mobile {
+  /* 触摸目标（Material 3 / WCAG 2.5.5 触摸最小值 48dp，FAB 56dp） */
+  --touch-min: 48px;
+  --touch-fab: 56px;
+
+  /* 节奏密度（space-* 系列沿用桌面语义，移动端收紧一档） */
+  --space-mobile-xs: 4px;
+  --space-mobile-sm: 8px;
+  --space-mobile-md: 12px;
+  --space-mobile-lg: 16px;
+  --space-mobile-xl: 24px;
+
+  /* 行高校验（与桌面 1.5/1.6 行距保持差异但稳定） */
+  --line-snug-mobile: 1.3;
+  --line-mobile-body: 1.45;
+
+  /* 安全区 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* 触感（克制：仅 tap/click 触发，不监听滚动） */
+  --haptic-tap: 8ms;
+  --haptic-heavy: 16ms;
+  --haptic-success: 12ms;
+
+  /* 移动端进入/退出曲线（保留 D7 动效精神：快而 crisp） */
+  --motion-mobile-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-mobile-exit: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* 顶栏（移动版主 header） */
+  --titlebar-mobile-bg: color-mix(in srgb, var(--mica) 92%, transparent);
+  --titlebar-mobile-border: 1px solid var(--border);
+
+  /* 底部导航（M3 使用，M0.2 先定档） */
+  --bottom-nav-height: calc(56px + var(--safe-bottom));
+  --bottom-nav-bg: color-mix(in srgb, var(--mica) 96%, transparent);
+}

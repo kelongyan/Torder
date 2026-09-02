@@ -1504,3 +1504,181 @@
     display: none;
   }
 }
+
+/* ===== M1.1 主 header 分组（工具行 / 应用行） =====
+   桌面：header-tools 与 header-app 均 display:contents，等价既有展平结构，
+   零视觉变化。移动端：主行 = nav / title / app(主题·同步·更多)，
+   工具行 = 排序·筛选·批量·命令等，自成一排不再挤入顶部行。 */
+.header-tools,
+.header-app {
+  display: contents;
+}
+
+.window-frame.mobile .main-header,
+.window-frame.mobile .main-header.has-sync-status,
+.window-frame.mobile .main-header.no-layout-tabs {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "nav title app"
+    "tools tools tools";
+  align-items: center;
+  gap: 2px 6px;
+  padding: 8px 10px 6px;
+  border-bottom: var(--titlebar-mobile-border);
+  background: var(--titlebar-mobile-bg);
+  backdrop-filter: var(--blur-panel);
+}
+
+.window-frame.mobile .mobile-nav-toggle {
+  grid-area: nav;
+  display: grid;
+  width: 40px;
+  height: 40px;
+}
+
+.window-frame.mobile .main-header-left {
+  grid-area: title;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-frame.mobile .main-header-logo {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 7px;
+}
+
+.window-frame.mobile .main-header-copy {
+  min-width: 0;
+}
+
+.window-frame.mobile .header-app {
+  grid-area: app;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.window-frame.mobile .header-tools {
+  grid-area: tools;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.window-frame.mobile .header-tools::-webkit-scrollbar {
+  display: none;
+}
+
+.window-frame.mobile .header-tools .header-view-toolbar,
+.window-frame.mobile .header-tools .layout-tabs {
+  display: none;
+}
+
+/* 工具行：次级操作 36px 目标；应用行：主题/同步/更多 40px 目标 */
+.window-frame.mobile .header-tools .icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+.window-frame.mobile .header-app .icon-button {
+  width: 40px;
+  height: 40px;
+}
+
+.window-frame.mobile .header-tools .icon-button svg,
+.window-frame.mobile .header-app .icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+/* ===== M1.2 侧栏抽屉移动端质量提升 =====
+   全屏高度 + 安全区；更窄的浮起（左缘 8px → 6px）；宽 min(88vw, 360px)；
+   顶/底圆角 20px（Material Modal Drawer 气息，保留玻璃浮卡气质）。 */
+.window-frame.mobile .sidebar {
+  top: calc(var(--safe-top) + 6px);
+  bottom: calc(var(--safe-bottom) + 6px);
+  left: 6px;
+  width: min(88vw, 360px);
+  border-radius: 20px;
+  backdrop-filter: var(--blur-overlay);
+}
+
+.window-frame.mobile .sidebar .brand {
+  padding-top: calc(var(--safe-top) + 10px);
+}
+
+.window-frame.mobile .sidebar-nav {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ===== M1.3 移动端弹层统一底部 sheet =====
+   通用 dialog-overlay/dialog-card：顶部安全区、贴底、上圆角 24、表单区滚动、
+   header/footer 固定。command palette 同语言。详情抽屉保留右滑覆盖形态。 */
+.window-frame.mobile .dialog-overlay {
+  display: flex;
+  align-items: flex-end;
+  padding: var(--safe-top) 0 0;
+}
+
+.window-frame.mobile .dialog-card {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  flex-direction: column;
+  margin: auto 0 0;
+  max-height: min(94dvh, calc(var(--app-viewport-height, 100dvh) - var(--safe-top)));
+  border-radius: 24px 24px 0 0;
+  border-bottom: 0;
+}
+
+.window-frame.mobile .dialog-card > .dialog-header,
+.window-frame.mobile .dialog-card > .dialog-form,
+.window-frame.mobile .dialog-card > .dialog-footer {
+  width: 100%;
+}
+
+.window-frame.mobile .dialog-card > .dialog-header {
+  flex: none;
+}
+
+/* 表单滚动区吸收高度；footer 常驻底部（不滚动、不依赖 sticky） */
+.window-frame.mobile .dialog-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.window-frame.mobile .dialog-footer {
+  position: static;
+  display: flex;
+  flex: none;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px calc(10px + var(--safe-bottom));
+}
+
+/* 命令面板同语言 sheet */
+.window-frame.mobile .command-palette-card {
+  width: 100%;
+  max-width: none;
+  margin: auto 0 0;
+  border-radius: 24px 24px 0 0;
+  border-bottom: 0;
+}
+
+.window-frame.mobile .command-palette-card .command-palette-list {
+  max-height: min(52dvh, calc(var(--app-viewport-height, 100dvh) * 0.5));
+}

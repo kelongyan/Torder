@@ -121,6 +121,8 @@ export function TaskRow({
           className={`task-check ${completed ? "checked" : ""}`}
           onClick={(event) => {
             event.stopPropagation();
+            // M1.4 触感：完成 8ms / 恢复 6ms（navigator.vibrate 桌面不可用时自动 no-op）
+            navigator.vibrate?.(completed ? 6 : 8);
             onToggle(task);
           }}
           aria-label={completed ? "恢复任务" : "完成任务"}
