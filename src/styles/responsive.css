@@ -46,7 +46,7 @@
   border: 1px solid var(--border-light);
   border-radius: 22px;
   background: color-mix(in srgb, var(--bg-secondary) 97%, transparent);
-  backdrop-filter: blur(18px);
+  backdrop-filter: var(--blur-panel);
   box-shadow:
     0 22px 54px rgba(8, 10, 18, 0.24),
     0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -560,7 +560,7 @@
     border: 1px solid var(--border-light);
     border-radius: 22px;
     background: color-mix(in srgb, var(--bg-secondary) 97%, transparent);
-    backdrop-filter: blur(18px);
+    backdrop-filter: var(--blur-panel);
     box-shadow:
       0 22px 54px rgba(8, 10, 18, 0.24),
       0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -1430,7 +1430,7 @@
     margin: 2px -12px 0;
     background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
     padding: 8px 12px;
-    backdrop-filter: blur(12px);
+    backdrop-filter: var(--blur-panel);
   }
 
   .dialog-footer .btn-primary,

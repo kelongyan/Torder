@@ -727,22 +727,21 @@
     border-color var(--motion-theme) var(--ease-standard);
 }
 
-/* R3：新建事项 = 设计稿 .btn-primary（accent 渐变实心） */
+/* R3：新建事项 = 设计稿 .btn-primary（accent 渐变实心）
+   icon-only 变体：移除文字与轴向 padding，改为正方形图标按钮（32×32），
+   aria-label + title 承担无障碍与 hover tooltip（与 .icon-button 系列一致）。 */
 .header-create-button {
   display: inline-flex;
+  width: 32px;
   height: 32px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   border: 0;
   border-radius: 8px;
   background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  padding: 0 14px 0 11px;
+  padding: 0;
   color: var(--on-accent);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
   white-space: nowrap;
   transition:
     filter var(--motion-fast) var(--ease-standard),
@@ -754,12 +753,12 @@
 }
 
 .header-create-button:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .header-create-button svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   color: currentcolor;
 }
 
@@ -1052,7 +1051,7 @@
   border: 1px solid var(--border-light);
   border-radius: calc(var(--radius) + 2px);
   background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
-  backdrop-filter: blur(16px);
+  backdrop-filter: var(--blur-panel);
   padding: 6px;
   box-shadow:
     0 14px 36px rgba(0, 0, 0, 0.35),

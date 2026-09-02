@@ -458,9 +458,10 @@ export function MainHeader({
             type="button"
             className="header-create-button"
             onClick={onOpenCreate}
+            aria-label="新建事项"
+            title="新建事项（Ctrl+N）"
           >
-            <Plus aria-hidden="true" className="icon-sm" />
-            <span>新建事项</span>
+            <Plus aria-hidden="true" />
           </button>
         )}
       </div>

@@ -34,7 +34,7 @@ kbd {
   font-weight: 600;
   line-height: 17px;
   letter-spacing: 0.2px;
-  backdrop-filter: blur(14px);
+  backdrop-filter: var(--blur-panel);
   animation: subtle-rise var(--motion-soft) var(--ease-out) both;
 }
 

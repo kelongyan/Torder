@@ -105,7 +105,7 @@
   border: 1px solid var(--pop-line);
   border-radius: 999px;
   background: var(--pop);
-  backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: var(--blur-overlay);
   padding: 10px 16px;
   color: var(--text-1);
   font-size: 12.5px;

@@ -9,7 +9,7 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
-  box-shadow: var(--shadow-floating);
+  box-shadow: var(--shadow-floating), var(--inset-hi);
   will-change: opacity, transform;
 }
 
@@ -281,7 +281,7 @@
   border: 1px solid var(--border-light);
   border-radius: calc(var(--radius) + 2px);
   background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
-  backdrop-filter: blur(16px);
+  backdrop-filter: var(--blur-panel);
   padding: 6px;
   box-shadow:
     0 14px 36px rgba(0, 0, 0, 0.35),

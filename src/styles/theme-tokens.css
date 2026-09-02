@@ -1,5 +1,14 @@
 /* R0 theme layer: design color roles plus aliases used by current components.
    Motion tokens and component animations remain defined in their existing files. */
+
+/* S2 backdrop-filter 两档规格（2026-09-02 主题优化）：
+   --blur-panel 小浮板（控件弹层 / hover 卡 / 侧栏抽屉），
+   --blur-overlay 大浮层（对话框 / 菜单 / 命令面板 / toast）。scrim 遮罩保持 3px 不入档。 */
+:root {
+  --blur-panel: blur(20px) saturate(140%);
+  --blur-overlay: blur(32px) saturate(150%);
+}
+
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -7,44 +16,45 @@
   --wallpaper:
     radial-gradient(
       92% 72% at 14% 10%,
-      rgba(58, 96, 176, 0.72) 0%,
+      rgba(58, 96, 176, 0.6) 0%,
       rgba(58, 96, 176, 0) 62%
     ),
     radial-gradient(
       72% 62% at 86% 14%,
-      rgba(116, 82, 172, 0.6) 0%,
+      rgba(116, 82, 172, 0.5) 0%,
       rgba(116, 82, 172, 0) 58%
     ),
     radial-gradient(
       82% 72% at 74% 90%,
-      rgba(26, 118, 130, 0.52) 0%,
+      rgba(26, 118, 130, 0.44) 0%,
       rgba(26, 118, 130, 0) 60%
     ),
     radial-gradient(
       62% 52% at 28% 96%,
-      rgba(158, 88, 116, 0.34) 0%,
+      rgba(158, 88, 116, 0.28) 0%,
       rgba(158, 88, 116, 0) 62%
     ),
     linear-gradient(168deg, #131c2e 0%, #0b0f18 52%, #0d1220 100%);
-  --mica: rgba(22, 25, 32, 0.6);
-  --mica-side: rgba(15, 18, 24, 0.42);
+  --mica: rgba(19, 24, 36, 0.92);
+  --mica-side: rgba(15, 19, 28, 0.66);
   --titlebar: rgba(255, 255, 255, 0.014);
-  --pop: rgba(34, 37, 46, 0.88);
-  --pop-line: rgba(255, 255, 255, 0.13);
-  --scrim: rgba(6, 8, 13, 0.5);
-  --hover: rgba(255, 255, 255, 0.055);
-  --hover-strong: rgba(255, 255, 255, 0.085);
-  --active-bg: rgba(255, 255, 255, 0.075);
+  --pop: rgba(30, 34, 44, 0.96);
+  --pop-line: rgba(255, 255, 255, 0.14);
+  --scrim: rgba(6, 8, 13, 0.55);
+  --hover: rgba(255, 255, 255, 0.06);
+  --hover-strong: rgba(255, 255, 255, 0.1);
+  --active-bg: rgba(255, 255, 255, 0.09);
   --sunken: rgba(0, 0, 0, 0.22);
-  --stroke: rgba(255, 255, 255, 0.07);
-  --stroke-mid: rgba(255, 255, 255, 0.11);
-  --stroke-strong: rgba(255, 255, 255, 0.2);
-  --text-1: #eef0f5;
-  --text-2: rgba(235, 239, 247, 0.63);
-  --text-3: rgba(235, 239, 247, 0.38);
+  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --stroke: rgba(255, 255, 255, 0.1);
+  --stroke-mid: rgba(255, 255, 255, 0.15);
+  --stroke-strong: rgba(255, 255, 255, 0.24);
+  --text-1: #f2f4f8;
+  --text-2: rgba(235, 239, 247, 0.74);
+  --text-3: rgba(235, 239, 247, 0.5);
   --accent: #6e9bff;
   --accent-hi: #86adff;
-  --accent-soft: rgba(110, 155, 255, 0.16);
+  --accent-soft: rgba(110, 155, 255, 0.18);
   --accent-line: rgba(110, 155, 255, 0.4);
   --on-accent: #0b1020;
   --done: #43c48d;
@@ -92,7 +102,7 @@
   --success-bg: color-mix(in srgb, var(--done) 16%, transparent);
   --highlight-bg: color-mix(in srgb, var(--warn) 24%, transparent);
   --overlay-bg: var(--scrim);
-  --scrollbar-thumb: var(--accent-line);
+  --scrollbar-thumb: var(--stroke-mid);
   --shadow: var(--shadow-card);
   --shadow-md: var(--shadow-pop);
   --shadow-lift: var(--shadow-pop);
@@ -101,45 +111,46 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --wallpaper-base: #dfe4ee;
+  --wallpaper-base: #eef1f6;
   --wallpaper:
     radial-gradient(
       80% 65% at 14% 12%,
-      rgba(148, 176, 232, 0.72) 0%,
+      rgba(148, 176, 232, 0.5) 0%,
       rgba(148, 176, 232, 0) 60%
     ),
     radial-gradient(
       70% 60% at 88% 16%,
-      rgba(206, 190, 226, 0.66) 0%,
+      rgba(206, 190, 226, 0.44) 0%,
       rgba(206, 190, 226, 0) 58%
     ),
     radial-gradient(
       78% 66% at 76% 92%,
-      rgba(168, 214, 214, 0.6) 0%,
+      rgba(168, 214, 214, 0.4) 0%,
       rgba(168, 214, 214, 0) 60%
     ),
     radial-gradient(
       60% 50% at 26% 92%,
-      rgba(232, 206, 200, 0.55) 0%,
+      rgba(232, 206, 200, 0.34) 0%,
       rgba(232, 206, 200, 0) 62%
     ),
-    linear-gradient(168deg, #eef1f7 0%, #e4e9f2 54%, #eceff5 100%);
-  --mica: rgba(249, 250, 252, 0.78);
-  --mica-side: rgba(255, 255, 255, 0.34);
+    linear-gradient(168deg, #f5f7fa 0%, #e9edf5 54%, #eef1f7 100%);
+  --mica: rgba(252, 253, 255, 0.92);
+  --mica-side: rgba(255, 255, 255, 0.52);
   --titlebar: rgba(255, 255, 255, 0.24);
-  --pop: rgba(253, 253, 254, 0.94);
+  --pop: rgba(254, 254, 255, 0.97);
   --pop-line: rgba(16, 24, 40, 0.1);
   --scrim: rgba(28, 36, 56, 0.28);
-  --hover: rgba(16, 24, 40, 0.045);
-  --hover-strong: rgba(16, 24, 40, 0.075);
-  --active-bg: rgba(16, 24, 40, 0.055);
-  --sunken: rgba(255, 255, 255, 0.62);
-  --stroke: rgba(16, 24, 40, 0.08);
-  --stroke-mid: rgba(16, 24, 40, 0.12);
-  --stroke-strong: rgba(16, 24, 40, 0.22);
+  --hover: rgba(16, 24, 40, 0.05);
+  --hover-strong: rgba(16, 24, 40, 0.085);
+  --active-bg: rgba(16, 24, 40, 0.065);
+  --sunken: rgba(16, 24, 40, 0.045);
+  --inset-hi: inset 0 0 0 0 transparent;
+  --stroke: rgba(16, 24, 40, 0.11);
+  --stroke-mid: rgba(16, 24, 40, 0.15);
+  --stroke-strong: rgba(16, 24, 40, 0.26);
   --text-1: #171a20;
-  --text-2: rgba(28, 33, 43, 0.66);
-  --text-3: rgba(28, 33, 43, 0.42);
+  --text-2: rgba(28, 33, 43, 0.74);
+  --text-3: rgba(28, 33, 43, 0.58);
   --accent: #3b6fe0;
   --accent-hi: #2d5fcf;
   --accent-soft: rgba(59, 111, 224, 0.1);
@@ -160,7 +171,7 @@
   --shadow-pop:
     0 2px 6px rgba(20, 28, 48, 0.09), 0 12px 28px -10px rgba(20, 28, 48, 0.18);
   --shadow-card:
-    0 1px 2px rgba(20, 28, 48, 0.06), 0 6px 16px -8px rgba(20, 28, 48, 0.12);
+    0 1px 2px rgba(20, 28, 48, 0.05), 0 6px 18px -12px rgba(20, 28, 48, 0.1);
   --caption-close: #c42b1c;
   --bg-primary: var(--wallpaper-base);
   --bg-secondary: var(--mica);
@@ -190,7 +201,7 @@
   --success-bg: color-mix(in srgb, var(--done) 12%, transparent);
   --highlight-bg: color-mix(in srgb, var(--warn) 20%, transparent);
   --overlay-bg: var(--scrim);
-  --scrollbar-thumb: var(--accent-line);
+  --scrollbar-thumb: var(--stroke-mid);
   --shadow: var(--shadow-card);
   --shadow-md: var(--shadow-pop);
   --shadow-lift: var(--shadow-pop);
@@ -208,7 +219,7 @@
 :root[data-accent="violet"] {
   --accent: #a98af5;
   --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --on-accent: #0b1020;
 }
@@ -216,7 +227,7 @@
 :root[data-accent="teal"] {
   --accent: #4bc0c8;
   --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --on-accent: #0b1020;
 }
@@ -224,7 +235,7 @@
 :root[data-accent="green"] {
   --accent: #43c48d;
   --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --on-accent: #0b1020;
 }
@@ -232,7 +243,7 @@
 :root[data-accent="amber"] {
   --accent: #e8b04b;
   --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --on-accent: #0b1020;
 }
@@ -240,7 +251,7 @@
 :root[data-accent="rose"] {
   --accent: #f0819e;
   --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
   --on-accent: #0b1020;
 }

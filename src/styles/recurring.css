@@ -44,7 +44,7 @@
   margin: 0 -16px;
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
-  backdrop-filter: blur(12px);
+  backdrop-filter: var(--blur-panel);
   padding: 10px 16px;
 }
 

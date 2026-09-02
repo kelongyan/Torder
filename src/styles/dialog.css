@@ -33,8 +33,8 @@
   border: 1px solid var(--pop-line);
   border-radius: 14px;
   background: var(--mica);
-  backdrop-filter: blur(48px) saturate(170%);
-  box-shadow: var(--shadow-floating);
+  backdrop-filter: var(--blur-overlay);
+  box-shadow: var(--shadow-floating), var(--inset-hi);
   will-change: opacity, transform;
 }
 
@@ -967,7 +967,7 @@
   border-radius: 14px;
   background: var(--pop);
   box-shadow: var(--shadow-pop);
-  backdrop-filter: blur(48px) saturate(170%);
+  backdrop-filter: var(--blur-overlay);
 }
 
 .command-palette-input-row {
