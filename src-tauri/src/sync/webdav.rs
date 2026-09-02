@@ -142,6 +142,33 @@ impl WebDavClient {
         Ok(hrefs)
     }
 
+    /// 存在性探测（PROPFIND Depth: 0），404/409 视为不存在。
+    ///
+    /// 「仅创建」写入不能只靠 `If-None-Match: *`：坚果云等服务端会直接忽略该前置条件
+    /// 并覆盖已有文件（实测返回 204），于是另一台设备刚占位的变更批次会被静默摧毁。
+    /// 所有 create-only 写入都先用这个方法探一次。
+    pub async fn exists(&self, path: &str) -> Result<bool, WebDavError> {
+        match self
+            .request_with_conditions(
+                Method::from_bytes(b"PROPFIND").expect("PROPFIND is valid"),
+                self.url(path)?,
+                None,
+                None,
+                None,
+                Some("0"),
+            )
+            .await
+        {
+            Ok(_) => Ok(true),
+            Err(WebDavError::Http(status))
+                if status == StatusCode::NOT_FOUND || status == StatusCode::CONFLICT =>
+            {
+                Ok(false)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     pub async fn get_json(&self, path: &str) -> Result<serde_json::Value, WebDavError> {
         Ok(self.get_json_with_etag(path).await?.0)
     }
@@ -620,18 +647,7 @@ mod tests {
                 stream
                     .set_read_timeout(Some(Duration::from_secs(2)))
                     .unwrap();
-                let mut request = Vec::new();
-                let mut buffer = [0_u8; 2048];
-                loop {
-                    let count = stream.read(&mut buffer).unwrap_or(0);
-                    if count == 0 {
-                        break;
-                    }
-                    request.extend_from_slice(&buffer[..count]);
-                    if request.windows(4).any(|window| window == b"\r\n\r\n") {
-                        break;
-                    }
-                }
+                let request = read_http_request(&mut stream);
                 sender
                     .send(String::from_utf8_lossy(&request).into_owned())
                     .unwrap();
@@ -642,5 +658,42 @@ mod tests {
             }
         });
         (address, receiver, handle)
+    }
+
+    /// 读取一个 HTTP 请求：请求头 + 按 `Content-Length` 消费完整请求体。
+    ///
+    /// 只读到 `\r\n\r\n` 就响应并关闭连接时，请求体仍在途的数据会在 Windows 上
+    /// 触发 RST，客户端（hyper）读到不完整消息报 `IncompleteMessage`，导致依赖
+    /// 本 mock 服务器的测试 flaky（基线即存在，非业务改动引入）。
+    fn read_http_request(stream: &mut std::net::TcpStream) -> Vec<u8> {
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        let header_end = loop {
+            match stream.read(&mut buffer) {
+                Ok(0) | Err(_) => return request,
+                Ok(count) => {
+                    request.extend_from_slice(&buffer[..count]);
+                    if let Some(pos) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos;
+                    }
+                }
+            }
+        };
+        let head = String::from_utf8_lossy(&request[..header_end]).to_ascii_lowercase();
+        let body_len = head
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix("content-length:")
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+            })
+            .unwrap_or(0);
+        let total = header_end + 4 + body_len;
+        while request.len() < total {
+            match stream.read(&mut buffer) {
+                Ok(0) | Err(_) => break,
+                Ok(count) => request.extend_from_slice(&buffer[..count]),
+            }
+        }
+        request
     }
 }

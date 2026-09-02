@@ -1,15 +1,16 @@
 use serde_json::Value;
 
 use super::{
-    crypto, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_JSON_DEPTH, MAX_STRING_LENGTH, PROTOCOL,
+    crypto, supported_protocol, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_JSON_DEPTH,
+    MAX_STRING_LENGTH, MIN_SUPPORTED_SCHEMA_VERSION, SCHEMA_VERSION,
 };
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::manifest::{ChangeOperation, Manifest};
 
 pub fn validate_manifest(manifest: &Manifest) -> RepositoryResult<()> {
-    if manifest.protocol != PROTOCOL
+    if !supported_protocol(manifest.protocol)
         || manifest.format != "torder-sync"
-        || manifest.schema_version != 2
+        || !(MIN_SUPPORTED_SCHEMA_VERSION..=SCHEMA_VERSION).contains(&manifest.schema_version)
         || manifest.latest_sequence < 0
         || manifest.snapshot_sequence < 0
         || manifest.snapshot_sequence > manifest.latest_sequence

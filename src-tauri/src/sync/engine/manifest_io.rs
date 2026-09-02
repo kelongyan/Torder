@@ -29,7 +29,7 @@ pub(crate) async fn load_or_create_manifest(
                 protocol: PROTOCOL,
                 collection_id: uuid::Uuid::new_v4().to_string(),
                 format: "torder-sync".to_owned(),
-                schema_version: 2,
+                schema_version: SCHEMA_VERSION,
                 latest_sequence: 0,
                 snapshot_sequence: 0,
                 updated_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
@@ -64,6 +64,16 @@ fn map_conditional_write_error(error: WebDavError) -> RepositoryError {
     }
 }
 
+/// 每次写 manifest 都把协议字段拉到当前版本。
+///
+/// 老集合是 protocol/schemaVersion = 1；v1→v2 只新增了 attachment / taskLink 实体，
+/// 结构没有破坏性变化，所以新客户端读得懂 v1，并在这里就地升级。不做这一步的话，
+/// 升级过的客户端会把自己建的老集合永久判为 "incompatible" 而彻底停止同步。
+fn normalize_manifest_protocol(manifest: &mut Manifest) {
+    manifest.protocol = PROTOCOL;
+    manifest.schema_version = SCHEMA_VERSION;
+}
+
 pub(crate) async fn put_manifest(
     client: &WebDavClient,
     manifest_path: &str,
@@ -72,7 +82,9 @@ pub(crate) async fn put_manifest(
     expected_previous_sequence: i64,
     lock_device_id: &str,
 ) -> RepositoryResult<Manifest> {
-    let manifest_value = serde_json::to_value(manifest)?;
+    let mut upgraded = manifest.clone();
+    normalize_manifest_protocol(&mut upgraded);
+    let manifest_value = serde_json::to_value(&upgraded)?;
     let lock_path = etag.is_none().then(|| soft_lock_path(manifest_path));
     if let Some(path) = lock_path.as_deref() {
         acquire_soft_lock(client, path, lock_device_id).await?;
@@ -165,34 +177,46 @@ pub(crate) async fn acquire_soft_lock(
         "deviceId": device_id,
         "expiresAt": expires_at,
     });
-    match client.put_json_if_none_match(lock_path, &payload).await {
-        Ok(()) => Ok(()),
-        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            let existing = client
-                .get_json(lock_path)
-                .await
-                .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
-            let expires_at = existing
-                .get("expiresAt")
-                .and_then(serde_json::Value::as_str)
-                .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
-                .map(|value| value.with_timezone(&Utc));
-            if expires_at.is_none_or(|value| value > Utc::now()) {
-                return Err(RepositoryError::Tauri(
-                    "remote sync lock is held; retry later".to_owned(),
-                ));
+    // 先显式探一次：坚果云一类服务端会忽略 If-None-Match: * 直接覆盖，
+    // 只靠条件写会让软锁形同虚设（谁写谁都"抢到"锁）。
+    let mut held = client
+        .exists(lock_path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    if !held {
+        match client.put_json_if_none_match(lock_path, &payload).await {
+            Ok(()) => return Ok(()),
+            Err(WebDavError::Http(status))
+                if status == reqwest::StatusCode::PRECONDITION_FAILED =>
+            {
+                held = true;
             }
-            match client.delete(lock_path).await {
-                Ok(()) | Err(WebDavError::Http(reqwest::StatusCode::NOT_FOUND)) => {}
-                Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
-            }
-            client
-                .put_json_if_none_match(lock_path, &payload)
-                .await
-                .map_err(|error| RepositoryError::Tauri(error.to_string()))
+            Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
         }
-        Err(error) => Err(RepositoryError::Tauri(error.to_string())),
     }
+    debug_assert!(held);
+    let existing = client
+        .get_json(lock_path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    let expires_at = existing
+        .get("expiresAt")
+        .and_then(serde_json::Value::as_str)
+        .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+        .map(|value| value.with_timezone(&Utc));
+    if expires_at.is_none_or(|value| value > Utc::now()) {
+        return Err(RepositoryError::Tauri(
+            "remote sync lock is held; retry later".to_owned(),
+        ));
+    }
+    match client.delete(lock_path).await {
+        Ok(()) | Err(WebDavError::Http(reqwest::StatusCode::NOT_FOUND)) => {}
+        Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
+    }
+    client
+        .put_json_if_none_match(lock_path, &payload)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))
 }
 
 async fn release_soft_lock(client: &WebDavClient, lock_path: &str) -> RepositoryResult<()> {

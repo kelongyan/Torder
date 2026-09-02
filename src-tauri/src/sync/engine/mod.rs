@@ -35,6 +35,20 @@ pub(crate) use run::*;
 // ---- 共享常量与类型（子模块经 `use super::*` 访问） ----
 
 const PROTOCOL: i64 = 2;
+/// 仍可读取的最旧远端协议版本。
+///
+/// v1→v2 是纯增量变更（新增 attachment/taskLink 实体），Manifest / ChangeBatch /
+/// Snapshot 的字段结构没有破坏性改动，因此 v2 客户端可以直接读 v1 集合。
+/// 读到 v1 集合后会在下一次写 manifest 时就地升级为 v2（见 manifest_io.rs
+/// `normalize_manifest_protocol`），避免老集合被永久判为 "incompatible" 而锁死同步。
+const MIN_SUPPORTED_PROTOCOL: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
+const MIN_SUPPORTED_SCHEMA_VERSION: i64 = 1;
+
+fn supported_protocol(protocol: i64) -> bool {
+    (MIN_SUPPORTED_PROTOCOL..=PROTOCOL).contains(&protocol)
+}
+
 const MAX_BATCH_OPERATIONS: usize = 500;
 const MAX_BATCH_JSON_BYTES: usize = 1024 * 1024;
 const MAX_SNAPSHOT_OPERATIONS: usize = 50_000;
@@ -52,5 +66,7 @@ const MAX_JSON_DEPTH: usize = 16;
 const MAX_STRING_LENGTH: usize = 16 * 1024;
 const MAX_ID_LENGTH: usize = 128;
 
+#[cfg(test)]
+mod live_tests;
 #[cfg(test)]
 mod tests;

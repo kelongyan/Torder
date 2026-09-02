@@ -153,3 +153,88 @@ pub fn confirmation_key(server_url: &str, remote_path: &str) -> String {
         remote_path.trim().trim_matches('/')
     )
 }
+
+/// 「仅创建」写入变更批次。
+///
+/// 不能只依赖 `If-None-Match: *`：坚果云会忽略该前置条件直接覆盖（实测 204），
+/// 于是另一台设备刚占位的同序号批次会被静默摧毁，远端历史与该设备本地记录永久分叉。
+/// 这里先显式探一次存在性；内容一致说明是本设备上次中断后的重试，可继续。
+pub(crate) async fn put_change_batch_create_only(
+    client: &WebDavClient,
+    path: &str,
+    value: &serde_json::Value,
+    conflict_message: &str,
+) -> RepositoryResult<()> {
+    if client
+        .exists(path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?
+    {
+        return confirm_existing_batch(client, path, value, conflict_message).await;
+    }
+    match client.put_json_if_none_match(path, value).await {
+        Ok(()) => Ok(()),
+        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
+            confirm_existing_batch(client, path, value, conflict_message).await
+        }
+        Err(error) => Err(RepositoryError::Tauri(error.to_string())),
+    }
+}
+
+async fn confirm_existing_batch(
+    client: &WebDavClient,
+    path: &str,
+    value: &serde_json::Value,
+    conflict_message: &str,
+) -> RepositoryResult<()> {
+    let existing = client
+        .get_json(path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    if &existing == value {
+        return Ok(());
+    }
+    Err(RepositoryError::Tauri(conflict_message.to_owned()))
+}
+
+/// 「仅创建」写入快照，语义与 `put_change_batch_create_only` 一致。
+pub(crate) async fn put_snapshot_create_only(
+    client: &WebDavClient,
+    path: &str,
+    payload: &[u8],
+    conflict_message: &str,
+) -> RepositoryResult<()> {
+    if client
+        .exists(path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?
+    {
+        return confirm_existing_snapshot(client, path, payload, conflict_message).await;
+    }
+    match client
+        .put_snapshot_if_none_match(path, payload.to_vec())
+        .await
+    {
+        Ok(()) => Ok(()),
+        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
+            confirm_existing_snapshot(client, path, payload, conflict_message).await
+        }
+        Err(error) => Err(RepositoryError::Tauri(error.to_string())),
+    }
+}
+
+async fn confirm_existing_snapshot(
+    client: &WebDavClient,
+    path: &str,
+    payload: &[u8],
+    conflict_message: &str,
+) -> RepositoryResult<()> {
+    let existing = client
+        .get_snapshot(path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    if existing == payload {
+        return Ok(());
+    }
+    Err(RepositoryError::Tauri(conflict_message.to_owned()))
+}

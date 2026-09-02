@@ -327,7 +327,7 @@ async fn run_with_client_once(
                 .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
             let mut batch: ChangeBatch = serde_json::from_value(batch_value)
                 .map_err(|_| RepositoryError::Validation("invalid remote change batch"))?;
-            if batch.protocol != PROTOCOL || batch.sequence != sequence {
+            if !supported_protocol(batch.protocol) || batch.sequence != sequence {
                 return Err(RepositoryError::Validation(
                     "invalid remote change sequence",
                 ));
@@ -428,24 +428,13 @@ async fn run_with_client_once(
         sequence,
     )?;
     let batch_path = format!("{root}/changes/{sequence:020}.json");
-    match client
-        .put_json_if_none_match(&batch_path, &batch_value)
-        .await
-    {
-        Ok(()) => {}
-        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            let existing = client
-                .get_json(&batch_path)
-                .await
-                .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
-            if existing != batch_value {
-                return Err(RepositoryError::Tauri(
-                    "remote sequence was claimed by another device; retry sync".to_owned(),
-                ));
-            }
-        }
-        Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
-    }
+    put_change_batch_create_only(
+        client,
+        &batch_path,
+        &batch_value,
+        "remote sequence was claimed by another device; retry sync",
+    )
+    .await?;
     if pending_total <= MAX_BATCH_OPERATIONS as i64 && operation_count == changes.len() {
         let mut snapshot = build_snapshot(&mut connection, sequence)?;
         snapshot.created_at = batch.created_at.clone();
@@ -453,27 +442,13 @@ async fn run_with_client_once(
             let snapshot_path = format!("{root}/snapshots/{sequence:020}.json.gz");
             encrypt_operations(&mut snapshot.operations, encryption.as_ref())?;
             let snapshot_payload = encode_snapshot(&snapshot)?;
-            match client
-                .put_snapshot_if_none_match(&snapshot_path, snapshot_payload.clone())
-                .await
-            {
-                Ok(()) => {}
-                Err(WebDavError::Http(status))
-                    if status == reqwest::StatusCode::PRECONDITION_FAILED =>
-                {
-                    let existing = client
-                        .get_snapshot(&snapshot_path)
-                        .await
-                        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
-                    if existing != snapshot_payload {
-                        return Err(RepositoryError::Tauri(
-                            "remote snapshot sequence was claimed by another device; retry sync"
-                                .to_owned(),
-                        ));
-                    }
-                }
-                Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
-            }
+            put_snapshot_create_only(
+                client,
+                &snapshot_path,
+                &snapshot_payload,
+                "remote snapshot sequence was claimed by another device; retry sync",
+            )
+            .await?;
             let verified_snapshot = client
                 .get_snapshot(&snapshot_path)
                 .await

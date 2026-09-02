@@ -6,8 +6,8 @@ use std::io::{Read, Write};
 
 use super::validate::validate_operation;
 use super::{
-    Utc, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_SNAPSHOT_JSON_BYTES, MAX_SNAPSHOT_OPERATIONS,
-    PROTOCOL,
+    supported_protocol, Utc, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_SNAPSHOT_JSON_BYTES,
+    MAX_SNAPSHOT_OPERATIONS, PROTOCOL,
 };
 use crate::db::attachment_repository::managed_blob_relative_path;
 use crate::db::{sync_repository, Database};
@@ -226,7 +226,7 @@ pub(crate) fn decode_snapshot(payload: &[u8]) -> RepositoryResult<Snapshot> {
     }
     let snapshot: Snapshot = serde_json::from_slice(&json)
         .map_err(|_| RepositoryError::Validation("invalid sync snapshot"))?;
-    if snapshot.protocol != PROTOCOL
+    if !supported_protocol(snapshot.protocol)
         || snapshot.sequence < 1
         || snapshot.operations.len() > MAX_SNAPSHOT_OPERATIONS
         || chrono::DateTime::parse_from_rfc3339(&snapshot.created_at).is_err()
@@ -262,7 +262,7 @@ pub fn apply_batch_with_limit(
     batch: &ChangeBatch,
     operation_limit: usize,
 ) -> RepositoryResult<()> {
-    if batch.protocol != PROTOCOL || batch.sequence < 1 {
+    if !supported_protocol(batch.protocol) || batch.sequence < 1 {
         return Err(RepositoryError::Validation("invalid sync change batch"));
     }
     if batch.device_id.trim().is_empty() || batch.device_id.len() > MAX_ID_LENGTH {

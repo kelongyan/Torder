@@ -13,7 +13,7 @@ use crate::sync::crypto::{self};
 use crate::sync::manifest::{
     ChangeBatch, EncryptionConfig, Manifest,
 };
-use crate::sync::webdav::{WebDavClient, WebDavError};
+use crate::sync::webdav::WebDavClient;
 
 pub async fn fetch_remote_encryption_config(
     server_url: &str,
@@ -140,44 +140,21 @@ pub(crate) async fn rotate_encryption_with_client(
     };
     let batch_path = format!("{root}/changes/{sequence:020}.json");
     let batch_value = serde_json::to_value(&empty_batch)?;
-    match client
-        .put_json_if_none_match(&batch_path, &batch_value)
-        .await
-    {
-        Ok(()) => {}
-        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            let existing = client
-                .get_json(&batch_path)
-                .await
-                .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
-            if existing != batch_value {
-                return Err(RepositoryError::Tauri(
-                    "remote sequence was claimed by another device; retry key rotation".to_owned(),
-                ));
-            }
-        }
-        Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
-    }
+    put_change_batch_create_only(
+        client,
+        &batch_path,
+        &batch_value,
+        "remote sequence was claimed by another device; retry key rotation",
+    )
+    .await?;
     let snapshot_path = format!("{root}/snapshots/{sequence:020}.json.gz");
-    match client
-        .put_snapshot_if_none_match(&snapshot_path, snapshot_payload.clone())
-        .await
-    {
-        Ok(()) => {}
-        Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            let existing = client
-                .get_snapshot(&snapshot_path)
-                .await
-                .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
-            if existing != snapshot_payload {
-                return Err(RepositoryError::Tauri(
-                    "remote snapshot sequence was claimed by another device; retry key rotation"
-                        .to_owned(),
-                ));
-            }
-        }
-        Err(error) => return Err(RepositoryError::Tauri(error.to_string())),
-    }
+    put_snapshot_create_only(
+        client,
+        &snapshot_path,
+        &snapshot_payload,
+        "remote snapshot sequence was claimed by another device; retry key rotation",
+    )
+    .await?;
     let verified_snapshot = client
         .get_snapshot(&snapshot_path)
         .await

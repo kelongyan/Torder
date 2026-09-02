@@ -2595,7 +2595,8 @@ fn soft_lock_reclaims_expired_lock_and_rejects_active_lock() {
         .iter()
         .map(|request| request.method.clone())
         .collect::<Vec<_>>();
-    assert_eq!(methods, vec!["PUT", "GET", "DELETE", "PUT"]);
+    // 软锁不再只靠 If-None-Match（部分服务端会忽略它直接覆盖），先 PROPFIND 探存在性
+    assert_eq!(methods, vec!["PROPFIND", "GET", "DELETE", "PUT"]);
     handle.join().unwrap();
 
     let active_config = MockDavConfig {
@@ -2626,7 +2627,7 @@ fn manifest_without_etag_is_guarded_by_soft_lock() {
         manifest_without_etag: true,
         ..MockDavConfig::default()
     };
-    let (address, requests, handle) = spawn_mock_dav(config, 5);
+    let (address, requests, handle) = spawn_mock_dav(config, 6);
     let client = WebDavClient::new_for_test(address);
     let manifest: Manifest = serde_json::from_value(initial_manifest).unwrap();
     tauri::async_runtime::block_on(put_manifest(
@@ -2639,12 +2640,14 @@ fn manifest_without_etag_is_guarded_by_soft_lock() {
     ))
     .unwrap();
     let requests = requests.lock().unwrap();
-    assert_eq!(requests[0].method, "PUT");
+    assert_eq!(requests[0].method, "PROPFIND");
     assert!(requests[0].path.contains("/locks/sync.lock"));
-    assert_eq!(requests[1].method, "GET");
-    assert_eq!(requests[2].method, "PUT");
-    assert_eq!(requests[3].method, "DELETE");
-    assert_eq!(requests[4].method, "GET");
+    assert_eq!(requests[1].method, "PUT");
+    assert!(requests[1].path.contains("/locks/sync.lock"));
+    assert_eq!(requests[2].method, "GET");
+    assert_eq!(requests[3].method, "PUT");
+    assert_eq!(requests[4].method, "DELETE");
+    assert_eq!(requests[5].method, "GET");
     drop(requests);
     handle.join().unwrap();
 }
@@ -3033,6 +3036,88 @@ fn empty_manifest() -> Value {
     })
 }
 
+/// 老客户端建立的集合：protocol / schemaVersion 都是 1。
+#[test]
+fn legacy_protocol_v1_collection_syncs_and_is_upgraded_in_place() {
+    let collection_id = uuid::Uuid::new_v4().to_string();
+    let manifest = json!({
+        "protocol": 1,
+        "collectionId": collection_id,
+        "format": "torder-sync",
+        "schemaVersion": 1,
+        "latestSequence": 1,
+        "updatedAt": "2026-08-24T12:16:15.344Z"
+    });
+    let batch = json!({
+        "protocol": 1,
+        "sequence": 1,
+        "deviceId": "legacy-windows",
+        "createdAt": "2026-08-24T05:18:15.171Z",
+        "operations": [{
+            "id": "legacy-list-change",
+            "entity": "list",
+            "objectId": "legacy-list",
+            "operation": "upsert",
+            "baseRevision": 0,
+            "revision": 1,
+            "changedAt": "2026-08-24T05:18:15.171Z",
+            "payload": {
+                "id": "legacy-list",
+                "name": "老协议清单",
+                "color": "#123456",
+                "sortOrder": 0,
+                "isDefault": false,
+                "deletedAt": null
+            }
+        }]
+    });
+    let config = MockDavConfig {
+        manifest: Some(manifest),
+        batch: Some(batch),
+        ..MockDavConfig::default()
+    };
+    let (address, requests, handle) = spawn_mock_dav(config, 8);
+    let client = WebDavClient::new_for_test(address);
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-legacy-v1-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+
+    tauri::async_runtime::block_on(run_with_client(&database, &client, "sync")).unwrap();
+
+    let connection = database.connect().unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT name FROM lists WHERE id = 'legacy-list'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap(),
+        "老协议清单",
+        "v1 集合的历史变更必须能被当前客户端拉下来"
+    );
+    let requests = requests.lock().unwrap();
+    let upgraded: Manifest = serde_json::from_slice(
+        &requests
+            .iter()
+            .rev()
+            .find(|request| request.method == "PUT" && request.path.ends_with("/manifest.json"))
+            .expect("manifest was rewritten")
+            .body,
+    )
+    .unwrap();
+    assert_eq!(upgraded.protocol, PROTOCOL, "写回时应就地升级 protocol");
+    assert_eq!(upgraded.schema_version, 2, "写回时应就地升级 schemaVersion");
+    assert_eq!(upgraded.collection_id, collection_id);
+    drop(requests);
+    handle.join().unwrap();
+    drop(connection);
+    drop(database);
+    cleanup_database(&path);
+}
+
 fn create_pending_task(database: &Database) {
     crate::db::task_repository::TaskRepository::new(database)
         .create(crate::models::CreateTaskInput {
@@ -3109,13 +3194,64 @@ fn spawn_mock_dav(
         let mut blob = config.blob;
         let mut lock_payload = config.lock_payload;
         let mut manifest_version = if manifest.is_some() { 1 } else { 0 };
-        for _ in 0..expected_requests {
-            let (mut stream, _) = listener.accept().unwrap();
+        // create-only 写入会先发 PROPFIND 探存在性，实际请求数比 expected_requests 多，
+        // 所以把它当下限：先服务够下限，之后空闲一段时间再收摊，避免多一个请求就挂死。
+        let mut existing_paths = std::collections::BTreeSet::<String>::new();
+        if let Some(sequence) = batch
+            .as_ref()
+            .and_then(|value| value.get("sequence"))
+            .and_then(Value::as_i64)
+        {
+            existing_paths.insert(format!("{sequence:020}.json"));
+        }
+        if snapshot.is_some() {
+            if let Some(sequence) = manifest
+                .as_ref()
+                .and_then(|value| value.get("snapshotSequence"))
+                .and_then(Value::as_i64)
+            {
+                existing_paths.insert(format!("{sequence:020}.json.gz"));
+            }
+        }
+        listener.set_nonblocking(true).unwrap();
+        let mut served = 0_usize;
+        let mut last_activity = std::time::Instant::now();
+        loop {
+            let (mut stream, _) = match listener.accept() {
+                Ok(accepted) => accepted,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    let idle = last_activity.elapsed();
+                    if served >= expected_requests && idle > std::time::Duration::from_millis(800) {
+                        break;
+                    }
+                    if idle > std::time::Duration::from_secs(15) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    continue;
+                }
+                Err(error) => panic!("mock WebDAV accept failed: {error}"),
+            };
+            stream.set_nonblocking(false).unwrap();
+            served += 1;
+            last_activity = std::time::Instant::now();
             stream
                 .set_read_timeout(Some(std::time::Duration::from_secs(2)))
                 .unwrap();
             let request = read_mock_request(&mut stream);
-            let response = if request.path.contains("/locks/sync.lock") {
+            let response = if request.method == "PROPFIND" {
+                let name = request.path.rsplit('/').next().unwrap_or("").to_owned();
+                let present = if request.path.contains("/locks/sync.lock") {
+                    lock_payload.is_some()
+                } else {
+                    existing_paths.contains(&name)
+                };
+                MockResponse {
+                    status: if present { 207 } else { 404 },
+                    body: Vec::new(),
+                    etag: None,
+                }
+            } else if request.path.contains("/locks/sync.lock") {
                 match request.method.as_str() {
                     "PUT" if lock_payload.is_some() => MockResponse {
                         status: 412,
@@ -3199,6 +3335,9 @@ fn spawn_mock_dav(
                 }
             } else if request.path.contains("/changes/") && request.method == "PUT" {
                 batch = Some(serde_json::from_slice(&request.body).unwrap());
+                if let Some(name) = request.path.rsplit('/').next() {
+                    existing_paths.insert(name.to_owned());
+                }
                 MockResponse {
                     status: 201,
                     body: Vec::new(),
@@ -3263,6 +3402,9 @@ fn spawn_mock_dav(
                 }
             } else if request.path.contains("/snapshots/") && request.method == "PUT" {
                 snapshot = Some(request.body.clone());
+                if let Some(name) = request.path.rsplit('/').next() {
+                    existing_paths.insert(name.to_owned());
+                }
                 MockResponse {
                     status: 201,
                     body: Vec::new(),
@@ -3282,6 +3424,9 @@ fn spawn_mock_dav(
                     },
                 }
             } else if request.path.contains("/changes/") && request.method == "DELETE" {
+                if let Some(name) = request.path.rsplit('/').next() {
+                    existing_paths.remove(name);
+                }
                 MockResponse {
                     status: 204,
                     body: Vec::new(),
