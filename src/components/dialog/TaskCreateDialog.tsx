@@ -9,6 +9,7 @@ import type {
   TaskList,
 } from "../../types/database";
 import type { ToastKind } from "../../types/ui";
+import type { AppSettings } from "../../types/settings";
 import {
   emptyDraft,
   parseTagsInput,
@@ -25,6 +26,8 @@ export function TaskCreateDialog({
   defaultListId,
   defaultScheduledDate = "",
   defaultReminderMinutes,
+  defaultPriority = -1,
+  defaultDueDate = "none",
   presence,
   onClose,
   onSubmit,
@@ -35,6 +38,10 @@ export function TaskCreateDialog({
   defaultListId: string;
   defaultScheduledDate?: string;
   defaultReminderMinutes: number;
+  /** T-10 甲组：设置的默认优先级（-1 = 不预设）。 */
+  defaultPriority?: AppSettings["defaultPriority"];
+  /** T-10 甲组：设置的默认截止。 */
+  defaultDueDate?: AppSettings["defaultDueDate"];
   presence: PresencePhase;
   onClose: () => void;
   onSubmit: (
@@ -45,7 +52,10 @@ export function TaskCreateDialog({
   onToast: (message: string, type: ToastKind) => void;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(() =>
-    emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate),
+    emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate, {
+      priority: defaultPriority,
+      dueDate: defaultDueDate,
+    }),
   );
   const [attachments, setAttachments] = useState<PendingTaskAttachment[]>([]);
   const [touched, setTouched] = useState(false);

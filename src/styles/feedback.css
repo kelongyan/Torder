@@ -50,8 +50,8 @@
 .empty-state h2 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 18px;
-  line-height: 27px;
+  font-size: 19px;
+  line-height: 28px;
 }
 
 .empty-state p {

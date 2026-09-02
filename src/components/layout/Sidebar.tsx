@@ -39,6 +39,10 @@ export function Sidebar({
   counts,
   savedViews,
   activeSavedViewId,
+  tags,
+  activeTags,
+  onTagToggle,
+  onClearTags,
   onSearchChange,
   onScopeChange,
   onSavedViewOpen,
@@ -62,6 +66,11 @@ export function Sidebar({
   };
   savedViews: SavedTaskView[];
   activeSavedViewId: string | null;
+  /** T-07：在用标签及其任务数（App 层从 allTasks 聚合）。 */
+  tags: Array<{ tag: string; count: number }>;
+  activeTags: string[];
+  onTagToggle: (tag: string) => void;
+  onClearTags: () => void;
   onSearchChange: (query: string) => void;
   onScopeChange: (scope: TaskScope) => void;
   onSavedViewOpen: (view: SavedTaskView) => void;
@@ -233,16 +242,40 @@ export function Sidebar({
           />
         ))}
 
-        {/* T-07 · 标签分组：功能未开发，纯灰显占位（DESIGN.md §13 规则 4，不接业务） */}
-        <div
-          className="nav-group-header tags-placeholder ui-placeholder"
-          aria-disabled="true"
-        >
-          <span className="nav-group-label">标签</span>
-          <span className="btn-add-list" aria-hidden="true">
-            <Plus className="icon-xs" />
-          </span>
-        </div>
+        {/*
+          F1 · T-07 标签分组：从在用标签聚合而来，点击切换 filter.tags 过滤。
+          按方案书 Q2 定稿不设「新建标签」入口——标签在事项录入时自然产生。
+          无标签时整组不渲染，避免出现一个永远空的分组。
+        */}
+        {tags.length > 0 && (
+          <>
+            <div className="sidebar-divider" />
+            <div className="nav-group-header">
+              <span className="nav-group-label">标签</span>
+              {activeTags.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-add-list"
+                  onClick={onClearTags}
+                  title="清除标签筛选"
+                  aria-label="清除标签筛选"
+                >
+                  <X className="icon-xs" />
+                </button>
+              )}
+            </div>
+            {tags.map((item) => (
+              <SidebarItem
+                key={item.tag}
+                icon={Tag}
+                label={item.tag}
+                active={activeTags.includes(item.tag)}
+                count={item.count}
+                onClick={() => onTagToggle(item.tag)}
+              />
+            ))}
+          </>
+        )}
       </nav>
     </aside>
   );

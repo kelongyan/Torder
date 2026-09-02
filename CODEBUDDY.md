@@ -76,4 +76,5 @@ pnpm tauri android build --apk    # Android APK
 
 - `设计稿/DESIGN.md` — **唯一基准文档**（v3.1）：§1–§12 设计规格（设计 token + 复现手册）+ §13 迁移总纲（决策记录 D1–D8、七条总规则、R0–R7 区域状态、迁移项总表、占位台账 T-01~T-12、SOP 与验收规则）。UI 重构的一切规则、差异表、占位登记都在该文件维护。硬锁定：过渡动画与字体样式保持现状、不依照设计稿（D7/D8）。
 - `设计稿/ROADMAP.md` — 渲染图制作史，已封存（2026-08-31 全部 30 项落地）。
+- `docx/feature-roadmap-2026-09-01.md` — **后续功能开发方案书**（v1.3；**F1、F2 已完成核销**，F3/F4 待排期）：UI 迁移收口后剩余的功能实装排期。按 F1–F4 四批组织 DESIGN.md §13.4 台账项（T-01~T-15），含底座核查结论（多项成本较台账下修）、技术债 TD-1~TD-3（TD-1/TD-2 已结清）、决策定稿 Q1–Q7（§5，含 §5.1 的 T-10 设置字段逐字段归位表）。功能排期与技术方案看本文，视觉规格看 DESIGN.md §13。
 - `docx/code-audit-2026-08-28.md` — code audit at v2.6.3 with fix-progress tracking (P0–P3 findings)。

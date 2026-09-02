@@ -25,6 +25,7 @@ export function TaskRow({
   searchQuery,
   deleted = false,
   timeGutter,
+  attachmentCount = 0,
   onOpen,
   onToggle,
   onDelete,
@@ -50,6 +51,8 @@ export function TaskRow({
   deleted?: boolean;
   /** 今天视图时间轴（提案 D）：行首 HH:mm 时间槽；出现时隐藏元信息里的日期标签。 */
   timeGutter?: string;
+  /** T-15：附件数（0 不显示），App 层从 store.attachmentCounts 查表。 */
+  attachmentCount?: number;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -142,7 +145,12 @@ export function TaskRow({
           </h3>
           {/* D6：行内备注移除（忠于设计稿两行层级），备注在详情面板查看 */}
         </div>
-        <TaskMeta task={task} list={list} hideDue={Boolean(timeGutter)} />
+        <TaskMeta
+          task={task}
+          list={list}
+          hideDue={Boolean(timeGutter)}
+          attachmentCount={attachmentCount}
+        />
       </div>
 
       {!batchMode && (

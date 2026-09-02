@@ -7,8 +7,9 @@
  * 旧「8 档字号 / 禁奇数间距」精修基线（docs/ui-refinement-plan.md）已废除。
  *
  * 检查三类：
- *  1. fontSizes        ——【硬门禁】font-size 值必须在白名单内：设计稿 16 档 ∪ 存量档 18/20px。
- *                         18/20 是迁移前存量，随各区域迁移收敛到设计稿档（--report 输出占比）。
+ *  1. fontSizes        ——【硬门禁】font-size 值必须在设计稿 16 档白名单内。
+ *                         迁移期的存量档 18/20px 已于 F2（TD-2）全部收敛，白名单随之收紧，
+ *                         防止存量档回流（--report 输出档位占比）。
  *  2. spacing          ——【硬门禁】padding/margin/gap 的 px 值必须为整数
  *                         （2px 阶梯 + 半档 = 奇数合法；小数 px 非法）
  *  3. controlHeights   ——【仅报告】16–64px 控件带 + 超带高度列示，不拦截：
@@ -52,8 +53,6 @@ const DESIGN_TIERS = new Set([
   "22",
   "25",
 ]);
-/** 存量档：迁移完成前允许，随区域迁移收敛（当前主要残留 18/20） */
-const LEGACY_TIERS = new Set(["18", "20"]);
 /** 控件高度合法带 */
 const HEIGHT_BAND = { min: 16, max: 64 };
 
@@ -126,7 +125,7 @@ if (process.argv.includes("--report")) {
     : 100;
   console.log("font-size 档位:", stats.fontSizes.join(", "));
   console.log(
-    `设计稿档占比: ${stats.fontDesignCount}/${stats.fontTotal} 声明（${ratio}%，余为存量 18/20px）`,
+    `设计稿档占比: ${stats.fontDesignCount}/${stats.fontTotal} 声明（${ratio}%，未达 100% 即有白名单外档位，见 fontHits）`,
   );
   console.log("控件高度档位(16-64px):", stats.controlHeights.join(", "));
   if (stats.badHeights.length > 0)
@@ -135,12 +134,10 @@ if (process.argv.includes("--report")) {
 }
 
 const failures = [];
-const offTiers = stats.fontSizes.filter(
-  (v) => !DESIGN_TIERS.has(v) && !LEGACY_TIERS.has(v),
-);
+const offTiers = stats.fontSizes.filter((v) => !DESIGN_TIERS.has(v));
 if (offTiers.length > 0) {
   failures.push(
-    `font-size 出现白名单外的档位: ${offTiers.join(", ")}（允许 = 设计稿 16 档 ∪ 存量 18/20px；来源示例: ${stats.fontHits.slice(0, 3).join(" | ")}）`,
+    `font-size 出现白名单外的档位: ${offTiers.join(", ")}（允许 = 设计稿 16 档；来源示例: ${stats.fontHits.slice(0, 3).join(" | ")}）`,
   );
 }
 if (stats.badSpacing.length > 0) {

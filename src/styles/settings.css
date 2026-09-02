@@ -25,7 +25,7 @@
 }
 
 .settings-dialog .dialog-header h2 {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 24px;
 }
 
@@ -1235,7 +1235,7 @@
 
 .stats-metric strong {
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   line-height: 28px;
 }
@@ -2009,4 +2009,257 @@
   color: var(--text-3);
   font-size: 12px;
   text-decoration: underline;
+}
+
+/* F2 · T-09：强调色六色板（真实生效，is-on 双环高亮沿用设计稿色板语言） */
+.accent-swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.accent-swatch {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.accent-swatch:hover {
+  transform: scale(1.12);
+}
+
+.accent-swatch.is-on {
+  box-shadow:
+    0 0 0 2px var(--mica),
+    0 0 0 4px var(--swatch);
+}
+
+/* F2 · T-10 甲组：真实开关与快捷键表（开关视觉与设计稿 PhSwitch 同规格） */
+.switch-toggle {
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 34px;
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--stroke-mid);
+  padding: 2px;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.switch-toggle i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.switch-toggle.is-on {
+  background: var(--accent);
+}
+
+.switch-toggle.is-on i {
+  transform: translateX(14px);
+}
+
+.switch-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  margin-top: 10px;
+}
+
+.settings-toggle-label {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.shortcut-group + .shortcut-group {
+  margin-top: 16px;
+}
+
+.shortcut-group-title {
+  margin: 0 0 6px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+}
+
+.shortcut-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.shortcut-keys {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.shortcut-keys kbd {
+  border: 1px solid var(--stroke-mid);
+  border-radius: 4px;
+  background: var(--hover);
+  padding: 1px 6px;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* F2 · T-10/T-11：设置搜索、恢复默认、关于子弹层 */
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--sunken);
+  padding: 0 10px;
+  height: 32px;
+  color: var(--text-3);
+}
+
+.settings-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.settings-search input::placeholder {
+  color: var(--text-3);
+}
+
+.settings-search-empty {
+  margin: 6px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.settings-reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--text-3);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+.settings-reset-button:hover {
+  background: var(--hover);
+  color: var(--danger);
+}
+
+.settings-subdialog {
+  z-index: 60;
+}
+
+.changelog-list {
+  padding: 16px;
+  overflow: auto;
+}
+
+.changelog-entry + .changelog-entry {
+  margin-top: 18px;
+}
+
+.changelog-entry header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.changelog-entry h4 {
+  margin: 0;
+  color: var(--text-1);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.changelog-entry header span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.changelog-entry ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.license-list {
+  padding: 16px;
+  overflow: auto;
+}
+
+.license-note {
+  margin: 0 0 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.license-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 12.5px;
+}
+
+.license-row:last-child {
+  border-bottom: 0;
+}
+
+.license-name {
+  min-width: 0;
+  flex: 1;
+  color: var(--text-1);
+}
+
+.license-usage {
+  color: var(--text-3);
+}
+
+.license-type {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }

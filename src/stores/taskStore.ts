@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { filterAndSortTasks } from "../services/taskQuery";
+import { countTaskAttachments } from "../services/attachmentService";
 import {
   createTask,
   deleteTask,
@@ -49,6 +50,8 @@ interface TaskState {
   tasks: Task[];
   trashTasks: Task[];
   trashLoaded: boolean;
+  /** T-15：`task_id -> 附件数`，loadTasks 时随任务一并刷新，详情抽屉增删附件后本地 bump。 */
+  attachmentCounts: Record<string, number>;
   initialized: boolean;
   selectedTaskId: string | null;
   batchMode: boolean;
@@ -64,7 +67,11 @@ interface TaskState {
   toggleFilterTag: (tag: string) => Promise<void>;
   toggleFilterPriority: (priority: TaskPriority) => Promise<void>;
   toggleFilterCompleted: () => Promise<void>;
+  /** T-07：只清标签维度，保留清单/优先级等其他筛选条件。 */
+  clearFilterTags: () => Promise<void>;
   clearFilter: () => Promise<void>;
+  /** T-15：详情抽屉增删附件后本地更新计数，免整表重查。 */
+  bumpAttachmentCount: (taskId: string, delta: number) => void;
   setShowCompleted: (showCompleted: boolean) => Promise<void>;
   applyViewState: (state: {
     scope: TaskScope;
@@ -126,6 +133,7 @@ export const useTaskStore = create<TaskState>()(
       tasks: [],
       trashTasks: [],
       trashLoaded: false,
+      attachmentCounts: {},
       initialized: false,
       selectedTaskId: null,
       batchMode: false,
@@ -195,6 +203,24 @@ export const useTaskStore = create<TaskState>()(
         })));
       },
 
+      clearFilterTags: async () => {
+        set((state) => patchFilter(state, (filter) => ({
+          ...filter,
+          tags: [],
+        })));
+      },
+
+      bumpAttachmentCount: (taskId, delta) => {
+        set((state) => {
+          const current = state.attachmentCounts[taskId] ?? 0;
+          const next = Math.max(0, current + delta);
+          if (next === current) return state;
+          return {
+            attachmentCounts: { ...state.attachmentCounts, [taskId]: next },
+          };
+        });
+      },
+
       clearFilter: async () => {
         set((state) => {
           const filter = emptyTaskFilter;
@@ -245,7 +271,7 @@ export const useTaskStore = create<TaskState>()(
         try {
           const { scope, sortBy, trashLoaded } = get();
           const needTrash = trashLoaded || isDeletedScope(scope);
-          const [allTasks, trashTasks] = await Promise.all([
+          const [allTasks, trashTasks, attachmentCounts] = await Promise.all([
             queryTasks({
               scope: defaultTaskScope,
               query: "",
@@ -260,6 +286,8 @@ export const useTaskStore = create<TaskState>()(
                   showCompleted: true,
                 })
               : Promise.resolve(null),
+            // T-15：计数随任务加载一并刷新（重拉点都在 loadTasks，不会漏）
+            countTaskAttachments().catch(() => ({})),
           ]);
           if (requestId !== taskRequestSequence) return;
           set((state) => {
@@ -274,6 +302,7 @@ export const useTaskStore = create<TaskState>()(
               ...merged,
               initialized: true,
               loading: false,
+              attachmentCounts,
               tasks: deriveTasks(merged),
             };
           });

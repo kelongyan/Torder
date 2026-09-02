@@ -196,3 +196,86 @@
   --shadow-lift: var(--shadow-pop);
   --shadow-floating: var(--shadow-window);
 }
+
+/* ============================================================
+   F2 · T-09 强调色静态预设层（设计稿 §2.4：持久化 data-accent，
+   不走内联变量，避免绕过主题派生）。blue 为默认（无属性即默认）。
+   派生公式：深色 hi=mix(78%,#fff)/soft 16%/line 40%/on-accent 深字；
+   浅色 hi=mix(86%,#000)/soft 10%/line 38%/on-accent 白字（与主体
+   两套主题块的既定透明度保持一致，只换主色调）。
+   ============================================================ */
+
+:root[data-accent="violet"] {
+  --accent: #a98af5;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="teal"] {
+  --accent: #4bc0c8;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="green"] {
+  --accent: #43c48d;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="amber"] {
+  --accent: #e8b04b;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="rose"] {
+  --accent: #f0819e;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-theme="light"][data-accent="violet"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="teal"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="green"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="amber"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="rose"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}

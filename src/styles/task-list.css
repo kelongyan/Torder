@@ -115,6 +115,17 @@ kbd {
   backdrop-filter: none;
 }
 
+/* F1 · T-14：保留策略提示 + 删除时间分组 */
+.trash-retention-note {
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.trash-group + .trash-group {
+  margin-top: 10px;
+}
+
 /* ===== 任务行：静奢极简（提案 A+C 第一批）=====
    去卡片化：无边框透明行 + 发丝分隔线；优先级以左缘 3px 色条唯一编码。 */
 .task-item {
@@ -548,6 +559,11 @@ mark {
   font-variant-numeric: tabular-nums;
 }
 
+/* T-15 附件计数：复用子任务计数的骨架，仅去进度条 */
+.attachment-meta {
+  gap: 3px;
+}
+
 /* 设计稿 .mini-bar：26×3px，填充 --text-3 */
 .subtask-meta-bar {
   position: relative;
@@ -787,8 +803,10 @@ mark {
   font-size: calc(var(--text-xs) + 0.5px);
 }
 
-.task-composer-placeholder {
+/* F1 · T-05：由灰显占位转为真实控件（收起态是按钮，展开态是输入行） */
+.task-composer {
   display: flex;
+  width: 100%;
   min-height: 46px;
   align-items: center;
   gap: calc(var(--space-3) - 1px);
@@ -800,7 +818,53 @@ mark {
   padding: 0 12px;
   color: var(--text-3);
   font-size: 13px;
-  opacity: 0.62;
+  text-align: left;
+  cursor: text;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.task-composer:hover {
+  border-color: var(--stroke-strong);
+  color: var(--text-2);
+}
+
+.task-composer.is-open {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.task-composer.is-open .task-composer-plus {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* T-13 看板列内联新建：无外边距、更矮、圆角对齐列内卡片 */
+.task-composer--board {
+  min-height: 34px;
+  margin: 0 0 8px;
+  border-radius: 10px;
+  padding: 0 8px;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.task-composer-input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+
+.task-composer-input::placeholder {
+  color: var(--text-3);
 }
 
 .task-composer-plus {
@@ -811,11 +875,25 @@ mark {
   place-items: center;
   border: 1px dashed var(--border-light);
   border-radius: 50%;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.task-composer--board .task-composer-plus {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
 .task-composer-plus svg {
   width: 13px;
   height: 13px;
+}
+
+.task-composer--board .task-composer-plus svg {
+  width: 11px;
+  height: 11px;
 }
 
 @media (max-width: 720px) {
@@ -827,4 +905,27 @@ mark {
   .task-pace-left {
     display: none;
   }
+}
+
+/* F2 · T-12：空工作区引导的主操作按钮 */
+.empty-primary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  padding: 8px 18px;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.empty-primary-action:hover {
+  background: var(--accent);
+  color: var(--on-accent);
 }

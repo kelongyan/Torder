@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { useTaskStore } from "../../stores/taskStore";
 import {
   formatTaskDateTime,
   formatTaskScheduleDate,
@@ -99,6 +100,9 @@ export function TaskDetailPanel({
           onOpenRecurring={onOpenRecurring}
           onOpenTask={onOpenTask}
           onToast={onToast}
+          onAttachmentCountChange={(delta) =>
+            useTaskStore.getState().bumpAttachmentCount(presentTask.id, delta)
+          }
         />
       )}
     </aside>
@@ -117,6 +121,7 @@ function TaskDetailContent({
   onOpenRecurring,
   onOpenTask,
   onToast,
+  onAttachmentCountChange,
 }: {
   task: Task;
   lists: TaskList[];
@@ -129,6 +134,8 @@ function TaskDetailContent({
   onOpenRecurring: (task: Task) => void;
   onOpenTask: (taskId: string) => void;
   onToast: (message: string, type: ToastKind) => void;
+  /** T-15：附件区增删后 bump 任务行计数。 */
+  onAttachmentCountChange: (delta: number) => void;
 }) {
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
@@ -588,7 +595,11 @@ function TaskDetailContent({
           </form>
         </section>
 
-        <TaskAttachmentSection taskId={task.id} onToast={onToast} />
+        <TaskAttachmentSection
+          taskId={task.id}
+          onToast={onToast}
+          onCountChange={onAttachmentCountChange}
+        />
 
         <TaskLinkSection
           task={task}

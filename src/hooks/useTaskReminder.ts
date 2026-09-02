@@ -14,6 +14,12 @@ interface ReminderEvent {
   dueAt: string | null;
 }
 
+/** F2 · T-10 甲组：通知门控（总开关 + 提示音）。 */
+export interface ReminderGate {
+  notificationsEnabled: boolean;
+  notificationSound: "system" | "silent";
+}
+
 const NOTIFICATION_TITLE = "⏰ 任务即将到期";
 
 function reminderBody(title: string, dueAt: string | null): string {
@@ -22,7 +28,12 @@ function reminderBody(title: string, dueAt: string | null): string {
 
 // 移动端：Android WebView 无 Web Notification API，走原生通知通道。
 // Android 13+ 需先授权 POST_NOTIFICATIONS（插件已自带权限声明）。
-async function sendMobileNotification(body: string) {
+// 提示音的静音语义由桌面 Web Notification 落地；插件通道仅门控发送与否。
+async function sendMobileNotification(
+  body: string,
+  gate: ReminderGate,
+): Promise<void> {
+  if (!gate.notificationsEnabled) return;
   try {
     let granted = await isPermissionGranted();
     if (!granted) {
@@ -38,34 +49,43 @@ async function sendMobileNotification(body: string) {
 }
 
 // 桌面端：沿用 Web Notification API。
-function showWebNotification(body: string) {
+function showWebNotification(body: string, gate: ReminderGate): void {
+  if (!gate.notificationsEnabled) return;
   if (!("Notification" in window)) return;
+  const options: NotificationOptions & { silent?: boolean } = {
+    body,
+    silent: gate.notificationSound === "silent",
+  };
   if (Notification.permission === "granted") {
-    new Notification(NOTIFICATION_TITLE, { body });
+    new Notification(NOTIFICATION_TITLE, options);
   } else if (Notification.permission !== "denied") {
     Notification.requestPermission().then((permission) => {
       if (permission === "granted") {
-        new Notification(NOTIFICATION_TITLE, { body });
+        new Notification(NOTIFICATION_TITLE, options);
       }
     });
   }
 }
 
-export function useTaskReminder(onReminder?: (event: ReminderEvent) => void) {
+export function useTaskReminder(
+  onReminder: ((event: ReminderEvent) => void) | undefined,
+  { notificationsEnabled, notificationSound }: ReminderGate,
+): void {
   useEffect(() => {
     if (!isTauri()) return;
 
     let cancelled = false;
     let unlisten: (() => void) | undefined;
 
+    const gate: ReminderGate = { notificationsEnabled, notificationSound };
     void listen<ReminderEvent>("task-reminder", (event) => {
       const { title, dueAt } = event.payload;
       const body = reminderBody(title, dueAt);
       onReminder?.(event.payload);
       if (isMobile()) {
-        void sendMobileNotification(body);
+        void sendMobileNotification(body, gate);
       } else {
-        showWebNotification(body);
+        showWebNotification(body, gate);
       }
     }).then((nextUnlisten) => {
       if (cancelled) nextUnlisten();
@@ -76,5 +96,6 @@ export function useTaskReminder(onReminder?: (event: ReminderEvent) => void) {
       cancelled = true;
       unlisten?.();
     };
-  }, [onReminder]);
+    // gate 字段变化时重挂监听以取到最新门控（监听本身幂等，代价可忽略）
+  }, [onReminder, notificationsEnabled, notificationSound]);
 }

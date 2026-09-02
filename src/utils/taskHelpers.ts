@@ -14,6 +14,7 @@ import {
 import { normalizeTags } from "./taskPrediction";
 import { taskViewCopy } from "../constants/taskViews";
 import { defaultTaskScope } from "../stores/taskStore";
+import type { AppSettings, DefaultDueDate } from "../types/settings";
 import type {
   RecurrenceFrequency,
   RecurringRule,
@@ -121,15 +122,38 @@ export function emptyDraft(
   defaultListId: string,
   defaultReminderMinutes = 1440,
   defaultScheduledDate = "",
+  /** F2 · T-10 甲组：来自设置的新建默认值。 */
+  defaults?: {
+    priority?: AppSettings["defaultPriority"];
+    dueDate?: DefaultDueDate;
+  },
 ): TaskDraft {
   const useScheduledOnly = Boolean(defaultScheduledDate);
+  // -1 表示「不预设」，回落到中优先级现状
+  const presetPriority = defaults?.priority;
+  const priority: 0 | 1 | 2 =
+    presetPriority === 0 || presetPriority === 1 || presetPriority === 2
+      ? presetPriority
+      : 1;
+  const fallbackDue = useScheduledOnly ? "" : getDefaultDueAtLocal();
+  // 默认截止：none → 不预填；today/tomorrow/next_monday → 目标日沿用「现在+1小时」的钟点
+  let dueAt = fallbackDue;
+  if (!useScheduledOnly && defaults?.dueDate && defaults.dueDate !== "none") {
+    const time = fallbackDue.split("T")[1] ?? "09:00";
+    const due = new Date();
+    if (defaults.dueDate === "tomorrow") due.setDate(due.getDate() + 1);
+    if (defaults.dueDate === "next_monday") {
+      due.setDate(due.getDate() + (((8 - due.getDay()) % 7) || 7));
+    }
+    dueAt = `${toLocalDateKey(due.toISOString()) ?? toDateKey(due)}T${time}`;
+  }
   return {
     title: "",
     note: "",
-    priority: 1,
+    priority,
     listId: defaultListId,
     scheduledDate: defaultScheduledDate,
-    dueAt: useScheduledOnly ? "" : getDefaultDueAtLocal(),
+    dueAt,
     remindBefore:
       useScheduledOnly || defaultReminderMinutes < 0
         ? null

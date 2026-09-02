@@ -41,6 +41,9 @@ const MIGRATIONS: &[Migration] = &[
             FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE RESTRICT
         );
 
+        -- 历史遗留：下面 tags / task_tags 两张关系表实际未被使用，标签真实存储在
+        -- tasks.tags JSON 列（见 task_repository.rs 的 normalize_tags）。保留建表语句
+        -- 是为了不破坏已发布库的 schema 版本一致性，勿在新代码里读写这两张表。
         CREATE TABLE tags (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL COLLATE NOCASE UNIQUE,

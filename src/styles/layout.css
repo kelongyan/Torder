@@ -591,8 +591,7 @@
 }
 
 .sidebar.collapsed .nav-group-label,
-.sidebar.collapsed .nav-group-header .btn-add-list,
-.sidebar.collapsed .tags-placeholder {
+.sidebar.collapsed .nav-group-header .btn-add-list {
   display: none;
 }
 

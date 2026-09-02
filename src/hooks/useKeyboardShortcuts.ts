@@ -7,6 +7,7 @@ interface KeyboardShortcutsHandlers {
   onOpenCreateDialog: () => void;
   onOpenShortcuts: () => void;
   onToggleBatchMode: () => void;
+  onOpenCommandPalette: () => void;
   onEscape: () => void;
 }
 
@@ -19,6 +20,7 @@ export function useKeyboardShortcuts({
   onOpenCreateDialog,
   onOpenShortcuts,
   onToggleBatchMode,
+  onOpenCommandPalette,
   onEscape,
 }: KeyboardShortcutsHandlers) {
   useEffect(() => {
@@ -55,6 +57,19 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // F2 · T-01：Ctrl K 命令面板（输入中不响应，避免拦截编辑操作）
+      if (
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "k" &&
+        !typing
+      ) {
+        event.preventDefault();
+        onOpenCommandPalette();
+        return;
+      }
+
       if (typing) return;
 
       if (event.key === "?") {
@@ -77,5 +92,11 @@ export function useKeyboardShortcuts({
 
     document.addEventListener("keydown", handleKeydown);
     return () => document.removeEventListener("keydown", handleKeydown);
-  }, [onOpenCreateDialog, onOpenShortcuts, onToggleBatchMode, onEscape]);
+  }, [
+    onOpenCreateDialog,
+    onOpenShortcuts,
+    onToggleBatchMode,
+    onOpenCommandPalette,
+    onEscape,
+  ]);
 }

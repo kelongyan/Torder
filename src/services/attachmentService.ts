@@ -9,6 +9,7 @@ import {
   addBrowserLocalAttachmentReference,
   addBrowserManagedAttachment,
   addBrowserWebLinkAttachment,
+  countBrowserTaskAttachments,
   deleteBrowserAttachment,
   getBrowserAttachmentTransferStatus,
   listBrowserTaskAttachments,
@@ -19,6 +20,14 @@ export function listTaskAttachments(taskId: string): Promise<Attachment[]> {
     return Promise.resolve(listBrowserTaskAttachments(taskId));
   }
   return invoke<Attachment[]>("list_task_attachments", { taskId });
+}
+
+/** F1 · T-15：一次取回 `task_id -> 附件数` 映射，列表页各行查表用（避免 N+1）。 */
+export function countTaskAttachments(): Promise<Record<string, number>> {
+  if (!isTauri()) {
+    return Promise.resolve(countBrowserTaskAttachments());
+  }
+  return invoke<Record<string, number>>("count_task_attachments");
 }
 
 export async function addManagedAttachment(

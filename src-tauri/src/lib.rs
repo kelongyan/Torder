@@ -191,6 +191,7 @@ pub fn run() {
             commands::backup::import_backup_selection,
             commands::backup::restore_backup,
             commands::attachment::list_task_attachments,
+            commands::attachment::count_task_attachments,
             commands::attachment::add_managed_attachment,
             commands::attachment::add_local_attachment_reference,
             commands::attachment::add_web_link_attachment,

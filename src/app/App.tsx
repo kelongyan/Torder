@@ -1,12 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
-import { AlertCircle, Plus, X } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  Kanban,
+  Keyboard,
+  ListTodo,
+  PanelLeft,
+  Palette,
+  Plus,
+  Settings,
+  Trash2,
+  X,
+} from "lucide-react";
+import type { CommandEntry } from "../components/command/CommandPalette";
+import { CommandPalette } from "../components/command/CommandPalette";
+import { toggleSidebarCollapsed } from "../hooks/useSidebarCollapsed";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
-import { applyThemePreference } from "../utils/theme";
+import { applyAccentPreference, applyThemePreference } from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
-import { useTaskStore, viewScope } from "../stores/taskStore";
+import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
 import type {
   CreateTaskInput,
   CreateRecurringRuleInput,
@@ -131,6 +150,7 @@ function App() {
     settingsPresence,
     statsPresence,
     batchEditPresence,
+    commandPalettePresence,
     confirmPresence,
     recurringDialogPresence,
     calendarEventDialogPresence,
@@ -142,6 +162,7 @@ function App() {
     setSettingsOpen,
     setStatsOpen,
     setBatchEditOpen,
+    setCommandPaletteOpen,
     setConfirmState,
     setRecurringDialogOpen,
     setEditingRecurringRule,
@@ -222,6 +243,7 @@ function App() {
     showCompleted,
     allTasks,
     tasks,
+    attachmentCounts,
     selectedTaskId,
     batchMode,
     batchSelectedIds,
@@ -236,6 +258,7 @@ function App() {
     toggleFilterTag,
     toggleFilterPriority,
     toggleFilterCompleted,
+    clearFilterTags,
     clearFilter,
     setShowCompleted,
     applyViewState,
@@ -328,6 +351,22 @@ function App() {
       }),
     [allTasks],
   );
+  /**
+   * F1 · T-07 侧栏标签分组：从在用标签聚合 `{tag, count}`。
+   * 只数未删除的任务，按「计数降序 → 名称升序」排，保证顺序稳定不跳动。
+   */
+  const sidebarTags = useMemo(() => {
+    const counter = new Map<string, number>();
+    for (const task of allTasks) {
+      if (task.deletedAt) continue;
+      for (const tag of task.tags) {
+        counter.set(tag, (counter.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...counter.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }, [allTasks]);
   const scopeSubtitle = useMemo(() => {
     if (recurringViewActive || scope.kind !== "view") return null;
     if (scope.view === "today") {
@@ -372,6 +411,9 @@ function App() {
     selectTask(null);
     clearBatchSelection();
   }, [closeDialogs, clearBatchSelection, selectTask, setRecurringViewActive]);
+  const openCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(true);
+  }, [setCommandPaletteOpen]);
 
   useAppInit(
     setSettings,
@@ -502,15 +544,21 @@ function App() {
     },
     [pushToast, selectTask, toggleTask],
   );
-  useTaskReminder(handleReminder);
+  useTaskReminder(handleReminder, {
+    notificationsEnabled: settings.notificationsEnabled,
+    notificationSound: settings.notificationSound,
+  });
   useKeyboardShortcuts({
     onOpenCreateDialog: openTaskCreateDialog,
     onOpenShortcuts: handleOpenShortcuts,
     onToggleBatchMode: toggleBatchMode,
+    onOpenCommandPalette: openCommandPalette,
     onEscape: closeEverything,
   });
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
+  // T-09：强调色与主题同一帧应用，保证切换时无中间态
+  useEffect(() => applyAccentPreference(settings.accent), [settings.accent]);
 
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查
@@ -717,6 +765,145 @@ function App() {
     applyNextTheme();
   }
 
+  /**
+   * F2 · T-01：命令面板命令表。首版覆盖动作、布局切换、视图/清单跳转与
+   * 设置入口；任务搜索待 T-08 落地后并入。
+   */
+  const commandEntries = useMemo<CommandEntry[]>(
+    () => [
+      {
+        id: "create-task",
+        title: "新建事项",
+        group: "动作",
+        keywords: "新建 添加 create new",
+        icon: Plus,
+        run: () => openTaskCreateDialog(),
+      },
+      {
+        id: "layout-list",
+        title: "切换到列表视图",
+        group: "布局",
+        keywords: "列表 视图 list",
+        icon: ListTodo,
+        run: () => setLayout("list"),
+      },
+      {
+        id: "layout-board",
+        title: "切换到看板视图",
+        group: "布局",
+        keywords: "看板 视图 board kanban",
+        icon: Kanban,
+        run: () => setLayout("board"),
+      },
+      {
+        id: "layout-calendar",
+        title: "切换到日历视图",
+        group: "布局",
+        keywords: "日历 视图 calendar",
+        icon: CalendarDays,
+        run: () => setLayout("calendar"),
+      },
+      {
+        id: "layout-month",
+        title: "切换到月历视图",
+        group: "布局",
+        keywords: "月历 视图 month",
+        icon: CalendarRange,
+        run: () => setLayout("month"),
+      },
+      {
+        id: "layout-week",
+        title: "切换到周视图",
+        group: "布局",
+        keywords: "周 视图 week",
+        icon: CalendarClock,
+        run: () => setLayout("week"),
+      },
+      {
+        id: "goto-all",
+        title: "跳转到全部任务",
+        group: "跳转",
+        keywords: "全部 任务 all",
+        icon: ListTodo,
+        run: () => void setScope(viewScope("all")),
+      },
+      {
+        id: "goto-today",
+        title: "跳转到今日任务",
+        group: "跳转",
+        keywords: "今天 今日 today",
+        icon: CalendarCheck,
+        run: () => void setScope(viewScope("today")),
+      },
+      {
+        id: "goto-completed",
+        title: "跳转到已完成",
+        group: "跳转",
+        keywords: "已完成 completed",
+        icon: CheckCircle2,
+        run: () => void setScope(viewScope("completed")),
+      },
+      {
+        id: "goto-trash",
+        title: "跳转到回收站",
+        group: "跳转",
+        keywords: "回收站 删除 trash",
+        icon: Trash2,
+        run: () => void setScope(viewScope("deleted")),
+      },
+      ...lists.map((list) => ({
+        id: `goto-list-${list.id}`,
+        title: `打开清单「${list.name}」`,
+        group: "清单",
+        keywords: "清单 打开 跳转",
+        icon: ListTodo,
+        run: () => void setScope(listScope(list.id)),
+      })),
+      {
+        id: "open-settings",
+        title: "打开设置",
+        group: "应用",
+        keywords: "设置 preferences settings",
+        icon: Settings,
+        run: () => setSettingsOpen(true),
+      },
+      {
+        id: "toggle-theme",
+        title: "切换主题",
+        group: "应用",
+        keywords: "主题 深色 浅色 theme",
+        icon: Palette,
+        run: () => void handleThemeToggle(),
+      },
+      {
+        id: "toggle-sidebar",
+        title: "折叠 / 展开侧栏",
+        group: "应用",
+        keywords: "侧栏 折叠 sidebar",
+        icon: PanelLeft,
+        run: () => toggleSidebarCollapsed(),
+      },
+      {
+        id: "open-shortcuts",
+        title: "查看快捷键",
+        group: "应用",
+        keywords: "快捷键 键盘 shortcuts",
+        icon: Keyboard,
+        run: () => handleOpenShortcuts(),
+      },
+    ],
+    // handleThemeToggle 为组件内普通函数，稳定性足以接受（命令面板仅在打开时消费）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      lists,
+      setLayout,
+      setScope,
+      openTaskCreateDialog,
+      setSettingsOpen,
+      handleOpenShortcuts,
+    ],
+  );
+
   async function handleCreateTask(
     input: CreateTaskInput,
     attachments: PendingTaskAttachment[],
@@ -735,6 +922,19 @@ function App() {
     setCreateOpen(false);
     setCreateScheduledDate("");
     pushToast("任务已创建", "success");
+  }
+
+  /**
+   * F1 · T-05/T-13 快速新建：不走弹窗、不带附件，建完只提示。
+   * 失败要吞掉异常并提示，否则 composer 的 await 会抛到渲染层。
+   */
+  async function handleQuickCreate(input: CreateTaskInput) {
+    try {
+      await addTask(input);
+      pushToast("事项已创建", "success");
+    } catch (error) {
+      pushToast(`创建失败：${normalizeError(error)}`, "error");
+    }
   }
 
   async function handleCreateRecurring(input: CreateRecurringRuleInput) {
@@ -1058,6 +1258,10 @@ function App() {
           counts={counts}
           savedViews={settings.savedViews}
           activeSavedViewId={activeSavedViewId}
+          tags={sidebarTags}
+          activeTags={filter.tags}
+          onTagToggle={(tag) => void toggleFilterTag(tag)}
+          onClearTags={() => void clearFilterTags()}
           onSearchChange={(query) => void setSearchQuery(query)}
           onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
           onSavedViewOpen={(view) => void handleOpenSavedView(view)}
@@ -1093,6 +1297,7 @@ function App() {
             onOpenCreate={() => openTaskCreateDialog()}
             onLayoutChange={setLayout}
             onThemeToggle={() => void handleThemeToggle()}
+            onOpenCommandPalette={openCommandPalette}
             onMenuToggle={() => setMenuOpen((open) => !open)}
             menuOpen={menuOpen}
             onSortChange={(nextSort) => void handleSortChange(nextSort)}
@@ -1159,6 +1364,13 @@ function App() {
                   batchSelectedIds={batchSelectedIds}
                   searchQuery={searchQuery}
                   scope={scope}
+                  defaultListId={defaultListId}
+                  trashRetentionDays={settings.trashRetentionDays}
+                  attachmentCounts={attachmentCounts}
+                  parseNaturalLanguage={settings.quickAddNaturalLanguage}
+                  moveCompletedImmediately={settings.moveCompletedImmediately}
+                  onOpenCreateDialog={() => openTaskCreateDialog()}
+                  onQuickCreate={handleQuickCreate}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                   onDelete={requestDeleteTask}
@@ -1182,6 +1394,8 @@ function App() {
                   lists={lists}
                   searchQuery={searchQuery}
                   selectedTaskId={selectedTaskId}
+                  defaultListId={defaultListId}
+                  onQuickCreate={handleQuickCreate}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                   onMove={(task, columnId) =>
@@ -1262,6 +1476,8 @@ function App() {
           defaultListId={defaultListId}
           defaultScheduledDate={createScheduledDate}
           defaultReminderMinutes={settings.defaultReminderMinutes}
+          defaultPriority={settings.defaultPriority}
+          defaultDueDate={settings.defaultDueDate}
           presence={createPresence.phase}
           onClose={() => {
             setCreateOpen(false);
@@ -1273,6 +1489,14 @@ function App() {
         />
       )}
 
+      {/* F2 · T-01：命令面板（Ctrl K / 工具栏图标） */}
+      {commandPalettePresence.rendered && (
+        <CommandPalette
+          commands={commandEntries}
+          presence={commandPalettePresence.phase}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
+      )}
 
       {recurringDialogPresence.rendered && (
         <RecurringRuleDialog

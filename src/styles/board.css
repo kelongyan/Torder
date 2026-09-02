@@ -190,14 +190,31 @@
   background: var(--mica-side);
 }
 
-/* T-13 在此列新建：灰显占位钮（设计稿列头 + 号） */
+/* F1 · T-13 在此列新建：由灰显占位转为真实按钮（设计稿列头 + 号） */
 .board-column-add {
   display: inline-grid;
   width: 24px;
   height: 24px;
   margin-left: auto;
   place-items: center;
+  border: 0;
   border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.board-column-add:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.board-column-add.is-open {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .board-column-add svg {

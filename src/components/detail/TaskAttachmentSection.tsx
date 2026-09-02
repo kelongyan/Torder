@@ -37,9 +37,12 @@ type ToastSink = (message: string, type: ToastKind) => void;
 export function TaskAttachmentSection({
   taskId,
   onToast,
+  onCountChange,
 }: {
   taskId: string;
   onToast: ToastSink;
+  /** T-15：增删成功后通知 store bump 行内计数（delta 可为负）。 */
+  onCountChange?: (delta: number) => void;
 }) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,6 +109,7 @@ export function TaskAttachmentSection({
     await loadAttachments();
     setMutating(false);
     if (success > 0) {
+      onCountChange?.(success);
       onToast(
         kind === "managed"
           ? `已复制 ${success} 个附件`
@@ -126,6 +130,7 @@ export function TaskAttachmentSection({
     try {
       await addWebLinkAttachment({ taskId, url, displayName });
       await loadAttachments();
+      onCountChange?.(1);
       onToast("链接附件已添加", "success");
     } catch (addError) {
       const message = normalizeError(addError);
@@ -164,6 +169,7 @@ export function TaskAttachmentSection({
     try {
       await deleteAttachment(attachment.id);
       await loadAttachments();
+      onCountChange?.(-1);
       onToast("附件已删除", "info");
     } catch (deleteError) {
       const message = normalizeError(deleteError);

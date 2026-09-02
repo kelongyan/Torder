@@ -23,6 +23,7 @@ export function TaskTodayAgenda({
   batchMode,
   batchSelectedIds,
   searchQuery,
+  attachmentCounts = {},
   onOpen,
   onToggle,
   onDelete,
@@ -37,6 +38,8 @@ export function TaskTodayAgenda({
   batchMode: boolean;
   batchSelectedIds: string[];
   searchQuery: string;
+  /** T-15：`task_id -> 附件数` 映射（App 层透传）。 */
+  attachmentCounts?: Record<string, number>;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -91,6 +94,7 @@ export function TaskTodayAgenda({
         motionIndex={motionIndex}
         searchQuery={searchQuery}
         timeGutter={options.timeGutter}
+        attachmentCount={attachmentCounts[task.id] ?? 0}
         onOpen={onOpen}
         onToggle={onToggle}
         onDelete={onDelete}
@@ -171,6 +175,7 @@ export function TaskTodayAgenda({
               batchSelected={batchSelectedIds.includes(task.id)}
               motionIndex={index}
               searchQuery={searchQuery}
+              attachmentCount={attachmentCounts[task.id] ?? 0}
               onOpen={onOpen}
               onToggle={onToggle}
               onDelete={onDelete}

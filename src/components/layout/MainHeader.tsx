@@ -58,6 +58,7 @@ export function MainHeader({
   onShowCompletedChange,
   onOpenSettings,
   onOpenStats,
+  onOpenCommandPalette,
   onToggleBatchMode,
   syncStatus,
   showLayoutControls = true,
@@ -92,6 +93,8 @@ export function MainHeader({
   onShowCompletedChange: () => void;
   onOpenSettings: () => void;
   onOpenStats: () => void;
+  /** F2 · T-01：命令面板（Ctrl K / 图标）。 */
+  onOpenCommandPalette: () => void;
   onToggleBatchMode: () => void;
   syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
@@ -346,17 +349,18 @@ export function MainHeader({
           </button>
         )}
 
-        {/* T-01~T-04 · 命令面板/迷你窗/每日回顾/专注模式：未开发，纯灰显占位（§13 规则 4） */}
+        {/* F2 · T-01 命令面板：已接通（Ctrl K / 图标） */}
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="命令面板"
+          title="命令面板 (Ctrl K)"
+          onClick={onOpenCommandPalette}
+        >
+          <Command aria-hidden="true" className="menu-icon" />
+        </button>
+        {/* T-02~T-04 · 迷你窗/每日回顾/专注模式：未开发，纯灰显占位（§13 规则 4） */}
         <div className="tool-group tool-group--soon">
-          <button
-            type="button"
-            className="icon-button ui-placeholder"
-            aria-disabled="true"
-            tabIndex={-1}
-            aria-label="命令面板"
-          >
-            <Command aria-hidden="true" className="menu-icon" />
-          </button>
           <button
             type="button"
             className="icon-button ui-placeholder"

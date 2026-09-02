@@ -1,10 +1,9 @@
 import { Settings2 } from "lucide-react";
-import { reminderOptions } from "../../constants/reminderConfig";
 import { taskViewCopy } from "../../constants/taskViews";
 import { cleanupTrash } from "../../services/taskService";
 import { saveAppSetting } from "../../services/settingsService";
 import { useTaskStore } from "../../stores/taskStore";
-import type { TaskList, SystemView } from "../../types/database";
+import type { SystemView } from "../../types/database";
 import type { AppSettings } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
 import { Select, type SelectOption } from "../common/Select";
@@ -43,12 +42,10 @@ const backupRetentionOptions: SelectOption<number>[] = [
 
 export function SettingsPreferencesSection({
   settings,
-  lists,
   onSettingsChange,
   onToast,
 }: {
   settings: AppSettings;
-  lists: TaskList[];
   onSettingsChange: (settings: AppSettings) => void;
   onToast: (message: string, type: ToastKind) => void;
 }) {
@@ -96,40 +93,6 @@ export function SettingsPreferencesSection({
         默认行为
       </h3>
       <div className="settings-preference-grid">
-        <label className="form-field">
-          <span>默认提醒</span>
-          <Select<number>
-            value={settings.defaultReminderMinutes}
-            options={reminderOptions}
-            onChange={(value) =>
-              void savePreference(
-                "defaultReminderMinutes",
-                value,
-                "已更新默认提醒",
-              )
-            }
-            ariaLabel="默认提醒"
-          />
-        </label>
-        <label className="form-field">
-          <span>默认清单</span>
-          <Select<string>
-            value={
-              lists.some((list) => list.id === settings.defaultListId)
-                ? settings.defaultListId
-                : "work"
-            }
-            options={lists.map((list) => ({
-              value: list.id,
-              label: list.name,
-              dotColor: list.color ?? undefined,
-            }))}
-            onChange={(value) =>
-              void savePreference("defaultListId", value, "已更新默认清单")
-            }
-            ariaLabel="默认清单"
-          />
-        </label>
         <label className="form-field">
           <span>启动视图</span>
           <Select<SystemView>
