@@ -643,24 +643,43 @@ fn push_view_scope(
     Ok(())
 }
 
-pub(crate) fn select_tasks() -> &'static str {
-    r#"
-    SELECT id, title, note, status, priority, list_id, scheduled_date, due_at,
-           completed_at, sort_order, remind_before, remind_at, reminded_at,
-           repeat_rule, subtasks, tags, recurring_rule_id, occurrence_at,
-           created_at, updated_at, deleted_at
-    FROM tasks
-    "#
+/// tasks 表列名唯一清单：select_tasks / select_tasks_aliased 共用，
+/// 新增任务列只改此处，两查询自动同步（防字段遗漏漂移）。
+const TASK_COLUMNS: &[&str] = &[
+    "id",
+    "title",
+    "note",
+    "status",
+    "priority",
+    "list_id",
+    "scheduled_date",
+    "due_at",
+    "completed_at",
+    "sort_order",
+    "remind_before",
+    "remind_at",
+    "reminded_at",
+    "repeat_rule",
+    "subtasks",
+    "tags",
+    "recurring_rule_id",
+    "occurrence_at",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+];
+
+pub(crate) fn select_tasks() -> String {
+    format!("SELECT {} FROM tasks", TASK_COLUMNS.join(", "))
 }
 
-fn select_tasks_aliased() -> &'static str {
-    r#"
-    SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.scheduled_date, t.due_at,
-           t.completed_at, t.sort_order, t.remind_before, t.remind_at, t.reminded_at,
-           t.repeat_rule, t.subtasks, t.tags, t.recurring_rule_id, t.occurrence_at,
-           t.created_at, t.updated_at, t.deleted_at
-    FROM tasks t
-    "#
+fn select_tasks_aliased() -> String {
+    let columns = TASK_COLUMNS
+        .iter()
+        .map(|column| format!("t.{column}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("SELECT {columns} FROM tasks t")
 }
 
 fn sort_clause(sort_by: &str) -> RepositoryResult<&'static str> {
@@ -803,6 +822,45 @@ mod search_query_tests {
     fn due_none_maps_to_null_due_filter() {
         let parsed = parse_search_query("due:无");
         assert_eq!(parsed.due, Some(DueFilter::None));
+    }
+}
+
+/// P2-03：列清单防漂移守卫 —— TASK_COLUMNS 必须与 tasks 表实际列一致
+/// （map_task 按 select 位置索引读列，列清单顺序变更会静默错位）。
+#[cfg(test)]
+mod column_guard_tests {
+    use super::*;
+    use crate::db::migrations;
+    use rusqlite::Connection;
+
+    #[test]
+    fn select_columns_match_actual_table_columns() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations::apply_migrations(&mut connection).unwrap();
+        let mut actual: Vec<String> = connection
+            .prepare("PRAGMA table_info(tasks)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        // purged_at 只作清理标记，不进业务投影。
+        actual.retain(|column| column != "purged_at");
+
+        let mut listed = TASK_COLUMNS.to_vec();
+        listed.sort();
+        actual.sort();
+        assert_eq!(listed, actual, "TASK_COLUMNS 与 tasks 表实际列发生漂移");
+    }
+
+    #[test]
+    fn select_variants_share_the_single_column_list() {
+        let plain = select_tasks();
+        let aliased = select_tasks_aliased();
+        let plain_projection = &plain[..plain.find("FROM").unwrap()];
+        let aliased_projection = &aliased[..aliased.find("FROM").unwrap()];
+        assert_eq!(plain_projection.split(',').count(), TASK_COLUMNS.len());
+        assert_eq!(aliased_projection.split(',').count(), TASK_COLUMNS.len());
     }
 }
 
