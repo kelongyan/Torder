@@ -3,9 +3,7 @@ import { filterAndSortTasks } from "./taskQuery";
 import type { Task } from "../types/database";
 
 // vitest(node 环境)下的 process；局部声明避免引入 @types/node 全局类型。
-declare const process:
-  | { env: Record<string, string | undefined> }
-  | undefined;
+declare const process: { env: Record<string, string | undefined> } | undefined;
 
 /**
  * P2-02 前端查询性能基线（默认跳过；PERF=1 时运行）：
@@ -41,8 +39,22 @@ function makeBenchTask(index: number, dueOffset: number): Task {
     subtasks:
       index % 4 === 0
         ? [
-            { id: `s-${index}-1`, title: "子任务一", completed: false, createdAt, completedAt: null, sortOrder: 0 },
-            { id: `s-${index}-2`, title: "子任务二", completed: index % 2 === 0, createdAt, completedAt: index % 2 === 0 ? createdAt : null, sortOrder: 1 },
+            {
+              id: `s-${index}-1`,
+              title: "子任务一",
+              completed: false,
+              createdAt,
+              completedAt: null,
+              sortOrder: 0,
+            },
+            {
+              id: `s-${index}-2`,
+              title: "子任务二",
+              completed: index % 2 === 0,
+              createdAt,
+              completedAt: index % 2 === 0 ? createdAt : null,
+              sortOrder: 1,
+            },
           ]
         : [],
     tags: index % 3 === 0 ? ["bench", "deep"] : ["bench"],
@@ -55,68 +67,58 @@ function makeBenchTask(index: number, dueOffset: number): Task {
 }
 
 function buildTasks(count: number): Task[] {
-  return Array.from({ length: count }, (_, index) => makeBenchTask(index, index % 7));
+  return Array.from({ length: count }, (_, index) =>
+    makeBenchTask(index, index % 7),
+  );
 }
 
 function time(label: string, fn: () => void): number {
   const start = performance.now();
   fn();
   const elapsed = Math.round(performance.now() - start);
-  // eslint-disable-next-line no-console
   console.log(`  ${label.padEnd(46)} ${String(elapsed).padStart(6)} ms`);
   return elapsed;
 }
 
 function runScenario(count: number) {
   const tasks = buildTasks(count);
-  // eslint-disable-next-line no-console
-  console.log(`\n[bench] 任务量 ${count.toLocaleString()}（含子任务/标签，真实任务结构）`);
-  time(
-    "scope=all + showCompleted 派生（含深拷贝）",
-    () => {
-      const result = filterAndSortTasks(tasks, {
-        scope: { kind: "view", view: "all" },
-        query: "",
-        sortBy: "priority",
-        showCompleted: true,
-      });
-      expect(result.length).toBe(count);
-    },
+  console.log(
+    `\n[bench] 任务量 ${count.toLocaleString()}（含子任务/标签，真实任务结构）`,
   );
-  time(
-    "文本搜索「review」+ priority 排序",
-    () => {
-      const result = filterAndSortTasks(tasks, {
-        scope: { kind: "view", view: "all" },
-        query: "review",
-        sortBy: "priority",
-        showCompleted: false,
-      });
-      expect(result.length).toBeGreaterThan(0);
-    },
-  );
-  time(
-    "视图过滤 planned + 文本搜索组合",
-    () => {
-      filterAndSortTasks(tasks, {
-        scope: { kind: "view", view: "planned" },
-        query: "pr-",
-        sortBy: "date",
-        showCompleted: false,
-      });
-    },
-  );
-  time(
-    "no-date 视图（遍历克隆最重路径之一）",
-    () => {
-      filterAndSortTasks(tasks, {
-        scope: { kind: "view", view: "no-date" },
-        query: "",
-        sortBy: "created",
-        showCompleted: false,
-      });
-    },
-  );
+  time("scope=all + showCompleted 派生（含深拷贝）", () => {
+    const result = filterAndSortTasks(tasks, {
+      scope: { kind: "view", view: "all" },
+      query: "",
+      sortBy: "priority",
+      showCompleted: true,
+    });
+    expect(result.length).toBe(count);
+  });
+  time("文本搜索「review」+ priority 排序", () => {
+    const result = filterAndSortTasks(tasks, {
+      scope: { kind: "view", view: "all" },
+      query: "review",
+      sortBy: "priority",
+      showCompleted: false,
+    });
+    expect(result.length).toBeGreaterThan(0);
+  });
+  time("视图过滤 planned + 文本搜索组合", () => {
+    filterAndSortTasks(tasks, {
+      scope: { kind: "view", view: "planned" },
+      query: "pr-",
+      sortBy: "date",
+      showCompleted: false,
+    });
+  });
+  time("no-date 视图（遍历克隆最重路径之一）", () => {
+    filterAndSortTasks(tasks, {
+      scope: { kind: "view", view: "no-date" },
+      query: "",
+      sortBy: "created",
+      showCompleted: false,
+    });
+  });
 }
 
 describe.skipIf(!PERF_RUN)("P2-02 前端查询性能基线", () => {
