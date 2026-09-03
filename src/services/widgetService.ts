@@ -10,7 +10,7 @@ import {
 } from "./widgetAppearance";
 import type { Task } from "../types/database";
 
-export type TasksChangedSource = "main" | "widget";
+export type TasksChangedSource = "main" | "widget" | "mini";
 
 export interface TasksChangedPayload {
   source: TasksChangedSource;

@@ -73,6 +73,7 @@ import { SettingsDialog } from "../components/dialog/SettingsDialog";
 import { StatsDialog } from "../components/dialog/StatsDialog";
 import { FocusDialog } from "../components/dialog/FocusDialog";
 import { notifyFocusFinished } from "../services/focusService";
+import { toggleMini } from "../services/miniService";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -1214,6 +1215,7 @@ function App() {
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}
             onOpenFocus={() => setFocusOpen(true)}
+            onToggleMini={() => void toggleMini()}
             onToggleBatchMode={toggleBatchMode}
             syncStatus={syncStatus}
             showLayoutControls={!recurringViewActive && !deletedViewActive}

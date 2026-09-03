@@ -63,6 +63,7 @@ export function MainHeader({
   onClearFilter,
   onShowCompletedChange,
   onOpenFocus,
+  onToggleMini,
   onOpenSettings,
   onOpenStats,
   onOpenCommandPalette,
@@ -105,6 +106,8 @@ export function MainHeader({
   onOpenCommandPalette: () => void;
   /** 阶段 A · T-02：专注模式控制面板。 */
   onOpenFocus: () => void;
+  /** 阶段 B · T-03：迷你速记窗开关。 */
+  onToggleMini: () => void;
   onToggleBatchMode: () => void;
   syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
@@ -386,16 +389,16 @@ export function MainHeader({
           >
             <Flame aria-hidden="true" className="menu-icon" />
           </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onToggleMini}
+            aria-label="迷你窗"
+            title="迷你窗 (Ctrl Shift M)"
+          >
+            <Sparkles aria-hidden="true" className="menu-icon" />
+          </button>
           <div className="tool-group tool-group--soon">
-            <button
-              type="button"
-              className="icon-button ui-placeholder"
-              aria-disabled="true"
-              tabIndex={-1}
-              aria-label="迷你窗"
-            >
-              <Sparkles aria-hidden="true" className="menu-icon" />
-            </button>
             <button
               type="button"
               className="icon-button ui-placeholder"

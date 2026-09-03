@@ -2,6 +2,8 @@ pub mod backup;
 pub mod commands;
 pub mod db;
 pub mod error;
+#[cfg(desktop)]
+mod mini;
 pub mod models;
 mod recurrence;
 pub mod runtime;
@@ -72,6 +74,7 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
     };
 
     let quick_add = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyT);
+    let mini_add = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyM);
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
@@ -79,11 +82,19 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
                     tray::show_main_window(app);
                     let _ = app.emit("tray-quick-add", ());
                 }
+                if shortcut == &mini_add && event.state() == ShortcutState::Pressed {
+                    if let Err(error) = mini::toggle_mini_window(app) {
+                        eprintln!("mini window toggle failed: {error}");
+                    }
+                }
             })
             .build(),
     )?;
     app.global_shortcut()
         .register(quick_add)
+        .unwrap_or_else(|error| eprintln!("global shortcut register failed: {error}"));
+    app.global_shortcut()
+        .register(mini_add)
         .unwrap_or_else(|error| eprintln!("global shortcut register failed: {error}"));
     Ok(())
 }
@@ -260,6 +271,8 @@ pub fn run() {
             commands::widget::import_note_font,
             #[cfg(desktop)]
             commands::widget::read_note_font_bytes,
+            #[cfg(desktop)]
+            commands::mini::toggle_mini,
             #[cfg(desktop)]
             commands::widget::remove_note_font,
         ])
