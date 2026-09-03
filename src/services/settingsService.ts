@@ -99,6 +99,10 @@ export async function loadAppSettings(): Promise<AppSettings> {
       settings.get("reviewReminderTime"),
       defaultAppSettings.reviewReminderTime,
     ),
+    autoPostponeOverdue: parseBoolean(
+      settings.get("autoPostponeOverdue"),
+      defaultAppSettings.autoPostponeOverdue,
+    ),
   };
 }
 

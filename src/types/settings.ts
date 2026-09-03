@@ -51,6 +51,8 @@ export interface AppSettings {
   reviewReminderEnabled: boolean;
   /** 阶段 D · T-10 乙组：每日回顾提醒时刻，格式 "HH:MM"。 */
   reviewReminderTime: string;
+  /** 阶段 D · T-10 乙组：逾期任务自动顺延到明天（每日首次执行一次）。 */
+  autoPostponeOverdue: boolean;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -69,6 +71,7 @@ export const defaultAppSettings: AppSettings = {
   notificationsEnabled: true,
   reviewReminderEnabled: false,
   reviewReminderTime: "21:00",
+  autoPostponeOverdue: false,
   notificationSound: "system",
 };
 

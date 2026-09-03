@@ -5,6 +5,7 @@ import {
   createdTodayCount,
   dueTodayTodos,
   listProgress,
+  overdueShiftPatches,
   overdueTodos,
   shiftOverdueTaskPatch,
   weekTrend,
@@ -154,6 +155,53 @@ describe("shiftOverdueTaskPatch 顺延唯一规则", () => {
         TOMORROW,
       ),
     ).toBeNull();
+  });
+});
+
+describe("overdueShiftPatches 逾期自动顺延批量汇总（T-10 乙组 D-5）", () => {
+  it("只汇总可顺延的逾期任务，逐条走 shiftOverdueTaskPatch 唯一规则", () => {
+    const tasks = [
+      // 逾期 + 计划日 → 计划日 patch
+      makeTask({
+        title: "逾期有计划",
+        scheduledDate: "2026-09-01",
+        dueAt: at(2026, 9, 1, 18),
+      }),
+      // 逾期 + 仅截止 → 截止平移 patch（保留 18 点时刻）
+      makeTask({ title: "逾期仅截止", dueAt: at(2026, 9, 2, 18) }),
+      // 已完成 → 跳过
+      makeTask({
+        title: "已完成",
+        status: "done",
+        dueAt: at(2026, 9, 1),
+        completedAt: at(2026, 9, 2),
+      }),
+      // 今日到期（未逾期）→ 跳过
+      makeTask({ title: "今日到期", dueAt: at(2026, 9, 3, 18) }),
+      // 计划日已是明天 → 无 patch，跳过
+      makeTask({
+        title: "已在明天",
+        scheduledDate: TOMORROW,
+        dueAt: at(2026, 9, 4, 9),
+      }),
+    ];
+    const patches = overdueShiftPatches(tasks, TODAY);
+    expect(patches).toHaveLength(2);
+    expect(patches[0]).toEqual({
+      taskId: tasks[0].id,
+      patch: { scheduledDate: TOMORROW },
+    });
+    expect(patches[1].taskId).toBe(tasks[1].id);
+    expect(new Date(patches[1].patch.dueAt as string).getHours()).toBe(18);
+  });
+
+  it("无逾期 → 空 patch 列表", () => {
+    const tasks = [
+      makeTask({ dueAt: at(2026, 9, 3, 18) }),
+      makeTask({ status: "done", dueAt: at(2026, 9, 1) }),
+    ];
+    expect(overdueShiftPatches(tasks, TODAY)).toEqual([]);
+    expect(overdueShiftPatches([], TODAY)).toEqual([]);
   });
 });
 

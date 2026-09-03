@@ -7,6 +7,7 @@ import type { SystemView } from "../../types/database";
 import type { AppSettings } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
 import { Select, type SelectOption } from "../common/Select";
+import { ToggleSwitch } from "../common/ToggleSwitch";
 
 const startupViews: SystemView[] = [
   "all",
@@ -129,6 +130,27 @@ export function SettingsPreferencesSection({
           />
         </label>
       </div>
+      {/*
+       * 阶段 D · T-10 乙组：逾期自动顺延到明天。数据行为开关（非纯偏好），
+       * 顺延规则唯一走 taskStats.shiftOverdueTaskPatch，与每日回顾一致。
+       */}
+      <div className="settings-toggle-row">
+        <span className="settings-toggle-label">逾期自动顺延</span>
+        <ToggleSwitch
+          checked={settings.autoPostponeOverdue}
+          label="逾期任务自动顺延到明天"
+          onChange={(next) =>
+            void savePreference(
+              "autoPostponeOverdue",
+              next,
+              next ? "已开启逾期自动顺延" : "已关闭逾期自动顺延",
+            )
+          }
+        />
+      </div>
+      <p className="settings-section-hint">
+        开启后，每天首次打开应用时把昨日逾期的事项顺延到明天（与每日回顾的顺延规则一致）。
+      </p>
     </section>
   );
 }

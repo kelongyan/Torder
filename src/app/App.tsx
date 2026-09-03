@@ -81,6 +81,7 @@ import { notifyFocusFinished } from "../services/focusService";
 import { toggleMini } from "../services/miniService";
 import { sendNotice } from "../services/noticeService";
 import { localDateKey } from "../services/taskQuery";
+import { overdueShiftPatches } from "../utils/taskStats";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -344,6 +345,49 @@ function App() {
     clearBatchSelection,
     clearError,
   } = useTaskStore();
+
+  // 阶段 D · T-10 乙组：逾期自动顺延到明天。规则唯一来源
+  // taskStats.overdueShiftPatches（与每日回顾「一键顺延」同一实现）。
+  // 每日一次：数据就绪后先写当日标记再逐条顺延，防止 effect 重入；
+  // 数据未就绪（loading/空库）不占位，等 30s 间隔重查（兼顾跨日场景）。
+  const tasksReady = !loading && allTasks.length > 0;
+  useEffect(() => {
+    if (!settings.autoPostponeOverdue || !tasksReady) return;
+    const lastKey = "torder-auto-postpone-date";
+    let cancelled = false;
+    const run = async () => {
+      const state = useTaskStore.getState();
+      if (state.loading || state.allTasks.length === 0) return;
+      const today = localDateKey(new Date());
+      try {
+        if (localStorage.getItem(lastKey) === today) return;
+        localStorage.setItem(lastKey, today);
+      } catch {
+        // 隐私模式等不可用时每次重查都会尝试（无逾期时开销可忽略）。
+      }
+      const patches = overdueShiftPatches(state.allTasks, today);
+      if (patches.length === 0) return;
+      let shifted = 0;
+      for (const { taskId, patch } of patches) {
+        if (cancelled) return;
+        try {
+          await useTaskStore.getState().patchTask(taskId, patch);
+          shifted += 1;
+        } catch {
+          // 单条失败不阻断其余任务，留待明日或手动回顾兜底。
+        }
+      }
+      if (shifted > 0 && !cancelled) {
+        pushToast(`已自动顺延 ${shifted} 项逾期任务到明天`, "info");
+      }
+    };
+    void run();
+    const timer = window.setInterval(() => void run(), 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pushToast, settings.autoPostponeOverdue, tasksReady]);
 
   const selectedTask = useMemo(
     () =>

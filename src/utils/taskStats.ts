@@ -134,3 +134,22 @@ export function shiftOverdueTaskPatch(
   shifted.setHours(due.getHours(), due.getMinutes(), due.getSeconds(), 0);
   return { dueAt: shifted.toISOString() };
 }
+
+/**
+ * 逾期自动顺延（T-10 乙组「逾期自动顺延到明天」）的批量 patch 汇总：
+ * 逐条走 shiftOverdueTaskPatch 唯一规则（含无法顺延的跳过），与每日回顾
+ * 「一键顺延」同一口径，禁止另写日期改写逻辑。
+ */
+export function overdueShiftPatches(
+  tasks: Task[],
+  todayKey: string,
+): Array<{ taskId: string; patch: Partial<UpdateTaskInput> }> {
+  const tomorrowKey = shiftDateKey(todayKey, 1);
+  const patches: Array<{ taskId: string; patch: Partial<UpdateTaskInput> }> =
+    [];
+  for (const task of overdueTodos(tasks, todayKey)) {
+    const patch = shiftOverdueTaskPatch(task, tomorrowKey);
+    if (patch) patches.push({ taskId: task.id, patch });
+  }
+  return patches;
+}
