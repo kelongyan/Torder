@@ -55,7 +55,10 @@ export function normalizeTags(tags: string[]): string[] {
   return next;
 }
 
-export function predictCreatedTask(input: CreateTaskInput, tempId: string): Task {
+export function predictCreatedTask(
+  input: CreateTaskInput,
+  tempId: string,
+): Task {
   const now = new Date().toISOString();
   const dueAt = input.dueAt ?? null;
   const remindBefore = input.remindBefore ?? null;
@@ -84,7 +87,10 @@ export function predictCreatedTask(input: CreateTaskInput, tempId: string): Task
   };
 }
 
-export function predictUpdatedTask(existing: Task, input: UpdateTaskInput): Task {
+export function predictUpdatedTask(
+  existing: Task,
+  input: UpdateTaskInput,
+): Task {
   const reminderScheduleChanged =
     input.dueAt !== existing.dueAt ||
     input.remindBefore !== existing.remindBefore;

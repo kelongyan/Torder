@@ -2,10 +2,7 @@ import { useState } from "react";
 import { Download, FileJson, FileText, Table2 } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { Select, type SelectOption } from "../common/Select";
-import {
-  exportTasks,
-  type ExportFormat,
-} from "../../services/backupService";
+import { exportTasks, type ExportFormat } from "../../services/backupService";
 
 const exportFormatOptions: SelectOption<ExportFormat>[] = [
   { value: "json", label: "JSON", icon: FileJson },

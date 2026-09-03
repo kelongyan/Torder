@@ -15,13 +15,11 @@ export function useScrollHeader<T extends HTMLElement = HTMLDivElement>() {
 
   useEffect(() => {
     const container = containerRef.current;
-    const scrollTarget: Window | HTMLElement =
-      container ?? window;
+    const scrollTarget: Window | HTMLElement = container ?? window;
     const isWindow = scrollTarget === window;
-    let lastY: number =
-      isWindow
-        ? window.scrollY
-        : (scrollTarget as HTMLElement).scrollTop;
+    let lastY: number = isWindow
+      ? window.scrollY
+      : (scrollTarget as HTMLElement).scrollTop;
 
     const readY = () =>
       isWindow ? window.scrollY : (scrollTarget as HTMLElement).scrollTop;

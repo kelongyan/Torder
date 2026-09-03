@@ -46,7 +46,10 @@ export function TaskCard({
       onDragStart={() => onDragStart?.(task)}
       onClick={() => onOpen(task)}
     >
-      <span className="list-inline board-card-list" style={{ color: listColor }}>
+      <span
+        className="list-inline board-card-list"
+        style={{ color: listColor }}
+      >
         <span className="list-dot" aria-hidden="true" />
         <span className="list-inline-name">{list?.name ?? "未分类"}</span>
       </span>

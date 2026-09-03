@@ -63,7 +63,9 @@ export function TaskQuickComposer({
 
     const listId =
       parsed.listId ??
-      (lists.some((list) => list.id === defaultListId) ? defaultListId : "work");
+      (lists.some((list) => list.id === defaultListId)
+        ? defaultListId
+        : "work");
 
     setBusy(true);
     try {
@@ -77,7 +79,8 @@ export function TaskQuickComposer({
         ...overrides,
         // 解析出显式日期时以它为准，否则才用调用方给的落位日期
         ...(parsed.dueAt ? { scheduledDate: null } : {}),
-      });setText("");
+      });
+      setText("");
       if (!keepOpen) setOpen(false);
     } finally {
       setBusy(false);

@@ -15,12 +15,10 @@ export function groupCalendarTasks(tasks: Task[]) {
 
   for (const task of tasks) {
     const date = formatCalendarDate(getTaskCalendarKey(task));
-    const current =
-      map.get(date.key) ??
-      {
-        ...date,
-        tasks: [],
-      };
+    const current = map.get(date.key) ?? {
+      ...date,
+      tasks: [],
+    };
     current.tasks.push(task);
     map.set(date.key, current);
   }

@@ -42,7 +42,11 @@ export function EmptyState({
       <h2>{copy.title}</h2>
       {copy.body && <p>{copy.body}</p>}
       {showPrimary && (
-        <button type="button" className="empty-primary-action" onClick={onPrimary}>
+        <button
+          type="button"
+          className="empty-primary-action"
+          onClick={onPrimary}
+        >
           <Plus aria-hidden="true" className="icon-sm" />
           新建第一个事项
         </button>

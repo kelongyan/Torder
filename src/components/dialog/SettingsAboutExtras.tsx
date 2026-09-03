@@ -16,7 +16,11 @@ export function SettingsAboutExtras() {
   const presence = usePresence<Exclude<AboutDialog, null>>(requested, 220);
   const openDialog = presence.value;
 
-  const entries: Array<{ id: Exclude<AboutDialog, null>; label: string; icon: LucideIcon }> = [
+  const entries: Array<{
+    id: Exclude<AboutDialog, null>;
+    label: string;
+    icon: LucideIcon;
+  }> = [
     { id: "changelog", label: "更新日志", icon: ScrollText },
     { id: "licenses", label: "开源许可", icon: FileText },
   ];

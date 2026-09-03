@@ -147,7 +147,9 @@ export function TaskTodayAgenda({
       )}
       {(agendaItems.length > 0 || alldayItems.length > 0) && (
         <Fragment key="today">
-          <SectionHeader label={`今天 · ${liveCount(agendaItems) + liveCount(alldayItems)}`} />
+          <SectionHeader
+            label={`今天 · ${liveCount(agendaItems) + liveCount(alldayItems)}`}
+          />
           {agendaItems.flatMap(({ task, leaving }, index) => {
             const row = renderRow({ task, leaving }, index, {
               timeGutter: formatTimeOfDay(new Date(task.dueAt!)),

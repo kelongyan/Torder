@@ -233,7 +233,6 @@ kbd {
   background: transparent;
 }
 
-
 @keyframes strike-sweep {
   from {
     background-size: 0 1px;
@@ -321,7 +320,11 @@ kbd {
   border-color: var(--task-check-ring-active, var(--green));
   background: var(--task-check-ring-active, var(--green));
   box-shadow: 0 0 0 4px
-    color-mix(in srgb, var(--task-check-ring-active, var(--green)) 14%, transparent);
+    color-mix(
+      in srgb,
+      var(--task-check-ring-active, var(--green)) 14%,
+      transparent
+    );
   animation: check-pop var(--motion-soft) var(--ease-out) both;
 }
 
@@ -463,8 +466,6 @@ kbd {
   transition: color var(--motion-theme) var(--ease-standard);
 }
 
-
-
 mark {
   border-radius: 3px;
   background: var(--highlight-bg);
@@ -533,8 +534,7 @@ mark {
   height: 8px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, currentColor 16%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
   flex-shrink: 0;
 }
 

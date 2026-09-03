@@ -5,10 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import logoUrl from "../../assets/torder-logo.png";
 
 export function WindowTitleBar() {
-  const appWindow = useMemo(
-    () => (isTauri() ? getCurrentWindow() : null),
-    [],
-  );
+  const appWindow = useMemo(() => (isTauri() ? getCurrentWindow() : null), []);
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {

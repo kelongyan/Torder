@@ -856,7 +856,6 @@
    select-trigger / select-chevron / segmented-option / footer 按钮尺寸覆写，
    全部回落到基础值（28/30 档统一） */
 
-
 .shortcut-row {
   display: flex;
   align-items: center;

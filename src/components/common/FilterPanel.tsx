@@ -130,7 +130,11 @@ function Row({
       role="menuitemcheckbox"
     >
       {dotColor !== undefined && dotColor !== null ? (
-        <span className="filter-dot" style={{ color: dotColor }} aria-hidden="true" />
+        <span
+          className="filter-dot"
+          style={{ color: dotColor }}
+          aria-hidden="true"
+        />
       ) : Icon ? (
         <Icon
           aria-hidden="true"

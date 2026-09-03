@@ -1013,7 +1013,6 @@
   line-height: 20px;
 }
 
-
 .window-frame.mobile .task-meta {
   gap: 4px;
   margin-top: 4px;
@@ -1101,7 +1100,6 @@
     font-size: 14px;
     line-height: 20px;
   }
-
 
   .task-meta {
     gap: 4px;
@@ -1676,7 +1674,10 @@
   max-width: none;
   flex-direction: column;
   margin: auto 0 0;
-  max-height: min(94dvh, calc(var(--app-viewport-height, 100dvh) - var(--safe-top)));
+  max-height: min(
+    94dvh,
+    calc(var(--app-viewport-height, 100dvh) - var(--safe-top))
+  );
   border-radius: 24px 24px 0 0;
   border-bottom: 0;
 }

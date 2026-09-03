@@ -139,7 +139,9 @@ export function TaskListView({
     startOfToday.setHours(0, 0, 0, 0);
     const startOfWeek = new Date(startOfToday);
     // 周一为一周起点（getDay() 周日为 0）
-    startOfWeek.setDate(startOfToday.getDate() - ((startOfToday.getDay() + 6) % 7));
+    startOfWeek.setDate(
+      startOfToday.getDate() - ((startOfToday.getDay() + 6) % 7),
+    );
 
     const buckets: Record<string, typeof animatedTasks> = {
       today: [],

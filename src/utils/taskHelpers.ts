@@ -90,7 +90,8 @@ function matchesViewCount(task: Task, view: SystemView): boolean {
   if (view === "today") {
     return taskPlanDateKey(task) === toDateKey(new Date());
   }
-  if (view === "planned") return task.scheduledDate !== null || task.dueAt !== null;
+  if (view === "planned")
+    return task.scheduledDate !== null || task.dueAt !== null;
   if (view === "overdue") {
     if (!task.dueAt) return false;
     return localDateKey(new Date(task.dueAt)) < localDateKey(new Date());
@@ -143,7 +144,7 @@ export function emptyDraft(
     const due = new Date();
     if (defaults.dueDate === "tomorrow") due.setDate(due.getDate() + 1);
     if (defaults.dueDate === "next_monday") {
-      due.setDate(due.getDate() + (((8 - due.getDay()) % 7) || 7));
+      due.setDate(due.getDate() + ((8 - due.getDay()) % 7 || 7));
     }
     dueAt = `${toLocalDateKey(due.toISOString()) ?? toDateKey(due)}T${time}`;
   }

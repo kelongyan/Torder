@@ -74,7 +74,11 @@ export function ConfirmDialog({
             <h2>{state.title}</h2>
             <p>{state.body}</p>
             {actionError && actionError.state === confirmState && (
-              <div className="dialog-error-msg" role="alert" style={{ marginTop: 10 }}>
+              <div
+                className="dialog-error-msg"
+                role="alert"
+                style={{ marginTop: 10 }}
+              >
                 {actionError.message}
               </div>
             )}

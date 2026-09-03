@@ -1,4 +1,13 @@
-import { ArrowDown, ArrowUp, Calendar, Check, Clock, Flag, GripVertical, type LucideIcon } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  Check,
+  Clock,
+  Flag,
+  GripVertical,
+  type LucideIcon,
+} from "lucide-react";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { TaskSortBy } from "../../types/database";
 

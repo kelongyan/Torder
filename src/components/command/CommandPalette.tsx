@@ -42,7 +42,9 @@ export function CommandPalette({
   }, [commands, query]);
 
   // 过滤结果变短时索引可能越界，取有效值而不是在 effect 里回写 state
-  const activeRow = filtered.length ? Math.min(activeIndex, filtered.length - 1) : 0;
+  const activeRow = filtered.length
+    ? Math.min(activeIndex, filtered.length - 1)
+    : 0;
 
   // 打开时聚焦（presence 进入相位后输入框才挂载）
   useEffect(() => {
@@ -63,7 +65,9 @@ export function CommandPalette({
   function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((index) => (filtered.length ? (index + 1) % filtered.length : 0));
+      setActiveIndex((index) =>
+        filtered.length ? (index + 1) % filtered.length : 0,
+      );
       return;
     }
     if (event.key === "ArrowUp") {

@@ -77,14 +77,19 @@ export function TaskMeta({
           <i
             className="subtask-meta-bar"
             aria-hidden="true"
-            style={{
-              "--subtask-done": `${(completedSubtasks / task.subtasks.length) * 100}%`,
-            } as CSSProperties}
+            style={
+              {
+                "--subtask-done": `${(completedSubtasks / task.subtasks.length) * 100}%`,
+              } as CSSProperties
+            }
           />
         </span>
       )}
       {attachmentCount > 0 && (
-        <span className="subtask-meta attachment-meta" title={`${attachmentCount} 个附件`}>
+        <span
+          className="subtask-meta attachment-meta"
+          title={`${attachmentCount} 个附件`}
+        >
           <Paperclip aria-hidden="true" className="icon-xs" />
           <span className="subtask-meta-count">{attachmentCount}</span>
         </span>

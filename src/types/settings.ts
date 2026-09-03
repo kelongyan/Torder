@@ -3,12 +3,7 @@ import type { SystemView, TaskLayout, TaskScope, TaskSortBy } from "./database";
 export type ThemePreference = "system" | "light" | "dark";
 /** T-09 强调色预设（设计稿 §2.4 六色板）；blue 为默认即无 data-accent 属性。 */
 export type AccentPreference =
-  | "blue"
-  | "violet"
-  | "teal"
-  | "green"
-  | "amber"
-  | "rose";
+  "blue" | "violet" | "teal" | "green" | "amber" | "rose";
 /** T-10 甲组：新建事项的默认截止。 */
 export type DefaultDueDate = "none" | "today" | "tomorrow" | "next_monday";
 /** T-10 甲组：提示音。system=系统默认音；silent=静音通知。 */

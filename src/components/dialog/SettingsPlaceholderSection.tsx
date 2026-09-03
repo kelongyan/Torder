@@ -21,7 +21,13 @@ function PhRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function PhChips({ items, activeIndex = 0 }: { items: string[]; activeIndex?: number }) {
+function PhChips({
+  items,
+  activeIndex = 0,
+}: {
+  items: string[];
+  activeIndex?: number;
+}) {
   return (
     <span className="set-ph-chips">
       {items.map((item, index) => (

@@ -99,8 +99,7 @@ export function useSwipeAction(options: SwipeActionOptions) {
         return;
       }
       const { threshold = 96, snapBackBelow = 32 } = opts.current;
-      const dx =
-        parseFloat(element.style.getPropertyValue("--swipe-x")) || 0;
+      const dx = parseFloat(element.style.getPropertyValue("--swipe-x")) || 0;
       if (Math.abs(dx) >= threshold) {
         acted = true;
         settle();

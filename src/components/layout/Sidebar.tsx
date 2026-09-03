@@ -175,7 +175,9 @@ export function Sidebar({
                 ? undefined
                 : (counts.views[item.view] ?? 0)
             }
-            alert={item.view === "overdue" && (counts.views[item.view] ?? 0) > 0}
+            alert={
+              item.view === "overdue" && (counts.views[item.view] ?? 0) > 0
+            }
             onClick={() => onScopeChange(viewScope(item.view))}
           />
         ))}

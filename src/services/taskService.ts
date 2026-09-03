@@ -10,7 +10,11 @@ import {
   updateBrowserTask,
   updateBrowserTaskIncludingDeleted,
 } from "./browserTaskMock";
-import { filterAndSortTasks, type QueryTasksInput, taskPlanDateKey } from "./taskQuery";
+import {
+  filterAndSortTasks,
+  type QueryTasksInput,
+  taskPlanDateKey,
+} from "./taskQuery";
 import {
   predictCompletedTask,
   predictCreatedTask,

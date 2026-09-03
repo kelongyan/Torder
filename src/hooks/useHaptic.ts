@@ -10,14 +10,10 @@ import { useCallback } from "react";
  * @returns `haptic(kind)` —— kind: 'tap' | 'heavy' | 'success'
  */
 export function useHaptic() {
-  return useCallback(
-    (kind: "tap" | "heavy" | "success" = "tap") => {
-      if (typeof navigator === "undefined" || !navigator.vibrate) return;
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      const ms =
-        kind === "tap" ? 8 : kind === "heavy" ? 16 : 12;
-      navigator.vibrate(ms);
-    },
-    [],
-  );
+  return useCallback((kind: "tap" | "heavy" | "success" = "tap") => {
+    if (typeof navigator === "undefined" || !navigator.vibrate) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ms = kind === "tap" ? 8 : kind === "heavy" ? 16 : 12;
+    navigator.vibrate(ms);
+  }, []);
 }

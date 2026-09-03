@@ -1,6 +1,16 @@
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { usePresence, type PresencePhase } from "./usePresence";
-import type { CalendarEvent, RecurringRule, Task, TaskList } from "../types/database";
+import type {
+  CalendarEvent,
+  RecurringRule,
+  Task,
+  TaskList,
+} from "../types/database";
 import type { ConfirmState } from "../types/ui";
 
 interface DialogPresence {
