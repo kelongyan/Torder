@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { saveAppSetting } from "../../services/settingsService";
 import type {
   AccentPreference,
   AppSettings,
@@ -7,7 +8,6 @@ import type {
 } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
 import { SettingsWidgetAppearanceSection } from "./SettingsWidgetAppearanceSection";
-import { SettingsDisplayPlaceholders } from "./SettingsPlaceholderSection";
 
 /**
  * 设置 → 外观分区的组合出口。
@@ -44,20 +44,38 @@ export function SettingsAppearanceSection({
   onSettingsChange: (settings: AppSettings) => void;
   onToast: (message: string, type: ToastKind) => void;
 }) {
+  /**
+   * 其余 pane 的通用落盘模式（saveAppSetting + onSettingsChange + 失败 toast）。
+   * 修复 F2 回归：主题卡片与强调色板此前只更新内存 state，重启后回默认值。
+   */
+  async function savePreference<K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K],
+    message: string,
+  ) {
+    try {
+      await saveAppSetting(key, value);
+      onSettingsChange({ ...settings, [key]: value });
+      onToast(message, "success");
+    } catch (error) {
+      onToast(`设置保存失败: ${String(error)}`, "error");
+    }
+  }
+
   function handleThemeChange(theme: ThemePreference) {
-    onSettingsChange({ ...settings, theme });
-    onToast(
+    if (theme === settings.theme) return;
+    void savePreference(
+      "theme",
+      theme,
       theme === "system"
         ? "已跟随系统主题"
         : `已切换到${theme === "dark" ? "深色" : "浅色"}主题`,
-      "success",
     );
   }
 
   function handleAccentChange(accent: AccentPreference) {
     if (accent === settings.accent) return;
-    onSettingsChange({ ...settings, accent });
-    onToast("已更新强调色", "success");
+    void savePreference("accent", accent, "已更新强调色");
   }
 
   return (
@@ -119,8 +137,7 @@ export function SettingsAppearanceSection({
         </p>
       </section>
 
-      {/* T-10 显示偏好：密度/字号随乙组排期，保持灰显 */}
-      <SettingsDisplayPlaceholders />
+      {/* 阶段 D · T-10 乙组：显示偏好（密度/字号）转正见后续提交 */}
 
       <SettingsWidgetAppearanceSection onToast={onToast} />
     </>
