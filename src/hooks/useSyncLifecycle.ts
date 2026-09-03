@@ -81,11 +81,14 @@ export function useSyncLifecycle({
       const status = await getSyncStatus();
       if (!disposed) onStatusChange(status);
       if (wifiOnly && !isWifiConnection()) return;
+      // 注意：不要把 state === "incompatible" 也拦在这里。
+      // 远端协议不兼容是可以被客户端升级修好的，一旦持久化的状态永久拦住自动同步，
+      // 升级后仍然要用户手动点一次才能恢复。这里放行，由 shouldStopRetry 负责
+      // 不做指数退避重试，靠前台/启动/网络恢复这些自然触发点重试即可。
       if (
         !autoSyncEnabled ||
         !status.configured ||
         status.state === "needsAuth" ||
-        status.state === "incompatible" ||
         status.lastError?.includes("revoked")
       )
         return;
@@ -174,12 +177,12 @@ export function useSyncLifecycle({
 function isWifiConnection(): boolean {
   const connection = getNetworkConnection();
   if (!connection) return true;
-  if (connection.saveData) return false;
-  return (
-    !connection.type ||
-    connection.type === "wifi" ||
-    connection.type === "ethernet"
-  );
+  // Wi-Fi/以太网优先判定：安卓开了「省流量模式」时 saveData 恒为 true，
+  // 若先看 saveData 会把 Wi-Fi 下的同步也一并拦掉，表现为「仅 Wi-Fi 同步」永不执行。
+  if (connection.type === "wifi" || connection.type === "ethernet") return true;
+  if (connection.type) return false;
+  // 拿不到 type（桌面 Chromium 不暴露）时保守放行，但尊重省流量模式。
+  return !connection.saveData;
 }
 
 function getNetworkConnection():

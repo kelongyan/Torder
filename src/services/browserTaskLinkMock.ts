@@ -66,26 +66,28 @@ export function searchBrowserLinkableTasks(
       .filter((link) => link.sourceTaskId === sourceTaskId && !link.deletedAt)
       .map((link) => link.targetTaskId),
   );
-  return getBrowserTasksSnapshot()
-    .filter((task) => task.id !== sourceTaskId)
-    .filter((task) => !task.deletedAt && task.status !== "archived")
-    .filter((task) => !linkedIds.has(task.id))
-    .filter((task) => {
-      if (!normalized) return true;
-      // 与 Rust 一致：title、note 分别匹配（LIKE title OR LIKE note），
-      // 不允许跨字段命中。
-      return (
-        task.title.toLocaleLowerCase("zh-CN").includes(normalized) ||
-        (task.note ?? "").toLocaleLowerCase("zh-CN").includes(normalized)
-      );
-    })
-    // 与 Rust ORDER BY updated_at DESC, created_at DESC 对齐。
-    .sort(
-      (left, right) =>
-        right.updatedAt.localeCompare(left.updatedAt) ||
-        right.createdAt.localeCompare(left.createdAt),
-    )
-    .slice(0, Math.max(1, Math.min(limit, 20)));
+  return (
+    getBrowserTasksSnapshot()
+      .filter((task) => task.id !== sourceTaskId)
+      .filter((task) => !task.deletedAt && task.status !== "archived")
+      .filter((task) => !linkedIds.has(task.id))
+      .filter((task) => {
+        if (!normalized) return true;
+        // 与 Rust 一致：title、note 分别匹配（LIKE title OR LIKE note），
+        // 不允许跨字段命中。
+        return (
+          task.title.toLocaleLowerCase("zh-CN").includes(normalized) ||
+          (task.note ?? "").toLocaleLowerCase("zh-CN").includes(normalized)
+        );
+      })
+      // 与 Rust ORDER BY updated_at DESC, created_at DESC 对齐。
+      .sort(
+        (left, right) =>
+          right.updatedAt.localeCompare(left.updatedAt) ||
+          right.createdAt.localeCompare(left.createdAt),
+      )
+      .slice(0, Math.max(1, Math.min(limit, 20)))
+  );
 }
 
 function hydrateLink(link: TaskLink): TaskLink {

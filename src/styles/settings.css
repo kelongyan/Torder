@@ -2,8 +2,8 @@
 .settings-dialog .dialog-card {
   display: flex;
   width: min(94vw, 920px);
-  height: min(720px, calc(100vh - 36px));
-  max-height: calc(100vh - 36px);
+  height: min(720px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
   flex-direction: column;
   overflow: hidden;
 }
@@ -25,7 +25,7 @@
 }
 
 .settings-dialog .dialog-header h2 {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 24px;
 }
 
@@ -1235,7 +1235,7 @@
 
 .stats-metric strong {
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   line-height: 28px;
 }
@@ -1700,4 +1700,543 @@
 .note-reset-link:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+/* ---------- R7 设置对齐设计稿 settings.css（2026-09-01） ---------- */
+
+/* 壳：左导航 186px（设计稿 .set-nav） */
+.settings-layout {
+  grid-template-columns: 186px minmax(0, 1fr);
+}
+
+.settings-side-nav-item {
+  position: relative;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+/* 设计稿 .set-nav item is-on：主色软底 + 左缘 3×16 accent 药丸 */
+.settings-side-nav-item.is-active {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.settings-side-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(-50%);
+}
+
+/* 页脚：自动保存文案（设计稿 sheet__foot） */
+.settings-footer .settings-footer-note {
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+/* 应用主题三卡（设计稿 settings-theme.css .theme-card，缩略色为固定示意值） */
+.theme-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.theme-card {
+  display: flex;
+  width: 116px;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 11px;
+  background: var(--mica-side);
+  padding: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.theme-card:hover {
+  color: var(--text-1);
+}
+
+.theme-card.is-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  color: var(--text-1);
+}
+
+.theme-card-preview {
+  position: relative;
+  display: block;
+  height: 62px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.theme-card-preview .pv-side {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 26%;
+}
+
+.theme-card-preview .pv-line {
+  position: absolute;
+  top: 12px;
+  left: 34%;
+  width: 52%;
+  height: 5px;
+  border-radius: 999px;
+}
+
+.theme-card-preview .pv-line.short {
+  top: 24px;
+  width: 34%;
+}
+
+.preview-light {
+  background: #eef1f7;
+}
+
+.preview-light .pv-side {
+  background: #d9e0ec;
+}
+
+.preview-light .pv-line {
+  background: #b8c2d4;
+}
+
+.preview-dark {
+  background: #10141d;
+}
+
+.preview-dark .pv-side {
+  background: #1c2230;
+}
+
+.preview-dark .pv-line {
+  background: #333d51;
+}
+
+.preview-system {
+  background: linear-gradient(90deg, #eef1f7 0 50%, #10141d 50% 100%);
+}
+
+.preview-system .pv-side {
+  background: linear-gradient(90deg, #d9e0ec 0 50%, #1c2230 50% 100%);
+}
+
+.preview-system .pv-line {
+  background: #94a0b8;
+}
+
+.theme-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 2px 2px;
+}
+
+/* ---------- 阶段 D · T-10 乙组：显示偏好（真实控件，原灰显占位转正） ---------- */
+.display-pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.display-pref-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.display-pref-chips {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.display-pref-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--text-3);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.display-pref-chip.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.set-ph-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--sunken);
+  padding: 4px 10px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.set-ph-picker i {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 10px;
+}
+
+.set-ph-switch {
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--stroke-mid);
+  padding: 2px;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.set-ph-switch i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.set-ph-switch.is-on {
+  background: var(--accent);
+}
+
+.set-ph-switch.is-on i {
+  transform: translateX(14px);
+}
+
+.set-ph-kbd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.set-ph-kbd-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.set-ph-kbd-row kbd {
+  border: 1px solid var(--stroke-mid);
+  border-radius: 4px;
+  background: var(--hover);
+  padding: 1px 6px;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+}
+
+.set-ph-swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.set-ph-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.set-ph-swatch.is-on {
+  box-shadow:
+    0 0 0 2px var(--mica),
+    0 0 0 4px var(--swatch);
+}
+
+.set-ph-note {
+  margin: 2px 0 0;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+.set-ph-link {
+  color: var(--text-3);
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+/* F2 · T-09：强调色六色板（真实生效，is-on 双环高亮沿用设计稿色板语言） */
+.accent-swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.accent-swatch {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.accent-swatch:hover {
+  transform: scale(1.12);
+}
+
+.accent-swatch.is-on {
+  box-shadow:
+    0 0 0 2px var(--mica),
+    0 0 0 4px var(--swatch);
+}
+
+/* F2 · T-10 甲组：真实开关与快捷键表（开关视觉与设计稿 PhSwitch 同规格） */
+.switch-toggle {
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 34px;
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--stroke-mid);
+  padding: 2px;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.switch-toggle i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.switch-toggle.is-on {
+  background: var(--accent);
+}
+
+.switch-toggle.is-on i {
+  transform: translateX(14px);
+}
+
+.switch-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  margin-top: 10px;
+}
+
+.settings-toggle-label {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.shortcut-group + .shortcut-group {
+  margin-top: 16px;
+}
+
+.shortcut-group-title {
+  margin: 0 0 6px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+}
+
+.shortcut-label {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.shortcut-keys {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.shortcut-keys kbd {
+  border: 1px solid var(--stroke-mid);
+  border-radius: 4px;
+  background: var(--hover);
+  padding: 1px 6px;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* F2 · T-10/T-11：设置搜索、恢复默认、关于子弹层 */
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--sunken);
+  padding: 0 10px;
+  height: 32px;
+  color: var(--text-3);
+}
+
+.settings-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.settings-search input::placeholder {
+  color: var(--text-3);
+}
+
+.settings-search-empty {
+  margin: 6px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.settings-reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--text-3);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+.settings-reset-button:hover {
+  background: var(--hover);
+  color: var(--danger);
+}
+
+.settings-subdialog {
+  z-index: 60;
+}
+
+.changelog-list {
+  padding: 16px;
+  overflow: auto;
+}
+
+.changelog-entry + .changelog-entry {
+  margin-top: 18px;
+}
+
+.changelog-entry header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.changelog-entry h4 {
+  margin: 0;
+  color: var(--text-1);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.changelog-entry header span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.changelog-entry ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.license-list {
+  padding: 16px;
+  overflow: auto;
+}
+
+.license-note {
+  margin: 0 0 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.license-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 12.5px;
+}
+
+.license-row:last-child {
+  border-bottom: 0;
+}
+
+.license-name {
+  min-width: 0;
+  flex: 1;
+  color: var(--text-1);
+}
+
+.license-usage {
+  color: var(--text-3);
+}
+
+.license-type {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }

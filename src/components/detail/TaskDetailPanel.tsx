@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { useTaskStore } from "../../stores/taskStore";
 import {
   formatTaskDateTime,
   formatTaskScheduleDate,
@@ -77,14 +78,13 @@ export function TaskDetailPanel({
   const presentTask = detailPresence.value;
 
   return (
-    <div
-      className={`dialog-overlay detail-overlay ${
+    /* R6：详情抽屉 = 非模态第三列（设计稿 detail.css flex 0 0 min(392px,42%)），
+       挤压列表而非遮盖；≤1080 转右侧覆盖。关闭走顶部关闭钮 / Esc。 */
+    <aside
+      className={`detail-drawer ${
         detailPresence.rendered ? detailPresence.className : "hidden"
       }`}
-      role="presentation"
-      onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      aria-label="任务详情"
     >
       {presentTask && (
         <TaskDetailContent
@@ -100,9 +100,12 @@ export function TaskDetailPanel({
           onOpenRecurring={onOpenRecurring}
           onOpenTask={onOpenTask}
           onToast={onToast}
+          onAttachmentCountChange={(delta) =>
+            useTaskStore.getState().bumpAttachmentCount(presentTask.id, delta)
+          }
         />
       )}
-    </div>
+    </aside>
   );
 }
 
@@ -118,6 +121,7 @@ function TaskDetailContent({
   onOpenRecurring,
   onOpenTask,
   onToast,
+  onAttachmentCountChange,
 }: {
   task: Task;
   lists: TaskList[];
@@ -130,6 +134,8 @@ function TaskDetailContent({
   onOpenRecurring: (task: Task) => void;
   onOpenTask: (taskId: string) => void;
   onToast: (message: string, type: ToastKind) => void;
+  /** T-15：附件区增删后 bump 任务行计数。 */
+  onAttachmentCountChange: (delta: number) => void;
 }) {
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [draftTitle, setDraftTitle] = useState(task.title);
@@ -589,7 +595,11 @@ function TaskDetailContent({
           </form>
         </section>
 
-        <TaskAttachmentSection taskId={task.id} onToast={onToast} />
+        <TaskAttachmentSection
+          taskId={task.id}
+          onToast={onToast}
+          onCountChange={onAttachmentCountChange}
+        />
 
         <TaskLinkSection
           task={task}

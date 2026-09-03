@@ -12,10 +12,10 @@ use crate::tray;
 use crate::widget;
 
 /* === 便签自定义字体（Phase 5） ===
-   固定槽位设计：应用数据目录 fonts/ 下最多一个 note-custom.* 文件，
-   重新导入即整体替换；字节经 read_note_font_bytes（ipc::Response 裸载荷，
-   避免 MB 级 Vec<u8> 走 JSON 数组序列化）交给前端 FontFace 动态注册，
-   家族名固定 "Torder Note Custom"（见 widgetAppearance.ts）。 */
+固定槽位设计：应用数据目录 fonts/ 下最多一个 note-custom.* 文件，
+重新导入即整体替换；字节经 read_note_font_bytes（ipc::Response 裸载荷，
+避免 MB 级 Vec<u8> 走 JSON 数组序列化）交给前端 FontFace 动态注册，
+家族名固定 "Torder Note Custom"（见 widgetAppearance.ts）。 */
 
 const NOTE_FONT_MAX_BYTES: u64 = 20 * 1024 * 1024;
 const NOTE_FONT_FILE_STEM: &str = "note-custom";

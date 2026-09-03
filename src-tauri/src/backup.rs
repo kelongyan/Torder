@@ -190,7 +190,7 @@ fn create_backup_package(
 
     let result = (|| {
         let connection = rusqlite::Connection::open(db_path)?;
-    connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.busy_timeout(std::time::Duration::from_secs(5))?;
         vacuum_into(&connection, &snapshot_path)?;
         write_backup_package_from_snapshot(data_dir, &snapshot_path, package_path)
     })();

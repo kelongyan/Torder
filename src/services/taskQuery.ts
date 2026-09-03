@@ -2,6 +2,8 @@ import { getListsSnapshot } from "./listService";
 import type {
   SystemView,
   Task,
+  TaskFilter,
+  TaskPriority,
   TaskScope,
   TaskSortBy,
 } from "../types/database";
@@ -10,7 +12,11 @@ export interface QueryTasksInput {
   scope: TaskScope;
   query: string;
   sortBy: TaskSortBy;
+  /** R04 排序方向：true 升序（早的/小的在前），false 降序。缺省 true。 */
+  sortAsc?: boolean;
   showCompleted: boolean;
+  /** R04 筛选面板多选条件；空条件（或 null）表示不过滤。 */
+  filter?: TaskFilter | null;
 }
 
 /**
@@ -23,9 +29,11 @@ export function filterAndSortTasks(
   tasks: Task[],
   input: QueryTasksInput,
 ): Task[] {
+  const sortAsc = input.sortAsc ?? true;
+  const direction = sortAsc ? 1 : -1;
   return tasks
     .filter((task) => matchesQuery(task, input))
-    .sort((left, right) => compareTasks(left, right, input.sortBy))
+    .sort((left, right) => compareTasks(left, right, input.sortBy) * direction)
     .map(cloneTask);
 }
 
@@ -37,7 +45,10 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
   } else if (task.deletedAt || task.status === "archived") {
     return false;
   }
-  if (!matchesScope(task, input.scope, input.showCompleted)) return false;
+  const showCompleted =
+    input.showCompleted || Boolean(input.filter?.includeCompleted);
+  if (!matchesScope(task, input.scope, showCompleted)) return false;
+  if (!matchesFilter(task, input.filter)) return false;
 
   const parsed = parseSearchQuery(input.query);
   if (parsed.text) {
@@ -54,7 +65,9 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
     return false;
   if (
     parsed.tagName !== null &&
-    !task.tags.some((tag) => foldAsciiCase(tag) === foldAsciiCase(parsed.tagName!))
+    !task.tags.some(
+      (tag) => foldAsciiCase(tag) === foldAsciiCase(parsed.tagName!),
+    )
   ) {
     return false;
   }
@@ -79,6 +92,29 @@ function matchesQuery(task: Task, input: QueryTasksInput): boolean {
     } else if (parsed.due === "overdue" && !isOverdue(task.dueAt)) {
       return false;
     }
+  }
+  return true;
+}
+
+/**
+ * R04 筛选面板：组内取「或」、组间取「与」。
+ * 三组条件各自为空时视为不限，这样未设置条件时行为与改动前完全一致。
+ */
+function matchesFilter(
+  task: Task,
+  filter: TaskFilter | null | undefined,
+): boolean {
+  if (!filter) return true;
+  if (filter.listIds.length > 0 && !filter.listIds.includes(task.listId))
+    return false;
+  if (filter.priorities.length > 0) {
+    if (!filter.priorities.includes(task.priority as TaskPriority))
+      return false;
+  }
+  if (filter.tags.length > 0) {
+    const wanted = filter.tags.map((tag) => foldAsciiCase(tag));
+    const owned = task.tags.map((tag) => foldAsciiCase(tag));
+    if (!owned.some((tag) => wanted.includes(tag))) return false;
   }
   return true;
 }
@@ -184,7 +220,8 @@ function matchesSystemView(
   if (view === "all") return true;
   if (task.status !== "todo") return false;
   if (view === "important") return task.priority === 2;
-  if (view === "planned") return task.scheduledDate !== null || task.dueAt !== null;
+  if (view === "planned")
+    return task.scheduledDate !== null || task.dueAt !== null;
   if (view === "overdue") return Boolean(task.dueAt && isOverdue(task.dueAt));
   if (view === "no-date") return task.dueAt === null;
   return taskPlanDateKey(task) === localDateKey(new Date());
@@ -251,7 +288,10 @@ export function taskPlanDateKey(task: Task): string | null {
   return task.dueAt ? localDateKey(new Date(task.dueAt)) : null;
 }
 
-function compareNullableText(left: string | null, right: string | null): number {
+function compareNullableText(
+  left: string | null,
+  right: string | null,
+): number {
   if (!left && !right) return 0;
   if (!left) return 1;
   if (!right) return -1;

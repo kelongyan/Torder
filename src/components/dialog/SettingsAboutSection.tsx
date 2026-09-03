@@ -47,7 +47,9 @@ export function SettingsAboutSection({
         info.hasUpdate ? { state: "found", info } : { state: "none" },
       );
       onToast(
-        info.hasUpdate ? `发现新版本 v${info.latestVersion}` : "当前已是最新版本",
+        info.hasUpdate
+          ? `发现新版本 v${info.latestVersion}`
+          : "当前已是最新版本",
         info.hasUpdate ? "info" : "success",
       );
     } catch (error) {

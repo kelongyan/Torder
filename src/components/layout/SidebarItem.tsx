@@ -5,6 +5,7 @@ export function SidebarItem({
   color,
   label,
   count,
+  alert,
   active,
   onClick,
   onEdit,
@@ -17,6 +18,8 @@ export function SidebarItem({
   label: string;
   /** 传 undefined 时隐藏角标（如回收站视图，列表数据不含已删任务）。 */
   count?: number;
+  /** R2：逾期等警示计数用红色弱底（设计稿 nav-badge is-alert）。 */
+  alert?: boolean;
   active: boolean;
   onClick: () => void;
   onEdit?: () => void;
@@ -44,7 +47,10 @@ export function SidebarItem({
       {Icon ? (
         <Icon aria-hidden="true" className="icon-sm" />
       ) : (
-        <span className="list-dot" style={{ backgroundColor: color }} />
+        <span
+          className="list-dot"
+          style={{ backgroundColor: color, color: color }}
+        />
       )}
       <span className="nav-item-title">{label}</span>
 
@@ -81,7 +87,9 @@ export function SidebarItem({
             )}
           </div>
         )}
-        {count !== undefined && <span className="nav-badge">{count}</span>}
+        {count !== undefined && (
+          <span className={`nav-badge ${alert ? "alert" : ""}`}>{count}</span>
+        )}
       </div>
     </div>
   );

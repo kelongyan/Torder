@@ -2,6 +2,8 @@ pub mod backup;
 pub mod commands;
 pub mod db;
 pub mod error;
+#[cfg(desktop)]
+mod mini;
 pub mod models;
 mod recurrence;
 pub mod runtime;
@@ -72,6 +74,7 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
     };
 
     let quick_add = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyT);
+    let mini_add = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyM);
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, shortcut, event| {
@@ -79,11 +82,19 @@ fn setup_global_quick_add(app: &tauri::App) -> tauri::Result<()> {
                     tray::show_main_window(app);
                     let _ = app.emit("tray-quick-add", ());
                 }
+                if shortcut == &mini_add && event.state() == ShortcutState::Pressed {
+                    if let Err(error) = mini::toggle_mini_window(app) {
+                        eprintln!("mini window toggle failed: {error}");
+                    }
+                }
             })
             .build(),
     )?;
     app.global_shortcut()
         .register(quick_add)
+        .unwrap_or_else(|error| eprintln!("global shortcut register failed: {error}"));
+    app.global_shortcut()
+        .register(mini_add)
         .unwrap_or_else(|error| eprintln!("global shortcut register failed: {error}"));
     Ok(())
 }
@@ -184,6 +195,7 @@ pub fn run() {
             commands::app::get_app_info,
             commands::app::set_window_material_theme,
             commands::database::get_database_status,
+            commands::focus::notify_focus_finished,
             commands::backup::backup_database,
             commands::backup::export_tasks,
             commands::backup::list_backups,
@@ -191,6 +203,7 @@ pub fn run() {
             commands::backup::import_backup_selection,
             commands::backup::restore_backup,
             commands::attachment::list_task_attachments,
+            commands::attachment::count_task_attachments,
             commands::attachment::add_managed_attachment,
             commands::attachment::add_local_attachment_reference,
             commands::attachment::add_web_link_attachment,
@@ -258,6 +271,10 @@ pub fn run() {
             commands::widget::import_note_font,
             #[cfg(desktop)]
             commands::widget::read_note_font_bytes,
+            #[cfg(desktop)]
+            commands::mini::toggle_mini,
+            commands::tag::manage_tag,
+            commands::notice::send_notice,
             #[cfg(desktop)]
             commands::widget::remove_note_font,
         ])

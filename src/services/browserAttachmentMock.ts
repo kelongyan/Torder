@@ -17,6 +17,16 @@ export function listBrowserTaskAttachments(taskId: string): Attachment[] {
     .map(cloneAttachment);
 }
 
+/** F1 · T-15：与 Rust `count_task_attachments` 同口径（未删除附件按任务聚合计数）。 */
+export function countBrowserTaskAttachments(): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const attachment of browserAttachments) {
+    if (attachment.deletedAt) continue;
+    counts[attachment.taskId] = (counts[attachment.taskId] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function addBrowserManagedAttachment(
   input: CreateAttachmentInput,
 ): Attachment {

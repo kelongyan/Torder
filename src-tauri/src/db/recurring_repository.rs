@@ -443,11 +443,21 @@ impl<'database> RecurringRuleRepository<'database> {
                 let mut connection = self.database.connect()?;
                 let transaction = connection.transaction()?;
                 generated_count += insert_occurrence(&transaction, &rule, &occurrence, now)?;
-                update_next_due(&transaction, &rule.id, next_due.as_deref(), rule.next_due_at.as_deref())?;
+                update_next_due(
+                    &transaction,
+                    &rule.id,
+                    next_due.as_deref(),
+                    rule.next_due_at.as_deref(),
+                )?;
                 transaction.commit()?;
             } else if next_due.is_none() {
                 let mut connection = self.database.connect()?;
-                update_next_due_connection(&mut connection, &rule.id, None, rule.next_due_at.as_deref())?;
+                update_next_due_connection(
+                    &mut connection,
+                    &rule.id,
+                    None,
+                    rule.next_due_at.as_deref(),
+                )?;
             }
         }
         Ok(RecurringGenerationResult { generated_count })
@@ -468,7 +478,12 @@ impl<'database> RecurringRuleRepository<'database> {
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
         let generated_count = insert_occurrence(&transaction, &rule, occurrence, now)?;
-        update_next_due(&transaction, &rule.id, next.as_deref(), rule.next_due_at.as_deref())?;
+        update_next_due(
+            &transaction,
+            &rule.id,
+            next.as_deref(),
+            rule.next_due_at.as_deref(),
+        )?;
         transaction.commit()?;
         Ok(RecurringGenerationResult { generated_count })
     }

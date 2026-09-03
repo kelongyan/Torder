@@ -15,8 +15,6 @@
     "global-shortcut:allow-is-registered",
     "dialog:allow-open",
     "opener:allow-open-url",
-    "opener:allow-open-path",
-    "opener:allow-reveal-item-in-dir",
     "notification:default"
   ]
 }

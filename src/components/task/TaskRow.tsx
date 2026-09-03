@@ -1,6 +1,16 @@
 import type { CSSProperties } from "react";
-import { Check, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  Flag,
+  GripVertical,
+  MoreHorizontal,
+  Pencil,
+  RotateCcw,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { priorityCopy } from "../../constants/taskConfig";
+import { useSwipeAction } from "../../hooks/useSwipeAction";
 import type { Task, TaskList } from "../../types/database";
 import { HighlightedText } from "../common/HighlightedText";
 import { TaskMeta } from "./TaskMeta";
@@ -16,6 +26,7 @@ export function TaskRow({
   searchQuery,
   deleted = false,
   timeGutter,
+  attachmentCount = 0,
   onOpen,
   onToggle,
   onDelete,
@@ -41,6 +52,8 @@ export function TaskRow({
   deleted?: boolean;
   /** 今天视图时间轴（提案 D）：行首 HH:mm 时间槽；出现时隐藏元信息里的日期标签。 */
   timeGutter?: string;
+  /** T-15：附件数（0 不显示），App 层从 store.attachmentCounts 查表。 */
+  attachmentCount?: number;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -57,6 +70,22 @@ export function TaskRow({
   const completed = task.status === "done";
   const list = lists.find((item) => item.id === task.listId) ?? null;
 
+  // M2.1 移动端滑动手势：左滑完成 / 右滑详情（回收站行与批量模式下行内为复选，不触发）
+  const { ref: swipeRef } = useSwipeAction({
+    swipeClass: "is-swiping",
+    threshold: 88,
+    onAction: (direction) => {
+      if (deleted || batchMode) return;
+      if (direction === "left") {
+        navigator.vibrate?.(12);
+        onToggle(task);
+      } else {
+        navigator.vibrate?.(8);
+        onOpen(task);
+      }
+    },
+  });
+
   function handleRowClick() {
     if (batchMode) onToggleBatchSelected(task.id);
     else if (!deleted) onOpen(task);
@@ -64,6 +93,7 @@ export function TaskRow({
 
   return (
     <article
+      ref={swipeRef}
       className={`task-item ${priorityCopy[task.priority].className} ${selected ? "selected" : ""} ${completed ? "completed" : ""} ${
         leaving ? "is-leaving" : ""
       } ${deleted ? "deleted" : ""} ${dragging ? "is-dragging" : ""}`}
@@ -85,6 +115,10 @@ export function TaskRow({
     >
       {timeGutter && <span className="task-time">{timeGutter}</span>}
 
+      <span className="task-grip" aria-hidden="true">
+        <GripVertical />
+      </span>
+
       {batchMode ? (
         <button
           type="button"
@@ -105,6 +139,8 @@ export function TaskRow({
           className={`task-check ${completed ? "checked" : ""}`}
           onClick={(event) => {
             event.stopPropagation();
+            // M1.4 触感：完成 8ms / 恢复 6ms（navigator.vibrate 桌面不可用时自动 no-op）
+            navigator.vibrate?.(completed ? 6 : 8);
             onToggle(task);
           }}
           aria-label={completed ? "恢复任务" : "完成任务"}
@@ -115,22 +151,52 @@ export function TaskRow({
 
       <div className="task-content">
         <div className="task-title-line">
+          {task.priority > 0 && (
+            <span
+              className={`task-priority-icon ${priorityCopy[task.priority].className}`}
+              title={`${priorityCopy[task.priority].label}优先级`}
+              aria-label={`${priorityCopy[task.priority].label}优先级`}
+            >
+              <Flag aria-hidden="true" />
+            </span>
+          )}
           <h3>
             <HighlightedText text={task.title} query={searchQuery} />
           </h3>
-          {task.note && (
-            <span className="task-note">
-              <HighlightedText text={task.note} query={searchQuery} />
-            </span>
-          )}
+          {/* D6：行内备注移除（忠于设计稿两行层级），备注在详情面板查看 */}
         </div>
-        <TaskMeta task={task} list={list} hideDue={Boolean(timeGutter)} />
+        <TaskMeta
+          task={task}
+          list={list}
+          hideDue={Boolean(timeGutter)}
+          attachmentCount={attachmentCount}
+        />
       </div>
 
       {!batchMode && (
         <div className="task-actions">
+          {!deleted && (
+            <button
+              type="button"
+              className="task-action-soon"
+              disabled
+              aria-label="星标"
+              aria-disabled="true"
+            >
+              <Star aria-hidden="true" />
+            </button>
+          )}
           {deleted ? (
             <>
+              <button
+                type="button"
+                className="task-action-soon"
+                disabled
+                aria-label="更多操作"
+                aria-disabled="true"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 onClick={(event) => {
@@ -156,6 +222,15 @@ export function TaskRow({
             </>
           ) : (
             <>
+              <button
+                type="button"
+                className="task-action-soon"
+                disabled
+                aria-label="更多操作"
+                aria-disabled="true"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 onClick={(event) => {

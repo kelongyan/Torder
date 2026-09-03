@@ -1,6 +1,16 @@
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { usePresence, type PresencePhase } from "./usePresence";
-import type { CalendarEvent, RecurringRule, Task, TaskList } from "../types/database";
+import type {
+  CalendarEvent,
+  RecurringRule,
+  Task,
+  TaskList,
+} from "../types/database";
 import type { ConfirmState } from "../types/ui";
 
 interface DialogPresence {
@@ -19,6 +29,8 @@ export interface DialogManager {
   settingsOpen: boolean;
   statsOpen: boolean;
   batchEditOpen: boolean;
+  /** F2 · T-01：命令面板（Ctrl K）。 */
+  commandPaletteOpen: boolean;
   confirmState: ConfirmState | null;
   recurringDialogOpen: boolean;
   editingRecurringRule: RecurringRule | null;
@@ -32,6 +44,7 @@ export interface DialogManager {
   settingsPresence: DialogPresence;
   statsPresence: DialogPresence;
   batchEditPresence: DialogPresence;
+  commandPalettePresence: DialogPresence;
   confirmPresence: DialogPresence;
   recurringDialogPresence: DialogPresence;
   calendarEventDialogPresence: DialogPresence;
@@ -44,6 +57,7 @@ export interface DialogManager {
   setSettingsOpen: Dispatch<SetStateAction<boolean>>;
   setStatsOpen: Dispatch<SetStateAction<boolean>>;
   setBatchEditOpen: Dispatch<SetStateAction<boolean>>;
+  setCommandPaletteOpen: Dispatch<SetStateAction<boolean>>;
   setConfirmState: Dispatch<SetStateAction<ConfirmState | null>>;
   setRecurringDialogOpen: Dispatch<SetStateAction<boolean>>;
   setEditingRecurringRule: Dispatch<SetStateAction<RecurringRule | null>>;
@@ -74,6 +88,7 @@ export function useDialogManager(): DialogManager {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [batchEditOpen, setBatchEditOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [editingRecurringRule, setEditingRecurringRule] =
@@ -94,6 +109,7 @@ export function useDialogManager(): DialogManager {
   const settingsPresence = usePresence(settingsOpen, 280);
   const statsPresence = usePresence(statsOpen, 280);
   const batchEditPresence = usePresence(batchEditOpen, 280);
+  const commandPalettePresence = usePresence(commandPaletteOpen, 220);
   const confirmPresence = usePresence(confirmState, 280);
   const recurringDialogPresence = usePresence(recurringDialogOpen, 280);
   const calendarEventDialogPresence = usePresence(calendarEventDialogOpen, 280);
@@ -148,6 +164,7 @@ export function useDialogManager(): DialogManager {
     setSettingsOpen(false);
     setStatsOpen(false);
     setBatchEditOpen(false);
+    setCommandPaletteOpen(false);
     setConfirmState(null);
     setRecurringDialogOpen(false);
     setEditingRecurringRule(null);
@@ -166,6 +183,7 @@ export function useDialogManager(): DialogManager {
     settingsOpen,
     statsOpen,
     batchEditOpen,
+    commandPaletteOpen,
     confirmState,
     recurringDialogOpen,
     editingRecurringRule,
@@ -179,6 +197,7 @@ export function useDialogManager(): DialogManager {
     settingsPresence,
     statsPresence,
     batchEditPresence,
+    commandPalettePresence,
     confirmPresence,
     recurringDialogPresence,
     calendarEventDialogPresence,
@@ -191,6 +210,7 @@ export function useDialogManager(): DialogManager {
     setSettingsOpen,
     setStatsOpen,
     setBatchEditOpen,
+    setCommandPaletteOpen,
     setConfirmState,
     setRecurringDialogOpen,
     setEditingRecurringRule,

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -19,6 +21,16 @@ pub fn list_task_attachments(
         .map_err(|error| error.to_string())?;
     AttachmentRepository::new(&database)
         .list_by_task(&data_dir, &task_id)
+        .map_err(|error| error.to_string())
+}
+
+/// F1 · T-15：一次取回 `task_id -> 附件数` 映射，供列表页各行查表（避免 N+1）。
+#[tauri::command]
+pub fn count_task_attachments(
+    database: State<'_, Database>,
+) -> Result<HashMap<String, i64>, String> {
+    AttachmentRepository::new(&database)
+        .count_by_tasks()
         .map_err(|error| error.to_string())
 }
 

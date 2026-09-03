@@ -27,7 +27,8 @@ export function buildUnscheduledTasks(
   showCompleted: boolean,
 ): Task[] {
   return tasks.filter(
-    (task) => !isCalendarHidden(task, showCompleted) && !getTaskCalendarKey(task),
+    (task) =>
+      !isCalendarHidden(task, showCompleted) && !getTaskCalendarKey(task),
   );
 }
 

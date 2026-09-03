@@ -1,12 +1,18 @@
-const RING_RADIUS = 6;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+import { ChevronRight } from "lucide-react";
 
+/**
+ * 粘性分组头：折叠箭头 + 标题 + 分隔线，右侧完成进度（线性条 + done/total）。
+ * 滚动时悬挂在内容区顶部（由 .section-header 的 sticky + 毛玻璃底承载）。
+ */
 export function SectionHeader({
   label,
   progress,
+  tone,
 }: {
   label: string;
   progress?: { done: number; total: number };
+  /** R4：逾期等警示组用红色标题（设计稿 .group--alert）。 */
+  tone?: "danger";
 }) {
   const ratio =
     progress && progress.total > 0
@@ -14,42 +20,35 @@ export function SectionHeader({
       : 0;
 
   return (
-    <div className="section-header">
+    <div
+      className={`section-header ${tone === "danger" ? "section-header--danger" : ""}`}
+    >
+      <span className="section-header-chevron" aria-hidden="true">
+        <ChevronRight />
+      </span>
       <span className="section-header-label">{label}</span>
+      <span className="section-header-rule" aria-hidden="true" />
       {progress && (
         <span
           className="section-progress"
           title={`已完成 ${progress.done}/${progress.total}`}
         >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
-            focusable="false"
+          <span
+            className="section-progress-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={progress.total}
+            aria-valuenow={progress.done}
+            aria-label={`已完成 ${progress.done}/${progress.total}`}
           >
-            <circle
-              className="section-progress-track"
-              cx="8"
-              cy="8"
-              r={RING_RADIUS}
-              fill="none"
-              strokeWidth="2"
-            />
-            <circle
+            <span
               className="section-progress-fill"
-              cx="8"
-              cy="8"
-              r={RING_RADIUS}
-              fill="none"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={RING_CIRCUMFERENCE * (1 - ratio)}
-              transform="rotate(-90 8 8)"
+              style={{ width: `${ratio * 100}%` }}
             />
-          </svg>
-          {progress.done}/{progress.total}
+          </span>
+          <span className="section-progress-text">
+            {progress.done}/{progress.total}
+          </span>
         </span>
       )}
     </div>

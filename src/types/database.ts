@@ -9,9 +9,41 @@ export type SystemView =
   | "deleted";
 export type TaskLayout = "list" | "board" | "calendar" | "month" | "week";
 export type TaskSortBy = "priority" | "date" | "created" | "manual";
+export type SortDirection = "asc" | "desc";
+export type TaskPriority = 0 | 1 | 2;
 
 export type TaskScope =
   { kind: "view"; view: SystemView } | { kind: "list"; listId: string };
+
+/**
+ * R04 筛选面板的多选模型。
+ * 组内取「或」、组间取「与」：listIds 命中其一即可，同时还要满足 tags 与
+ * priorities 各自（非空时）的条件。includeCompleted 与既有 showCompleted
+ * 取「或」——任一侧为真就显示已完成任务。
+ */
+export interface TaskFilter {
+  listIds: string[];
+  tags: string[];
+  priorities: TaskPriority[];
+  includeCompleted: boolean;
+}
+
+export const emptyTaskFilter: TaskFilter = {
+  listIds: [],
+  tags: [],
+  priorities: [],
+  includeCompleted: false,
+};
+
+/** 底栏回显用的条件数（与设计稿「N 个条件」一致）。 */
+export function countTaskFilter(filter: TaskFilter): number {
+  return (
+    filter.listIds.length +
+    filter.tags.length +
+    filter.priorities.length +
+    (filter.includeCompleted ? 1 : 0)
+  );
+}
 
 export interface TaskSubtask {
   id: string;
@@ -27,7 +59,7 @@ export interface Task {
   title: string;
   note: string | null;
   status: "todo" | "done" | "archived";
-  priority: 0 | 1 | 2;
+  priority: TaskPriority;
   listId: string;
   scheduledDate: string | null;
   dueAt: string | null;
@@ -49,7 +81,7 @@ export interface Task {
 export interface CreateTaskInput {
   title: string;
   note?: string | null;
-  priority?: 0 | 1 | 2;
+  priority?: TaskPriority;
   listId?: string;
   scheduledDate?: string | null;
   dueAt?: string | null;
@@ -65,7 +97,7 @@ export interface UpdateTaskInput {
   title: string;
   note: string | null;
   status: Task["status"];
-  priority: Task["priority"];
+  priority: TaskPriority;
   listId: string;
   scheduledDate: string | null;
   dueAt: string | null;
@@ -181,7 +213,7 @@ export interface RecurringRule {
   id: string;
   title: string;
   note: string | null;
-  priority: 0 | 1 | 2;
+  priority: TaskPriority;
   listId: string;
   frequency: RecurrenceFrequency;
   intervalCount: number;
@@ -203,7 +235,7 @@ export interface CreateRecurringRuleInput {
   sourceTaskId?: string | null;
   title: string;
   note?: string | null;
-  priority: 0 | 1 | 2;
+  priority: TaskPriority;
   listId: string;
   frequency: RecurrenceFrequency;
   intervalCount: number;

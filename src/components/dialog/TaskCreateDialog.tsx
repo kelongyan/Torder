@@ -9,6 +9,7 @@ import type {
   TaskList,
 } from "../../types/database";
 import type { ToastKind } from "../../types/ui";
+import type { AppSettings } from "../../types/settings";
 import {
   emptyDraft,
   parseTagsInput,
@@ -25,6 +26,9 @@ export function TaskCreateDialog({
   defaultListId,
   defaultScheduledDate = "",
   defaultReminderMinutes,
+  defaultPriority = -1,
+  defaultDueDate = "none",
+  initialTitle = "",
   presence,
   onClose,
   onSubmit,
@@ -35,6 +39,11 @@ export function TaskCreateDialog({
   defaultListId: string;
   defaultScheduledDate?: string;
   defaultReminderMinutes: number;
+  /** T-10 甲组：设置的默认优先级（-1 = 不预设）。 */
+  defaultPriority?: AppSettings["defaultPriority"];
+  /** T-10 甲组：设置的默认截止。 */
+  defaultDueDate?: AppSettings["defaultDueDate"];
+  initialTitle?: string;
   presence: PresencePhase;
   onClose: () => void;
   onSubmit: (
@@ -45,7 +54,11 @@ export function TaskCreateDialog({
   onToast: (message: string, type: ToastKind) => void;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(() =>
-    emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate),
+    emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate, {
+      priority: defaultPriority,
+      dueDate: defaultDueDate,
+      title: initialTitle,
+    }),
   );
   const [attachments, setAttachments] = useState<PendingTaskAttachment[]>([]);
   const [touched, setTouched] = useState(false);
@@ -120,7 +133,7 @@ export function TaskCreateDialog({
       icon={Plus}
       presence={presence}
       onClose={onClose}
-      width="500px"
+      width="620px"
       overlayClassName="task-create-dialog form-dialog"
     >
       <form
@@ -159,7 +172,7 @@ export function TaskCreateDialog({
         )}
         <DialogFooter
           onCancel={onClose}
-          submitLabel={draft.recurrenceFrequency ? "创建循环任务" : "创建任务"}
+          submitLabel={draft.recurrenceFrequency ? "创建循环任务" : "创建事项"}
           submitting={submitting}
         />
       </form>

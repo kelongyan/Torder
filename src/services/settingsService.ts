@@ -2,7 +2,12 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Setting } from "../types/database";
 import {
   defaultAppSettings,
+  type AccentPreference,
   type AppSettings,
+  type DefaultDueDate,
+  type DensityPreference,
+  type FontSizePreference,
+  type NotificationSound,
   type SavedTaskView,
   type ThemePreference,
 } from "../types/settings";
@@ -55,6 +60,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
   );
   return {
     theme: parseTheme(settings.get("theme")),
+    accent: parseAccent(settings.get("accent")),
     defaultReminderMinutes: parseNumber(
       settings.get("defaultReminderMinutes"),
       1440,
@@ -70,6 +76,41 @@ export async function loadAppSettings(): Promise<AppSettings> {
       defaultAppSettings.backupRetentionCount,
     ),
     savedViews: parseSavedViews(settings.get("savedViews")),
+    defaultDueDate: parseDefaultDueDate(settings.get("defaultDueDate")),
+    defaultPriority: parseDefaultPriority(settings.get("defaultPriority")),
+    quickAddNaturalLanguage: parseBoolean(
+      settings.get("quickAddNaturalLanguage"),
+      defaultAppSettings.quickAddNaturalLanguage,
+    ),
+    moveCompletedImmediately: parseBoolean(
+      settings.get("moveCompletedImmediately"),
+      defaultAppSettings.moveCompletedImmediately,
+    ),
+    notificationsEnabled: parseBoolean(
+      settings.get("notificationsEnabled"),
+      defaultAppSettings.notificationsEnabled,
+    ),
+    notificationSound: parseNotificationSound(
+      settings.get("notificationSound"),
+    ),
+    reviewReminderEnabled: parseBoolean(
+      settings.get("reviewReminderEnabled"),
+      defaultAppSettings.reviewReminderEnabled,
+    ),
+    reviewReminderTime: parseString(
+      settings.get("reviewReminderTime"),
+      defaultAppSettings.reviewReminderTime,
+    ),
+    autoPostponeOverdue: parseBoolean(
+      settings.get("autoPostponeOverdue"),
+      defaultAppSettings.autoPostponeOverdue,
+    ),
+    density: parseDensity(settings.get("density")),
+    fontSize: parseFontSize(settings.get("fontSize")),
+    focusDndEnabled: parseBoolean(
+      settings.get("focusDndEnabled"),
+      defaultAppSettings.focusDndEnabled,
+    ),
   };
 }
 
@@ -78,6 +119,19 @@ export async function saveAppSetting<K extends keyof AppSettings>(
   value: AppSettings[K],
 ): Promise<void> {
   await upsertSetting(key, value);
+}
+
+/**
+ * F2 · T-11：恢复默认设置。只重置 AppSettings 覆盖的键（主题/默认值/通知/
+ * 视图偏好等），不触碰任务数据与同步、备份等独立配置。
+ */
+export async function resetAppSettings(): Promise<AppSettings> {
+  await Promise.all(
+    Object.entries(defaultAppSettings).map(([key, value]) =>
+      upsertSetting(key, value),
+    ),
+  );
+  return { ...defaultAppSettings, savedViews: [] };
 }
 
 function getBrowserSettingsSnapshot(): Setting[] {
@@ -98,6 +152,75 @@ function parseTheme(value: string | undefined): ThemePreference {
   return parsed === "light" || parsed === "dark" || parsed === "system"
     ? parsed
     : defaultAppSettings.theme;
+}
+
+const ACCENT_VALUES: AccentPreference[] = [
+  "blue",
+  "violet",
+  "teal",
+  "green",
+  "amber",
+  "rose",
+];
+
+function parseAccent(value: string | undefined): AccentPreference {
+  const parsed = parseJson(value);
+  return ACCENT_VALUES.includes(parsed as AccentPreference)
+    ? (parsed as AccentPreference)
+    : defaultAppSettings.accent;
+}
+
+const DEFAULT_DUE_VALUES: DefaultDueDate[] = [
+  "none",
+  "today",
+  "tomorrow",
+  "next_monday",
+];
+
+function parseDefaultDueDate(value: string | undefined): DefaultDueDate {
+  const parsed = parseJson(value);
+  return DEFAULT_DUE_VALUES.includes(parsed as DefaultDueDate)
+    ? (parsed as DefaultDueDate)
+    : defaultAppSettings.defaultDueDate;
+}
+
+function parseDefaultPriority(
+  value: string | undefined,
+): AppSettings["defaultPriority"] {
+  const parsed = parseJson(value);
+  return parsed === -1 || parsed === 0 || parsed === 1 || parsed === 2
+    ? parsed
+    : defaultAppSettings.defaultPriority;
+}
+
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  const parsed = parseJson(value);
+  return typeof parsed === "boolean" ? parsed : fallback;
+}
+
+function parseNotificationSound(value: string | undefined): NotificationSound {
+  const parsed = parseJson(value);
+  return parsed === "silent" || parsed === "system"
+    ? parsed
+    : defaultAppSettings.notificationSound;
+}
+
+const DENSITY_VALUES: DensityPreference[] = ["compact", "standard", "relaxed"];
+
+function parseDensity(value: string | undefined): DensityPreference {
+  const parsed = parseJson(value);
+  return DENSITY_VALUES.includes(parsed as DensityPreference)
+    ? (parsed as DensityPreference)
+    : defaultAppSettings.density;
+}
+
+const FONT_SIZE_VALUES: FontSizePreference[] = ["small", "standard", "large"];
+
+function parseFontSize(value: string | undefined): FontSizePreference {
+  const parsed = parseJson(value);
+  return FONT_SIZE_VALUES.includes(parsed as FontSizePreference)
+    ? (parsed as FontSizePreference)
+    : defaultAppSettings.fontSize;
 }
 
 function parseNumber(value: string | undefined, fallback: number): number {

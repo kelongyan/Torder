@@ -1,15 +1,16 @@
 use serde_json::Value;
 
 use super::{
-    crypto, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_JSON_DEPTH, MAX_STRING_LENGTH, PROTOCOL,
+    crypto, supported_protocol, MAX_BATCH_OPERATIONS, MAX_ID_LENGTH, MAX_JSON_DEPTH,
+    MAX_STRING_LENGTH, MIN_SUPPORTED_SCHEMA_VERSION, SCHEMA_VERSION,
 };
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::manifest::{ChangeOperation, Manifest};
 
 pub fn validate_manifest(manifest: &Manifest) -> RepositoryResult<()> {
-    if manifest.protocol != PROTOCOL
+    if !supported_protocol(manifest.protocol)
         || manifest.format != "torder-sync"
-        || manifest.schema_version != 2
+        || !(MIN_SUPPORTED_SCHEMA_VERSION..=SCHEMA_VERSION).contains(&manifest.schema_version)
         || manifest.latest_sequence < 0
         || manifest.snapshot_sequence < 0
         || manifest.snapshot_sequence > manifest.latest_sequence
@@ -84,10 +85,9 @@ pub fn validate_operation(operation: &ChangeOperation) -> RepositoryResult<()> {
         }
     }
     validate_entity_fields(&operation.entity, payload)?;
-    if operation.operation == "delete"
-        && !payload
-            .get("deletedAt")
-            .is_some_and(|value| value.as_str().is_some())
+    // 删除操作的 payload 必须携带字符串型 deletedAt（P1-03：简化布尔表达
+    // 式，与 is_some_and + 取反的写法语义完全等价）
+    if operation.operation == "delete" && payload.get("deletedAt").and_then(Value::as_str).is_none()
     {
         return Err(RepositoryError::Validation(
             "sync delete payload requires deletedAt",
@@ -620,4 +620,39 @@ pub fn date_field(payload: &serde_json::Map<String, Value>, key: &str) -> Reposi
     chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d")
         .map_err(|_| RepositoryError::Validation("invalid sync date"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod validate_tags_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn tags_non_array_rejected() {
+        let error = validate_task_tags(Some(&json!("not-an-array"))).unwrap_err();
+        assert!(matches!(error, RepositoryError::Validation(_)));
+    }
+
+    #[test]
+    fn tags_rejects_empty_and_oversized_entries() {
+        assert!(validate_task_tags(Some(&json!([""]))).is_err());
+        assert!(validate_task_tags(Some(&json!(["  "]))).is_err());
+        assert!(validate_task_tags(Some(&json!(["a".repeat(41)]))).is_err());
+    }
+
+    #[test]
+    fn tags_rejects_too_many_entries() {
+        let many: Vec<String> = (0..31).map(|index| format!("tag-{index}")).collect();
+        assert!(validate_task_tags(Some(&serde_json::to_value(many).unwrap())).is_err());
+    }
+
+    #[test]
+    fn tags_accepts_boundary_ok() {
+        let thirty: Vec<String> = (0..30).map(|index| format!("tag-{index}")).collect();
+        assert!(validate_task_tags(Some(&serde_json::to_value(thirty).unwrap())).is_ok());
+        // 规则按 UTF-8 字节数（String::len）：超 40 字节的中文标签被拒。
+        assert!(validate_task_tags(Some(&json!(["t", "标签-短"]))).is_ok());
+        assert!(validate_task_tags(Some(&json!(["长标签".repeat(7)]))).is_err());
+        assert!(validate_task_tags(None).is_ok());
+    }
 }

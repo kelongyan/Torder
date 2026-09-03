@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -202,6 +203,24 @@ impl<'database> AttachmentRepository<'database> {
             .map(|attachment| with_managed_local_path(data_dir, attachment))
             .collect();
         Ok(attachments)
+    }
+
+    /// F1 · T-15 任务行附件计数：一次 GROUP BY 取回全部 `task_id -> count`。
+    ///
+    /// 列表页每行都要显示附件数，逐行查会变成 N+1；这里让前端在加载任务后
+    /// 取一次映射，各行只做 map 查表。附件量级远小于任务量级，全量聚合足够。
+    pub fn count_by_tasks(&self) -> RepositoryResult<HashMap<String, i64>> {
+        let connection = self.database.connect()?;
+        let mut statement = connection.prepare(
+            "SELECT task_id, COUNT(*) FROM attachments \
+             WHERE deleted_at IS NULL GROUP BY task_id",
+        )?;
+        let counts = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?
+            .collect::<Result<HashMap<_, _>, _>>()?;
+        Ok(counts)
     }
 
     pub fn get(&self, data_dir: &Path, id: &str) -> RepositoryResult<Attachment> {

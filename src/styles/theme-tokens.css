@@ -1,0 +1,301 @@
+/* R0 theme layer: design color roles plus aliases used by current components.
+   Motion tokens and component animations remain defined in their existing files. */
+
+/* S2 backdrop-filter 两档规格：纯净高斯模糊，去除过高 saturate 偏色 */
+:root {
+  --blur-panel: blur(16px);
+  --blur-overlay: blur(24px);
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --wallpaper-base: #282a36;
+  --wallpaper:
+    radial-gradient(
+      120% 70% at 50% 0%,
+      rgba(189, 147, 249, 0.08) 0%,
+      rgba(40, 42, 54, 0) 70%
+    ),
+    #282a36;
+  --mica: #282a36;
+  --mica-side: #21222c;
+  --titlebar: rgba(255, 255, 255, 0.02);
+  --pop: #343746;
+  --pop-line: rgba(255, 255, 255, 0.12);
+  --scrim: rgba(33, 34, 44, 0.7);
+  --hover: rgba(68, 71, 90, 0.45);
+  --hover-strong: rgba(68, 71, 90, 0.75);
+  --active-bg: #44475a;
+  --sunken: rgba(33, 34, 44, 0.7);
+  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --stroke: rgba(98, 114, 164, 0.28);
+  --stroke-mid: rgba(98, 114, 164, 0.45);
+  --stroke-strong: rgba(98, 114, 164, 0.7);
+  --text-1: #f8f8f2;
+  --text-2: #c3ccdb;
+  --text-3: #6272a4;
+  --accent: #bd93f9;
+  --accent-hi: #d1b3ff;
+  --accent-soft: rgba(189, 147, 249, 0.18);
+  --accent-line: rgba(189, 147, 249, 0.45);
+  --on-accent: #282a36;
+  --done: #50fa7b;
+  --danger: #ff5555;
+  --warn: #ffb86c;
+  --p-blue: #8be9fd;
+  --p-violet: #bd93f9;
+  --p-teal: #8be9fd;
+  --p-amber: #ffb86c;
+  --p-rose: #ff79c6;
+  --p-green: #50fa7b;
+  --shadow-window:
+    0 2px 4px rgba(0, 0, 0, 0.35), 0 24px 48px -12px rgba(0, 0, 0, 0.7),
+    0 48px 120px -24px rgba(0, 0, 0, 0.8);
+  --shadow-pop:
+    0 4px 20px -2px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --caption-close: #ff5555;
+  --bg-primary: var(--mica);
+  --bg-secondary: var(--mica);
+  --bg-tertiary: var(--mica-side);
+  --bg-hover: var(--hover-strong);
+  --bg-active: var(--active-bg);
+  --border: var(--stroke);
+  --border-light: var(--stroke-strong);
+  --border-subtle: var(--stroke);
+  --tree-line: var(--stroke-mid);
+  --tree-branch: var(--stroke-strong);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
+  --accent-hover: var(--accent-hi);
+  --accent-bg: var(--accent-soft);
+  --accent-border: var(--accent-line);
+  --red: var(--danger);
+  --amber: var(--warn);
+  --blue: var(--p-blue);
+  --green: var(--done);
+  --on-danger: #ffffff;
+  --on-success: #282a36;
+  --focus-ring: color-mix(in srgb, var(--accent) 35%, transparent);
+  --danger-bg: color-mix(in srgb, var(--danger) 16%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 44%, transparent);
+  --success-bg: color-mix(in srgb, var(--done) 16%, transparent);
+  --highlight-bg: color-mix(in srgb, #f1fa8c 22%, transparent);
+  --overlay-bg: var(--scrim);
+  --scrollbar-thumb: var(--stroke-mid);
+  --shadow: var(--shadow-card);
+  --shadow-md: var(--shadow-pop);
+  --shadow-lift: var(--shadow-pop);
+  --shadow-floating: var(--shadow-window);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --wallpaper-base: #f4f6fa;
+  --wallpaper:
+    radial-gradient(
+      100% 60% at 50% 0%,
+      rgba(220, 230, 248, 0.4) 0%,
+      rgba(244, 246, 250, 0) 70%
+    ),
+    linear-gradient(180deg, #f8fafd 0%, #f1f4f9 100%);
+  --mica: #ffffff;
+  --mica-side: #edf1f7;
+  --titlebar: rgba(255, 255, 255, 0.6);
+  --pop: #ffffff;
+  --pop-line: rgba(15, 23, 42, 0.08);
+  --scrim: rgba(15, 23, 42, 0.32);
+  --hover: rgba(15, 23, 42, 0.04);
+  --hover-strong: rgba(15, 23, 42, 0.07);
+  --active-bg: rgba(15, 23, 42, 0.06);
+  --sunken: rgba(15, 23, 42, 0.035);
+  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --stroke: rgba(15, 23, 42, 0.08);
+  --stroke-mid: rgba(15, 23, 42, 0.13);
+  --stroke-strong: rgba(15, 23, 42, 0.22);
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --accent: #2563eb;
+  --accent-hi: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.08);
+  --accent-line: rgba(37, 99, 235, 0.28);
+  --on-accent: #ffffff;
+  --done: #059669;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --p-blue: #2563eb;
+  --p-violet: #9333ea;
+  --p-teal: #0d9488;
+  --p-amber: #d97706;
+  --p-rose: #e11d48;
+  --p-green: #059669;
+  --shadow-window:
+    0 2px 4px rgba(15, 23, 42, 0.06), 0 24px 48px -14px rgba(15, 23, 42, 0.14),
+    0 48px 110px -30px rgba(15, 23, 42, 0.18);
+  --shadow-pop:
+    0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+  --shadow-card:
+    0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.03);
+  --caption-close: #dc2626;
+  --bg-primary: var(--wallpaper-base);
+  --bg-secondary: var(--mica);
+  --bg-tertiary: var(--mica-side);
+  --bg-hover: var(--hover-strong);
+  --bg-active: var(--active-bg);
+  --border: var(--stroke);
+  --border-light: var(--stroke-strong);
+  --border-subtle: var(--stroke);
+  --tree-line: var(--stroke-mid);
+  --tree-branch: var(--stroke-strong);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-muted: var(--text-3);
+  --accent-hover: var(--accent-hi);
+  --accent-bg: var(--accent-soft);
+  --accent-border: var(--accent-line);
+  --red: var(--danger);
+  --amber: var(--warn);
+  --blue: var(--p-blue);
+  --green: var(--done);
+  --on-danger: #ffffff;
+  --on-success: #ffffff;
+  --focus-ring: color-mix(in srgb, var(--accent) 24%, transparent);
+  --danger-bg: color-mix(in srgb, var(--danger) 10%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 30%, transparent);
+  --success-bg: color-mix(in srgb, var(--done) 10%, transparent);
+  --highlight-bg: color-mix(in srgb, var(--warn) 18%, transparent);
+  --overlay-bg: var(--scrim);
+  --scrollbar-thumb: var(--stroke-mid);
+  --shadow: var(--shadow-card);
+  --shadow-md: var(--shadow-pop);
+  --shadow-lift: var(--shadow-pop);
+  --shadow-floating: var(--shadow-window);
+}
+
+/* ============================================================
+   F2 · T-09 强调色静态预设层（设计稿 §2.4：持久化 data-accent，
+   不走内联变量，避免绕过主题派生）。blue 为默认（无属性即默认）。
+   派生公式：深色 hi=mix(78%,#fff)/soft 16%/line 40%/on-accent 深字；
+   浅色 hi=mix(86%,#000)/soft 10%/line 38%/on-accent 白字（与主体
+   两套主题块的既定透明度保持一致，只换主色调）。
+   ============================================================ */
+
+:root[data-accent="violet"] {
+  --accent: #a98af5;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="teal"] {
+  --accent: #4bc0c8;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="green"] {
+  --accent: #43c48d;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="amber"] {
+  --accent: #e8b04b;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-accent="rose"] {
+  --accent: #f0819e;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+  --on-accent: #0b1020;
+}
+
+:root[data-theme="light"][data-accent="violet"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="teal"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="green"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="amber"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"][data-accent="rose"] {
+  --accent-hi: color-mix(in srgb, var(--accent) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #fff;
+}
+
+/* ===== 移动端专属 token（M0.2，仅 mobile 作用域内生效，不影响桌面）=====
+   全部由既有 token 推导，不引入新色/新阴影/新圆角。 */
+.window-frame.mobile {
+  /* 触摸目标（Material 3 / WCAG 2.5.5 触摸最小值 48dp，FAB 56dp） */
+  --touch-min: 48px;
+  --touch-fab: 56px;
+
+  /* 节奏密度（space-* 系列沿用桌面语义，移动端收紧一档） */
+  --space-mobile-xs: 4px;
+  --space-mobile-sm: 8px;
+  --space-mobile-md: 12px;
+  --space-mobile-lg: 16px;
+  --space-mobile-xl: 24px;
+
+  /* 行高校验（与桌面 1.5/1.6 行距保持差异但稳定） */
+  --line-snug-mobile: 1.3;
+  --line-mobile-body: 1.45;
+
+  /* 安全区 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* 触感（克制：仅 tap/click 触发，不监听滚动） */
+  --haptic-tap: 8ms;
+  --haptic-heavy: 16ms;
+  --haptic-success: 12ms;
+
+  /* 移动端进入/退出曲线（保留 D7 动效精神：快而 crisp） */
+  --motion-mobile-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-mobile-exit: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* 顶栏（移动版主 header） */
+  --titlebar-mobile-bg: color-mix(in srgb, var(--mica) 92%, transparent);
+  --titlebar-mobile-border: 1px solid var(--border);
+
+  /* 底部导航（M3 使用，M0.2 先定档） */
+  --bottom-nav-height: calc(56px + var(--safe-bottom));
+  --bottom-nav-bg: color-mix(in srgb, var(--mica) 96%, transparent);
+}

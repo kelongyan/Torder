@@ -1,0 +1,95 @@
+/* 迷你速记窗（阶段 B / T-03）——独立小窗入口样式。
+   全部使用现有 token；字号只取白名单变量。 */
+
+.mini-root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
+.mini-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mini-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: var(--text-md);
+  outline: none;
+}
+
+.mini-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.mini-submit {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  flex: none;
+}
+
+.mini-submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.mini-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 2px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.mini-preview-title {
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mini-chip {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0 8px;
+  line-height: 18px;
+}
+
+.mini-chip--date {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.mini-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+}

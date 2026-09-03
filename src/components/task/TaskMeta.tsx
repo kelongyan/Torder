@@ -1,4 +1,5 @@
-import { Calendar, CalendarDays } from "lucide-react";
+import type { CSSProperties } from "react";
+import { Calendar, CalendarDays, ListTodo, Paperclip } from "lucide-react";
 import {
   formatTaskDate,
   formatTaskScheduleDate,
@@ -12,11 +13,14 @@ export function TaskMeta({
   task,
   list,
   hideDue = false,
+  attachmentCount = 0,
 }: {
   task: Task;
   list: TaskList | null;
   /** 今天视图时间轴：时间已在行首槽位展示，隐藏右侧日期标签避免重复。 */
   hideDue?: boolean;
+  /** T-15：附件数（0 不显示），来自 store 的 attachmentCounts 映射。 */
+  attachmentCount?: number;
 }) {
   const dueLabel = formatTaskDate(task.dueAt);
   const scheduleLabel = formatTaskScheduleDate(task.scheduledDate);
@@ -42,13 +46,12 @@ export function TaskMeta({
   return (
     <div className="task-meta">
       <span
-        className="list-badge"
-        style={{
-          color: listColor,
-          backgroundColor: `${listColor}24`,
-        }}
+        className="list-inline"
+        style={{ color: listColor }}
+        title={list?.name ?? "未分类"}
       >
-        {list?.name ?? "未分类"}
+        <span className="list-dot" aria-hidden="true" />
+        <span className="list-inline-name">{list?.name ?? "未分类"}</span>
       </span>
       {!hideDue && dueLabel && (
         <span className={`due-label ${urgencyClass}`}>
@@ -63,8 +66,32 @@ export function TaskMeta({
         </span>
       )}
       {task.subtasks.length > 0 && (
-        <span className="subtask-pill">
-          {completedSubtasks}/{task.subtasks.length}
+        <span
+          className="subtask-meta"
+          title={`子任务 ${completedSubtasks}/${task.subtasks.length}`}
+        >
+          <ListTodo aria-hidden="true" className="icon-xs" />
+          <span className="subtask-meta-count">
+            {completedSubtasks}/{task.subtasks.length}
+          </span>
+          <i
+            className="subtask-meta-bar"
+            aria-hidden="true"
+            style={
+              {
+                "--subtask-done": `${(completedSubtasks / task.subtasks.length) * 100}%`,
+              } as CSSProperties
+            }
+          />
+        </span>
+      )}
+      {attachmentCount > 0 && (
+        <span
+          className="subtask-meta attachment-meta"
+          title={`${attachmentCount} 个附件`}
+        >
+          <Paperclip aria-hidden="true" className="icon-xs" />
+          <span className="subtask-meta-count">{attachmentCount}</span>
         </span>
       )}
       {task.tags.slice(0, 3).map((tag) => (

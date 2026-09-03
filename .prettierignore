@@ -3,4 +3,12 @@ node_modules
 .playwright-cli
 src-tauri/target
 src-tauri/gen
-README.md
+.workbuddy
+tmp
+设计稿
+docx
+
+# P1-02 基线决策：Prettier 只管理产品源码与配置，不管理 Markdown 文档
+#（README/CODEBUDDY/docx 均为人工维护文档，格式化重排会产生无意义 diff）
+*.md
+pnpm-lock.yaml

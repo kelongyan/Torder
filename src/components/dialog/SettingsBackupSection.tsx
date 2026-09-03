@@ -162,7 +162,8 @@ export function SettingsBackupSection({
                 className="btn-danger-solid"
                 disabled={busy}
                 onClick={() => {
-                  if (restorePresence.value) void handleRestore(restorePresence.value);
+                  if (restorePresence.value)
+                    void handleRestore(restorePresence.value);
                 }}
               >
                 确认恢复

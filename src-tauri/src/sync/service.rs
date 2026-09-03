@@ -7,6 +7,60 @@ use crate::sync::engine;
 use crate::sync::webdav::WebDavClient;
 use crate::sync::SyncRuntime;
 
+/// 删除同步配置：必须先通过同步运行门禁，避免与进行中的同步产生并发写。
+///
+/// 策略说明：与 run/save/revoke/cleanup 一致采用 try_lock 快速失败语义，
+/// 同步进行中删除会被拒绝（"sync is already running"），由前端提示稍后重试。
+/// 未选择「等待同步结束后再删除」：最长可能阻塞用户 120 秒（同步超时上限），
+/// 交互成本高于收益；一致性目标由「要么独占执行、要么拒绝」达成。
+///
+/// 失败路径：凭据删除 → 本地同步数据清理 → 状态键清理按序执行；
+/// keyring 不可用时会先于任何本地状态修改失败，数据库保持原样可重试。
+pub fn remove_sync_config(database: &Database, runtime: &SyncRuntime) -> Result<(), String> {
+    let _guard = runtime.try_lock().map_err(str::to_owned)?;
+    let mut connection = database.connect().map_err(|error| error.to_string())?;
+    credentials::remove(&connection).map_err(|error| error.to_string())?;
+    credentials::remove_encryption_keys(&connection).map_err(|error| error.to_string())?;
+    sync_repository::clear_local_sync_data(&mut connection).map_err(|error| error.to_string())?;
+    for key in [
+        "serverUrl",
+        "remotePath",
+        "username",
+        "lastSyncAt",
+        "lastError",
+        "remoteConfirmedFor",
+        "collectionId",
+        "lastRemoteSequence",
+        "remotePrunedSequence",
+        "syncPhase",
+        "syncStartedAt",
+        "encryptionConfig",
+    ] {
+        sync_repository::clear_state(&connection, key).map_err(|error| error.to_string())?;
+    }
+    sync_repository::set_state(&connection, "syncStatus", "disabled")
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// 解决同步冲突：与同步运行共用同一门禁。冲突解决会改写任务/清单数据并
+/// 消费 sync_conflicts/sync_objects，若与进行中的同步并发执行，解决结果
+/// 可能被同步的 apply 阶段覆盖或产生交错写入。
+///
+/// 该函数为纯本地数据库事务操作（无网络 IO），同步执行即可，
+/// 持锁范围覆盖整个事务。
+pub fn resolve_sync_conflict(
+    database: &Database,
+    runtime: &SyncRuntime,
+    conflict_id: &str,
+    resolution: &str,
+    merged_payload: Option<serde_json::Value>,
+) -> Result<(), String> {
+    let _guard = runtime.try_lock().map_err(str::to_owned)?;
+    engine::resolve_conflict_with_payload(database, conflict_id, resolution, merged_payload)
+        .map_err(|error| error.to_string())
+}
+
 pub async fn revoke_sync_device(
     app: &AppHandle,
     database: &Database,
@@ -102,19 +156,34 @@ pub async fn cleanup_sync_history(
     Ok(result)
 }
 
+/// 保存同步配置的输入（P1-03：以结构收敛长参数，替代函数签名上的 allow）。
+pub struct SaveSyncConfigInput {
+    pub server_url: String,
+    pub remote_path: String,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub device_name: Option<String>,
+    pub encryption_enabled: bool,
+    pub encryption_password: Option<String>,
+    pub confirm_remote: bool,
+}
+
 pub async fn save_sync_config(
     runtime: &SyncRuntime,
     database: &Database,
-    server_url: String,
-    remote_path: String,
-    username: Option<String>,
-    password: Option<String>,
-    device_name: Option<String>,
-    encryption_enabled: bool,
-    encryption_password: Option<String>,
-    confirm_remote: bool,
+    input: SaveSyncConfigInput,
 ) -> Result<SyncStatus, String> {
     let _guard = runtime.try_lock().map_err(str::to_owned)?;
+    let SaveSyncConfigInput {
+        server_url,
+        remote_path,
+        username,
+        password,
+        device_name,
+        encryption_enabled,
+        encryption_password,
+        confirm_remote,
+    } = input;
     let normalized_server_url = server_url.trim().to_owned();
     let normalized_remote_path = remote_path.trim().to_owned();
     let username_provided = username.is_some();
@@ -368,18 +437,29 @@ pub async fn rotate_sync_encryption(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// 手动触发同步的输入（P1-03：以结构收敛长参数，替代函数签名上的 allow）。
+pub struct RunSyncInput {
+    pub server_url: Option<String>,
+    pub remote_path: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub initial_mode: Option<String>,
+}
+
 pub async fn run_sync(
     app: &AppHandle,
     database: &Database,
     runtime: &SyncRuntime,
-    server_url: Option<String>,
-    remote_path: Option<String>,
-    username: Option<String>,
-    password: Option<String>,
-    initial_mode: Option<String>,
+    input: RunSyncInput,
 ) -> Result<(), String> {
     let _guard = runtime.try_lock().map_err(str::to_owned)?;
+    let RunSyncInput {
+        server_url,
+        remote_path,
+        username,
+        password,
+        initial_mode,
+    } = input;
     let initial_mode = engine::InitialSyncMode::parse(initial_mode.as_deref())
         .map_err(|error| error.to_string())?;
     let connection = database.connect().map_err(|error| error.to_string())?;
@@ -503,6 +583,8 @@ fn record_sync_command_error(database: &Database, message: &str) {
 #[cfg(test)]
 mod tests {
     use super::{is_sync_protocol_error, normalize_device_name, sync_error_state};
+    use crate::db::sync_repository;
+    use crate::sync::SyncRuntime;
 
     #[test]
     fn device_name_is_validated_before_configuration_writes() {
@@ -536,5 +618,119 @@ mod tests {
             sync_error_state("remote sync lock is held; retry later"),
             "error"
         );
+    }
+
+    // ---- P0-01 同步运行门禁 ----
+
+    #[test]
+    fn sync_runtime_rejects_concurrent_gate_holders() {
+        let runtime = SyncRuntime::default();
+        let guard = runtime.try_lock().expect("first holder must acquire");
+        assert_eq!(
+            runtime.try_lock().err(),
+            Some("sync is already running"),
+            "gate must reject a second concurrent holder"
+        );
+        drop(guard);
+        assert!(
+            runtime.try_lock().is_ok(),
+            "gate must be reacquirable after release"
+        );
+    }
+
+    #[test]
+    fn remove_sync_config_is_rejected_while_sync_gate_is_held() {
+        let database = crate::db::Database::initialize(std::env::temp_dir().join(format!(
+            "torder-remove-gate-{}.sqlite",
+            uuid::Uuid::new_v4()
+        )))
+        .unwrap();
+        let runtime = SyncRuntime::default();
+        let _guard = runtime.try_lock().unwrap();
+
+        let error = super::remove_sync_config(&database, &runtime).unwrap_err();
+        assert_eq!(error, "sync is already running");
+
+        // 被拒绝后数据库必须保持原样：syncStatus 未被改写为 disabled。
+        let connection = database.connect().unwrap();
+        assert_ne!(
+            sync_repository::get_state(&connection, "syncStatus")
+                .unwrap()
+                .as_deref(),
+            Some("disabled"),
+        );
+    }
+
+    #[test]
+    fn remove_sync_config_clears_local_sync_state() {
+        let path = std::env::temp_dir().join(format!(
+            "torder-remove-config-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database = crate::db::Database::initialize(path.clone()).unwrap();
+        let runtime = SyncRuntime::default();
+
+        // 构造已配置状态：不写入 credentialId，凭据删除自然跳过 keyring，
+        // 使测试在无系统凭据库的环境（CI）下可重复执行。
+        {
+            let connection = database.connect().unwrap();
+            sync_repository::set_state(&connection, "serverUrl", "https://example.com/dav")
+                .unwrap();
+            sync_repository::set_state(&connection, "remotePath", "/torder").unwrap();
+            sync_repository::set_state(&connection, "username", "user").unwrap();
+            sync_repository::set_state(&connection, "lastError", "stale error").unwrap();
+            sync_repository::set_state(&connection, "syncStatus", "error").unwrap();
+            sync_repository::ensure_device(&connection, "device-1", "测试设备").unwrap();
+            let transaction = connection.unchecked_transaction().unwrap();
+            sync_repository::record_change(
+                &transaction,
+                "task",
+                "task-1",
+                "upsert",
+                serde_json::json!({ "id": "task-1" }),
+            )
+            .unwrap();
+            transaction.commit().unwrap();
+            connection
+                .execute(
+                    "INSERT INTO sync_conflicts (id, entity, object_id, local_revision, remote_revision, local_payload_json, remote_payload_json, detected_at)
+                     VALUES ('c-1', 'task', 'task-1', 1, 1, '{}', '{}', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+                    [],
+                )
+                .unwrap();
+        }
+
+        super::remove_sync_config(&database, &runtime).unwrap();
+
+        let connection = database.connect().unwrap();
+        // 同步数据表清空
+        assert_eq!(sync_repository::pending_count(&connection).unwrap(), 0);
+        assert_eq!(sync_repository::list_devices(&connection).unwrap().len(), 0);
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM sync_conflicts", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        // 配置状态键清空，仅保留 disabled 状态
+        for key in ["serverUrl", "remotePath", "username", "lastError"] {
+            assert_eq!(
+                sync_repository::get_state(&connection, key).unwrap(),
+                None,
+                "{key} must be cleared"
+            );
+        }
+        assert_eq!(
+            sync_repository::get_state(&connection, "syncStatus")
+                .unwrap()
+                .as_deref(),
+            Some("disabled")
+        );
+        drop(connection);
+        drop(database);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
     }
 }

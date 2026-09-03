@@ -1,9 +1,12 @@
 import {
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Filter,
   Plus,
   Repeat2,
   Search,
+  SlidersHorizontal,
   Star,
   Tag,
   X,
@@ -18,6 +21,10 @@ import { listScope, viewScope } from "../../stores/taskStore";
 import type { TaskList, TaskScope } from "../../types/database";
 import type { SavedTaskView, SavedViewIcon } from "../../types/settings";
 import { SidebarItem } from "./SidebarItem";
+import {
+  toggleSidebarCollapsed,
+  useSidebarCollapsed,
+} from "../../hooks/useSidebarCollapsed";
 
 const savedViewIcons: Record<SavedViewIcon, LucideIcon> = {
   filter: Filter,
@@ -33,6 +40,11 @@ export function Sidebar({
   counts,
   savedViews,
   activeSavedViewId,
+  tags,
+  activeTags,
+  onTagToggle,
+  onClearTags,
+  onOpenTagManager,
   onSearchChange,
   onScopeChange,
   onSavedViewOpen,
@@ -45,6 +57,8 @@ export function Sidebar({
   recurringActive,
   recurringCount,
   onOpenRecurring,
+  searchActive = false,
+  onSearchSubmit,
   onClose,
 }: {
   lists: TaskList[];
@@ -56,6 +70,13 @@ export function Sidebar({
   };
   savedViews: SavedTaskView[];
   activeSavedViewId: string | null;
+  /** T-07：在用标签及其任务数（App 层从 allTasks 聚合）。 */
+  tags: Array<{ tag: string; count: number }>;
+  activeTags: string[];
+  onTagToggle: (tag: string) => void;
+  onClearTags: () => void;
+  /** 阶段 C · T-07 二期：标签管理弹窗。 */
+  onOpenTagManager: () => void;
   onSearchChange: (query: string) => void;
   onScopeChange: (scope: TaskScope) => void;
   onSavedViewOpen: (view: SavedTaskView) => void;
@@ -68,16 +89,35 @@ export function Sidebar({
   recurringActive: boolean;
   recurringCount: number;
   onOpenRecurring: () => void;
+  /** T-08：独立全库搜索结果页激活状态。 */
+  searchActive?: boolean;
+  /** T-08：回车或点击触发全库搜索。 */
+  onSearchSubmit?: (query: string) => void;
   onClose?: () => void;
 }) {
+  const collapsed = useSidebarCollapsed();
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="brand">
         <img src={logoUrl} alt="" className="brand-logo" />
-        <div>
+        <div className="brand-text">
           <div className="brand-title">Torder</div>
           <div className="brand-subtitle">待办清单</div>
         </div>
+        <button
+          type="button"
+          className="brand-collapse"
+          onClick={toggleSidebarCollapsed}
+          aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
+          title={collapsed ? "展开侧栏 (Ctrl B)" : "折叠侧栏 (Ctrl B)"}
+        >
+          {collapsed ? (
+            <ChevronRight aria-hidden="true" className="icon-sm" />
+          ) : (
+            <ChevronLeft aria-hidden="true" className="icon-sm" />
+          )}
+        </button>
         {onClose && (
           <button
             type="button"
@@ -91,43 +131,98 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="search-box">
-        <Search aria-hidden="true" className="search-icon" />
-        <input
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索"
-          aria-label="搜索任务"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            className="search-clear"
-            onClick={() => onSearchChange("")}
-            aria-label="清空搜索"
-            title="清空搜索"
-          >
-            <X aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      {collapsed ? (
+        <button
+          type="button"
+          className="search-box collapsed-search"
+          onClick={toggleSidebarCollapsed}
+          aria-label="展开侧栏并搜索"
+          title="展开侧栏并搜索"
+        >
+          <Search aria-hidden="true" className="search-icon" />
+        </button>
+      ) : (
+        <div className="search-box">
+          <Search aria-hidden="true" className="search-icon" />
+          <input
+            id="sidebar-search-input"
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                searchQuery.trim() &&
+                onSearchSubmit
+              ) {
+                event.preventDefault();
+                onSearchSubmit(searchQuery.trim());
+              }
+            }}
+            placeholder="搜索 (Enter 全库)"
+            aria-label="搜索任务"
+          />
+          {searchQuery ? (
+            <div className="search-actions-inline">
+              {onSearchSubmit && (
+                <button
+                  type="button"
+                  className="search-submit-btn"
+                  onClick={() => onSearchSubmit(searchQuery.trim())}
+                  aria-label="全库搜索"
+                  title="全库搜索 (Enter)"
+                >
+                  ↵
+                </button>
+              )}
+              <button
+                type="button"
+                className="search-clear"
+                onClick={() => onSearchChange("")}
+                aria-label="清空搜索"
+                title="清空搜索"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <kbd className="search-kbd" aria-hidden="true">
+              Ctrl F
+            </kbd>
+          )}
+        </div>
+      )}
 
       <nav className="sidebar-nav" aria-label="任务视图">
         <div className="nav-group-header">
           <span className="nav-group-label">导航</span>
         </div>
+        {searchActive && (
+          <SidebarItem
+            icon={Search}
+            label={
+              searchQuery.trim() ? `搜索：“${searchQuery.trim()}”` : "全库搜索"
+            }
+            active={true}
+            onClick={() => undefined}
+          />
+        )}
         {systemNav.map((item) => (
           <SidebarItem
             key={item.view}
             icon={item.icon}
             label={taskViewCopy[item.view].title}
             active={
-              !recurringActive && isScopeActive(scope, viewScope(item.view))
+              !recurringActive &&
+              !searchActive &&
+              isScopeActive(scope, viewScope(item.view))
             }
             count={
               item.view === "deleted"
                 ? undefined
                 : (counts.views[item.view] ?? 0)
+            }
+            alert={
+              item.view === "overdue" && (counts.views[item.view] ?? 0) > 0
             }
             onClick={() => onScopeChange(viewScope(item.view))}
           />
@@ -194,6 +289,50 @@ export function Sidebar({
             onDelete={!list.isDefault ? () => onDeleteList(list) : undefined}
           />
         ))}
+
+        {/*
+          F1 · T-07 标签分组：从在用标签聚合而来，点击切换 filter.tags 过滤。
+          按方案书 Q2 定稿不设「新建标签」入口——标签在事项录入时自然产生。
+          无标签时整组不渲染，避免出现一个永远空的分组。
+        */}
+        {tags.length > 0 && (
+          <>
+            <div className="sidebar-divider" />
+            <div className="nav-group-header">
+              <span className="nav-group-label">标签</span>
+              <button
+                type="button"
+                className="btn-add-list"
+                onClick={onOpenTagManager}
+                title="标签管理"
+                aria-label="标签管理"
+              >
+                <SlidersHorizontal className="icon-xs" />
+              </button>
+              {activeTags.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-add-list"
+                  onClick={onClearTags}
+                  title="清除标签筛选"
+                  aria-label="清除标签筛选"
+                >
+                  <X className="icon-xs" />
+                </button>
+              )}
+            </div>
+            {tags.map((item) => (
+              <SidebarItem
+                key={item.tag}
+                icon={Tag}
+                label={item.tag}
+                active={activeTags.includes(item.tag)}
+                count={item.count}
+                onClick={() => onTagToggle(item.tag)}
+              />
+            ))}
+          </>
+        )}
       </nav>
     </aside>
   );

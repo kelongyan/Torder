@@ -1,22 +1,45 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { AlertCircle, Plus, X } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  Kanban,
+  Keyboard,
+  ListTodo,
+  PanelLeft,
+  Palette,
+  Plus,
+  Settings,
+  Trash2,
+  X,
+} from "lucide-react";
+import type { CommandEntry } from "../components/command/CommandPalette";
+import { CommandPalette } from "../components/command/CommandPalette";
+import { toggleSidebarCollapsed } from "../hooks/useSidebarCollapsed";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
-import { applyThemePreference } from "../utils/theme";
+import {
+  applyAccentPreference,
+  applyDisplayDensity,
+  applyFontSizeScale,
+  applyThemePreference,
+} from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
-import { useTaskStore, viewScope } from "../stores/taskStore";
+import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
+import { setFocusDndEnabled } from "../stores/focusStore";
 import type {
   CreateTaskInput,
-  CreateRecurringRuleInput,
-  RecurringRule,
   Task,
   TaskList,
   TaskScope,
   UpdateTaskInput,
-  UpdateRecurringRuleInput,
 } from "../types/database";
+import { countTaskFilter } from "../types/database";
 import {
   defaultAppSettings,
   type AppSettings,
@@ -31,6 +54,7 @@ import {
 } from "../utils/taskHelpers";
 
 import { Sidebar } from "../components/layout/Sidebar";
+import { BottomNav } from "../components/layout/BottomNav";
 import { MainHeader } from "../components/layout/MainHeader";
 import { TaskListView } from "../components/task/TaskListView";
 import { TaskBoard } from "../components/task/TaskBoard";
@@ -53,6 +77,17 @@ import { ListDialog } from "../components/dialog/ListDialog";
 import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
 import { SettingsDialog } from "../components/dialog/SettingsDialog";
 import { StatsDialog } from "../components/dialog/StatsDialog";
+import { FocusDialog } from "../components/dialog/FocusDialog";
+import { ReviewDialog } from "../components/dialog/ReviewDialog";
+import { ProjectHeader } from "../components/project/ProjectHeader";
+import { SearchResultView } from "../components/search/SearchResultView";
+import { searchAllTasks } from "../components/search/searchUtils";
+import { TagManagerDialog } from "../components/dialog/TagManagerDialog";
+import { notifyFocusFinished } from "../services/focusService";
+import { toggleMini } from "../services/miniService";
+import { sendNotice } from "../services/noticeService";
+import { localDateKey } from "../services/taskQuery";
+import { overdueShiftPatches } from "../utils/taskStats";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -68,25 +103,14 @@ import { usePresence } from "../hooks/usePresence";
 import { useSyncLifecycle } from "../hooks/useSyncLifecycle";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
+import { useSavedViewActions } from "../hooks/useSavedViewActions";
+import { useCalendarEventActions } from "../hooks/useCalendarEventActions";
+import { useRecurringActions } from "../hooks/useRecurringActions";
+import { useTaskActions } from "../hooks/useTaskActions";
 import { isMobile } from "../utils/platform";
-import {
-  createRecurringRule,
-  deleteRecurringRule,
-  generateNextRecurringOccurrence,
-  setRecurringRuleEnabled,
-  skipNextRecurringOccurrence,
-  updateRecurringRule,
-} from "../services/recurringService";
-import {
-  createCalendarEvent,
-  deleteCalendarEvent,
-  listCalendarEvents,
-  updateCalendarEvent,
-} from "../services/calendarEventService";
 import { MonthCalendar } from "../components/task/MonthCalendar";
 import { WeekCalendar } from "../components/task/WeekCalendar";
 import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
-import type { CalendarEvent } from "../types/database";
 import type { SyncStatus } from "../types/sync";
 import { normalizeError } from "../utils/normalizeError";
 import { getTaskCalendarKey } from "../utils/taskDates";
@@ -114,6 +138,18 @@ function App() {
   const [editingSavedView, setEditingSavedView] =
     useState<SavedTaskView | null>(null);
   const savedViewPresence = usePresence(savedViewDialogOpen, 280);
+  // 阶段 A：专注模式控制面板（T-02）。
+  const [focusOpen, setFocusOpen] = useState(false);
+  const focusPresence = usePresence(focusOpen, 280);
+  // 阶段 C：每日回顾面板（T-04）。
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewPresence = usePresence(reviewOpen, 280);
+  // 阶段 C：标签管理弹窗（T-07 二期）。
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const tagManagerPresence = usePresence(tagManagerOpen, 280);
+  // 阶段 D-3：独立全库搜索结果页（T-08）。
+  const [searchViewActive, setSearchViewActive] = useState(false);
+  const [createTaskInitialTitle, setCreateTaskInitialTitle] = useState("");
 
   const dialog = useDialogManager();
   const {
@@ -130,6 +166,7 @@ function App() {
     settingsPresence,
     statsPresence,
     batchEditPresence,
+    commandPalettePresence,
     confirmPresence,
     recurringDialogPresence,
     calendarEventDialogPresence,
@@ -141,6 +178,7 @@ function App() {
     setSettingsOpen,
     setStatsOpen,
     setBatchEditOpen,
+    setCommandPaletteOpen,
     setConfirmState,
     setRecurringDialogOpen,
     setEditingRecurringRule,
@@ -175,7 +213,70 @@ function App() {
   } = useAppDataLoaders(handleDataLoadError);
 
   const { toasts, pushToast } = useToast();
+  // 阶段 D · T-10 乙组：每日回顾提醒（到点发系统通知 + 本地 toast；
+  // 未启动不补发——应用运行中每 30s 检查一次整分匹配，localStorage 节流当日一次）。
+  useEffect(() => {
+    if (!settings.reviewReminderEnabled) return;
+    const lastKey = "torder-review-reminder-date";
+    const check = () => {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(
+        now.getMinutes(),
+      ).padStart(2, "0")}`;
+      if (hhmm !== settings.reviewReminderTime) return;
+      const today = localDateKey(now);
+      try {
+        if (localStorage.getItem(lastKey) === today) return;
+        localStorage.setItem(lastKey, today);
+      } catch {
+        // 隐私模式等不可用时每次整分都提醒一次（低风险）。
+      }
+      pushToast("该做每日回顾了", "info");
+      void sendNotice("每日回顾", "看一眼今天：完成、逾期与顺延。");
+    };
+    const timer = window.setInterval(check, 30_000);
+    return () => window.clearInterval(timer);
+  }, [pushToast, settings.reviewReminderEnabled, settings.reviewReminderTime]);
+  // 阶段 A：专注一轮自然结束 —— 本地提示 + Rust 权威系统通知。
+  const handleFocusFinished = useCallback(() => {
+    pushToast("本轮专注已完成", "success");
+    void notifyFocusFinished();
+  }, [pushToast]);
+  const handleTagChanged = useCallback(
+    (affected: number, message: string) => {
+      void useTaskStore.getState().loadTasks();
+      if (affected > 0) pushToast(message, "success");
+    },
+    [pushToast],
+  );
+  const handleReviewShifts = useCallback(
+    (count: number) => {
+      if (count > 0) pushToast(`已顺延 ${count} 项逾期任务到明天`, "success");
+    },
+    [pushToast],
+  );
   const mobile = isMobile();
+
+  // M3.2 移动端滚动折叠：捕获 .content-panel 滚动，向下隐藏主 header。
+  const [mobileHeaderHidden, setMobileHeaderHidden] = useState(false);
+  const lastContentScroll = useRef(0);
+  useEffect(() => {
+    if (!mobile) return;
+    const onScrollCapture = () => {
+      const panel = document.querySelector<HTMLElement>(".content-panel");
+      if (!panel) return;
+      const y = panel.scrollTop;
+      const delta = y - lastContentScroll.current;
+      lastContentScroll.current = y;
+      if (y <= 4) {
+        setMobileHeaderHidden(false);
+        return;
+      }
+      setMobileHeaderHidden(delta > 6);
+    };
+    window.addEventListener("scroll", onScrollCapture, true);
+    return () => window.removeEventListener("scroll", onScrollCapture, true);
+  }, [mobile]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -216,9 +317,12 @@ function App() {
     layout,
     searchQuery,
     sortBy,
+    sortAsc,
+    filter,
     showCompleted,
     allTasks,
     tasks,
+    attachmentCounts,
     selectedTaskId,
     batchMode,
     batchSelectedIds,
@@ -228,20 +332,17 @@ function App() {
     setLayout,
     setSearchQuery,
     setSortBy,
+    setSortAsc,
+    toggleFilterList,
+    toggleFilterTag,
+    toggleFilterPriority,
+    toggleFilterCompleted,
+    clearFilterTags,
+    clearFilter,
     setShowCompleted,
-    applyViewState,
     addTask,
     saveTask,
     toggleTask,
-    removeTask,
-    restoreTask,
-    permanentDeleteTask,
-    emptyTrash,
-    batchComplete,
-    batchDelete,
-    batchRestore,
-    batchPermanentDelete,
-    batchUpdate,
     reorderTasks,
     patchTask,
     selectTask,
@@ -251,6 +352,49 @@ function App() {
     clearError,
   } = useTaskStore();
 
+  // 阶段 D · T-10 乙组：逾期自动顺延到明天。规则唯一来源
+  // taskStats.overdueShiftPatches（与每日回顾「一键顺延」同一实现）。
+  // 每日一次：数据就绪后先写当日标记再逐条顺延，防止 effect 重入；
+  // 数据未就绪（loading/空库）不占位，等 30s 间隔重查（兼顾跨日场景）。
+  const tasksReady = !loading && allTasks.length > 0;
+  useEffect(() => {
+    if (!settings.autoPostponeOverdue || !tasksReady) return;
+    const lastKey = "torder-auto-postpone-date";
+    let cancelled = false;
+    const run = async () => {
+      const state = useTaskStore.getState();
+      if (state.loading || state.allTasks.length === 0) return;
+      const today = localDateKey(new Date());
+      try {
+        if (localStorage.getItem(lastKey) === today) return;
+        localStorage.setItem(lastKey, today);
+      } catch {
+        // 隐私模式等不可用时每次重查都会尝试（无逾期时开销可忽略）。
+      }
+      const patches = overdueShiftPatches(state.allTasks, today);
+      if (patches.length === 0) return;
+      let shifted = 0;
+      for (const { taskId, patch } of patches) {
+        if (cancelled) return;
+        try {
+          await useTaskStore.getState().patchTask(taskId, patch);
+          shifted += 1;
+        } catch {
+          // 单条失败不阻断其余任务，留待明日或手动回顾兜底。
+        }
+      }
+      if (shifted > 0 && !cancelled) {
+        pushToast(`已自动顺延 ${shifted} 项逾期任务到明天`, "info");
+      }
+    };
+    void run();
+    const timer = window.setInterval(() => void run(), 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pushToast, settings.autoPostponeOverdue, tasksReady]);
+
   const selectedTask = useMemo(
     () =>
       allTasks.find((task) => task.id === selectedTaskId) ??
@@ -259,13 +403,52 @@ function App() {
     [allTasks, selectedTaskId, tasks],
   );
 
+  const searchMatchingTasks = useMemo(() => {
+    if (!searchViewActive) return [];
+    return searchAllTasks(allTasks, searchQuery, filter, showCompleted);
+  }, [allTasks, filter, searchQuery, searchViewActive, showCompleted]);
+
   const currentTitle = useMemo(
-    () => (recurringViewActive ? "循环任务" : getScopeTitle(scope, lists)),
-    [lists, recurringViewActive, scope],
+    () =>
+      searchViewActive
+        ? "搜索结果"
+        : recurringViewActive
+          ? "循环任务"
+          : getScopeTitle(scope, lists),
+    [lists, recurringViewActive, scope, searchViewActive],
   );
   const counts = useMemo(
     () => buildCounts(allTasks, lists, showCompleted),
     [allTasks, lists, showCompleted],
+  );
+  /** R04 筛选面板的标签组：取自全部任务，去重后按字典序稳定排列。 */
+  const availableTags = useMemo(() => {
+    const seen = new Set<string>();
+    for (const task of allTasks) {
+      for (const tag of task.tags) {
+        const value = tag.trim();
+        if (value) seen.add(value);
+      }
+    }
+    return [...seen].sort((left, right) =>
+      left.localeCompare(right, "zh-Hans-CN"),
+    );
+  }, [allTasks]);
+  const filterCount = useMemo(() => countTaskFilter(filter), [filter]);
+  // 阶段 D · T-06：当前清单（list scope）与其全量任务（项目头统计口径）。
+  const currentList = useMemo(
+    () =>
+      scope.kind === "list"
+        ? (lists.find((item) => item.id === scope.listId) ?? null)
+        : null,
+    [lists, scope],
+  );
+  const currentListTasks = useMemo(
+    () =>
+      currentList
+        ? allTasks.filter((task) => task.listId === currentList.id)
+        : [],
+    [allTasks, currentList],
   );
   const activeSavedViewId = useMemo(
     () =>
@@ -289,19 +472,76 @@ function App() {
   const deletedViewActive =
     !recurringViewActive && scope.kind === "view" && scope.view === "deleted";
   const effectiveLayout = deletedViewActive ? "list" : layout;
+  // R3：视图副标题按设计稿映射（今天=日期、计划=接下来 7 天、已完成=最近 30 天、回收站=保留 30 天）。
+  // 原头部 ViewSummary 进度与分组头进度重复且挤压标题，撤掉后由 MainHeader 显示「N 项 · 布局」兜底。
+  // D4 今日已完成段：从 allTasks 筛 completedAt 在今天的任务（不动 taskQuery/Rust 查询语义）。
+  const completedTodayTasks = useMemo(
+    () =>
+      allTasks.filter((task) => {
+        if (task.status !== "done" || !task.completedAt) return false;
+        try {
+          return (
+            new Date(task.completedAt).toDateString() ===
+            new Date().toDateString()
+          );
+        } catch {
+          return false;
+        }
+      }),
+    [allTasks],
+  );
+  /**
+   * F1 · T-07 侧栏标签分组：从在用标签聚合 `{tag, count}`。
+   * 只数未删除的任务，按「计数降序 → 名称升序」排，保证顺序稳定不跳动。
+   */
+  const sidebarTags = useMemo(() => {
+    const counter = new Map<string, number>();
+    for (const task of allTasks) {
+      if (task.deletedAt) continue;
+      for (const tag of task.tags) {
+        counter.set(tag, (counter.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...counter.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }, [allTasks]);
+  const scopeSubtitle = useMemo(() => {
+    if (recurringViewActive || scope.kind !== "view") return null;
+    if (scope.view === "today") {
+      const now = new Date();
+      return `${now.getMonth() + 1}月${now.getDate()}日 星期${"日一二三四五六"[now.getDay()]}`;
+    }
+    if (scope.view === "planned") return "接下来 7 天";
+    if (scope.view === "completed") return "最近 30 天";
+    if (scope.view === "deleted") return "保留 30 天";
+    return null;
+  }, [recurringViewActive, scope]);
   const contentKey = useMemo(
     () =>
       [
-        recurringViewActive ? "recurring" : effectiveLayout,
+        searchViewActive
+          ? "search"
+          : recurringViewActive
+            ? "recurring"
+            : effectiveLayout,
         scope.kind,
         scope.kind === "view" ? scope.view : scope.listId,
         sortBy,
         showCompleted,
       ].join(":"),
-    [effectiveLayout, recurringViewActive, scope, sortBy, showCompleted],
+    [
+      effectiveLayout,
+      recurringViewActive,
+      scope,
+      searchViewActive,
+      sortBy,
+      showCompleted,
+    ],
   );
   const openRecurringView = useCallback(() => {
     setRecurringViewActive(true);
+    setSearchViewActive(false);
     setMenuOpen(false);
     setMobileSidebarOpen(false);
     selectTask(null);
@@ -315,13 +555,183 @@ function App() {
     setMobileSidebarOpen,
   ]);
 
+  const handleOpenSearch = useCallback(
+    (queryToSearch: string) => {
+      void setSearchQuery(queryToSearch);
+      setSearchViewActive(true);
+      setRecurringViewActive(false);
+      setMenuOpen(false);
+      setMobileSidebarOpen(false);
+      selectTask(null);
+      clearBatchSelection();
+    },
+    [
+      clearBatchSelection,
+      selectTask,
+      setMenuOpen,
+      setMobileSidebarOpen,
+      setSearchQuery,
+    ],
+  );
+
   const closeEverything = useCallback(() => {
     closeDialogs();
     setSavedViewDialogOpen(false);
     setRecurringViewActive(false);
+    setSearchViewActive(false);
     selectTask(null);
     clearBatchSelection();
   }, [closeDialogs, clearBatchSelection, selectTask, setRecurringViewActive]);
+
+  // M1.5 移动端系统返回：按弹层栈从内到外逐层关闭，返回 false 表示无层可关
+  // （此时 WebView 可自行后退/退出）。
+  const closeTopLayer = useCallback((): boolean => {
+    if (dialog.confirmState) {
+      setConfirmState(null);
+      return true;
+    }
+    if (dialog.settingsOpen) {
+      setSettingsOpen(false);
+      return true;
+    }
+    if (dialog.statsOpen) {
+      setStatsOpen(false);
+      return true;
+    }
+    if (dialog.batchEditOpen) {
+      setBatchEditOpen(false);
+      return true;
+    }
+    if (dialog.commandPaletteOpen) {
+      setCommandPaletteOpen(false);
+      return true;
+    }
+    if (dialog.shortcutsOpen) {
+      setShortcutsOpen(false);
+      return true;
+    }
+    if (dialog.createOpen) {
+      setCreateOpen(false);
+      return true;
+    }
+    if (dialog.listDialogOpen || dialog.editingList) {
+      setListDialogOpen(false);
+      dialog.setEditingList(null);
+      return true;
+    }
+    if (dialog.recurringDialogOpen) {
+      setRecurringDialogOpen(false);
+      return true;
+    }
+    if (dialog.calendarEventDialogOpen) {
+      setCalendarEventDialogOpen(false);
+      return true;
+    }
+    if (savedViewDialogOpen) {
+      setSavedViewDialogOpen(false);
+      return true;
+    }
+    if (focusOpen) {
+      setFocusOpen(false);
+      return true;
+    }
+    if (reviewOpen) {
+      setReviewOpen(false);
+      return true;
+    }
+    if (tagManagerOpen) {
+      setTagManagerOpen(false);
+      return true;
+    }
+    if (recurringViewActive) {
+      setRecurringViewActive(false);
+      return true;
+    }
+    if (searchViewActive) {
+      setSearchViewActive(false);
+      return true;
+    }
+    if (selectedTask) {
+      selectTask(null);
+      return true;
+    }
+    if (menuOpen) {
+      setMenuOpen(false);
+      return true;
+    }
+    if (mobileSidebarOpen) {
+      setMobileSidebarOpen(false);
+      return true;
+    }
+    return false;
+  }, [
+    menuOpen,
+    mobileSidebarOpen,
+    recurringViewActive,
+    searchViewActive,
+    savedViewDialogOpen,
+    focusOpen,
+    reviewOpen,
+    tagManagerOpen,
+    selectedTask,
+    selectTask,
+    setBatchEditOpen,
+    setCalendarEventDialogOpen,
+    setCommandPaletteOpen,
+    setConfirmState,
+    setCreateOpen,
+    setListDialogOpen,
+    setMenuOpen,
+    setMobileSidebarOpen,
+    setRecurringDialogOpen,
+    setRecurringViewActive,
+    setSavedViewDialogOpen,
+    setSettingsOpen,
+    setShortcutsOpen,
+    setStatsOpen,
+    dialog,
+  ]);
+
+  // M1.5：每当有弹层新打开，向历史栈推入一帧，让系统返回先走 popstate。
+  const layerCount =
+    (dialog.confirmState ? 1 : 0) +
+    (dialog.settingsOpen ? 1 : 0) +
+    (dialog.statsOpen ? 1 : 0) +
+    (dialog.batchEditOpen ? 1 : 0) +
+    (dialog.commandPaletteOpen ? 1 : 0) +
+    (dialog.shortcutsOpen ? 1 : 0) +
+    (dialog.createOpen ? 1 : 0) +
+    (dialog.listDialogOpen || dialog.editingList ? 1 : 0) +
+    (dialog.recurringDialogOpen ? 1 : 0) +
+    (dialog.calendarEventDialogOpen ? 1 : 0) +
+    (savedViewDialogOpen ? 1 : 0) +
+    (focusOpen ? 1 : 0) +
+    (reviewOpen ? 1 : 0) +
+    (tagManagerOpen ? 1 : 0) +
+    (recurringViewActive ? 1 : 0) +
+    (selectedTask ? 1 : 0) +
+    (menuOpen ? 1 : 0) +
+    (mobileSidebarOpen ? 1 : 0);
+  const prevLayerCount = useRef<number | null>(null);
+  useEffect(() => {
+    const previous = prevLayerCount.current;
+    prevLayerCount.current = layerCount;
+    if (previous === null || layerCount <= previous) return;
+    window.history.pushState(null, "");
+  }, [layerCount]);
+
+  useEffect(() => {
+    if (!mobile || !isTauri()) return;
+    const onPopState = () => {
+      void closeTopLayer();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [closeTopLayer, mobile]);
+
+  const openCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(true);
+  }, [setCommandPaletteOpen]);
 
   useAppInit(
     setSettings,
@@ -387,8 +797,9 @@ function App() {
   }, []);
   // 稳定引用：useTrayQuickAdd / useKeyboardShortcuts 依赖它，每次渲染新建会重复订阅 IPC
   const openTaskCreateDialog = useCallback(
-    (scheduledDate = "") => {
+    (scheduledDate = "", initialTitle = "") => {
       setCreateScheduledDate(scheduledDate);
+      setCreateTaskInitialTitle(initialTitle);
       openCreateDialog();
     },
     [openCreateDialog],
@@ -452,15 +863,29 @@ function App() {
     },
     [pushToast, selectTask, toggleTask],
   );
+  // P0-02：系统通知由 Rust 后台统一发送并受 notificationsEnabled 门控，
+  // 此处仅订阅事件做应用内提示与刷新。
   useTaskReminder(handleReminder);
   useKeyboardShortcuts({
     onOpenCreateDialog: openTaskCreateDialog,
     onOpenShortcuts: handleOpenShortcuts,
     onToggleBatchMode: toggleBatchMode,
+    onOpenCommandPalette: openCommandPalette,
     onEscape: closeEverything,
   });
 
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
+  // T-09：强调色与主题同一帧应用，保证切换时无中间态
+  useEffect(() => applyAccentPreference(settings.accent), [settings.accent]);
+  // 阶段 D · T-10 乙组：显示偏好（密度/字号）→ html data 属性，档位覆写在 tokens.css
+  useEffect(() => applyDisplayDensity(settings.density), [settings.density]);
+  useEffect(() => applyFontSizeScale(settings.fontSize), [settings.fontSize]);
+  // 专注免打扰开关注入 focusStore：状态切换由 store 写 focusDndUntil KV，
+  // Rust notifier 轮询读取抑制；专注运行中切换开关立即生效/解除。
+  useEffect(
+    () => setFocusDndEnabled(settings.focusDndEnabled),
+    [settings.focusDndEnabled],
+  );
 
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查
@@ -535,6 +960,7 @@ function App() {
   }
 
   async function handleSelectScope(nextScope: TaskScope) {
+    setSearchViewActive(false);
     setRecurringViewActive(false);
     setMenuOpen(false);
     setMobileSidebarOpen(false);
@@ -543,60 +969,26 @@ function App() {
     await setScope(nextScope);
   }
 
-  async function handleOpenSavedView(view: SavedTaskView) {
-    setRecurringViewActive(false);
-    setMenuOpen(false);
-    setMobileSidebarOpen(false);
-    selectTask(null);
-    await applyViewState({
-      scope: view.scope,
-      searchQuery: view.query,
-      sortBy: view.sortBy,
-      showCompleted: view.showCompleted,
-      layout: view.layout,
-    });
-  }
-
-  function openCreateSavedViewDialog() {
-    setEditingSavedView(null);
-    setSavedViewDialogOpen(true);
-  }
-
-  function openEditSavedViewDialog(view: SavedTaskView) {
-    setEditingSavedView(view);
-    setSavedViewDialogOpen(true);
-  }
-
-  async function handleSaveSavedView(view: SavedTaskView) {
-    const nextViews = editingSavedView
-      ? settings.savedViews.map((item) => (item.id === view.id ? view : item))
-      : [...settings.savedViews, view];
-    await saveAppSetting("savedViews", nextViews);
-    setSettings((current) => ({ ...current, savedViews: nextViews }));
-    setSavedViewDialogOpen(false);
-    pushToast(
-      editingSavedView ? "保存视图已更新" : "筛选视图已保存",
-      "success",
-    );
-  }
-
-  function requestDeleteSavedView(view: SavedTaskView) {
-    setConfirmState({
-      title: "删除保存视图",
-      body: `删除“${view.name}”？不会删除任何任务。`,
-      confirmText: "删除视图",
-      danger: true,
-      onConfirm: async () => {
-        const nextViews = settings.savedViews.filter(
-          (item) => item.id !== view.id,
-        );
-        await saveAppSetting("savedViews", nextViews);
-        setSettings((current) => ({ ...current, savedViews: nextViews }));
-        setConfirmState(null);
-        pushToast("保存视图已删除", "info");
-      },
-    });
-  }
+  // P1-05：已存视图动作已提取到 useSavedViewActions（含打开/保存/删除）。
+  const savedViewActions = useSavedViewActions({
+    settings,
+    editingSavedView,
+    setSettings,
+    setSavedViewDialogOpen,
+    setEditingSavedView,
+    setConfirmState,
+    pushToast,
+    setRecurringViewActive,
+    setMenuOpen,
+    setMobileSidebarOpen,
+  });
+  const {
+    handleOpenSavedView,
+    openCreateSavedViewDialog,
+    openEditSavedViewDialog,
+    handleSaveSavedView,
+    requestDeleteSavedView,
+  } = savedViewActions;
 
   async function handleReorderTask(sourceId: string, targetId: string) {
     await reorderTasks(sourceId, targetId);
@@ -667,6 +1059,145 @@ function App() {
     applyNextTheme();
   }
 
+  /**
+   * F2 · T-01：命令面板命令表。首版覆盖动作、布局切换、视图/清单跳转与
+   * 设置入口；任务搜索待 T-08 落地后并入。
+   */
+  const commandEntries = useMemo<CommandEntry[]>(
+    () => [
+      {
+        id: "create-task",
+        title: "新建事项",
+        group: "动作",
+        keywords: "新建 添加 create new",
+        icon: Plus,
+        run: () => openTaskCreateDialog(),
+      },
+      {
+        id: "layout-list",
+        title: "切换到列表视图",
+        group: "布局",
+        keywords: "列表 视图 list",
+        icon: ListTodo,
+        run: () => setLayout("list"),
+      },
+      {
+        id: "layout-board",
+        title: "切换到看板视图",
+        group: "布局",
+        keywords: "看板 视图 board kanban",
+        icon: Kanban,
+        run: () => setLayout("board"),
+      },
+      {
+        id: "layout-calendar",
+        title: "切换到日历视图",
+        group: "布局",
+        keywords: "日历 视图 calendar",
+        icon: CalendarDays,
+        run: () => setLayout("calendar"),
+      },
+      {
+        id: "layout-month",
+        title: "切换到月历视图",
+        group: "布局",
+        keywords: "月历 视图 month",
+        icon: CalendarRange,
+        run: () => setLayout("month"),
+      },
+      {
+        id: "layout-week",
+        title: "切换到周视图",
+        group: "布局",
+        keywords: "周 视图 week",
+        icon: CalendarClock,
+        run: () => setLayout("week"),
+      },
+      {
+        id: "goto-all",
+        title: "跳转到全部任务",
+        group: "跳转",
+        keywords: "全部 任务 all",
+        icon: ListTodo,
+        run: () => void setScope(viewScope("all")),
+      },
+      {
+        id: "goto-today",
+        title: "跳转到今日任务",
+        group: "跳转",
+        keywords: "今天 今日 today",
+        icon: CalendarCheck,
+        run: () => void setScope(viewScope("today")),
+      },
+      {
+        id: "goto-completed",
+        title: "跳转到已完成",
+        group: "跳转",
+        keywords: "已完成 completed",
+        icon: CheckCircle2,
+        run: () => void setScope(viewScope("completed")),
+      },
+      {
+        id: "goto-trash",
+        title: "跳转到回收站",
+        group: "跳转",
+        keywords: "回收站 删除 trash",
+        icon: Trash2,
+        run: () => void setScope(viewScope("deleted")),
+      },
+      ...lists.map((list) => ({
+        id: `goto-list-${list.id}`,
+        title: `打开清单「${list.name}」`,
+        group: "清单",
+        keywords: "清单 打开 跳转",
+        icon: ListTodo,
+        run: () => void setScope(listScope(list.id)),
+      })),
+      {
+        id: "open-settings",
+        title: "打开设置",
+        group: "应用",
+        keywords: "设置 preferences settings",
+        icon: Settings,
+        run: () => setSettingsOpen(true),
+      },
+      {
+        id: "toggle-theme",
+        title: "切换主题",
+        group: "应用",
+        keywords: "主题 深色 浅色 theme",
+        icon: Palette,
+        run: () => void handleThemeToggle(),
+      },
+      {
+        id: "toggle-sidebar",
+        title: "折叠 / 展开侧栏",
+        group: "应用",
+        keywords: "侧栏 折叠 sidebar",
+        icon: PanelLeft,
+        run: () => toggleSidebarCollapsed(),
+      },
+      {
+        id: "open-shortcuts",
+        title: "查看快捷键",
+        group: "应用",
+        keywords: "快捷键 键盘 shortcuts",
+        icon: Keyboard,
+        run: () => handleOpenShortcuts(),
+      },
+    ],
+    // handleThemeToggle 为组件内普通函数，稳定性足以接受（命令面板仅在打开时消费）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      lists,
+      setLayout,
+      setScope,
+      openTaskCreateDialog,
+      setSettingsOpen,
+      handleOpenShortcuts,
+    ],
+  );
+
   async function handleCreateTask(
     input: CreateTaskInput,
     attachments: PendingTaskAttachment[],
@@ -687,28 +1218,20 @@ function App() {
     pushToast("任务已创建", "success");
   }
 
-  async function handleCreateRecurring(input: CreateRecurringRuleInput) {
-    await createRecurringRule(input);
-    await Promise.all([
-      loadRecurringRules(),
-      useTaskStore.getState().loadTasks(),
-    ]);
-    setCreateOpen(false);
-    setRecurringDialogOpen(false);
-    setCreateScheduledDate("");
-    pushToast("循环任务已创建", "success");
+  /**
+   * F1 · T-05/T-13 快速新建：不走弹窗、不带附件，建完只提示。
+   * 失败要吞掉异常并提示，否则 composer 的 await 会抛到渲染层。
+   */
+  async function handleQuickCreate(input: CreateTaskInput) {
+    try {
+      await addTask(input);
+      pushToast("事项已创建", "success");
+    } catch (error) {
+      pushToast(`创建失败：${normalizeError(error)}`, "error");
+    }
   }
 
-  async function handleUpdateRecurring(input: UpdateRecurringRuleInput) {
-    await updateRecurringRule(input);
-    await Promise.all([
-      loadRecurringRules(),
-      useTaskStore.getState().loadTasks(),
-    ]);
-    setRecurringDialogOpen(false);
-    pushToast("循环规则已更新", "success");
-  }
-
+  // P1-05：循环任务动作已提取到 useRecurringActions（见下方调用点）。
   async function handleToggleTask(task: Task) {
     await toggleTask(task.id, task.status !== "done");
     pushToast(task.status === "done" ? "任务已恢复" : "任务已完成", "success", {
@@ -725,242 +1248,68 @@ function App() {
     pushToast("任务已更新", "success");
   }
 
-  function openTaskRecurring(task: Task) {
-    selectTask(null);
-    setRecurringSourceTask(task.recurringRuleId ? null : task);
-    setEditingRecurringRule(
-      task.recurringRuleId
-        ? (recurringRules.find((rule) => rule.id === task.recurringRuleId) ??
-            null)
-        : null,
-    );
-    setRecurringDialogOpen(true);
-  }
+  const {
+    handleCreateRecurring,
+    handleUpdateRecurring,
+    openTaskRecurring,
+    requestDeleteRecurring,
+    handleToggleRecurring,
+    handleSkipRecurring,
+    handleGenerateRecurring,
+  } = useRecurringActions({
+    recurringRules,
+    loadRecurringRules,
+    selectTask,
+    setCreateOpen,
+    setRecurringDialogOpen,
+    setEditingRecurringRule,
+    setRecurringSourceTask,
+    setCreateScheduledDate,
+    setConfirmState,
+    pushToast,
+  });
 
-  function requestDeleteRecurring(rule: RecurringRule) {
-    setConfirmState({
-      title: "删除循环规则",
-      body: `删除“${rule.title}”。已生成任务保留。`,
-      confirmText: "仅删除规则",
-      secondaryText: "删除未来实例",
-      danger: true,
-      onConfirm: async () => {
-        await deleteRecurringRule(rule.id, false);
-        await loadRecurringRules();
-        setConfirmState(null);
-        pushToast("循环规则已删除", "info");
-      },
-      onSecondary: async () => {
-        await deleteRecurringRule(rule.id, true);
-        await Promise.all([
-          loadRecurringRules(),
-          useTaskStore.getState().loadTasks(),
-        ]);
-        setConfirmState(null);
-        pushToast("规则和未来实例已删除", "info");
-      },
+  // P1-05：日历事件动作已提取到 useCalendarEventActions。
+  const { handleSaveCalendarEvent, requestDeleteCalendarEvent } =
+    useCalendarEventActions({
+      setCalendarEvents,
+      setCalendarEventDialogOpen,
+      setConfirmState,
+      pushToast,
     });
-  }
 
-  async function handleToggleRecurring(rule: RecurringRule) {
-    await setRecurringRuleEnabled(rule.id, !rule.enabled);
-    await loadRecurringRules();
-    pushToast(rule.enabled ? "循环任务已暂停" : "循环任务已恢复", "info");
-  }
-
-  async function handleSkipRecurring(rule: RecurringRule) {
-    await skipNextRecurringOccurrence(rule.id);
-    await loadRecurringRules();
-    pushToast("下一次循环已跳过", "info");
-  }
-
-  async function handleGenerateRecurring(rule: RecurringRule) {
-    await generateNextRecurringOccurrence(rule.id);
-    await Promise.all([
-      loadRecurringRules(),
-      useTaskStore.getState().loadTasks(),
-    ]);
-    pushToast("下一次任务已生成", "success");
-  }
-
-  async function handleSaveCalendarEvent(data: {
-    id?: string;
-    title: string;
-    eventType: CalendarEvent["eventType"];
-    startDate: string;
-    endDate: string;
-    note: string | null;
-  }) {
-    if (data.id) {
-      await updateCalendarEvent({ ...data, id: data.id });
-      pushToast("日程事件已更新", "success");
-    } else {
-      await createCalendarEvent(data);
-      pushToast("日程事件已创建", "success");
-    }
-    setCalendarEvents(await listCalendarEvents());
-    setCalendarEventDialogOpen(false);
-  }
-
-  function requestDeleteCalendarEvent(event: CalendarEvent) {
-    setCalendarEventDialogOpen(false);
-    setConfirmState({
-      title: "确认删除日程事件",
-      body: `删除“${event.title}”？不可撤销。`,
-      confirmText: "删除",
-      danger: true,
-      onConfirm: async () => {
-        await deleteCalendarEvent(event.id);
-        setCalendarEvents(await listCalendarEvents());
-        setConfirmState(null);
-        pushToast("日程事件已删除", "info");
-      },
-    });
-  }
-
-  function requestDeleteTask(task: Task) {
-    setConfirmState({
-      title: "确认删除任务",
-      body: `删除“${task.title}”？可恢复。`,
-      confirmText: "删除",
-      danger: true,
-      onConfirm: async () => {
-        await removeTask(task.id);
-        setConfirmState(null);
-        pushToast("任务已移入回收站", "info", {
-          label: "撤销",
-          onClick: async () => {
-            await restoreTask(task.id);
-            pushToast("已撤销删除", "success");
-          },
-        });
-      },
-    });
-  }
-
-  async function handleRestoreTask(task: Task) {
-    await restoreTask(task.id);
-    pushToast(`已恢复"${task.title}"`, "success", {
-      label: "撤销",
-      onClick: async () => {
-        await removeTask(task.id);
-        pushToast("已撤销恢复", "info");
-      },
-    });
-  }
-
-  function requestPermanentDeleteTask(task: Task) {
-    setConfirmState({
-      title: "永久删除任务",
-      body: `永久删除“${task.title}”？此操作不可撤销。`,
-      confirmText: "永久删除",
-      danger: true,
-      onConfirm: async () => {
-        await permanentDeleteTask(task.id);
-        setConfirmState(null);
-        pushToast("任务已永久删除", "info");
-      },
-    });
-  }
-
-  function requestEmptyTrash() {
-    if (tasks.length === 0) return;
-    setConfirmState({
-      title: "清空回收站",
-      body: `永久删除回收站内 ${tasks.length} 项任务？此操作不可撤销。`,
-      confirmText: "清空回收站",
-      danger: true,
-      onConfirm: async () => {
-        const count = await emptyTrash();
-        setConfirmState(null);
-        pushToast(`已清空 ${count} 项任务`, "info");
-      },
-    });
-  }
-
-  function requestBatchDelete() {
-    if (batchSelectedIds.length === 0) return;
-    const selectedIds = [...batchSelectedIds];
-    setConfirmState({
-      title: "确认批量删除",
-      body: `删除已选 ${batchSelectedIds.length} 项？可从回收站恢复。`,
-      confirmText: "删除",
-      danger: true,
-      onConfirm: async () => {
-        await batchDelete();
-        setConfirmState(null);
-        pushToast("已删除选中任务", "info", {
-          label: "撤销",
-          onClick: async () => {
-            for (const id of selectedIds) {
-              await useTaskStore.getState().restoreTask(id);
-            }
-            pushToast("已撤销批量删除", "success");
-          },
-        });
-      },
-    });
-  }
-
-  async function handleBatchComplete() {
-    if (batchSelectedIds.length === 0) return;
-    const selectedIds = [...batchSelectedIds];
-    const lookup = new Map(
-      [...allTasks, ...tasks].map((task) => [task.id, task] as const),
-    );
-    const restoreTodoIds = selectedIds.filter(
-      (id) => lookup.get(id)?.status !== "done",
-    );
-    await batchComplete();
-    pushToast("已完成选中任务", "success", {
-      label: "撤销",
-      onClick: async () => {
-        for (const id of restoreTodoIds) {
-          await useTaskStore.getState().toggleTask(id, false);
-        }
-        pushToast("已撤销批量完成", "info");
-      },
-    });
-  }
-
-  async function handleBatchRestore() {
-    if (batchSelectedIds.length === 0) return;
-    const selectedIds = [...batchSelectedIds];
-    await batchRestore();
-    pushToast("已恢复选中任务", "success", {
-      label: "撤销",
-      onClick: async () => {
-        for (const id of selectedIds) {
-          await useTaskStore.getState().removeTask(id);
-        }
-        pushToast("已撤销批量恢复", "info");
-      },
-    });
-  }
-
-  function requestBatchPermanentDelete() {
-    if (batchSelectedIds.length === 0) return;
-    setConfirmState({
-      title: "永久删除选中任务",
-      body: `永久删除已选 ${batchSelectedIds.length} 项？此操作不可撤销。`,
-      confirmText: "永久删除",
-      danger: true,
-      onConfirm: async () => {
-        await batchPermanentDelete();
-        setConfirmState(null);
-        pushToast("已永久删除选中任务", "info");
-      },
-    });
-  }
-
-  async function handleBatchUpdate(patch: Parameters<typeof batchUpdate>[0]) {
-    await batchUpdate(patch);
-    pushToast("已更新选中任务", "success");
-  }
+  // P1-05：任务/批量动作已提取到 useTaskActions。
+  const {
+    requestDeleteTask,
+    handleRestoreTask,
+    requestPermanentDeleteTask,
+    requestEmptyTrash,
+    requestBatchDelete,
+    handleBatchComplete,
+    handleBatchRestore,
+    requestBatchPermanentDelete,
+    handleBatchUpdate,
+  } = useTaskActions({
+    tasks,
+    allTasks,
+    batchSelectedIds,
+    setConfirmState,
+    pushToast,
+  });
 
   async function handleSortChange(nextSort: typeof sortBy) {
     await setSortBy(nextSort);
     setMenuOpen(false);
+  }
+
+  async function handleSortAscToggle() {
+    await setSortAsc(!sortAsc);
+    pushToast(sortAsc ? "已改为降序" : "已改为升序", "success");
+  }
+
+  async function handleClearFilter() {
+    await clearFilter();
+    pushToast("已清除全部筛选条件", "success");
   }
 
   async function handleShowCompletedChange() {
@@ -998,9 +1347,17 @@ function App() {
           counts={counts}
           savedViews={settings.savedViews}
           activeSavedViewId={activeSavedViewId}
+          tags={sidebarTags}
+          onOpenTagManager={() => setTagManagerOpen(true)}
+          activeTags={filter.tags}
+          onTagToggle={(tag) => void toggleFilterTag(tag)}
+          onClearTags={() => void clearFilterTags()}
           onSearchChange={(query) => void setSearchQuery(query)}
           onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
-          onSavedViewOpen={(view) => void handleOpenSavedView(view)}
+          onSavedViewOpen={(view) => {
+            setSearchViewActive(false);
+            void handleOpenSavedView(view);
+          }}
           onSavedViewAdd={openCreateSavedViewDialog}
           onSavedViewEdit={openEditSavedViewDialog}
           onSavedViewDelete={requestDeleteSavedView}
@@ -1010,30 +1367,61 @@ function App() {
           recurringActive={recurringViewActive}
           recurringCount={recurringRules.length}
           onOpenRecurring={openRecurringView}
+          searchActive={searchViewActive}
+          onSearchSubmit={handleOpenSearch}
           onClose={closeMobileSidebar}
         />
 
         <main className="main">
           <MainHeader
             title={currentTitle}
-            meta={recurringViewActive ? null : undefined}
-            taskCount={tasks.length}
+            detailOpen={Boolean(selectedTask)}
+            headerHidden={mobile && mobileHeaderHidden}
+            meta={
+              searchViewActive
+                ? `共找到 ${searchMatchingTasks.length} 项`
+                : scopeSubtitle
+            }
+            taskCount={
+              searchViewActive ? searchMatchingTasks.length : tasks.length
+            }
             layout={effectiveLayout}
             theme={settings.theme}
             sortBy={sortBy}
+            sortAsc={sortAsc}
+            filter={filter}
+            filterCount={filterCount}
+            lists={lists}
+            tags={availableTags}
             showCompleted={showCompleted}
+            batchMode={batchMode}
             onOpenSidebar={openMobileSidebar}
             onOpenCreate={() => openTaskCreateDialog()}
             onLayoutChange={setLayout}
             onThemeToggle={() => void handleThemeToggle()}
+            onOpenCommandPalette={openCommandPalette}
             onMenuToggle={() => setMenuOpen((open) => !open)}
             menuOpen={menuOpen}
             onSortChange={(nextSort) => void handleSortChange(nextSort)}
+            onSortAscToggle={() => void handleSortAscToggle()}
+            onToggleFilterList={(listId) => void toggleFilterList(listId)}
+            onToggleFilterTag={(tag) => void toggleFilterTag(tag)}
+            onToggleFilterPriority={(priority) =>
+              void toggleFilterPriority(priority)
+            }
+            onToggleFilterCompleted={() => void toggleFilterCompleted()}
+            onClearFilter={() => void handleClearFilter()}
             onShowCompletedChange={() => void handleShowCompletedChange()}
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}
+            onOpenFocus={() => setFocusOpen(true)}
+            onToggleMini={() => void toggleMini()}
+            onOpenReview={() => setReviewOpen(true)}
+            onToggleBatchMode={toggleBatchMode}
             syncStatus={syncStatus}
-            showLayoutControls={!recurringViewActive && !deletedViewActive}
+            showLayoutControls={
+              !searchViewActive && !recurringViewActive && !deletedViewActive
+            }
           />
 
           {displayError && (
@@ -1053,12 +1441,43 @@ function App() {
             </div>
           )}
 
+          {scope.kind === "list" &&
+            !searchViewActive &&
+            !recurringViewActive &&
+            !deletedViewActive &&
+            currentList && (
+              <ProjectHeader list={currentList} tasks={currentListTasks} />
+            )}
           <section className="content-panel" aria-label={`${currentTitle}任务`}>
             <div
               key={contentKey}
               className={`content-motion content-motion-${effectiveLayout}`}
             >
-              {recurringViewActive ? (
+              {searchViewActive ? (
+                <SearchResultView
+                  query={searchQuery}
+                  tasks={searchMatchingTasks}
+                  lists={lists}
+                  loading={loading}
+                  selectedTaskId={selectedTaskId}
+                  batchMode={batchMode}
+                  batchSelectedIds={batchSelectedIds}
+                  attachmentCounts={attachmentCounts}
+                  onOpenTask={(task) => selectTask(task.id)}
+                  onToggleTask={(task) => void handleToggleTask(task)}
+                  onDeleteTask={(task) => void requestDeleteTask(task)}
+                  onRestoreTask={(task) => void handleRestoreTask(task)}
+                  onPermanentDeleteTask={(task) =>
+                    void requestPermanentDeleteTask(task)
+                  }
+                  onToggleBatchSelected={toggleBatchSelected}
+                  onExitSearch={() => setSearchViewActive(false)}
+                  onOpenCreateDialog={(initialTitle) =>
+                    openTaskCreateDialog("", initialTitle)
+                  }
+                  onSaveAsView={openCreateSavedViewDialog}
+                />
+              ) : recurringViewActive ? (
                 <RecurringRulesView
                   rules={recurringRules}
                   lists={lists}
@@ -1077,6 +1496,7 @@ function App() {
               ) : effectiveLayout === "list" ? (
                 <TaskListView
                   tasks={tasks}
+                  completedToday={completedTodayTasks}
                   lists={lists}
                   loading={loading}
                   selectedTaskId={selectedTaskId}
@@ -1084,6 +1504,13 @@ function App() {
                   batchSelectedIds={batchSelectedIds}
                   searchQuery={searchQuery}
                   scope={scope}
+                  defaultListId={defaultListId}
+                  trashRetentionDays={settings.trashRetentionDays}
+                  attachmentCounts={attachmentCounts}
+                  parseNaturalLanguage={settings.quickAddNaturalLanguage}
+                  moveCompletedImmediately={settings.moveCompletedImmediately}
+                  onOpenCreateDialog={() => openTaskCreateDialog()}
+                  onQuickCreate={handleQuickCreate}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                   onDelete={requestDeleteTask}
@@ -1107,6 +1534,8 @@ function App() {
                   lists={lists}
                   searchQuery={searchQuery}
                   selectedTaskId={selectedTaskId}
+                  defaultListId={defaultListId}
+                  onQuickCreate={handleQuickCreate}
                   onOpen={(task) => selectTask(task.id)}
                   onToggle={(task) => void handleToggleTask(task)}
                   onMove={(task, columnId) =>
@@ -1116,6 +1545,7 @@ function App() {
               ) : effectiveLayout === "month" ? (
                 <MonthCalendar
                   tasks={tasks}
+                  lists={lists}
                   events={calendarEvents}
                   showCompleted={showCompleted}
                   onOpenTask={(task) => selectTask(task.id)}
@@ -1152,11 +1582,16 @@ function App() {
             !selectedTask &&
             !batchMode &&
             !recurringViewActive &&
-            !deletedViewActive && (
+            !deletedViewActive &&
+            !mobile && (
               <button
                 type="button"
                 className="mobile-create-fab"
-                onClick={() => openTaskCreateDialog()}
+                onClick={() => {
+                  // M1.4 触感：新建入口 tap（desktop no-op）
+                  navigator.vibrate?.(8);
+                  openTaskCreateDialog();
+                }}
                 aria-label="新建任务"
                 title="新建任务"
               >
@@ -1164,6 +1599,33 @@ function App() {
               </button>
             )}
         </main>
+
+        {/* M3.1 移动端底部导航（含中央新建 FAB）；横屏/桌面不渲染 */}
+        {mobile && (
+          <BottomNav
+            layout={effectiveLayout}
+            onLayoutChange={(next) => setLayout(next)}
+            onCreate={() => {
+              navigator.vibrate?.(8);
+              openTaskCreateDialog();
+            }}
+            onOpenSettings={openSettingsDialog}
+          />
+        )}
+
+        {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
+        <TaskDetailPanel
+          task={selectedTask}
+          lists={lists}
+          busy={loading}
+          onClose={() => selectTask(null)}
+          onSave={handleSaveTask}
+          onToggle={(task) => void handleToggleTask(task)}
+          onDelete={requestDeleteTask}
+          onOpenRecurring={openTaskRecurring}
+          onOpenTask={selectTask}
+          onToast={pushToast}
+        />
       </div>
 
       {createPresence.rendered && (
@@ -1172,10 +1634,14 @@ function App() {
           defaultListId={defaultListId}
           defaultScheduledDate={createScheduledDate}
           defaultReminderMinutes={settings.defaultReminderMinutes}
+          defaultPriority={settings.defaultPriority}
+          defaultDueDate={settings.defaultDueDate}
+          initialTitle={createTaskInitialTitle}
           presence={createPresence.phase}
           onClose={() => {
             setCreateOpen(false);
             setCreateScheduledDate("");
+            setCreateTaskInitialTitle("");
           }}
           onSubmit={handleCreateTask}
           onSubmitRecurring={handleCreateRecurring}
@@ -1183,18 +1649,15 @@ function App() {
         />
       )}
 
-      <TaskDetailPanel
-        task={selectedTask}
-        lists={lists}
-        busy={loading}
-        onClose={() => selectTask(null)}
-        onSave={handleSaveTask}
-        onToggle={(task) => void handleToggleTask(task)}
-        onDelete={requestDeleteTask}
-        onOpenRecurring={openTaskRecurring}
-        onOpenTask={selectTask}
-        onToast={pushToast}
-      />
+      {/* F2 · T-01：命令面板（Ctrl K / 工具栏图标，T-08 并入全局全库搜索） */}
+      {commandPalettePresence.rendered && (
+        <CommandPalette
+          commands={commandEntries}
+          presence={commandPalettePresence.phase}
+          onClose={() => setCommandPaletteOpen(false)}
+          onSearchGlobal={handleOpenSearch}
+        />
+      )}
 
       {recurringDialogPresence.rendered && (
         <RecurringRuleDialog
@@ -1270,6 +1733,33 @@ function App() {
           recurringRules={recurringRules}
           presence={statsPresence.phase}
           onClose={() => setStatsOpen(false)}
+        />
+      )}
+
+      {focusPresence.rendered && (
+        <FocusDialog
+          tasks={allTasks}
+          presence={focusPresence.phase}
+          onClose={() => setFocusOpen(false)}
+          onFinished={handleFocusFinished}
+        />
+      )}
+
+      {reviewPresence.rendered && (
+        <ReviewDialog
+          tasks={allTasks}
+          presence={reviewPresence.phase}
+          onClose={() => setReviewOpen(false)}
+          onShiftsApplied={handleReviewShifts}
+        />
+      )}
+
+      {tagManagerPresence.rendered && (
+        <TagManagerDialog
+          tags={sidebarTags}
+          presence={tagManagerPresence.phase}
+          onClose={() => setTagManagerOpen(false)}
+          onChanged={handleTagChanged}
         />
       )}
 

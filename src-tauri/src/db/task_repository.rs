@@ -643,24 +643,43 @@ fn push_view_scope(
     Ok(())
 }
 
-pub(crate) fn select_tasks() -> &'static str {
-    r#"
-    SELECT id, title, note, status, priority, list_id, scheduled_date, due_at,
-           completed_at, sort_order, remind_before, remind_at, reminded_at,
-           repeat_rule, subtasks, tags, recurring_rule_id, occurrence_at,
-           created_at, updated_at, deleted_at
-    FROM tasks
-    "#
+/// tasks 表列名唯一清单：select_tasks / select_tasks_aliased 共用，
+/// 新增任务列只改此处，两查询自动同步（防字段遗漏漂移）。
+const TASK_COLUMNS: &[&str] = &[
+    "id",
+    "title",
+    "note",
+    "status",
+    "priority",
+    "list_id",
+    "scheduled_date",
+    "due_at",
+    "completed_at",
+    "sort_order",
+    "remind_before",
+    "remind_at",
+    "reminded_at",
+    "repeat_rule",
+    "subtasks",
+    "tags",
+    "recurring_rule_id",
+    "occurrence_at",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+];
+
+pub(crate) fn select_tasks() -> String {
+    format!("SELECT {} FROM tasks", TASK_COLUMNS.join(", "))
 }
 
-fn select_tasks_aliased() -> &'static str {
-    r#"
-    SELECT t.id, t.title, t.note, t.status, t.priority, t.list_id, t.scheduled_date, t.due_at,
-           t.completed_at, t.sort_order, t.remind_before, t.remind_at, t.reminded_at,
-           t.repeat_rule, t.subtasks, t.tags, t.recurring_rule_id, t.occurrence_at,
-           t.created_at, t.updated_at, t.deleted_at
-    FROM tasks t
-    "#
+fn select_tasks_aliased() -> String {
+    let columns = TASK_COLUMNS
+        .iter()
+        .map(|column| format!("t.{column}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("SELECT {columns} FROM tasks t")
 }
 
 fn sort_clause(sort_by: &str) -> RepositoryResult<&'static str> {
@@ -803,6 +822,45 @@ mod search_query_tests {
     fn due_none_maps_to_null_due_filter() {
         let parsed = parse_search_query("due:无");
         assert_eq!(parsed.due, Some(DueFilter::None));
+    }
+}
+
+/// P2-03：列清单防漂移守卫 —— TASK_COLUMNS 必须与 tasks 表实际列一致
+/// （map_task 按 select 位置索引读列，列清单顺序变更会静默错位）。
+#[cfg(test)]
+mod column_guard_tests {
+    use super::*;
+    use crate::db::migrations;
+    use rusqlite::Connection;
+
+    #[test]
+    fn select_columns_match_actual_table_columns() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations::apply_migrations(&mut connection).unwrap();
+        let mut actual: Vec<String> = connection
+            .prepare("PRAGMA table_info(tasks)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        // purged_at 只作清理标记，不进业务投影。
+        actual.retain(|column| column != "purged_at");
+
+        let mut listed = TASK_COLUMNS.to_vec();
+        listed.sort();
+        actual.sort();
+        assert_eq!(listed, actual, "TASK_COLUMNS 与 tasks 表实际列发生漂移");
+    }
+
+    #[test]
+    fn select_variants_share_the_single_column_list() {
+        let plain = select_tasks();
+        let aliased = select_tasks_aliased();
+        let plain_projection = &plain[..plain.find("FROM").unwrap()];
+        let aliased_projection = &aliased[..aliased.find("FROM").unwrap()];
+        assert_eq!(plain_projection.split(',').count(), TASK_COLUMNS.len());
+        assert_eq!(aliased_projection.split(',').count(), TASK_COLUMNS.len());
     }
 }
 
@@ -955,5 +1013,160 @@ fn map_not_found<T>(
         Ok(value) => Ok(value),
         Err(rusqlite::Error::QueryReturnedNoRows) => Err(RepositoryError::NotFound(entity)),
         Err(error) => Err(error.into()),
+    }
+}
+
+/// 标签管理（T-07 二期）变更类型。
+#[derive(Debug, Clone, PartialEq)]
+pub enum TagChange {
+    Rename { from: String, to: String },
+    Merge { from: String, to: String },
+    Remove { from: String },
+}
+
+/// 对单个任务的 tags 应用变更（纯函数，便于单测与边界校验）：
+/// - 标签为文本；变换结果去重、保持原顺序；
+/// - rename/merge 的目标若与任务已有标签重复 → 只保留一份；
+/// - 空标签/超长（>40 字节，与 sync validate 同口径）一律不允许进入结果。
+pub(crate) fn rewrite_task_tags(tags: &[String], change: &TagChange) -> Vec<String> {
+    let (from, to) = match change {
+        TagChange::Remove { from } => (from.as_str(), None),
+        TagChange::Rename { from, to } | TagChange::Merge { from, to } => {
+            (from.as_str(), Some(to.as_str()))
+        }
+    };
+    let mut out: Vec<String> = Vec::with_capacity(tags.len());
+    for tag in tags {
+        if tag == from {
+            if let Some(target) = to {
+                if !out.iter().any(|existing| existing == target) && valid_tag_length(target) {
+                    out.push(target.to_string());
+                }
+            }
+            continue;
+        }
+        if tag.is_empty() || !valid_tag_length(tag) || out.iter().any(|item| item == tag) {
+            continue;
+        }
+        out.push(tag.clone());
+    }
+    out
+}
+
+fn valid_tag_length(tag: &str) -> bool {
+    !tag.is_empty() && tag.len() <= 40
+}
+
+impl TaskRepository<'_> {
+    /// 全表应用标签变更（Rename/Merge/Remove），返回实际受影响的任务数。
+    /// 每行在事务内读-改-写；tags 无法解析为字符串数组的行跳过不报错
+    /// （脏数据不扩散）；结果恒满足 sync 的 validate_task_tags 约束。
+    pub fn apply_tag_change(&self, change: &TagChange) -> RepositoryResult<usize> {
+        use rusqlite::TransactionBehavior;
+
+        let mut connection = self.database.connect()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(RepositoryError::from)?;
+
+        let rows: Vec<(String, String)> = {
+            let mut statement = transaction
+                .prepare("SELECT id, tags FROM tasks")
+                .map_err(RepositoryError::from)?;
+            let mapped = statement
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })
+                .map_err(RepositoryError::from)?;
+            mapped
+                .collect::<Result<_, _>>()
+                .map_err(RepositoryError::from)?
+        };
+
+        let mut affected = 0usize;
+        for (id, tags_json) in rows {
+            let parsed: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let rewritten = rewrite_task_tags(&parsed, change);
+            if rewritten == parsed {
+                continue;
+            }
+            transaction
+                .execute(
+                    "UPDATE tasks SET tags = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?2",
+                    rusqlite::params![
+                        serde_json::to_string(&rewritten).unwrap_or_else(|_| "[]".to_string()),
+                        id
+                    ],
+                )
+                .map_err(RepositoryError::from)?;
+            affected += 1;
+        }
+        transaction.commit().map_err(RepositoryError::from)?;
+        Ok(affected)
+    }
+}
+
+#[cfg(test)]
+mod tag_change_tests {
+    use super::*;
+
+    fn tags(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn rename_replaces_and_dedupes() {
+        let change = TagChange::Rename {
+            from: "a".to_string(),
+            to: "c".to_string(),
+        };
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "b"]), &change),
+            tags(&["c", "b"])
+        );
+        // 已含目标 c → 不重复
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "c", "b"]), &change),
+            tags(&["c", "b"])
+        );
+        // 不含 from → 原样
+        assert_eq!(
+            rewrite_task_tags(&tags(&["x", "y"]), &change),
+            tags(&["x", "y"])
+        );
+    }
+
+    #[test]
+    fn merge_keeps_target_once() {
+        let change = TagChange::Merge {
+            from: "b".to_string(),
+            to: "c".to_string(),
+        };
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "b", "c"]), &change),
+            tags(&["a", "c"])
+        );
+        assert_eq!(rewrite_task_tags(&tags(&["b"]), &change), tags(&["c"]));
+    }
+
+    #[test]
+    fn remove_strips_tag() {
+        let change = TagChange::Remove {
+            from: "a".to_string(),
+        };
+        assert_eq!(rewrite_task_tags(&tags(&["a", "b"]), &change), tags(&["b"]));
+        assert_eq!(rewrite_task_tags(&tags(&["b"]), &change), tags(&["b"]));
+    }
+
+    #[test]
+    fn never_emits_empty_or_oversized_tags() {
+        let change = TagChange::Rename {
+            from: "a".to_string(),
+            to: "超长标签超长标签超长标签超长标签超长标签超长标签超长".to_string(),
+        };
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "b", ""]), &change),
+            tags(&["b"])
+        );
     }
 }

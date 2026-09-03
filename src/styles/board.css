@@ -1,7 +1,11 @@
+/* 看板视图（对齐设计稿 V-1）：
+   - 3 列：待处理 / 进行中 / 已完成，与 design H-2 里「待办 / 进行中 / 已完成」形态一致
+   - 卡片内为单行 + 简略 meta，去除 list chip 与 priority pill，让阅读节奏保持极简 */
+
 .board-view {
   display: grid;
   min-height: 100%;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -29,12 +33,12 @@
   border-color: var(--accent-border);
 }
 
-.board-column header {
+.board-column > header {
   display: flex;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
-  padding: 12px;
+  padding: 10px 12px;
 }
 
 .board-column h2 {
@@ -42,40 +46,53 @@
   flex: 1;
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 21px;
-  letter-spacing: 0;
+  line-height: 20px;
 }
 
-.board-column header span:last-child {
+.board-column > header > span:last-child {
   border-radius: 999px;
   background: var(--bg-tertiary);
-  padding: 2px 8px 4px;
+  padding: 1px 8px 3px;
   color: var(--text-muted);
   font-size: 11px;
   line-height: 17px;
+  font-variant-numeric: tabular-nums;
 }
 
 .board-dot {
   display: inline-block;
-  width: 9px;
-  height: 9px;
-  min-width: 9px;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
   border-radius: 50%;
 }
 
 .board-cards {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
 }
 
+/* 卡片：相对定位 + 勾选右上 + 色点顶左 + 标题主 + meta 副（行内化） */
 .board-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "list check"
+    "title title"
+    "meta meta";
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-primary);
-  padding: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--inset-hi);
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background-color var(--motion-theme) var(--ease-standard),
@@ -88,9 +105,9 @@
 
 .board-card:hover,
 .board-card.selected {
-  border-color: var(--accent);
+  border-color: var(--accent-border);
   background: var(--bg-tertiary);
-  box-shadow: var(--shadow-lift);
+  box-shadow: var(--shadow-lift), var(--inset-hi);
   transform: translateY(-2px);
 }
 
@@ -107,34 +124,101 @@
   text-decoration: line-through;
 }
 
-.board-card-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+.board-card-list {
+  grid-area: list;
+  min-width: 0;
+  align-self: center;
+  /* 与 .list-inline 复用，但只允许一行截断 */
+  font-size: 11.5px;
+  font-weight: 500;
 }
 
-.board-card h3 {
+.board-card-list .list-inline-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.board-card .task-check {
+  grid-area: check;
+  margin: 0;
+}
+
+.board-card-title {
+  grid-area: title;
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 22px;
-  letter-spacing: 0;
-  transition: color var(--motion-theme) var(--ease-standard);
-}
-
-.board-card p {
-  margin: 4px 0 0;
-  color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
   line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   transition: color var(--motion-theme) var(--ease-standard);
 }
 
-.board-card-footer {
-  justify-content: space-between;
+.board-card-meta {
+  grid-area: meta;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.board-card-due {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+/* ---------- R5 对齐设计稿 board.css（2026-09-01） ---------- */
+.board-view {
+  gap: 12px;
+}
+
+.board-column {
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--mica-side);
+}
+
+/* F1 · T-13 在此列新建：由灰显占位转为真实按钮（设计稿列头 + 号） */
+.board-column-add {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.board-column-add:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.board-column-add.is-open {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.board-column-add svg {
+  width: 14px;
+  height: 14px;
 }

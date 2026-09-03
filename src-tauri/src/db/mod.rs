@@ -10,3 +10,6 @@ pub mod task_link_repository;
 pub mod task_repository;
 
 pub use database::Database;
+
+#[cfg(test)]
+pub mod task_query_vectors;

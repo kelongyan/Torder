@@ -17,11 +17,13 @@ import { TaskRow } from "./TaskRow";
  */
 export function TaskTodayAgenda({
   items,
+  completedItems = [],
   lists,
   selectedTaskId,
   batchMode,
   batchSelectedIds,
   searchQuery,
+  attachmentCounts = {},
   onOpen,
   onToggle,
   onDelete,
@@ -29,11 +31,15 @@ export function TaskTodayAgenda({
   onReorder,
 }: {
   items: AnimatedTask[];
+  /** D4 今日已完成段：App 层从 allTasks 筛「completedAt 在今天」的任务传入。 */
+  completedItems?: Task[];
   lists: TaskList[];
   selectedTaskId: string | null;
   batchMode: boolean;
   batchSelectedIds: string[];
   searchQuery: string;
+  /** T-15：`task_id -> 附件数` 映射（App 层透传）。 */
+  attachmentCounts?: Record<string, number>;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -63,6 +69,13 @@ export function TaskTodayAgenda({
   const insertAt = agendaItems.findIndex(
     ({ task }) => task.dueAt && minuteOfDay(task.dueAt) > nowMinutes,
   );
+  const liveItems = items.filter(({ leaving }) => !leaving);
+  const completedCount = liveItems.filter(
+    ({ task }) => task.status === "done",
+  ).length;
+  const overdueCount = overdueItems.filter(({ leaving }) => !leaving).length;
+  const totalCount = liveItems.length;
+  const remainingCount = Math.max(0, totalCount - completedCount);
 
   function renderRow(
     { task, leaving }: AnimatedTask,
@@ -81,6 +94,7 @@ export function TaskTodayAgenda({
         motionIndex={motionIndex}
         searchQuery={searchQuery}
         timeGutter={options.timeGutter}
+        attachmentCount={attachmentCounts[task.id] ?? 0}
         onOpen={onOpen}
         onToggle={onToggle}
         onDelete={onDelete}
@@ -100,15 +114,42 @@ export function TaskTodayAgenda({
 
   return (
     <>
+      <div className="task-pace" aria-label="今日节奏">
+        <span className="task-pace-bar" aria-hidden="true">
+          <i
+            style={{
+              width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+            }}
+          />
+        </span>
+        <span className="task-pace-text">
+          <strong>{completedCount}</strong>/{totalCount} 项已完成
+        </span>
+        {overdueCount > 0 && (
+          <span className="task-pace-overdue">逾期 {overdueCount}</span>
+        )}
+        {/* 设计稿 pace：全部清空时右侧变「今天已清空 🎉」 */}
+        <span className="task-pace-left">
+          {remainingCount > 0
+            ? `还有 ${remainingCount} 项待推进`
+            : "今天已清空 🎉"}
+        </span>
+      </div>
+      {/* D4 三段融合：逾期（红组）→ 今天（内嵌时间槽 + now 线 + 全天）→ 今日已完成 */}
       {overdueItems.length > 0 && (
         <Fragment key="overdue">
-          <SectionHeader label={`逾期 · ${liveCount(overdueItems)}`} />
+          <SectionHeader
+            label={`逾期 · ${liveCount(overdueItems)}`}
+            tone="danger"
+          />
           {overdueItems.map((item, index) => renderRow(item, index))}
         </Fragment>
       )}
-      {agendaItems.length > 0 && (
-        <Fragment key="agenda">
-          <SectionHeader label={`日程 · ${liveCount(agendaItems)}`} />
+      {(agendaItems.length > 0 || alldayItems.length > 0) && (
+        <Fragment key="today">
+          <SectionHeader
+            label={`今天 · ${liveCount(agendaItems) + liveCount(alldayItems)}`}
+          />
           {agendaItems.flatMap(({ task, leaving }, index) => {
             const row = renderRow({ task, leaving }, index, {
               timeGutter: formatTimeOfDay(new Date(task.dueAt!)),
@@ -117,15 +158,32 @@ export function TaskTodayAgenda({
               ? [<TaskNowLine key={`now-${task.id}`} now={now} />, row]
               : [row];
           })}
-          {insertAt < 0 && <TaskNowLine now={now} />}
+          {agendaItems.length > 0 && insertAt < 0 && <TaskNowLine now={now} />}
+          {alldayItems.map((item, index) =>
+            renderRow(item, agendaItems.length + index, { draggable: true }),
+          )}
         </Fragment>
       )}
-      {alldayItems.length > 0 && (
-        <Fragment key="allday">
-          <SectionHeader label={`全天 · ${liveCount(alldayItems)}`} />
-          {alldayItems.map((item, index) =>
-            renderRow(item, index, { draggable: true }),
-          )}
+      {completedItems.length > 0 && (
+        <Fragment key="completed">
+          <SectionHeader label={`今日已完成 · ${completedItems.length}`} />
+          {completedItems.map((task, index) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              lists={lists}
+              selected={task.id === selectedTaskId}
+              batchMode={batchMode}
+              batchSelected={batchSelectedIds.includes(task.id)}
+              motionIndex={index}
+              searchQuery={searchQuery}
+              attachmentCount={attachmentCounts[task.id] ?? 0}
+              onOpen={onOpen}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onToggleBatchSelected={onToggleBatchSelected}
+            />
+          ))}
         </Fragment>
       )}
     </>

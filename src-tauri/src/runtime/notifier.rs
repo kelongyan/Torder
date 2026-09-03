@@ -38,28 +38,117 @@ pub fn start_notifier(app_handle: AppHandle, database_path: PathBuf) {
 fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(), String> {
     let mut connection = open_connection(database_path).map_err(|e| format!("db open: {e}"))?;
 
+    // P0-02：系统通知的唯一权威是本模块的原生通知。用户在设置中关闭
+    // 「系统通知」（notificationsEnabled）后，整个提醒链路短路：不发送
+    // 原生通知、不 emit 事件、不标记 reminded_at。采用「暂停」语义而非
+    // 「跳过并标记」：任务保持未提醒状态，重新开启通知后下轮轮询补发，
+    // 避免用户以为提醒已消费却从未收到。
+    if !notifications_enabled(&connection) {
+        return Ok(());
+    }
+
+    // 专注免打扰（T-10 乙组）：专注运行期间抑制任务提醒。与通知总开关相同的
+    // 「暂停」语义——不标记 reminded_at，专注结束后下轮轮询补发，避免用户
+    // 以为提醒已消费却从未收到。
+    if focus_dnd_active(&connection) {
+        return Ok(());
+    }
+
     let tasks = due_reminder_tasks(&connection)?;
 
     if tasks.is_empty() {
         return Ok(());
     }
 
-    for task in tasks {
-        if let Err(error) = send_native_notification(app_handle, &task) {
-            eprintln!("native notification failed for task {}: {error}", task.id);
-            continue;
-        }
-        if mark_task_reminded(&mut connection, &task.id)? {
+    notify_tasks(
+        &mut connection,
+        tasks,
+        &mut |task| send_native_notification(app_handle, task),
+        &mut |task| {
             let event = ReminderEvent {
                 task_id: task.id.clone(),
                 title: task.title.clone(),
                 due_at: task.due_at.clone(),
             };
             let _ = app_handle.emit("task-reminder", event);
+        },
+    )
+}
+
+/// 逐个发送并标记到期任务提醒。
+///
+/// 行为约束（P0-02 验收项）：
+/// - 发送失败的任务不标记 `reminded_at`，留在待提醒集合中等待下轮重试；
+/// - 标记幂等成功（首次更新命中）后才 emit 前端事件，重放/重复轮询
+///   不会对同一任务重复 emit；
+/// - `sender` 与 `emit` 通过参数注入，测试可用 spy 验证上述约束。
+fn notify_tasks(
+    connection: &mut Connection,
+    tasks: Vec<Task>,
+    sender: &mut dyn FnMut(&Task) -> Result<(), String>,
+    emit: &mut dyn FnMut(&Task),
+) -> Result<(), String> {
+    for task in tasks {
+        if let Err(error) = sender(&task) {
+            // 发送失败不标记 reminded_at：任务留在待提醒集合中，下轮重试
+            eprintln!("native notification failed for task {}: {error}", task.id);
+            continue;
+        }
+        if mark_task_reminded(connection, &task.id)? {
+            emit(&task);
         }
     }
-
     Ok(())
+}
+
+/// 读取系统通知总开关（settings 表 notificationsEnabled，值为 JSON 编码的
+/// 布尔：前端 upsertSetting 写入 JSON.stringify(true) → "true"）。
+///
+/// 缺省、非法 JSON 或非布尔值一律视为开启：与前端 parseBoolean 的默认值
+/// （defaultAppSettings.notificationsEnabled = true）保持一致，保证设置
+/// 读写异常时不会静默吞掉用户提醒。
+fn notifications_enabled(connection: &Connection) -> bool {
+    connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'notificationsEnabled'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .map(|value| match value {
+            serde_json::Value::Bool(enabled) => enabled,
+            // 兼容历史/误写入的字符串形态（如 "\"true\""）
+            serde_json::Value::String(raw) => raw == "true",
+            _ => true,
+        })
+        .unwrap_or(true)
+}
+
+/// 专注免打扰（阶段 D · T-10 乙组）：读取 focusDndUntil（settings KV，值为
+/// JSON 编码的 RFC3339 时间戳，专注 running 期间由前端写入本轮结束时刻）。
+///
+/// 缺省、非法 JSON、非时间戳或已过期一律视为「不在免打扰」——与
+/// notifications_enabled 的 fail-open 取向一致：设置读写异常时宁可多响，
+/// 不能静默吞掉用户提醒（本功能失败形态就是提醒不响，见方案书风险表）。
+fn focus_dnd_active(connection: &Connection) -> bool {
+    let raw = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'focusDndUntil'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok();
+    let Some(raw) = raw else {
+        return false;
+    };
+    let Some(stamp) = serde_json::from_str::<String>(&raw).ok() else {
+        return false;
+    };
+    match chrono::DateTime::parse_from_rfc3339(&stamp) {
+        Ok(until) => until > chrono::Utc::now(),
+        Err(_) => false,
+    }
 }
 
 fn due_reminder_tasks(connection: &Connection) -> Result<Vec<Task>, String> {
@@ -91,6 +180,58 @@ fn send_native_notification(app_handle: &AppHandle, task: &Task) -> Result<(), S
         .body(task.title.clone())
         .show()
         .map_err(|error| format!("native notification: {error}"))
+}
+
+/// 专注结束的一次性系统通知（阶段 A / T-02 一期）。
+///
+/// 权威约束（P0-02）：系统通知一律经本模块（Rust）原生通道发送，前端不得
+/// 接入 Web Notification。尊重「系统通知」总开关（notifications_enabled）：
+/// 关闭时静默成功（与任务提醒暂停语义一致）；不标记任务、不 emit 事件。
+pub fn send_focus_finished_notification(
+    app_handle: &AppHandle,
+    connection: &Connection,
+) -> Result<(), String> {
+    let enabled = notifications_enabled(connection);
+    notify_focus_if_enabled(enabled, &mut || {
+        app_handle
+            .notification()
+            .builder()
+            .title("专注结束")
+            .body("本轮专注已完成，休息一下吧。")
+            .show()
+            .map_err(|error| format!("native notification: {error}"))
+    })
+}
+
+/// 通用单条桌面通知（阶段 D）：受「系统通知」总开关门控，不标记任何数据。
+pub fn send_text_notification(
+    app_handle: &AppHandle,
+    connection: &Connection,
+    title: &str,
+    body: &str,
+) -> Result<(), String> {
+    let enabled = notifications_enabled(connection);
+    notify_focus_if_enabled(enabled, &mut || {
+        app_handle
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map_err(|error| format!("native notification: {error}"))
+    })
+}
+
+/// 门控 + 发送拆开便于单测（仿 notify_tasks 的 sender 注入）：
+/// 关闭通知时静默成功；开启时调用 send 一次，失败原样透传。
+fn notify_focus_if_enabled(
+    enabled: bool,
+    send: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<(), String> {
+    if !enabled {
+        return Ok(());
+    }
+    send()
 }
 
 fn mark_task_reminded(connection: &mut Connection, task_id: &str) -> Result<bool, String> {
@@ -154,14 +295,21 @@ mod tests {
     use crate::db::Database;
     use crate::models::CreateTaskInput;
 
-    #[test]
-    fn mark_task_reminded_records_sync_change_with_payload() {
-        let path = std::env::temp_dir().join(format!(
-            "torder-notifier-reminded-{}.sqlite",
+    fn temp_db(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "torder-notifier-{tag}-{}.sqlite",
             uuid::Uuid::new_v4()
-        ));
-        let database = Database::initialize(path.clone()).unwrap();
-        let task = TaskRepository::new(&database)
+        ))
+    }
+
+    fn cleanup_db(path: &std::path::PathBuf) {
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+    }
+
+    fn sample_task(database: &Database) -> crate::models::Task {
+        TaskRepository::new(database)
             .create(CreateTaskInput {
                 title: "提醒同步测试".to_owned(),
                 note: None,
@@ -175,7 +323,14 @@ mod tests {
                 subtasks: None,
                 tags: None,
             })
-            .unwrap();
+            .unwrap()
+    }
+
+    #[test]
+    fn mark_task_reminded_records_sync_change_with_payload() {
+        let path = temp_db("reminded");
+        let database = Database::initialize(path.clone()).unwrap();
+        let task = sample_task(&database);
         let mut connection = database.connect().unwrap();
 
         assert!(mark_task_reminded(&mut connection, &task.id).unwrap());
@@ -209,8 +364,256 @@ mod tests {
 
         drop(connection);
         drop(database);
-        let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
-        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+        cleanup_db(&path);
+    }
+
+    // ---- P0-02 通知门控与发送/标记一致性 ----
+
+    fn create_test_task(database: &Database, title: &str) -> crate::models::Task {
+        TaskRepository::new(database)
+            .create(CreateTaskInput {
+                title: title.to_owned(),
+                note: None,
+                priority: None,
+                list_id: None,
+                scheduled_date: None,
+                due_at: None,
+                sort_order: Some(0),
+                remind_before: None,
+                repeat_rule: None,
+                subtasks: None,
+                tags: None,
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn notification_gate_defaults_to_enabled_and_reads_setting() {
+        let path = temp_db("gate");
+        let database = Database::initialize(path.clone()).unwrap();
+        let connection = database.connect().unwrap();
+
+        // 缺省（未写入设置）视为开启，与前端 parseBoolean 默认值一致
+        assert!(notifications_enabled(&connection));
+
+        connection
+            .execute(
+                "INSERT INTO settings (key, value) VALUES ('notificationsEnabled', 'true')",
+                [],
+            )
+            .unwrap();
+        assert!(notifications_enabled(&connection));
+
+        // 关闭开关必须生效（前端写入 JSON.stringify(false) → 裸值 false）
+        connection
+            .execute(
+                "UPDATE settings SET value = 'false' WHERE key = 'notificationsEnabled'",
+                [],
+            )
+            .unwrap();
+        assert!(!notifications_enabled(&connection));
+
+        // 字符串形态（历史/误写入）兼容解析
+        connection
+            .execute(
+                "UPDATE settings SET value = '\"false\"' WHERE key = 'notificationsEnabled'",
+                [],
+            )
+            .unwrap();
+        assert!(!notifications_enabled(&connection));
+
+        // 损坏 JSON 不能静默吞掉提醒：视为开启
+        connection
+            .execute(
+                "UPDATE settings SET value = 'not-json' WHERE key = 'notificationsEnabled'",
+                [],
+            )
+            .unwrap();
+        assert!(notifications_enabled(&connection));
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
+    }
+
+    #[test]
+    fn failed_send_leaves_task_unreminded_for_retry() {
+        let path = temp_db("send-failed");
+        let database = Database::initialize(path.clone()).unwrap();
+        let task = create_test_task(&database, "发送失败重试");
+        let mut connection = database.connect().unwrap();
+
+        let mut emit_count = 0;
+        let result = notify_tasks(
+            &mut connection,
+            vec![task.clone()],
+            &mut |_| Err("channel unavailable".to_owned()),
+            &mut |_| emit_count += 1,
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(emit_count, 0);
+        let reminded_at: Option<String> = connection
+            .query_row(
+                "SELECT reminded_at FROM tasks WHERE id = ?1",
+                params![&task.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            reminded_at.is_none(),
+            "failed send must not mark the task as reminded"
+        );
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
+    }
+
+    #[test]
+    fn successful_send_emits_once_and_is_idempotent() {
+        let path = temp_db("emit-once");
+        let database = Database::initialize(path.clone()).unwrap();
+        let task = create_test_task(&database, "幂等 emit");
+        let mut connection = database.connect().unwrap();
+
+        let mut emit_count = 0;
+        notify_tasks(
+            &mut connection,
+            vec![task.clone()],
+            &mut |_| Ok(()),
+            &mut |_| emit_count += 1,
+        )
+        .unwrap();
+        assert_eq!(emit_count, 1);
+
+        // 第二轮处理同一任务（模拟重复轮询/重启补扫）：mark 幂等命中失败，
+        // 不应重复 emit。
+        notify_tasks(&mut connection, vec![task], &mut |_| Ok(()), &mut |_| {
+            emit_count += 1
+        })
+        .unwrap();
+        assert_eq!(emit_count, 1);
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
+    }
+
+    #[test]
+    fn focus_notice_disabled_gate_sends_nothing() {
+        let mut calls = 0;
+        let result = notify_focus_if_enabled(false, &mut || {
+            calls += 1;
+            Ok(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(calls, 0, "关闭系统通知时不应发送");
+    }
+
+    #[test]
+    fn focus_notice_enabled_sends_once_and_propagates_failure() {
+        let mut calls = 0;
+        let result = notify_focus_if_enabled(true, &mut || {
+            calls += 1;
+            Ok(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(calls, 1);
+
+        let failed =
+            notify_focus_if_enabled(true, &mut || Err("native notification: boom".to_owned()));
+        assert_eq!(failed, Err("native notification: boom".to_owned()));
+    }
+
+    // ---- T-10 乙组：专注免打扰门控（fail-open 专项） ----
+
+    #[test]
+    fn focus_dnd_defaults_inactive_and_reads_until_setting() {
+        let path = temp_db("focus-dnd");
+        let database = Database::initialize(path.clone()).unwrap();
+        let connection = database.connect().unwrap();
+
+        // 缺省（未写入设置）视为不在免打扰
+        assert!(!focus_dnd_active(&connection));
+
+        // 运行中：前端写 JSON 编码的 RFC3339 未来时间戳 → 生效
+        let future = (chrono::Utc::now() + chrono::Duration::minutes(25)).to_rfc3339();
+        connection
+            .execute(
+                "INSERT INTO settings (key, value) VALUES ('focusDndUntil', ?1)",
+                params![serde_json::to_string(&future).unwrap()],
+            )
+            .unwrap();
+        assert!(focus_dnd_active(&connection));
+
+        // 已过期（专注结束/暂停写入当前时刻）→ 不再抑制
+        let past = (chrono::Utc::now() - chrono::Duration::minutes(1)).to_rfc3339();
+        connection
+            .execute(
+                "UPDATE settings SET value = ?1 WHERE key = 'focusDndUntil'",
+                params![serde_json::to_string(&past).unwrap()],
+            )
+            .unwrap();
+        assert!(!focus_dnd_active(&connection));
+
+        // 非法 JSON → fail-open（不抑制）
+        connection
+            .execute(
+                "UPDATE settings SET value = 'not-json' WHERE key = 'focusDndUntil'",
+                [],
+            )
+            .unwrap();
+        assert!(!focus_dnd_active(&connection));
+
+        // 合法 JSON 但非时间戳 → fail-open（不抑制）
+        connection
+            .execute(
+                "UPDATE settings SET value = '\"yesterday\"' WHERE key = 'focusDndUntil'",
+                [],
+            )
+            .unwrap();
+        assert!(!focus_dnd_active(&connection));
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
+    }
+
+    #[test]
+    fn focus_dnd_suppressed_tasks_stay_unreminded_for_later_delivery() {
+        let path = temp_db("focus-dnd-pause");
+        let database = Database::initialize(path.clone()).unwrap();
+        let task = create_test_task(&database, "免打扰期间到期的提醒");
+        let mut connection = database.connect().unwrap();
+
+        // 模拟免打扰期间 notify 层被短路：此时 reminded_at 必须仍为空，
+        // 专注结束后下轮轮询补发（暂停语义，与通知总开关一致）。
+        let until = (chrono::Utc::now() + chrono::Duration::minutes(10)).to_rfc3339();
+        connection
+            .execute(
+                "INSERT INTO settings (key, value) VALUES ('focusDndUntil', ?1)",
+                params![serde_json::to_string(&until).unwrap()],
+            )
+            .unwrap();
+        assert!(focus_dnd_active(&connection));
+        assert!(
+            focus_dnd_active(&connection),
+            "免打扰窗口内重复轮询应持续抑制"
+        );
+
+        // 免打扰结束后，任务因 reminded_at 未标记而进入待提醒集合
+        let reminded_at: Option<String> = connection
+            .query_row(
+                "SELECT reminded_at FROM tasks WHERE id = ?1",
+                params![&task.id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .unwrap();
+        assert!(reminded_at.is_none());
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
     }
 }
