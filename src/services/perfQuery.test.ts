@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { filterAndSortTasks } from "./taskQuery";
 import type { Task } from "../types/database";
 
+// vitest(node 环境)下的 process；局部声明避免引入 @types/node 全局类型。
+declare const process:
+  | { env: Record<string, string | undefined> }
+  | undefined;
+
 /**
  * P2-02 前端查询性能基线（默认跳过；PERF=1 时运行）：
  *   PERF=1 vitest run src/services/perfQuery.test.ts
@@ -10,7 +15,7 @@ import type { Task } from "../types/database";
  * 数值变化趋势以本文件输出的 console 报告为准，不是断言。
  */
 
-const PERF_RUN = process.env.PERF === "1";
+const PERF_RUN = process?.env.PERF === "1";
 
 function makeBenchTask(index: number, dueOffset: number): Task {
   const createdAt = `2026-0${(index % 9) + 1}-${String((index % 27) + 1).padStart(2, "0")}T00:00:00Z`;
