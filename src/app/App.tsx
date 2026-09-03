@@ -71,6 +71,8 @@ import { ListDialog } from "../components/dialog/ListDialog";
 import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
 import { SettingsDialog } from "../components/dialog/SettingsDialog";
 import { StatsDialog } from "../components/dialog/StatsDialog";
+import { FocusDialog } from "../components/dialog/FocusDialog";
+import { notifyFocusFinished } from "../services/focusService";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -121,6 +123,9 @@ function App() {
   const [editingSavedView, setEditingSavedView] =
     useState<SavedTaskView | null>(null);
   const savedViewPresence = usePresence(savedViewDialogOpen, 280);
+  // 阶段 A：专注模式控制面板（T-02）。
+  const [focusOpen, setFocusOpen] = useState(false);
+  const focusPresence = usePresence(focusOpen, 280);
 
   const dialog = useDialogManager();
   const {
@@ -184,6 +189,11 @@ function App() {
   } = useAppDataLoaders(handleDataLoadError);
 
   const { toasts, pushToast } = useToast();
+  // 阶段 A：专注一轮自然结束 —— 本地提示 + Rust 权威系统通知。
+  const handleFocusFinished = useCallback(() => {
+    pushToast("本轮专注已完成", "success");
+    void notifyFocusFinished();
+  }, [pushToast]);
   const mobile = isMobile();
 
   // M3.2 移动端滚动折叠：捕获 .content-panel 滚动，向下隐藏主 header。
@@ -460,6 +470,10 @@ function App() {
       setSavedViewDialogOpen(false);
       return true;
     }
+    if (focusOpen) {
+      setFocusOpen(false);
+      return true;
+    }
     if (recurringViewActive) {
       setRecurringViewActive(false);
       return true;
@@ -482,6 +496,7 @@ function App() {
     mobileSidebarOpen,
     recurringViewActive,
     savedViewDialogOpen,
+    focusOpen,
     selectedTask,
     selectTask,
     setBatchEditOpen,
@@ -514,6 +529,7 @@ function App() {
     (dialog.recurringDialogOpen ? 1 : 0) +
     (dialog.calendarEventDialogOpen ? 1 : 0) +
     (savedViewDialogOpen ? 1 : 0) +
+    (focusOpen ? 1 : 0) +
     (recurringViewActive ? 1 : 0) +
     (selectedTask ? 1 : 0) +
     (menuOpen ? 1 : 0) +
@@ -1197,6 +1213,7 @@ function App() {
             onShowCompletedChange={() => void handleShowCompletedChange()}
             onOpenSettings={openSettingsDialog}
             onOpenStats={openStatsDialog}
+            onOpenFocus={() => setFocusOpen(true)}
             onToggleBatchMode={toggleBatchMode}
             syncStatus={syncStatus}
             showLayoutControls={!recurringViewActive && !deletedViewActive}
@@ -1477,6 +1494,15 @@ function App() {
           recurringRules={recurringRules}
           presence={statsPresence.phase}
           onClose={() => setStatsOpen(false)}
+        />
+      )}
+
+      {focusPresence.rendered && (
+        <FocusDialog
+          tasks={allTasks}
+          presence={focusPresence.phase}
+          onClose={() => setFocusOpen(false)}
+          onFinished={handleFocusFinished}
         />
       )}
 

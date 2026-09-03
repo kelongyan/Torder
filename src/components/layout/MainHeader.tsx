@@ -62,6 +62,7 @@ export function MainHeader({
   onToggleFilterCompleted,
   onClearFilter,
   onShowCompletedChange,
+  onOpenFocus,
   onOpenSettings,
   onOpenStats,
   onOpenCommandPalette,
@@ -102,6 +103,8 @@ export function MainHeader({
   onOpenStats: () => void;
   /** F2 · T-01：命令面板（Ctrl K / 图标）。 */
   onOpenCommandPalette: () => void;
+  /** 阶段 A · T-02：专注模式控制面板。 */
+  onOpenFocus: () => void;
   onToggleBatchMode: () => void;
   syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
@@ -373,7 +376,16 @@ export function MainHeader({
           >
             <Command aria-hidden="true" className="menu-icon" />
           </button>
-          {/* T-02~T-04 · 迷你窗/每日回顾/专注模式：未开发，纯灰显占位（§13 规则 4） */}
+          {/* T-02 专注模式已转正（阶段 A）；T-03 迷你窗 / T-04 每日回顾仍灰显占位（§13 规则 4） */}
+          <button
+            type="button"
+            className="icon-button focus-launch"
+            onClick={onOpenFocus}
+            aria-label="专注模式"
+            title="专注模式"
+          >
+            <Flame aria-hidden="true" className="menu-icon" />
+          </button>
           <div className="tool-group tool-group--soon">
             <button
               type="button"
@@ -392,15 +404,6 @@ export function MainHeader({
               aria-label="每日回顾"
             >
               <TrendingUp aria-hidden="true" className="menu-icon" />
-            </button>
-            <button
-              type="button"
-              className="icon-button ui-placeholder"
-              aria-disabled="true"
-              tabIndex={-1}
-              aria-label="专注模式"
-            >
-              <Flame aria-hidden="true" className="menu-icon" />
             </button>
           </div>
         </div>

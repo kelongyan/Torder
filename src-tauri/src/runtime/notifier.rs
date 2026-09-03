@@ -149,6 +149,39 @@ fn send_native_notification(app_handle: &AppHandle, task: &Task) -> Result<(), S
         .map_err(|error| format!("native notification: {error}"))
 }
 
+/// 专注结束的一次性系统通知（阶段 A / T-02 一期）。
+///
+/// 权威约束（P0-02）：系统通知一律经本模块（Rust）原生通道发送，前端不得
+/// 接入 Web Notification。尊重「系统通知」总开关（notifications_enabled）：
+/// 关闭时静默成功（与任务提醒暂停语义一致）；不标记任务、不 emit 事件。
+pub fn send_focus_finished_notification(
+    app_handle: &AppHandle,
+    connection: &Connection,
+) -> Result<(), String> {
+    let enabled = notifications_enabled(connection);
+    notify_focus_if_enabled(enabled, &mut || {
+        app_handle
+            .notification()
+            .builder()
+            .title("专注结束")
+            .body("本轮专注已完成，休息一下吧。")
+            .show()
+            .map_err(|error| format!("native notification: {error}"))
+    })
+}
+
+/// 门控 + 发送拆开便于单测（仿 notify_tasks 的 sender 注入）：
+/// 关闭通知时静默成功；开启时调用 send 一次，失败原样透传。
+fn notify_focus_if_enabled(
+    enabled: bool,
+    send: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<(), String> {
+    if !enabled {
+        return Ok(());
+    }
+    send()
+}
+
 fn mark_task_reminded(connection: &mut Connection, task_id: &str) -> Result<bool, String> {
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -413,5 +446,31 @@ mod tests {
         drop(connection);
         drop(database);
         cleanup_db(&path);
+    }
+
+    #[test]
+    fn focus_notice_disabled_gate_sends_nothing() {
+        let mut calls = 0;
+        let result = notify_focus_if_enabled(false, &mut || {
+            calls += 1;
+            Ok(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(calls, 0, "关闭系统通知时不应发送");
+    }
+
+    #[test]
+    fn focus_notice_enabled_sends_once_and_propagates_failure() {
+        let mut calls = 0;
+        let result = notify_focus_if_enabled(true, &mut || {
+            calls += 1;
+            Ok(())
+        });
+        assert_eq!(result, Ok(()));
+        assert_eq!(calls, 1);
+
+        let failed =
+            notify_focus_if_enabled(true, &mut || Err("native notification: boom".to_owned()));
+        assert_eq!(failed, Err("native notification: boom".to_owned()));
     }
 }

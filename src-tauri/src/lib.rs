@@ -184,6 +184,7 @@ pub fn run() {
             commands::app::get_app_info,
             commands::app::set_window_material_theme,
             commands::database::get_database_status,
+            commands::focus::notify_focus_finished,
             commands::backup::backup_database,
             commands::backup::export_tasks,
             commands::backup::list_backups,

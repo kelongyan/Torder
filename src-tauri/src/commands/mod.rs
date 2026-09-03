@@ -3,6 +3,7 @@ pub mod attachment;
 pub mod backup;
 pub mod calendar_event;
 pub mod database;
+pub mod focus;
 pub mod list;
 pub mod recurring;
 pub mod settings;
