@@ -28,13 +28,10 @@ import { checkForUpdate } from "../services/appService";
 import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
 import type {
   CreateTaskInput,
-  CreateRecurringRuleInput,
-  RecurringRule,
   Task,
   TaskList,
   TaskScope,
   UpdateTaskInput,
-  UpdateRecurringRuleInput,
 } from "../types/database";
 import { countTaskFilter } from "../types/database";
 import {
@@ -89,25 +86,14 @@ import { usePresence } from "../hooks/usePresence";
 import { useSyncLifecycle } from "../hooks/useSyncLifecycle";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
+import { useSavedViewActions } from "../hooks/useSavedViewActions";
+import { useCalendarEventActions } from "../hooks/useCalendarEventActions";
+import { useRecurringActions } from "../hooks/useRecurringActions";
+import { useTaskActions } from "../hooks/useTaskActions";
 import { isMobile } from "../utils/platform";
-import {
-  createRecurringRule,
-  deleteRecurringRule,
-  generateNextRecurringOccurrence,
-  setRecurringRuleEnabled,
-  skipNextRecurringOccurrence,
-  updateRecurringRule,
-} from "../services/recurringService";
-import {
-  createCalendarEvent,
-  deleteCalendarEvent,
-  listCalendarEvents,
-  updateCalendarEvent,
-} from "../services/calendarEventService";
 import { MonthCalendar } from "../components/task/MonthCalendar";
 import { WeekCalendar } from "../components/task/WeekCalendar";
 import { CalendarEventDialog } from "../components/dialog/CalendarEventDialog";
-import type { CalendarEvent } from "../types/database";
 import type { SyncStatus } from "../types/sync";
 import { normalizeError } from "../utils/normalizeError";
 import { getTaskCalendarKey } from "../utils/taskDates";
@@ -283,19 +269,9 @@ function App() {
     clearFilterTags,
     clearFilter,
     setShowCompleted,
-    applyViewState,
     addTask,
     saveTask,
     toggleTask,
-    removeTask,
-    restoreTask,
-    permanentDeleteTask,
-    emptyTrash,
-    batchComplete,
-    batchDelete,
-    batchRestore,
-    batchPermanentDelete,
-    batchUpdate,
     reorderTasks,
     patchTask,
     selectTask,
@@ -788,60 +764,26 @@ function App() {
     await setScope(nextScope);
   }
 
-  async function handleOpenSavedView(view: SavedTaskView) {
-    setRecurringViewActive(false);
-    setMenuOpen(false);
-    setMobileSidebarOpen(false);
-    selectTask(null);
-    await applyViewState({
-      scope: view.scope,
-      searchQuery: view.query,
-      sortBy: view.sortBy,
-      showCompleted: view.showCompleted,
-      layout: view.layout,
-    });
-  }
-
-  function openCreateSavedViewDialog() {
-    setEditingSavedView(null);
-    setSavedViewDialogOpen(true);
-  }
-
-  function openEditSavedViewDialog(view: SavedTaskView) {
-    setEditingSavedView(view);
-    setSavedViewDialogOpen(true);
-  }
-
-  async function handleSaveSavedView(view: SavedTaskView) {
-    const nextViews = editingSavedView
-      ? settings.savedViews.map((item) => (item.id === view.id ? view : item))
-      : [...settings.savedViews, view];
-    await saveAppSetting("savedViews", nextViews);
-    setSettings((current) => ({ ...current, savedViews: nextViews }));
-    setSavedViewDialogOpen(false);
-    pushToast(
-      editingSavedView ? "保存视图已更新" : "筛选视图已保存",
-      "success",
-    );
-  }
-
-  function requestDeleteSavedView(view: SavedTaskView) {
-    setConfirmState({
-      title: "删除保存视图",
-      body: `删除“${view.name}”？不会删除任何任务。`,
-      confirmText: "删除视图",
-      danger: true,
-      onConfirm: async () => {
-        const nextViews = settings.savedViews.filter(
-          (item) => item.id !== view.id,
-        );
-        await saveAppSetting("savedViews", nextViews);
-        setSettings((current) => ({ ...current, savedViews: nextViews }));
-        setConfirmState(null);
-        pushToast("保存视图已删除", "info");
-      },
-    });
-  }
+  // P1-05：已存视图动作已提取到 useSavedViewActions（含打开/保存/删除）。
+  const savedViewActions = useSavedViewActions({
+    settings,
+    editingSavedView,
+    setSettings,
+    setSavedViewDialogOpen,
+    setEditingSavedView,
+    setConfirmState,
+    pushToast,
+    setRecurringViewActive,
+    setMenuOpen,
+    setMobileSidebarOpen,
+  });
+  const {
+    handleOpenSavedView,
+    openCreateSavedViewDialog,
+    openEditSavedViewDialog,
+    handleSaveSavedView,
+    requestDeleteSavedView,
+  } = savedViewActions;
 
   async function handleReorderTask(sourceId: string, targetId: string) {
     await reorderTasks(sourceId, targetId);
@@ -1084,28 +1026,7 @@ function App() {
     }
   }
 
-  async function handleCreateRecurring(input: CreateRecurringRuleInput) {
-    await createRecurringRule(input);
-    await Promise.all([
-      loadRecurringRules(),
-      useTaskStore.getState().loadTasks(),
-    ]);
-    setCreateOpen(false);
-    setRecurringDialogOpen(false);
-    setCreateScheduledDate("");
-    pushToast("循环任务已创建", "success");
-  }
-
-  async function handleUpdateRecurring(input: UpdateRecurringRuleInput) {
-    await updateRecurringRule(input);
-    await Promise.all([
-      loadRecurringRules(),
-      useTaskStore.getState().loadTasks(),
-    ]);
-    setRecurringDialogOpen(false);
-    pushToast("循环规则已更新", "success");
-  }
-
+  // P1-05：循环任务动作已提取到 useRecurringActions（见下方调用点）。
   async function handleToggleTask(task: Task) {
     await toggleTask(task.id, task.status !== "done");
     pushToast(task.status === "done" ? "任务已恢复" : "任务已完成", "success", {
@@ -1122,238 +1043,54 @@ function App() {
     pushToast("任务已更新", "success");
   }
 
-  function openTaskRecurring(task: Task) {
-    selectTask(null);
-    setRecurringSourceTask(task.recurringRuleId ? null : task);
-    setEditingRecurringRule(
-      task.recurringRuleId
-        ? (recurringRules.find((rule) => rule.id === task.recurringRuleId) ??
-            null)
-        : null,
-    );
-    setRecurringDialogOpen(true);
-  }
+  const {
+    handleCreateRecurring,
+    handleUpdateRecurring,
+    openTaskRecurring,
+    requestDeleteRecurring,
+    handleToggleRecurring,
+    handleSkipRecurring,
+    handleGenerateRecurring,
+  } = useRecurringActions({
+    recurringRules,
+    loadRecurringRules,
+    selectTask,
+    setCreateOpen,
+    setRecurringDialogOpen,
+    setEditingRecurringRule,
+    setRecurringSourceTask,
+    setCreateScheduledDate,
+    setConfirmState,
+    pushToast,
+  });
 
-  function requestDeleteRecurring(rule: RecurringRule) {
-    setConfirmState({
-      title: "删除循环规则",
-      body: `删除“${rule.title}”。已生成任务保留。`,
-      confirmText: "仅删除规则",
-      secondaryText: "删除未来实例",
-      danger: true,
-      onConfirm: async () => {
-        await deleteRecurringRule(rule.id, false);
-        await loadRecurringRules();
-        setConfirmState(null);
-        pushToast("循环规则已删除", "info");
-      },
-      onSecondary: async () => {
-        await deleteRecurringRule(rule.id, true);
-        await Promise.all([
-          loadRecurringRules(),
-          useTaskStore.getState().loadTasks(),
-        ]);
-        setConfirmState(null);
-        pushToast("规则和未来实例已删除", "info");
-      },
+  // P1-05：日历事件动作已提取到 useCalendarEventActions。
+  const { handleSaveCalendarEvent, requestDeleteCalendarEvent } =
+    useCalendarEventActions({
+      setCalendarEvents,
+      setCalendarEventDialogOpen,
+      setConfirmState,
+      pushToast,
     });
-  }
 
-  async function handleToggleRecurring(rule: RecurringRule) {
-    await setRecurringRuleEnabled(rule.id, !rule.enabled);
-    await loadRecurringRules();
-    pushToast(rule.enabled ? "循环任务已暂停" : "循环任务已恢复", "info");
-  }
-
-  async function handleSkipRecurring(rule: RecurringRule) {
-    await skipNextRecurringOccurrence(rule.id);
-    await loadRecurringRules();
-    pushToast("下一次循环已跳过", "info");
-  }
-
-  async function handleGenerateRecurring(rule: RecurringRule) {
-    await generateNextRecurringOccurrence(rule.id);
-    await Promise.all([
-      loadRecurringRules(),
-      useTaskStore.getState().loadTasks(),
-    ]);
-    pushToast("下一次任务已生成", "success");
-  }
-
-  async function handleSaveCalendarEvent(data: {
-    id?: string;
-    title: string;
-    eventType: CalendarEvent["eventType"];
-    startDate: string;
-    endDate: string;
-    note: string | null;
-  }) {
-    if (data.id) {
-      await updateCalendarEvent({ ...data, id: data.id });
-      pushToast("日程事件已更新", "success");
-    } else {
-      await createCalendarEvent(data);
-      pushToast("日程事件已创建", "success");
-    }
-    setCalendarEvents(await listCalendarEvents());
-    setCalendarEventDialogOpen(false);
-  }
-
-  function requestDeleteCalendarEvent(event: CalendarEvent) {
-    setCalendarEventDialogOpen(false);
-    setConfirmState({
-      title: "确认删除日程事件",
-      body: `删除“${event.title}”？不可撤销。`,
-      confirmText: "删除",
-      danger: true,
-      onConfirm: async () => {
-        await deleteCalendarEvent(event.id);
-        setCalendarEvents(await listCalendarEvents());
-        setConfirmState(null);
-        pushToast("日程事件已删除", "info");
-      },
-    });
-  }
-
-  function requestDeleteTask(task: Task) {
-    setConfirmState({
-      title: "确认删除任务",
-      body: `删除“${task.title}”？可恢复。`,
-      confirmText: "删除",
-      danger: true,
-      onConfirm: async () => {
-        await removeTask(task.id);
-        setConfirmState(null);
-        pushToast("任务已移入回收站", "info", {
-          label: "撤销",
-          onClick: async () => {
-            await restoreTask(task.id);
-            pushToast("已撤销删除", "success");
-          },
-        });
-      },
-    });
-  }
-
-  async function handleRestoreTask(task: Task) {
-    await restoreTask(task.id);
-    pushToast(`已恢复"${task.title}"`, "success", {
-      label: "撤销",
-      onClick: async () => {
-        await removeTask(task.id);
-        pushToast("已撤销恢复", "info");
-      },
-    });
-  }
-
-  function requestPermanentDeleteTask(task: Task) {
-    setConfirmState({
-      title: "永久删除任务",
-      body: `永久删除“${task.title}”？此操作不可撤销。`,
-      confirmText: "永久删除",
-      danger: true,
-      onConfirm: async () => {
-        await permanentDeleteTask(task.id);
-        setConfirmState(null);
-        pushToast("任务已永久删除", "info");
-      },
-    });
-  }
-
-  function requestEmptyTrash() {
-    if (tasks.length === 0) return;
-    setConfirmState({
-      title: "清空回收站",
-      body: `永久删除回收站内 ${tasks.length} 项任务？此操作不可撤销。`,
-      confirmText: "清空回收站",
-      danger: true,
-      onConfirm: async () => {
-        const count = await emptyTrash();
-        setConfirmState(null);
-        pushToast(`已清空 ${count} 项任务`, "info");
-      },
-    });
-  }
-
-  function requestBatchDelete() {
-    if (batchSelectedIds.length === 0) return;
-    const selectedIds = [...batchSelectedIds];
-    setConfirmState({
-      title: "确认批量删除",
-      body: `删除已选 ${batchSelectedIds.length} 项？可从回收站恢复。`,
-      confirmText: "删除",
-      danger: true,
-      onConfirm: async () => {
-        await batchDelete();
-        setConfirmState(null);
-        pushToast("已删除选中任务", "info", {
-          label: "撤销",
-          onClick: async () => {
-            for (const id of selectedIds) {
-              await useTaskStore.getState().restoreTask(id);
-            }
-            pushToast("已撤销批量删除", "success");
-          },
-        });
-      },
-    });
-  }
-
-  async function handleBatchComplete() {
-    if (batchSelectedIds.length === 0) return;
-    const selectedIds = [...batchSelectedIds];
-    const lookup = new Map(
-      [...allTasks, ...tasks].map((task) => [task.id, task] as const),
-    );
-    const restoreTodoIds = selectedIds.filter(
-      (id) => lookup.get(id)?.status !== "done",
-    );
-    await batchComplete();
-    pushToast("已完成选中任务", "success", {
-      label: "撤销",
-      onClick: async () => {
-        for (const id of restoreTodoIds) {
-          await useTaskStore.getState().toggleTask(id, false);
-        }
-        pushToast("已撤销批量完成", "info");
-      },
-    });
-  }
-
-  async function handleBatchRestore() {
-    if (batchSelectedIds.length === 0) return;
-    const selectedIds = [...batchSelectedIds];
-    await batchRestore();
-    pushToast("已恢复选中任务", "success", {
-      label: "撤销",
-      onClick: async () => {
-        for (const id of selectedIds) {
-          await useTaskStore.getState().removeTask(id);
-        }
-        pushToast("已撤销批量恢复", "info");
-      },
-    });
-  }
-
-  function requestBatchPermanentDelete() {
-    if (batchSelectedIds.length === 0) return;
-    setConfirmState({
-      title: "永久删除选中任务",
-      body: `永久删除已选 ${batchSelectedIds.length} 项？此操作不可撤销。`,
-      confirmText: "永久删除",
-      danger: true,
-      onConfirm: async () => {
-        await batchPermanentDelete();
-        setConfirmState(null);
-        pushToast("已永久删除选中任务", "info");
-      },
-    });
-  }
-
-  async function handleBatchUpdate(patch: Parameters<typeof batchUpdate>[0]) {
-    await batchUpdate(patch);
-    pushToast("已更新选中任务", "success");
-  }
+  // P1-05：任务/批量动作已提取到 useTaskActions。
+  const {
+    requestDeleteTask,
+    handleRestoreTask,
+    requestPermanentDeleteTask,
+    requestEmptyTrash,
+    requestBatchDelete,
+    handleBatchComplete,
+    handleBatchRestore,
+    requestBatchPermanentDelete,
+    handleBatchUpdate,
+  } = useTaskActions({
+    tasks,
+    allTasks,
+    batchSelectedIds,
+    setConfirmState,
+    pushToast,
+  });
 
   async function handleSortChange(nextSort: typeof sortBy) {
     await setSortBy(nextSort);

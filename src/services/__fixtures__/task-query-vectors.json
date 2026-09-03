@@ -1,0 +1,552 @@
+{
+  "_note": "前后端共享任务查询测试向量（P2-01）。前端 src/services/taskQuery.ts 与 Rust src-tauri/src/db/task_repository.rs 的查询语义契约：view 过滤、搜索指令、排序。两端测试各自消费本文件，新增查询语义必须同时更新本向量与两端测试。字段名采用前端 Task 的 camelCase；Rust 端渲染为 tasks 表列。",
+  "_dateAnchor": "日期占位约定：scheduledDate 支持 $today/$yesterday/$tomorrow（日期键）；dueAt 支持 $todayNoon/$yesterdayNoon/$tomorrowNoon（本地对应日正午的完整时间戳）。两端按各自运行时「今天」渲染，保证本地日期语义一致。",
+  "_knownBoundary": "sortAsc=false（降序）为前端层行为：Rust TaskQueryInput 无 sort_asc 字段，SQL 恒升序；前端在完整升序结果上整体反转。共享向量仅表达升序语义。deleted 视图与 archived 排除语义简单且双端一致，收于 scope 用例内。",
+  "cases": [
+    {
+      "name": "scope-all-hides-done-archived-and-deleted",
+      "tasks": [
+        { "id": "todo-1", "title": "待办甲" },
+        {
+          "id": "done-1",
+          "title": "已完成",
+          "status": "done",
+          "completedAt": "2026-08-02T04:00:00Z"
+        },
+        { "id": "arch-1", "title": "归档", "status": "archived" },
+        {
+          "id": "del-1",
+          "title": "已删除",
+          "deletedAt": "2026-08-03T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["todo-1"]
+    },
+    {
+      "name": "scope-all-show-completed",
+      "tasks": [
+        { "id": "todo-1", "title": "待办甲" },
+        {
+          "id": "done-1",
+          "title": "已完成",
+          "status": "done",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": true,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["todo-1", "done-1"]
+    },
+    {
+      "name": "scope-completed-view",
+      "tasks": [
+        { "id": "todo-1", "title": "待办甲" },
+        {
+          "id": "done-1",
+          "title": "已完成",
+          "status": "done",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "completed",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["done-1"]
+    },
+    {
+      "name": "scope-deleted-view",
+      "tasks": [
+        { "id": "todo-1", "title": "待办甲" },
+        {
+          "id": "del-1",
+          "title": "已删除",
+          "deletedAt": "2026-08-03T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "deleted",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["del-1"]
+    },
+    {
+      "name": "scope-planned",
+      "tasks": [
+        { "id": "sched-1", "title": "有计划", "scheduledDate": "$tomorrow" },
+        { "id": "due-1", "title": "有截止", "dueAt": "$tomorrowNoon" },
+        { "id": "plain-1", "title": "无安排" },
+        {
+          "id": "done-1",
+          "title": "已完成有计划",
+          "status": "done",
+          "scheduledDate": "$tomorrow",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "planned",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["sched-1", "due-1"]
+    },
+    {
+      "name": "scope-overdue",
+      "tasks": [
+        { "id": "over-1", "title": "昨日截止", "dueAt": "$yesterdayNoon" },
+        { "id": "today-1", "title": "今日截止", "dueAt": "$todayNoon" },
+        { "id": "future-1", "title": "明日截止", "dueAt": "$tomorrowNoon" },
+        { "id": "sched-1", "title": "昨日计划无截止" },
+        {
+          "id": "done-1",
+          "title": "已完成昨日",
+          "status": "done",
+          "dueAt": "$yesterdayNoon",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "overdue",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["over-1"]
+    },
+    {
+      "name": "scope-no-date",
+      "tasks": [
+        { "id": "nodue-1", "title": "无截止无计划" },
+        {
+          "id": "sched-1",
+          "title": "有计划无截止",
+          "scheduledDate": "$tomorrow"
+        },
+        { "id": "due-1", "title": "有截止", "dueAt": "$todayNoon" },
+        {
+          "id": "done-1",
+          "title": "已完成无截止",
+          "status": "done",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "no-date",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["nodue-1", "sched-1"]
+    },
+    {
+      "name": "scope-important",
+      "tasks": [
+        { "id": "imp-1", "title": "重要", "priority": 2 },
+        { "id": "mid-1", "title": "普通", "priority": 1 },
+        {
+          "id": "done-1",
+          "title": "已完成重要",
+          "status": "done",
+          "priority": 2,
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "important",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["imp-1"]
+    },
+    {
+      "name": "scope-today",
+      "tasks": [
+        { "id": "sched-1", "title": "今日计划", "scheduledDate": "$today" },
+        { "id": "due-1", "title": "今日截止", "dueAt": "$todayNoon" },
+        { "id": "old-1", "title": "昨日计划", "scheduledDate": "$yesterday" },
+        { "id": "fut-1", "title": "明日截止", "dueAt": "$tomorrowNoon" },
+        {
+          "id": "done-1",
+          "title": "已完成今日",
+          "status": "done",
+          "scheduledDate": "$today",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "today",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["sched-1", "due-1"]
+    },
+    {
+      "name": "scope-list-id-hides-done",
+      "tasks": [
+        { "id": "w1", "title": "工作一", "listId": "work" },
+        {
+          "id": "w2",
+          "title": "工作二已完成",
+          "listId": "work",
+          "status": "done",
+          "completedAt": "2026-08-02T04:00:00Z"
+        },
+        { "id": "p1", "title": "个人一", "listId": "personal" }
+      ],
+      "input": {
+        "scopeKind": "list",
+        "scopeValue": "work",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["w1"]
+    },
+    {
+      "name": "scope-list-show-completed",
+      "tasks": [
+        { "id": "w1", "title": "工作一", "listId": "work" },
+        {
+          "id": "w2",
+          "title": "工作二已完成",
+          "listId": "work",
+          "status": "done",
+          "completedAt": "2026-08-02T04:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "list",
+        "scopeValue": "work",
+        "showCompleted": true,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["w1", "w2"]
+    },
+    {
+      "name": "search-text-title",
+      "tasks": [
+        { "id": "a", "title": "提交季度报告", "note": "无" },
+        { "id": "b", "title": "买牛奶" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "报告",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "search-text-note",
+      "tasks": [
+        { "id": "a", "title": "任务", "note": "关联 PR #42 详情" },
+        { "id": "b", "title": "PR #42", "note": "无关" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "PR",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a", "b"]
+    },
+    {
+      "name": "search-text-no-cross-field",
+      "tasks": [{ "id": "a", "title": "甲词句首", "note": "句尾乙词" }],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "甲词 乙词",
+        "sortBy": "manual"
+      },
+      "expectIds": []
+    },
+    {
+      "name": "search-text-ascii-fold",
+      "tasks": [
+        { "id": "a", "title": "Review Pull Request" },
+        { "id": "b", "title": "买菜" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "review",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "search-priority-directive",
+      "tasks": [
+        { "id": "a", "title": "高优", "priority": 2 },
+        { "id": "b", "title": "中优", "priority": 1 }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "p:2",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "search-p-invalid-falls-back-to-text",
+      "tasks": [
+        { "id": "a", "title": "p:9 特殊编号", "priority": 2 },
+        { "id": "b", "title": "普通", "priority": 1 }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "p:9",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "search-tag-fold-and-hash",
+      "tasks": [
+        { "id": "a", "title": "深度工作", "tags": ["DeepWork"] },
+        { "id": "b", "title": "跑腿", "tags": ["errand"] }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "tag:#deepwork",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "search-list-directive-by-name",
+      "frontendSkip": "前端 l: 语义由 taskQuery-listDirective.test.ts 锁定（vitest 4 vi.mock 与大量同文件用例共存会时序失效，l: 用例必须独立文件）；Rust 端正常消费本用例。",
+      "tasks": [
+        { "id": "a", "title": "工作任务", "listId": "work" },
+        { "id": "b", "title": "个人任务", "listId": "personal" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "l:工作",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "search-due-today",
+      "tasks": [
+        { "id": "sched-1", "title": "今日计划", "scheduledDate": "$today" },
+        { "id": "due-1", "title": "今日截止", "dueAt": "$todayNoon" },
+        { "id": "old-1", "title": "昨日截止", "dueAt": "$yesterdayNoon" },
+        { "id": "plain-1", "title": "无日期" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "due:今天",
+        "sortBy": "manual"
+      },
+      "expectIds": ["sched-1", "due-1"]
+    },
+    {
+      "name": "search-due-overdue",
+      "tasks": [
+        { "id": "old-1", "title": "昨日截止", "dueAt": "$yesterdayNoon" },
+        { "id": "due-1", "title": "今日截止", "dueAt": "$todayNoon" },
+        { "id": "plain-1", "title": "无日期" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "due:过期",
+        "sortBy": "manual"
+      },
+      "expectIds": ["old-1"]
+    },
+    {
+      "name": "search-due-none",
+      "tasks": [
+        { "id": "plain-1", "title": "无截止无计划" },
+        {
+          "id": "sched-1",
+          "title": "有计划无截止",
+          "scheduledDate": "$tomorrow"
+        },
+        { "id": "due-1", "title": "有截止", "dueAt": "$todayNoon" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "due:无",
+        "sortBy": "manual"
+      },
+      "expectIds": ["plain-1", "sched-1"]
+    },
+    {
+      "name": "search-directives-combined-and",
+      "frontendSkip": "同 search-list-directive-by-name：含 l: 指令，前端由独立文件覆盖。",
+      "tasks": [
+        {
+          "id": "a",
+          "title": "工作高优今日",
+          "listId": "work",
+          "priority": 1,
+          "scheduledDate": "$today"
+        },
+        { "id": "b", "title": "工作高优", "listId": "work", "priority": 1 },
+        {
+          "id": "c",
+          "title": "个人高优今日",
+          "listId": "personal",
+          "priority": 1,
+          "scheduledDate": "$today"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": "l:工作 p:1 due:今天",
+        "sortBy": "manual"
+      },
+      "expectIds": ["a"]
+    },
+    {
+      "name": "sort-priority",
+      "tasks": [
+        {
+          "id": "p2-nodate",
+          "title": "高优无日期",
+          "priority": 2,
+          "createdAt": "2026-08-01T00:00:00Z"
+        },
+        {
+          "id": "p1-late",
+          "title": "中优晚",
+          "priority": 1,
+          "scheduledDate": "2026-08-10",
+          "createdAt": "2026-08-01T01:00:00Z"
+        },
+        {
+          "id": "p1-early",
+          "title": "中优早",
+          "priority": 1,
+          "scheduledDate": "2026-08-05",
+          "createdAt": "2026-08-01T02:00:00Z"
+        },
+        {
+          "id": "p0",
+          "title": "低优",
+          "priority": 0,
+          "scheduledDate": "2026-08-05",
+          "createdAt": "2026-08-01T03:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "priority"
+      },
+      "expectIds": ["p2-nodate", "p1-early", "p1-late", "p0"]
+    },
+    {
+      "name": "sort-date-null-last",
+      "tasks": [
+        { "id": "n", "title": "无日期", "createdAt": "2026-06-01T00:00:00Z" },
+        {
+          "id": "e1",
+          "title": "早",
+          "scheduledDate": "2026-08-05",
+          "createdAt": "2026-06-01T00:00:00Z"
+        },
+        {
+          "id": "e2",
+          "title": "晚",
+          "dueAt": "2026-08-10T04:00:00Z",
+          "createdAt": "2026-06-01T00:00:00Z"
+        }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "date"
+      },
+      "expectIds": ["e1", "e2", "n"]
+    },
+    {
+      "name": "sort-manual",
+      "tasks": [
+        { "id": "m2", "title": "序2", "sortOrder": 2 },
+        { "id": "m0", "title": "序0", "sortOrder": 0 },
+        { "id": "m1", "title": "序1", "sortOrder": 1 }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "manual"
+      },
+      "expectIds": ["m0", "m1", "m2"]
+    },
+    {
+      "name": "sort-created-asc",
+      "tasks": [
+        { "id": "late", "title": "新建", "createdAt": "2026-09-01T00:00:00Z" },
+        { "id": "early", "title": "最早", "createdAt": "2026-07-15T00:00:00Z" },
+        { "id": "mid", "title": "中间", "createdAt": "2026-08-10T00:00:00Z" }
+      ],
+      "input": {
+        "scopeKind": "view",
+        "scopeValue": "all",
+        "showCompleted": false,
+        "query": null,
+        "sortBy": "created"
+      },
+      "expectIds": ["early", "mid", "late"]
+    }
+  ]
+}
