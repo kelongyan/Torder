@@ -2,15 +2,12 @@
 
 use super::*;
 
-
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 
 use crate::db::sync_repository;
 use crate::error::{RepositoryError, RepositoryResult};
-use crate::sync::manifest::{
-    EncryptionConfig, Manifest, ManifestDevice,
-};
+use crate::sync::manifest::{EncryptionConfig, Manifest, ManifestDevice};
 use crate::sync::webdav::{WebDavClient, WebDavError};
 
 pub(crate) async fn load_or_create_manifest(

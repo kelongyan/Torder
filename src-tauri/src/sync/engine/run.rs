@@ -2,19 +2,13 @@
 
 use super::*;
 
-
 use chrono::{SecondsFormat, Utc};
 use serde_json::Value;
 
-use crate::db::{
-    recurring_repository::RecurringRuleRepository,
-    sync_repository, Database,
-};
+use crate::db::{recurring_repository::RecurringRuleRepository, sync_repository, Database};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::SyncChange;
-use crate::sync::manifest::{
-    ChangeBatch, ChangeOperation, EncryptionConfig, Manifest,
-};
+use crate::sync::manifest::{ChangeBatch, ChangeOperation, EncryptionConfig, Manifest};
 use crate::sync::webdav::{WebDavClient, WebDavError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

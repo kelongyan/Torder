@@ -2,17 +2,12 @@
 
 use super::*;
 
-
 use chrono::{SecondsFormat, Utc};
 
-use crate::db::{
-    sync_repository, Database,
-};
+use crate::db::{sync_repository, Database};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::crypto::{self};
-use crate::sync::manifest::{
-    ChangeBatch, EncryptionConfig, Manifest,
-};
+use crate::sync::manifest::{ChangeBatch, EncryptionConfig, Manifest};
 use crate::sync::webdav::WebDavClient;
 
 pub async fn fetch_remote_encryption_config(

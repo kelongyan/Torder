@@ -2,11 +2,7 @@
 
 use super::*;
 
-
-
-use crate::db::{
-    sync_repository, Database,
-};
+use crate::db::{sync_repository, Database};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::manifest::Manifest;
 use crate::sync::webdav::{WebDavClient, WebDavError};

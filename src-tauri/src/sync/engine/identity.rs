@@ -2,7 +2,6 @@
 
 use super::*;
 
-
 use serde_json::Value;
 
 use crate::db::sync_repository;
@@ -27,7 +26,9 @@ pub(crate) fn remote_device_name(id: &str) -> String {
     format!("远端设备 · {short_id}")
 }
 
-pub(crate) fn bootstrap_existing_objects(connection: &mut rusqlite::Connection) -> RepositoryResult<()> {
+pub(crate) fn bootstrap_existing_objects(
+    connection: &mut rusqlite::Connection,
+) -> RepositoryResult<()> {
     let transaction = connection.transaction()?;
     for (entity, query) in [
         (

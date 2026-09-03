@@ -7,8 +7,14 @@ use crate::widget;
 pub fn setup(app: &mut App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "打开 Torder", true, None::<&str>)?;
     let quick_add = MenuItem::with_id(app, "quick-add", "快速新建任务", true, None::<&str>)?;
-    let widget_toggle =
-        CheckMenuItem::with_id(app, "widget", "桌面小窗", true, widget::is_widget_visible(app.handle()), None::<&str>)?;
+    let widget_toggle = CheckMenuItem::with_id(
+        app,
+        "widget",
+        "桌面小窗",
+        true,
+        widget::is_widget_visible(app.handle()),
+        None::<&str>,
+    )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &quick_add, &widget_toggle, &separator, &quit])?;

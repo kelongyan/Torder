@@ -292,9 +292,8 @@ fn live_existing_collection_passes_validation_read_only() {
                     .get_json(&format!("{root}/changes/{sequence:020}.json"))
                     .await
                     .unwrap_or_else(|error| panic!("read change batch {sequence}: {error}"));
-                let batch: crate::sync::manifest::ChangeBatch =
-                    serde_json::from_value(batch_value)
-                        .unwrap_or_else(|error| panic!("deserialize batch {sequence}: {error}"));
+                let batch: crate::sync::manifest::ChangeBatch = serde_json::from_value(batch_value)
+                    .unwrap_or_else(|error| panic!("deserialize batch {sequence}: {error}"));
                 super::apply_batch(&mut connection, &batch)
                     .unwrap_or_else(|error| panic!("apply batch {sequence}: {error}"));
             }

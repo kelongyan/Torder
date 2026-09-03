@@ -12,7 +12,8 @@ use crate::db::{
     attachment_repository::{
         attachment_tmp_dir, blob_absolute_path, managed_blob_relative_path, sha256_file,
         AttachmentBlobTransfer, AttachmentRepository, MAX_ATTACHMENT_FILE_BYTES,
-    }, Database,
+    },
+    Database,
 };
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::SyncChange;

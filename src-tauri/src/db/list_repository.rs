@@ -114,9 +114,7 @@ impl<'database> ListRepository<'database> {
             |row| row.get(0),
         )?;
         if member_count > 0 {
-            return Err(RepositoryError::Validation(
-                "list still contains tasks",
-            ));
+            return Err(RepositoryError::Validation("list still contains tasks"));
         }
         let deleted_at = chrono::Utc::now().to_rfc3339();
         let updated = transaction.execute(

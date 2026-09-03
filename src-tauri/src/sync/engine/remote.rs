@@ -2,8 +2,6 @@
 
 use super::*;
 
-
-
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::SyncRemoteInspection;
 use crate::sync::manifest::Manifest;
