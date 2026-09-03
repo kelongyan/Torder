@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -34,5 +35,12 @@ export default defineConfig(async () => ({
     // dist 由构建脚本在 build 前清理,避免 vite 清空目录时触发
     // WorkBuddy 注入的 genie-safe-delete shim(其 genie-trash 会超时)
     emptyOutDir: false,
+  },
+
+  // P1-04：前端单测入口。纯函数层（services/utils）用 node 环境即可；
+  // UI 组件测试与 E2E 属后续批次，届时再引入 jsdom/playwright 环境。
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 }));

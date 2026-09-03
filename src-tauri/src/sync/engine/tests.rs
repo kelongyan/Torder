@@ -1,4 +1,3 @@
-
 #[test]
 fn initial_sync_mode_defaults_to_merge_and_rejects_unknown_values() {
     assert_eq!(
@@ -27,7 +26,7 @@ use crate::db::sync_repository;
 use crate::error::RepositoryError;
 use crate::models::SyncChange;
 use crate::sync::credentials;
-use crate::sync::engine::apply::resolve_conflict;
+use crate::sync::engine::apply::resolve_conflict_with_payload;
 use crate::sync::manifest::{ChangeBatch, ChangeOperation, Manifest, ManifestDevice, Snapshot};
 use crate::sync::webdav::WebDavClient;
 use serde_json::{json, Value};
@@ -94,7 +93,14 @@ fn generated_occurrence_sync_payload_contains_full_insert_fields() {
     let payload: Value = serde_json::from_str(&payload_json).unwrap();
     // 接收端 has_full_insert_payload 要求这些字段齐全；缺失任一都会让本地无该任务的
     // 设备拒收整批（"sync partial payload requires existing object"），同步永久卡死
-    for field in ["title", "status", "priority", "listId", "sortOrder", "deletedAt"] {
+    for field in [
+        "title",
+        "status",
+        "priority",
+        "listId",
+        "sortOrder",
+        "deletedAt",
+    ] {
         assert!(
             payload.get(field).is_some(),
             "generated occurrence payload misses required field: {field}"
@@ -1018,7 +1024,20 @@ fn incremental_remote_payload_preserves_existing_fields() {
         }],
     };
     apply_batch(&mut connection, &incremental).unwrap();
-    let values = connection.query_row("SELECT title, note, priority, enabled FROM recurring_rules WHERE id = 'remote-rule'", [], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?, row.get::<_, i64>(2)?, row.get::<_, i64>(3)?))).unwrap();
+    let values = connection
+        .query_row(
+            "SELECT title, note, priority, enabled FROM recurring_rules WHERE id = 'remote-rule'",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            },
+        )
+        .unwrap();
     assert_eq!(
         values,
         ("完整规则".to_owned(), Some("保留备注".to_owned()), 2, 0)
@@ -1076,7 +1095,7 @@ fn resolving_conflict_keeps_local_and_records_new_revision() {
         .unwrap();
     drop(connection);
 
-    resolve_conflict(&database, &conflict_id, "keepLocal").unwrap();
+    resolve_conflict_with_payload(&database, &conflict_id, "keepLocal", None).unwrap();
     let connection = database.connect().unwrap();
     assert_eq!(
         connection
@@ -1259,7 +1278,7 @@ fn resolving_conflict_accepts_remote_payload_and_records_new_revision() {
         .unwrap();
     drop(connection);
 
-    resolve_conflict(&database, &conflict_id, "acceptRemote").unwrap();
+    resolve_conflict_with_payload(&database, &conflict_id, "acceptRemote", None).unwrap();
     let connection = database.connect().unwrap();
     let resolved = connection
         .query_row(
@@ -1379,7 +1398,7 @@ fn resolving_conflict_can_merge_or_copy_without_destroying_original() {
         )
         .unwrap();
     drop(connection);
-    resolve_conflict(&database, &second_conflict_id, "copy").unwrap();
+    resolve_conflict_with_payload(&database, &second_conflict_id, "copy", None).unwrap();
     let connection = database.connect().unwrap();
     assert_eq!(
         connection
@@ -1523,9 +1542,7 @@ fn encrypted_managed_attachment_uploads_blob_before_metadata_without_plaintext()
     let requests = requests.lock().unwrap();
     let blob_put_index = requests
         .iter()
-        .position(|request| {
-            request.method == "PUT" && request.path.contains("/attachments/blobs/")
-        })
+        .position(|request| request.method == "PUT" && request.path.contains("/attachments/blobs/"))
         .unwrap();
     let change_put_index = requests
         .iter()
@@ -1812,8 +1829,7 @@ fn remote_device_revocation_updates_manifest_before_local_state() {
 #[test]
 fn encrypted_upload_hides_payload_and_rotation_publishes_new_snapshot() {
     let _keyring_guard = keyring_test_guard();
-    let (old_config, old_key) =
-        crypto::create_config("old sync password").expect("create old key");
+    let (old_config, old_key) = crypto::create_config("old sync password").expect("create old key");
     let path = std::env::temp_dir().join(format!(
         "torder-sync-webdav-encrypted-{}.sqlite",
         uuid::Uuid::new_v4()
@@ -1906,8 +1922,7 @@ fn encrypted_upload_hides_payload_and_rotation_publishes_new_snapshot() {
     let empty_batch: ChangeBatch = requests
         .iter()
         .find(|request| {
-            request.method == "PUT"
-                && request.path.ends_with("/changes/00000000000000000002.json")
+            request.method == "PUT" && request.path.ends_with("/changes/00000000000000000002.json")
         })
         .map(|request| serde_json::from_slice(&request.body).unwrap())
         .unwrap();
@@ -2022,8 +2037,7 @@ fn encrypted_remote_batch_requires_the_right_key_and_preserves_local_state_on_fa
         8,
     );
     let client = WebDavClient::new_for_test(address);
-    tauri::async_runtime::block_on(run_with_client(&correct_database, &client, "sync"))
-        .unwrap();
+    tauri::async_runtime::block_on(run_with_client(&correct_database, &client, "sync")).unwrap();
     let connection = correct_database.connect().unwrap();
     assert_eq!(
         connection
@@ -2380,8 +2394,7 @@ fn webdav_flow_restores_compressed_snapshot_before_pruned_history() {
                 .ends_with("/snapshots/00000000000000000001.json.gz")
     }));
     assert!(requests.iter().any(|request| {
-        request.method == "DELETE"
-            && request.path.ends_with("/changes/00000000000000000001.json")
+        request.method == "DELETE" && request.path.ends_with("/changes/00000000000000000001.json")
     }));
     drop(requests);
     handle.join().unwrap();
@@ -2417,8 +2430,7 @@ fn webdav_manifest_revocation_blocks_the_current_device() {
         uuid::Uuid::new_v4()
     ));
     let database = Database::initialize(path.clone()).unwrap();
-    sync_repository::set_state(&database.connect().unwrap(), "deviceId", "local-device")
-        .unwrap();
+    sync_repository::set_state(&database.connect().unwrap(), "deviceId", "local-device").unwrap();
 
     let error = tauri::async_runtime::block_on(run_with_client(&database, &client, "sync"))
         .unwrap_err()
@@ -2818,13 +2830,8 @@ fn remote_history_cleanup_waits_for_every_enabled_device_ack() {
     let mut acknowledged = manifest;
     acknowledged.devices[0].last_sequence = 2;
     assert_eq!(
-        tauri::async_runtime::block_on(cleanup_remote_history(
-            &client,
-            "sync",
-            &acknowledged,
-            0,
-        ))
-        .unwrap(),
+        tauri::async_runtime::block_on(cleanup_remote_history(&client, "sync", &acknowledged, 0,))
+            .unwrap(),
         Some(2)
     );
     let requests = requests.lock().unwrap();
@@ -3392,8 +3399,7 @@ fn spawn_mock_dav(
                         etag: None,
                     },
                 }
-            } else if request.path.contains("/attachments/blobs/") && request.method == "DELETE"
-            {
+            } else if request.path.contains("/attachments/blobs/") && request.method == "DELETE" {
                 blob = None;
                 MockResponse {
                     status: 204,

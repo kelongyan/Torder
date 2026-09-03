@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use rusqlite::OptionalExtension;
 use serde_json::{json, Value};
 use std::io::{Read, Write};
@@ -14,14 +12,6 @@ use crate::db::{sync_repository, Database};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::sync::manifest::{ChangeBatch, ChangeOperation, Snapshot};
 use flate2::{read::GzDecoder, Compression, GzBuilder};
-
-pub fn resolve_conflict(
-    database: &Database,
-    conflict_id: &str,
-    resolution: &str,
-) -> RepositoryResult<()> {
-    resolve_conflict_with_payload(database, conflict_id, resolution, None)
-}
 
 pub fn resolve_conflict_with_payload(
     database: &Database,
@@ -611,7 +601,9 @@ fn merged_payload(
         return Err(RepositoryError::Validation("sync payload is not an object"));
     };
     let Some(payload_object) = operation.payload.as_object() else {
-        return Err(RepositoryError::Validation("sync change payload is not an object"));
+        return Err(RepositoryError::Validation(
+            "sync change payload is not an object",
+        ));
     };
     for (key, value) in payload_object {
         target.insert(key.clone(), value.clone());

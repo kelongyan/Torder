@@ -85,10 +85,9 @@ pub fn validate_operation(operation: &ChangeOperation) -> RepositoryResult<()> {
         }
     }
     validate_entity_fields(&operation.entity, payload)?;
-    if operation.operation == "delete"
-        && !payload
-            .get("deletedAt")
-            .is_some_and(|value| value.as_str().is_some())
+    // 删除操作的 payload 必须携带字符串型 deletedAt（P1-03：简化布尔表达
+    // 式，与 is_some_and + 取反的写法语义完全等价）
+    if operation.operation == "delete" && payload.get("deletedAt").and_then(Value::as_str).is_none()
     {
         return Err(RepositoryError::Validation(
             "sync delete payload requires deletedAt",
