@@ -90,6 +90,27 @@ export function overdueTodos(tasks: Task[], todayKey: string): Task[] {
   );
 }
 
+/** 项目/清单进度口径（T-06 项目详情页，与 T-04 共用同一 taskStats）。 */
+export interface ListProgress {
+  total: number;
+  done: number;
+  todo: number;
+  /** 完成比例 0–1（无任务时为 0）。 */
+  ratio: number;
+}
+
+export function listProgress(tasks: Task[]): ListProgress {
+  const done = tasks.filter((task) => task.status === "done").length;
+  const todo = tasks.filter((task) => task.status === "todo").length;
+  const total = done + todo;
+  return {
+    total,
+    done,
+    todo,
+    ratio: total === 0 ? 0 : done / total,
+  };
+}
+
 /**
  * 顺延规则唯一实现：把逾期任务移到 tomorrowKey。
  * - 有计划日（scheduledDate）→ 计划日顺延；

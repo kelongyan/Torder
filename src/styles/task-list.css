@@ -944,3 +944,87 @@ mark {
   background: var(--accent);
   color: var(--on-accent);
 }
+
+/* 阶段 D：项目详情页头（T-06，2026-09-03） */
+.project-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
+.project-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.project-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex: none;
+}
+.project-title-col {
+  flex: 1;
+  min-width: 0;
+}
+.project-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-subtitle {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.project-ring {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex: none;
+}
+.project-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.project-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.project-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+}
+.project-stat-icon {
+  color: var(--accent);
+  flex: none;
+}
+.project-stat-value {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.project-stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}

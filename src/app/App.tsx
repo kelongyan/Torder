@@ -73,6 +73,7 @@ import { SettingsDialog } from "../components/dialog/SettingsDialog";
 import { StatsDialog } from "../components/dialog/StatsDialog";
 import { FocusDialog } from "../components/dialog/FocusDialog";
 import { ReviewDialog } from "../components/dialog/ReviewDialog";
+import { ProjectHeader } from "../components/project/ProjectHeader";
 import { TagManagerDialog } from "../components/dialog/TagManagerDialog";
 import { notifyFocusFinished } from "../services/focusService";
 import { toggleMini } from "../services/miniService";
@@ -375,6 +376,21 @@ function App() {
     );
   }, [allTasks]);
   const filterCount = useMemo(() => countTaskFilter(filter), [filter]);
+  // 阶段 D · T-06：当前清单（list scope）与其全量任务（项目头统计口径）。
+  const currentList = useMemo(
+    () =>
+      scope.kind === "list"
+        ? (lists.find((item) => item.id === scope.listId) ?? null)
+        : null,
+    [lists, scope],
+  );
+  const currentListTasks = useMemo(
+    () =>
+      currentList
+        ? allTasks.filter((task) => task.listId === currentList.id)
+        : [],
+    [allTasks, currentList],
+  );
   const activeSavedViewId = useMemo(
     () =>
       settings.savedViews.find(
@@ -1305,6 +1321,12 @@ function App() {
             </div>
           )}
 
+          {scope.kind === "list" &&
+            !recurringViewActive &&
+            !deletedViewActive &&
+            currentList && (
+              <ProjectHeader list={currentList} tasks={currentListTasks} />
+            )}
           <section className="content-panel" aria-label={`${currentTitle}任务`}>
             <div
               key={contentKey}

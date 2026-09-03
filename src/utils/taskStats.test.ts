@@ -4,6 +4,7 @@ import {
   completedToday,
   createdTodayCount,
   dueTodayTodos,
+  listProgress,
   overdueTodos,
   shiftOverdueTaskPatch,
   weekTrend,
@@ -153,5 +154,35 @@ describe("shiftOverdueTaskPatch 顺延唯一规则", () => {
         TOMORROW,
       ),
     ).toBeNull();
+  });
+});
+
+describe("listProgress 清单进度口径", () => {
+  it("混状态任务计数与比例正确", () => {
+    const tasks = [
+      makeTask({ status: "done" }),
+      makeTask({ status: "done" }),
+      makeTask({ status: "todo" }),
+      makeTask({ status: "todo" }),
+    ];
+    expect(listProgress(tasks)).toEqual({
+      total: 4,
+      done: 2,
+      todo: 2,
+      ratio: 0.5,
+    });
+  });
+
+  it("空清单 → 0/0/0", () => {
+    expect(listProgress([])).toEqual({ total: 0, done: 0, todo: 0, ratio: 0 });
+  });
+
+  it("全部完成 → ratio 1", () => {
+    expect(listProgress([makeTask({ status: "done" })])).toEqual({
+      total: 1,
+      done: 1,
+      todo: 0,
+      ratio: 1,
+    });
   });
 });
