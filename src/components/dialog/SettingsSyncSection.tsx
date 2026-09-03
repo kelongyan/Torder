@@ -30,6 +30,8 @@ import { mergedConflictPayload } from "../../utils/syncConflict";
 import { SyncConflictPanel } from "./SyncConflictPanel";
 import { SyncDevicesPanel } from "./SyncDevicesPanel";
 import { SyncEncryptionCard } from "./SyncEncryptionCard";
+import { SyncConfirmOverlay } from "./SyncConfirmOverlay";
+import { SyncRotationDialog } from "./SyncRotationDialog";
 
 export function SettingsSyncSection({
   syncAutoEnabled,
@@ -884,169 +886,63 @@ export function SettingsSyncSection({
         />
       </section>
 
-      {syncRemovalPresence.rendered && (
-        <div
-          className={`dialog-overlay restore-confirm-overlay ${syncRemovalPresence.className}`}
-        >
-          <div
-            className="restore-confirm-card"
-            role="alertdialog"
-            aria-modal="true"
-          >
-            <h3>确认移除同步配置?</h3>
-            <p>删除本机同步配置，不影响远端数据。</p>
-            <div className="settings-row">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={syncBusy !== null}
-                onClick={() => setPendingSyncRemoval(false)}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="btn-danger-solid"
-                disabled={syncBusy !== null}
-                onClick={() => void handleRemoveSync()}
-              >
-                确认移除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {deviceRevokePresence.rendered && deviceRevokePresence.value && (
-        <div
-          className={`dialog-overlay restore-confirm-overlay ${deviceRevokePresence.className}`}
-        >
-          <div
-            className="restore-confirm-card"
-            role="alertdialog"
-            aria-modal="true"
-          >
-            <h3>确认撤销设备?</h3>
-            <p>
-              撤销 <strong>{deviceRevokePresence.value.name}</strong>{" "}
-              后不能继续同步。
-            </p>
-            <div className="settings-row">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={syncBusy !== null}
-                onClick={() => setPendingDeviceRevoke(null)}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="btn-danger-solid"
-                disabled={syncBusy !== null}
-                onClick={() => void handleRevokeDevice()}
-              >
-                确认撤销
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {syncRotationPresence.rendered && (
-        <div
-          className={`dialog-overlay restore-confirm-overlay ${syncRotationPresence.className}`}
-        >
-          <div
-            className="restore-confirm-card"
-            role="alertdialog"
-            aria-modal="true"
-          >
-            <h3>
-              {syncStatus?.encryptionEnabled
-                ? "轮换加密密钥?"
-                : "启用端到端加密?"}
-            </h3>
-            <p>其他设备需要用新密码重新同步。</p>
-            <label className="form-field">
-              <span>新加密密码</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                value={syncRotationPassword}
-                onChange={(event) =>
-                  setSyncRotationPassword(event.target.value)
-                }
-              />
-            </label>
-            <label className="form-field">
-              <span>确认新密码</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                value={syncRotationPasswordConfirm}
-                onChange={(event) =>
-                  setSyncRotationPasswordConfirm(event.target.value)
-                }
-              />
-            </label>
-            <div className="settings-row">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={syncBusy !== null}
-                onClick={() => {
-                  setPendingSyncRotation(false);
-                  setSyncRotationPassword("");
-                  setSyncRotationPasswordConfirm("");
-                }}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={syncBusy !== null}
-                onClick={() => void handleRotateSyncEncryption()}
-              >
-                {syncBusy === "rotate" ? "轮换中…" : "确认轮换"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {syncCleanupPresence.rendered && (
-        <div
-          className={`dialog-overlay restore-confirm-overlay ${syncCleanupPresence.className}`}
-        >
-          <div
-            className="restore-confirm-card"
-            role="alertdialog"
-            aria-modal="true"
-          >
-            <h3>确认清理同步历史?</h3>
-            <p>删除已确认的 30 天前历史，保留冲突记录。</p>
-            <div className="settings-row">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={syncBusy !== null}
-                onClick={() => setPendingSyncCleanup(false)}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="btn-danger-solid"
-                disabled={syncBusy !== null}
-                onClick={() => void handleCleanupHistory()}
-              >
-                确认清理
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SyncConfirmOverlay
+        rendered={syncRemovalPresence.rendered}
+        className={syncRemovalPresence.className}
+        title="确认移除同步配置?"
+        confirmLabel="确认移除"
+        danger
+        busy={syncBusy !== null}
+        onCancel={() => setPendingSyncRemoval(false)}
+        onConfirm={() => void handleRemoveSync()}
+      >
+        <p>删除本机同步配置，不影响远端数据。</p>
+      </SyncConfirmOverlay>
+      <SyncConfirmOverlay
+        rendered={
+          deviceRevokePresence.rendered && Boolean(deviceRevokePresence.value)
+        }
+        className={deviceRevokePresence.className}
+        title="确认撤销设备?"
+        confirmLabel="确认撤销"
+        danger
+        busy={syncBusy !== null}
+        onCancel={() => setPendingDeviceRevoke(null)}
+        onConfirm={() => void handleRevokeDevice()}
+      >
+        <p>
+          撤销 <strong>{deviceRevokePresence.value?.name}</strong>{" "}
+          后不能继续同步。
+        </p>
+      </SyncConfirmOverlay>
+      <SyncRotationDialog
+        rendered={syncRotationPresence.rendered}
+        className={syncRotationPresence.className}
+        encryptionEnabled={syncStatus?.encryptionEnabled}
+        password={syncRotationPassword}
+        passwordConfirm={syncRotationPasswordConfirm}
+        busy={syncBusy}
+        onPasswordChange={setSyncRotationPassword}
+        onPasswordConfirmChange={setSyncRotationPasswordConfirm}
+        onCancel={() => {
+          setPendingSyncRotation(false);
+          setSyncRotationPassword("");
+          setSyncRotationPasswordConfirm("");
+        }}
+        onConfirm={() => void handleRotateSyncEncryption()}
+      />
+      <SyncConfirmOverlay
+        rendered={syncCleanupPresence.rendered}
+        className={syncCleanupPresence.className}
+        title="确认清理同步历史?"
+        confirmLabel="确认清理"
+        danger
+        busy={syncBusy !== null}
+        onCancel={() => setPendingSyncCleanup(false)}
+        onConfirm={() => void handleCleanupHistory()}
+      >
+        <p>删除已确认的 30 天前历史，保留冲突记录。</p>
+      </SyncConfirmOverlay>
     </>
   );
 }
