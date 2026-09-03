@@ -373,9 +373,7 @@ export function SettingsSyncSection({
     }
   }
 
-  function handleSyncCredentialKeyDown(
-    event: KeyboardEvent<HTMLInputElement>,
-  ) {
+  function handleSyncCredentialKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     if (syncStatus?.configured || syncSetupStep !== 2 || syncBusy !== null) {
       return;
@@ -650,9 +648,7 @@ export function SettingsSyncSection({
                 {["服务器", "认证", "确认"].map((label, index) => (
                   <span
                     key={label}
-                    className={
-                      syncSetupStep === index + 1 ? "is-current" : ""
-                    }
+                    className={syncSetupStep === index + 1 ? "is-current" : ""}
                   >
                     {index + 1}. {label}
                   </span>
@@ -1122,14 +1118,8 @@ export function SettingsSyncSection({
                   </span>
                 </div>
                 {conflictDiffs(conflict).length > 0 && (
-                  <div
-                    className="sync-conflict-diff"
-                    aria-label="冲突字段差异"
-                  >
-                    <div
-                      className="sync-conflict-diff-head"
-                      aria-hidden="true"
-                    >
+                  <div className="sync-conflict-diff" aria-label="冲突字段差异">
+                    <div className="sync-conflict-diff-head" aria-hidden="true">
                       <span>字段</span>
                       <span>本地版本</span>
                       <span>远端版本</span>

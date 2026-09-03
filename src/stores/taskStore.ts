@@ -172,42 +172,55 @@ export const useTaskStore = create<TaskState>()(
       },
 
       setSortAsc: async (sortAsc) => {
-        set((state) => ({ sortAsc, tasks: deriveTasks({ ...state, sortAsc }) }));
+        set((state) => ({
+          sortAsc,
+          tasks: deriveTasks({ ...state, sortAsc }),
+        }));
       },
 
       toggleFilterList: async (listId) => {
-        set((state) => patchFilter(state, (filter) => ({
-          ...filter,
-          listIds: toggleValue(filter.listIds, listId),
-        })));
+        set((state) =>
+          patchFilter(state, (filter) => ({
+            ...filter,
+            listIds: toggleValue(filter.listIds, listId),
+          })),
+        );
       },
 
       toggleFilterTag: async (tag) => {
-        set((state) => patchFilter(state, (filter) => ({
-          ...filter,
-          tags: toggleValue(filter.tags, tag),
-        })));
+        set((state) =>
+          patchFilter(state, (filter) => ({
+            ...filter,
+            tags: toggleValue(filter.tags, tag),
+          })),
+        );
       },
 
       toggleFilterPriority: async (priority) => {
-        set((state) => patchFilter(state, (filter) => ({
-          ...filter,
-          priorities: toggleValue(filter.priorities, priority),
-        })));
+        set((state) =>
+          patchFilter(state, (filter) => ({
+            ...filter,
+            priorities: toggleValue(filter.priorities, priority),
+          })),
+        );
       },
 
       toggleFilterCompleted: async () => {
-        set((state) => patchFilter(state, (filter) => ({
-          ...filter,
-          includeCompleted: !filter.includeCompleted,
-        })));
+        set((state) =>
+          patchFilter(state, (filter) => ({
+            ...filter,
+            includeCompleted: !filter.includeCompleted,
+          })),
+        );
       },
 
       clearFilterTags: async () => {
-        set((state) => patchFilter(state, (filter) => ({
-          ...filter,
-          tags: [],
-        })));
+        set((state) =>
+          patchFilter(state, (filter) => ({
+            ...filter,
+            tags: [],
+          })),
+        );
       },
 
       bumpAttachmentCount: (taskId, delta) => {
@@ -323,9 +336,14 @@ export const useTaskStore = create<TaskState>()(
           }),
           () => createTask(input),
           (created, state) => ({
-            allTasks: upsertTask(removeTaskRow(state.allTasks, tempId), created),
+            allTasks: upsertTask(
+              removeTaskRow(state.allTasks, tempId),
+              created,
+            ),
             selectedTaskId:
-              state.selectedTaskId === tempId ? created.id : state.selectedTaskId,
+              state.selectedTaskId === tempId
+                ? created.id
+                : state.selectedTaskId,
             batchSelectedIds: state.batchSelectedIds.map((id) =>
               id === tempId ? created.id : id,
             ),
@@ -347,7 +365,9 @@ export const useTaskStore = create<TaskState>()(
             ),
           }),
           () => updateTask(input),
-          (updated, state) => ({ allTasks: upsertTask(state.allTasks, updated) }),
+          (updated, state) => ({
+            allTasks: upsertTask(state.allTasks, updated),
+          }),
         );
       },
 
@@ -365,7 +385,9 @@ export const useTaskStore = create<TaskState>()(
             ),
           }),
           () => setTaskCompleted(id, completed),
-          (updated, state) => ({ allTasks: upsertTask(state.allTasks, updated) }),
+          (updated, state) => ({
+            allTasks: upsertTask(state.allTasks, updated),
+          }),
         );
       },
 
@@ -463,11 +485,18 @@ export const useTaskStore = create<TaskState>()(
             let allTasks = state.allTasks;
             for (const id of selectedIds) {
               const task = allTasks.find((item) => item.id === id);
-              if (task) allTasks = upsertTask(allTasks, predictCompletedTask(task, true));
+              if (task)
+                allTasks = upsertTask(
+                  allTasks,
+                  predictCompletedTask(task, true),
+                );
             }
             return { allTasks, batchSelectedIds: [], batchMode: false };
           },
-          () => Promise.allSettled(selectedIds.map((id) => setTaskCompleted(id, true))),
+          () =>
+            Promise.allSettled(
+              selectedIds.map((id) => setTaskCompleted(id, true)),
+            ),
           (state, fulfilled) => {
             let allTasks = state.allTasks;
             for (const task of fulfilled) allTasks = upsertTask(allTasks, task);
@@ -484,9 +513,13 @@ export const useTaskStore = create<TaskState>()(
           selectedIds,
           (state) => {
             const nowIso = new Date().toISOString();
-            const moved = state.allTasks.filter((task) => selectedIds.includes(task.id));
+            const moved = state.allTasks.filter((task) =>
+              selectedIds.includes(task.id),
+            );
             return {
-              allTasks: state.allTasks.filter((task) => !selectedIds.includes(task.id)),
+              allTasks: state.allTasks.filter(
+                (task) => !selectedIds.includes(task.id),
+              ),
               trashTasks: [
                 ...moved.map((task) => predictDeletedTask(task, nowIso)),
                 ...state.trashTasks,
@@ -509,9 +542,13 @@ export const useTaskStore = create<TaskState>()(
           selectedIds,
           (state) => {
             const nowIso = new Date().toISOString();
-            const moved = state.trashTasks.filter((task) => selectedIds.includes(task.id));
+            const moved = state.trashTasks.filter((task) =>
+              selectedIds.includes(task.id),
+            );
             return {
-              trashTasks: state.trashTasks.filter((task) => !selectedIds.includes(task.id)),
+              trashTasks: state.trashTasks.filter(
+                (task) => !selectedIds.includes(task.id),
+              ),
               allTasks: [
                 ...moved.map((task) => predictRestoredTask(task, nowIso)),
                 ...state.allTasks,
@@ -544,7 +581,10 @@ export const useTaskStore = create<TaskState>()(
             batchSelectedIds: [],
             batchMode: false,
           }),
-          () => Promise.allSettled(selectedIds.map((id) => permanentDeleteTask(id))),
+          () =>
+            Promise.allSettled(
+              selectedIds.map((id) => permanentDeleteTask(id)),
+            ),
           () => ({}),
         );
       },
@@ -564,7 +604,11 @@ export const useTaskStore = create<TaskState>()(
             let allTasks = state.allTasks;
             for (const input of inputs) {
               const task = allTasks.find((item) => item.id === input.id);
-              if (task) allTasks = upsertTask(allTasks, predictUpdatedTask(task, input));
+              if (task)
+                allTasks = upsertTask(
+                  allTasks,
+                  predictUpdatedTask(task, input),
+                );
             }
             return { allTasks, batchSelectedIds: [], batchMode: false };
           },
@@ -613,7 +657,8 @@ export const useTaskStore = create<TaskState>()(
           ),
         );
         const rejected = results.find(
-          (result): result is PromiseRejectedResult => result.status === "rejected",
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
         );
         if (rejected) {
           // 手工排序是一个整体状态，任一失败全量回滚
@@ -651,7 +696,9 @@ export const useTaskStore = create<TaskState>()(
             ),
           }),
           () => updateTask(input),
-          (updated, state) => ({ allTasks: upsertTask(state.allTasks, updated) }),
+          (updated, state) => ({
+            allTasks: upsertTask(state.allTasks, updated),
+          }),
         );
       },
 
@@ -672,7 +719,9 @@ export const useTaskStore = create<TaskState>()(
               : {};
           },
           () => snoozeTaskReminder(id, remindAt),
-          (updated, state) => ({ allTasks: upsertTask(state.allTasks, updated) }),
+          (updated, state) => ({
+            allTasks: upsertTask(state.allTasks, updated),
+          }),
         );
       },
 
@@ -866,7 +915,11 @@ async function runOptimistic<T>(
   try {
     set((state) => {
       const patch = apply(state);
-      return { ...patch, error: null, tasks: deriveTasks({ ...state, ...patch }) };
+      return {
+        ...patch,
+        error: null,
+        tasks: deriveTasks({ ...state, ...patch }),
+      };
     });
     const result = await commit();
     if (reconcile) {
@@ -912,7 +965,11 @@ async function runOptimisticBatch<T>(
   try {
     set((state) => {
       const patch = apply(state);
-      return { ...patch, error: null, tasks: deriveTasks({ ...state, ...patch }) };
+      return {
+        ...patch,
+        error: null,
+        tasks: deriveTasks({ ...state, ...patch }),
+      };
     });
     const results = await commit();
     const failedIds = ids.filter(
@@ -985,7 +1042,9 @@ function restoreFailedRows(
         if (!failed.has(task.id)) return true;
         return originals.get(task.id)?.inTrash === wantTrash;
       })
-      .map((task) => (failed.has(task.id) ? originals.get(task.id)!.task : task));
+      .map((task) =>
+        failed.has(task.id) ? originals.get(task.id)!.task : task,
+      );
     for (const id of failedIds) {
       const original = originals.get(id);
       if (!original || original.inTrash !== wantTrash) continue;
