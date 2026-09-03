@@ -73,3 +73,44 @@
      会立即影响全部消费方，故随 P4 圆角归位一起改，P0 保持原值零变化 */
   --radius-lg: 12px;
 }
+
+/* ===== 显示偏好（阶段 D · T-10 乙组）=====
+   界面密度与字号三档。standard 为默认值即无属性（data-accent 同款惯例），
+   此处只覆写上方尺寸 token，消费方声明不变。密度=控件高度三档 ±2px +
+   根行距；字号=--text-* 整组 ±1px。custom property 赋值不进 check:design
+   的字面声明扫描，档位保持 2px 阶梯语义。 */
+:root[data-density="compact"] {
+  --control-sm: 24px;
+  --control-md: 28px;
+  --control-lg: 32px;
+  line-height: 1.45;
+}
+
+:root[data-density="relaxed"] {
+  --control-sm: 28px;
+  --control-md: 32px;
+  --control-lg: 36px;
+  line-height: 1.65;
+}
+
+:root[data-font-size="small"] {
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+  --text-2xl: 19px;
+}
+
+:root[data-font-size="large"] {
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 19px;
+  --text-2xl: 21px;
+}

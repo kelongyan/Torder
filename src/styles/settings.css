@@ -1849,26 +1849,8 @@
   padding: 0 2px 2px;
 }
 
-/* ---------- T-09/T-10/T-11 灰显占位（§13 规则 4） ---------- */
-.set-ph-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius-lg);
-  background: var(--mica-side);
-  padding: 14px;
-  margin-bottom: 14px;
-}
-
-.set-ph-title {
-  margin: 0;
-  color: var(--text-2);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.set-ph-row {
+/* ---------- 阶段 D · T-10 乙组：显示偏好（真实控件，原灰显占位转正） ---------- */
+.display-pref-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1876,25 +1858,19 @@
   min-height: 30px;
 }
 
-.set-ph-label {
+.display-pref-label {
   color: var(--text-2);
   font-size: 12.5px;
 }
 
-.set-ph-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.set-ph-chips {
+.display-pref-chips {
   display: inline-flex;
   gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.set-ph-chip {
+.display-pref-chip {
   display: inline-flex;
   align-items: center;
   height: 26px;
@@ -1903,9 +1879,10 @@
   padding: 0 10px;
   color: var(--text-3);
   font-size: 12px;
+  cursor: pointer;
 }
 
-.set-ph-chip.is-on {
+.display-pref-chip.is-on {
   border-color: var(--accent-line);
   background: var(--accent-soft);
   color: var(--accent);

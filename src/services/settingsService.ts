@@ -5,6 +5,8 @@ import {
   type AccentPreference,
   type AppSettings,
   type DefaultDueDate,
+  type DensityPreference,
+  type FontSizePreference,
   type NotificationSound,
   type SavedTaskView,
   type ThemePreference,
@@ -103,6 +105,8 @@ export async function loadAppSettings(): Promise<AppSettings> {
       settings.get("autoPostponeOverdue"),
       defaultAppSettings.autoPostponeOverdue,
     ),
+    density: parseDensity(settings.get("density")),
+    fontSize: parseFontSize(settings.get("fontSize")),
   };
 }
 
@@ -195,6 +199,24 @@ function parseNotificationSound(value: string | undefined): NotificationSound {
   return parsed === "silent" || parsed === "system"
     ? parsed
     : defaultAppSettings.notificationSound;
+}
+
+const DENSITY_VALUES: DensityPreference[] = ["compact", "standard", "relaxed"];
+
+function parseDensity(value: string | undefined): DensityPreference {
+  const parsed = parseJson(value);
+  return DENSITY_VALUES.includes(parsed as DensityPreference)
+    ? (parsed as DensityPreference)
+    : defaultAppSettings.density;
+}
+
+const FONT_SIZE_VALUES: FontSizePreference[] = ["small", "standard", "large"];
+
+function parseFontSize(value: string | undefined): FontSizePreference {
+  const parsed = parseJson(value);
+  return FONT_SIZE_VALUES.includes(parsed as FontSizePreference)
+    ? (parsed as FontSizePreference)
+    : defaultAppSettings.fontSize;
 }
 
 function parseNumber(value: string | undefined, fallback: number): number {

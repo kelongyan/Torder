@@ -1,5 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { AccentPreference, ThemePreference } from "../types/settings";
+import type {
+  AccentPreference,
+  DensityPreference,
+  FontSizePreference,
+  ThemePreference,
+} from "../types/settings";
 import { broadcastAppTheme, cacheAppTheme } from "../services/widgetAppearance";
 
 /**
@@ -12,6 +17,27 @@ export function applyAccentPreference(accent: AccentPreference): void {
     delete document.documentElement.dataset.accent;
   } else {
     document.documentElement.dataset.accent = accent;
+  }
+}
+
+/**
+ * 阶段 D · T-10 乙组：显示偏好。standard 是默认值，此时移除属性让主体
+ * token 生效（与 data-accent「无属性即默认」同一惯例）；档位覆写值见
+ * tokens.css 的显示偏好段，消费方声明（font-size: var(--text-*) 等）不变。
+ */
+export function applyDisplayDensity(density: DensityPreference): void {
+  if (density === "standard") {
+    delete document.documentElement.dataset.density;
+  } else {
+    document.documentElement.dataset.density = density;
+  }
+}
+
+export function applyFontSizeScale(size: FontSizePreference): void {
+  if (size === "standard") {
+    delete document.documentElement.dataset.fontSize;
+  } else {
+    document.documentElement.dataset.fontSize = size;
   }
 }
 

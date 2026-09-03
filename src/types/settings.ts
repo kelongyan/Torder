@@ -8,6 +8,10 @@ export type AccentPreference =
 export type DefaultDueDate = "none" | "today" | "tomorrow" | "next_monday";
 /** T-10 甲组：提示音。system=系统默认音；silent=静音通知。 */
 export type NotificationSound = "system" | "silent";
+/** T-10 乙组：界面密度三档（compact/relaxed 覆写控件高度与行距，见 tokens.css）。 */
+export type DensityPreference = "compact" | "standard" | "relaxed";
+/** T-10 乙组：字号三档（覆写 --text-* token，见 tokens.css）。 */
+export type FontSizePreference = "small" | "standard" | "large";
 export type SavedViewIcon = "filter" | "star" | "calendar" | "tag";
 
 export interface SavedTaskView {
@@ -53,6 +57,10 @@ export interface AppSettings {
   reviewReminderTime: string;
   /** 阶段 D · T-10 乙组：逾期任务自动顺延到明天（每日首次执行一次）。 */
   autoPostponeOverdue: boolean;
+  /** 阶段 D · T-10 乙组：界面密度（standard 为默认即无 data-density 属性）。 */
+  density: DensityPreference;
+  /** 阶段 D · T-10 乙组：字号（standard 为默认即无 data-font-size 属性）。 */
+  fontSize: FontSizePreference;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -72,6 +80,8 @@ export const defaultAppSettings: AppSettings = {
   reviewReminderEnabled: false,
   reviewReminderTime: "21:00",
   autoPostponeOverdue: false,
+  density: "standard",
+  fontSize: "standard",
   notificationSound: "system",
 };
 

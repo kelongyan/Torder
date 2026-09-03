@@ -22,7 +22,12 @@ import { CommandPalette } from "../components/command/CommandPalette";
 import { toggleSidebarCollapsed } from "../hooks/useSidebarCollapsed";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
-import { applyAccentPreference, applyThemePreference } from "../utils/theme";
+import {
+  applyAccentPreference,
+  applyDisplayDensity,
+  applyFontSizeScale,
+  applyThemePreference,
+} from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
 import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
@@ -871,6 +876,9 @@ function App() {
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
   // T-09：强调色与主题同一帧应用，保证切换时无中间态
   useEffect(() => applyAccentPreference(settings.accent), [settings.accent]);
+  // 阶段 D · T-10 乙组：显示偏好（密度/字号）→ html data 属性，档位覆写在 tokens.css
+  useEffect(() => applyDisplayDensity(settings.density), [settings.density]);
+  useEffect(() => applyFontSizeScale(settings.fontSize), [settings.fontSize]);
 
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查
