@@ -1,5 +1,5 @@
 import { type KeyboardEvent, useCallback, useEffect, useState } from "react";
-import { Cloud, RefreshCw, ShieldCheck } from "lucide-react";
+import { Cloud, RefreshCw } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { usePresence } from "../../hooks/usePresence";
 import {
@@ -26,12 +26,10 @@ import type {
 } from "../../types/sync";
 import { isMobile } from "../../utils/platform";
 import { isTauri } from "@tauri-apps/api/core";
-import {
-  conflictDiffs,
-  conflictFieldLabel,
-  conflictLabel,
-  mergedConflictPayload,
-} from "../../utils/syncConflict";
+import { mergedConflictPayload } from "../../utils/syncConflict";
+import { SyncConflictPanel } from "./SyncConflictPanel";
+import { SyncDevicesPanel } from "./SyncDevicesPanel";
+import { SyncEncryptionCard } from "./SyncEncryptionCard";
 
 export function SettingsSyncSection({
   syncAutoEnabled,
@@ -491,12 +489,6 @@ export function SettingsSyncSection({
     }
   }
 
-  function formatDeviceTime(value: string | null): string {
-    if (!value) return "尚未同步";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN");
-  }
-
   function syncPhaseLabel(phase: SyncStatus["phase"]): string {
     return phase === "download"
       ? "下载远端变更"
@@ -635,72 +627,17 @@ export function SettingsSyncSection({
                     </label>
                   </>
                 )}
-                <div className="sync-encryption-card form-grid-full">
-                  <div className="sync-encryption-head">
-                    <span className="sync-encryption-icon">
-                      <ShieldCheck aria-hidden="true" className="icon-sm" />
-                    </span>
-                    <span className="sync-encryption-copy">
-                      <strong>端到端加密</strong>
-                      <span>
-                        {syncInspection?.encryptionEnabled === true
-                          ? "远端已启用，需使用加密密码"
-                          : "开启后同步数据会加密保存"}
-                      </span>
-                    </span>
-                    <label className="settings-toggle sync-encryption-toggle">
-                      <input
-                        type="checkbox"
-                        aria-label="端到端加密"
-                        checked={
-                          syncEncryptionEnabled ||
-                          syncInspection?.encryptionEnabled === true
-                        }
-                        disabled={
-                          syncStatus?.configured === true ||
-                          syncInspection?.encryptionEnabled === true
-                        }
-                        onChange={(event) =>
-                          setSyncEncryptionEnabled(event.target.checked)
-                        }
-                      />
-                    </label>
-                  </div>
-                  {(syncEncryptionEnabled ||
-                    syncInspection?.encryptionEnabled === true) && (
-                    <div className="sync-encryption-fields">
-                      <label className="form-field">
-                        <span>
-                          {syncStatus?.encryptionKeyAvailable
-                            ? "更新加密密码（可选）"
-                            : "加密密码"}
-                        </span>
-                        <input
-                          type="password"
-                          autoComplete="new-password"
-                          minLength={8}
-                          value={syncEncryptionPassword}
-                          onChange={(event) =>
-                            setSyncEncryptionPassword(event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="form-field">
-                        <span>确认密码</span>
-                        <input
-                          type="password"
-                          autoComplete="new-password"
-                          minLength={8}
-                          value={syncEncryptionPasswordConfirm}
-                          onChange={(event) =>
-                            setSyncEncryptionPasswordConfirm(event.target.value)
-                          }
-                        />
-                      </label>
-                      <p>密码只保存在本机，不会上传。</p>
-                    </div>
-                  )}
-                </div>
+                <SyncEncryptionCard
+                  enabled={syncEncryptionEnabled}
+                  remoteEnabled={syncInspection?.encryptionEnabled}
+                  configured={syncStatus?.configured === true}
+                  keyAvailable={syncStatus?.encryptionKeyAvailable}
+                  password={syncEncryptionPassword}
+                  passwordConfirm={syncEncryptionPasswordConfirm}
+                  onEnabledChange={setSyncEncryptionEnabled}
+                  onPasswordChange={setSyncEncryptionPassword}
+                  onPasswordConfirmChange={setSyncEncryptionPasswordConfirm}
+                />
               </>
             )}
             {syncInspection &&
@@ -920,86 +857,15 @@ export function SettingsSyncSection({
                 <span>仅 Wi-Fi 自动同步</span>
               </label>
             )}
-            {syncDevices.length > 0 && (
-              <div className="sync-device-list form-grid-full">
-                <div className="settings-list-label">已连接设备</div>
-                {syncDevices.map((device) => (
-                  <div key={device.id} className="sync-device-item">
-                    <div className="sync-device-copy">
-                      <strong>{device.name}</strong>
-                      <span>
-                        {device.current
-                          ? "当前设备"
-                          : device.enabled
-                            ? "可同步"
-                            : "已撤销"}{" "}
-                        · {formatDeviceTime(device.lastSyncAt)}
-                      </span>
-                    </div>
-                    {device.enabled && !device.current && (
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        disabled={syncBusy !== null}
-                        onClick={() => setPendingDeviceRevoke(device)}
-                      >
-                        撤销
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            {syncStatus?.configured && (
-              <button
-                type="button"
-                className="btn-secondary btn-sm form-grid-full"
-                disabled={syncBusy !== null}
-                onClick={() => setPendingSyncCleanup(true)}
-              >
-                清理历史
-              </button>
-            )}
-            {syncStatus?.configured && (
-              <div className="sync-device-item form-grid-full">
-                <div className="sync-device-copy">
-                  <strong>
-                    {syncStatus.encryptionEnabled ? "加密密钥" : "端到端加密"}
-                  </strong>
-                  <span>
-                    {syncStatus.encryptionEnabled
-                      ? syncStatus.encryptionKeyAvailable
-                        ? "密钥 " + (syncStatus.encryptionKeyId ?? "可用")
-                        : "缺少密钥，需输入密码"
-                      : "创建加密快照"}
-                    {syncStatus.pendingChanges > 0
-                      ? " · 待上传 " + syncStatus.pendingChanges + " 项"
-                      : ""}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  disabled={
-                    syncBusy !== null ||
-                    syncStatus.pendingChanges > 0 ||
-                    (syncStatus.encryptionEnabled &&
-                      !syncStatus.encryptionKeyAvailable)
-                  }
-                  onClick={() => setPendingSyncRotation(true)}
-                >
-                  {syncStatus.encryptionEnabled ? "轮换密钥" : "启用加密"}
-                </button>
-              </div>
-            )}
-            <button
-              type="button"
-              className="btn-secondary btn-sm form-grid-full"
-              disabled={syncBusy !== null}
-              onClick={() => void handleExportSyncDiagnostics()}
-            >
-              导出诊断
-            </button>
+            <SyncDevicesPanel
+              devices={syncDevices}
+              status={syncStatus}
+              busy={syncBusy !== null}
+              onRevokeRequest={(device) => setPendingDeviceRevoke(device)}
+              onCleanupRequest={() => setPendingSyncCleanup(true)}
+              onRotateRequest={() => setPendingSyncRotation(true)}
+              onExport={() => void handleExportSyncDiagnostics()}
+            />
           </div>
         )}
         {syncStatus?.lastError && (
@@ -1007,125 +873,15 @@ export function SettingsSyncSection({
             同步失败：{syncStatus.lastError}
           </p>
         )}
-        {syncConflicts.length > 0 && (
-          <div className="sync-conflict-list">
-            <div className="settings-list-label">冲突</div>
-            {syncConflicts.map((conflict) => (
-              <div key={conflict.id} className="sync-conflict-item">
-                <div className="sync-conflict-copy">
-                  <strong>{conflictLabel(conflict)}</strong>
-                  <span>
-                    本地 v{conflict.localRevision} · 远端 v
-                    {conflict.remoteRevision}
-                  </span>
-                </div>
-                {conflictDiffs(conflict).length > 0 && (
-                  <div className="sync-conflict-diff" aria-label="冲突字段差异">
-                    <div className="sync-conflict-diff-head" aria-hidden="true">
-                      <span>字段</span>
-                      <span>本地版本</span>
-                      <span>远端版本</span>
-                    </div>
-                    {conflictDiffs(conflict).map(([field, local, remote]) => (
-                      <div key={field} className="sync-conflict-diff-row">
-                        <span title={field}>{conflictFieldLabel(field)}</span>
-                        <button
-                          type="button"
-                          className={`sync-conflict-value ${
-                            mergeChoices[conflict.id]?.[field] === "local"
-                              ? "is-selected"
-                              : ""
-                          }`}
-                          aria-label={`${conflictFieldLabel(field)}使用本地值：${local}`}
-                          aria-pressed={
-                            mergeChoices[conflict.id]?.[field] === "local"
-                          }
-                          disabled={syncBusy !== null}
-                          onClick={() =>
-                            updateMergeChoice(conflict.id, field, "local")
-                          }
-                        >
-                          <code>{local}</code>
-                        </button>
-                        <button
-                          type="button"
-                          className={`sync-conflict-value ${
-                            mergeChoices[conflict.id]?.[field] !== "local"
-                              ? "is-selected"
-                              : ""
-                          }`}
-                          aria-label={`${conflictFieldLabel(field)}使用远端值：${remote}`}
-                          aria-pressed={
-                            mergeChoices[conflict.id]?.[field] !== "local"
-                          }
-                          disabled={syncBusy !== null}
-                          onClick={() =>
-                            updateMergeChoice(conflict.id, field, "remote")
-                          }
-                        >
-                          <code>{remote}</code>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="sync-conflict-actions">
-                  {conflict.id.startsWith("list-name-conflict:") ? (
-                    <span className="settings-section-hint">
-                      清单名称冲突，先重命名本地清单。
-                    </span>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        disabled={syncBusy !== null}
-                        onClick={() =>
-                          void handleResolveConflict(conflict, "keepLocal")
-                        }
-                      >
-                        保留本地
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        disabled={syncBusy !== null}
-                        onClick={() =>
-                          void handleResolveConflict(conflict, "acceptRemote")
-                        }
-                      >
-                        接受远端
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secondary btn-sm"
-                        disabled={syncBusy !== null}
-                        onClick={() =>
-                          void handleResolveConflict(conflict, "merge")
-                        }
-                      >
-                        合并保存
-                      </button>
-                      {(conflict.entity === "task" ||
-                        conflict.entity === "calendarEvent") && (
-                        <button
-                          type="button"
-                          className="btn-secondary btn-sm"
-                          disabled={syncBusy !== null}
-                          onClick={() =>
-                            void handleResolveConflict(conflict, "copy")
-                          }
-                        >
-                          复制副本
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <SyncConflictPanel
+          conflicts={syncConflicts}
+          mergeChoices={mergeChoices}
+          busy={syncBusy !== null}
+          onMergeChoice={updateMergeChoice}
+          onResolve={(conflict, resolution) =>
+            void handleResolveConflict(conflict, resolution)
+          }
+        />
       </section>
 
       {syncRemovalPresence.rendered && (
