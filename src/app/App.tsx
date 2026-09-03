@@ -221,7 +221,6 @@ function App() {
     return () => window.removeEventListener("scroll", onScrollCapture, true);
   }, [mobile]);
 
-
   useEffect(() => {
     const root = document.documentElement;
     if (!mobile) {
@@ -331,7 +330,9 @@ function App() {
         if (value) seen.add(value);
       }
     }
-    return [...seen].sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
+    return [...seen].sort((left, right) =>
+      left.localeCompare(right, "zh-Hans-CN"),
+    );
   }, [allTasks]);
   const filterCount = useMemo(() => countTaskFilter(filter), [filter]);
   const activeSavedViewId = useMemo(
@@ -691,10 +692,9 @@ function App() {
     },
     [pushToast, selectTask, toggleTask],
   );
-  useTaskReminder(handleReminder, {
-    notificationsEnabled: settings.notificationsEnabled,
-    notificationSound: settings.notificationSound,
-  });
+  // P0-02：系统通知由 Rust 后台统一发送并受 notificationsEnabled 门控，
+  // 此处仅订阅事件做应用内提示与刷新。
+  useTaskReminder(handleReminder);
   useKeyboardShortcuts({
     onOpenCreateDialog: openTaskCreateDialog,
     onOpenShortcuts: handleOpenShortcuts,
@@ -1452,7 +1452,9 @@ function App() {
             onSortAscToggle={() => void handleSortAscToggle()}
             onToggleFilterList={(listId) => void toggleFilterList(listId)}
             onToggleFilterTag={(tag) => void toggleFilterTag(tag)}
-            onToggleFilterPriority={(priority) => void toggleFilterPriority(priority)}
+            onToggleFilterPriority={(priority) =>
+              void toggleFilterPriority(priority)
+            }
             onToggleFilterCompleted={() => void toggleFilterCompleted()}
             onClearFilter={() => void handleClearFilter()}
             onShowCompletedChange={() => void handleShowCompletedChange()}

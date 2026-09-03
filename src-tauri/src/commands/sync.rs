@@ -154,12 +154,21 @@ fn is_sync_protocol_error(error: &str) -> bool {
 pub fn resolve_sync_conflict(
     app: AppHandle,
     database: State<'_, Database>,
+    runtime: State<'_, SyncRuntime>,
     conflict_id: String,
     resolution: String,
     merged_payload: Option<serde_json::Value>,
 ) -> Result<(), String> {
-    engine::resolve_conflict_with_payload(&database, &conflict_id, &resolution, merged_payload)
-        .map_err(|error| error.to_string())?;
+    // 冲突解决已纳入同步运行门禁（service 层 try_lock），
+    // 防止与进行中的同步交错写；完成后通知前端刷新状态。
+    service::resolve_sync_conflict(
+        &database,
+        &runtime,
+        &conflict_id,
+        &resolution,
+        merged_payload,
+    )
+    .map_err(|error| error.to_string())?;
     app.emit("sync-completed", ())
         .map_err(|error| error.to_string())?;
     Ok(())
@@ -195,6 +204,8 @@ pub async fn test_sync_connection(
 }
 
 #[tauri::command]
+// Tauri 命令参数必须平铺接收前端 invoke 字段，无法直接使用输入结构，
+// 此 allow 仅作用于命令适配层；业务逻辑已在 service 层收敛为输入结构。
 #[allow(clippy::too_many_arguments)]
 pub async fn save_sync_config(
     database: State<'_, Database>,
@@ -211,44 +222,28 @@ pub async fn save_sync_config(
     service::save_sync_config(
         &runtime,
         &database,
-        server_url,
-        remote_path,
-        username,
-        password,
-        device_name,
-        encryption_enabled,
-        encryption_password,
-        confirm_remote,
+        service::SaveSyncConfigInput {
+            server_url,
+            remote_path,
+            username,
+            password,
+            device_name,
+            encryption_enabled,
+            encryption_password,
+            confirm_remote,
+        },
     )
     .await
 }
 
 #[tauri::command]
-pub fn remove_sync_config(database: State<'_, Database>) -> Result<(), String> {
-    let mut connection = database.connect().map_err(|error| error.to_string())?;
-    crate::sync::credentials::remove(&connection).map_err(|error| error.to_string())?;
-    crate::sync::credentials::remove_encryption_keys(&connection)
-        .map_err(|error| error.to_string())?;
-    sync_repository::clear_local_sync_data(&mut connection).map_err(|error| error.to_string())?;
-    for key in [
-        "serverUrl",
-        "remotePath",
-        "username",
-        "lastSyncAt",
-        "lastError",
-        "remoteConfirmedFor",
-        "collectionId",
-        "lastRemoteSequence",
-        "remotePrunedSequence",
-        "syncPhase",
-        "syncStartedAt",
-        "encryptionConfig",
-    ] {
-        sync_repository::clear_state(&connection, key).map_err(|error| error.to_string())?;
-    }
-    sync_repository::set_state(&connection, "syncStatus", "disabled")
-        .map_err(|error| error.to_string())?;
-    Ok(())
+pub fn remove_sync_config(
+    database: State<'_, Database>,
+    runtime: State<'_, SyncRuntime>,
+) -> Result<(), String> {
+    // 删除配置已纳入同步运行门禁：同步进行中会快速失败（"sync is already
+    // running"），避免凭据已删而同步仍在运行的状态交错；前端据此提示重试。
+    service::remove_sync_config(&database, &runtime)
 }
 
 #[tauri::command]
@@ -262,6 +257,8 @@ pub async fn rotate_sync_encryption(
 }
 
 #[tauri::command]
+// Tauri 命令参数必须平铺接收前端 invoke 字段，无法直接使用输入结构，
+// 此 allow 仅作用于命令适配层；业务逻辑已在 service 层收敛为输入结构。
 #[allow(clippy::too_many_arguments)]
 pub async fn run_sync(
     app: AppHandle,
@@ -277,11 +274,13 @@ pub async fn run_sync(
         &app,
         &database,
         &runtime,
-        server_url,
-        remote_path,
-        username,
-        password,
-        initial_mode,
+        service::RunSyncInput {
+            server_url,
+            remote_path,
+            username,
+            password,
+            initial_mode,
+        },
     )
     .await
 }

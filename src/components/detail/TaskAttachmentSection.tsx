@@ -26,7 +26,7 @@ import {
   openAttachment,
   revealAttachment,
 } from "../../services/attachmentService";
-import { openDownloadPage } from "../../services/appService";
+import { openExternalLink } from "../../services/appService";
 import type { PendingTaskAttachment } from "../../services/pendingAttachmentService";
 import { normalizeError } from "../../utils/normalizeError";
 
@@ -145,7 +145,8 @@ export function TaskAttachmentSection({
     try {
       if (attachment.kind === "webLink") {
         if (!attachment.externalUrl) throw new Error("链接地址为空");
-        await openDownloadPage(attachment.externalUrl);
+        // 用户自填链接允许 http(s)，与更新下载页的 https 强制策略分离（P0-03）
+        await openExternalLink(attachment.externalUrl);
         return;
       }
       await openAttachment(attachment.id);
