@@ -57,6 +57,8 @@ export function Sidebar({
   recurringActive,
   recurringCount,
   onOpenRecurring,
+  searchActive = false,
+  onSearchSubmit,
   onClose,
 }: {
   lists: TaskList[];
@@ -87,6 +89,10 @@ export function Sidebar({
   recurringActive: boolean;
   recurringCount: number;
   onOpenRecurring: () => void;
+  /** T-08：独立全库搜索结果页激活状态。 */
+  searchActive?: boolean;
+  /** T-08：回车或点击触发全库搜索。 */
+  onSearchSubmit?: (query: string) => void;
   onClose?: () => void;
 }) {
   const collapsed = useSidebarCollapsed();
@@ -142,22 +148,46 @@ export function Sidebar({
             id="sidebar-search-input"
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="搜索"
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                searchQuery.trim() &&
+                onSearchSubmit
+              ) {
+                event.preventDefault();
+                onSearchSubmit(searchQuery.trim());
+              }
+            }}
+            placeholder="搜索 (Enter 全库)"
             aria-label="搜索任务"
           />
-          <kbd className="search-kbd" aria-hidden="true">
-            Ctrl F
-          </kbd>
-          {searchQuery && (
-            <button
-              type="button"
-              className="search-clear"
-              onClick={() => onSearchChange("")}
-              aria-label="清空搜索"
-              title="清空搜索"
-            >
-              <X aria-hidden="true" />
-            </button>
+          {searchQuery ? (
+            <div className="search-actions-inline">
+              {onSearchSubmit && (
+                <button
+                  type="button"
+                  className="search-submit-btn"
+                  onClick={() => onSearchSubmit(searchQuery.trim())}
+                  aria-label="全库搜索"
+                  title="全库搜索 (Enter)"
+                >
+                  ↵
+                </button>
+              )}
+              <button
+                type="button"
+                className="search-clear"
+                onClick={() => onSearchChange("")}
+                aria-label="清空搜索"
+                title="清空搜索"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <kbd className="search-kbd" aria-hidden="true">
+              Ctrl F
+            </kbd>
           )}
         </div>
       )}
@@ -166,13 +196,25 @@ export function Sidebar({
         <div className="nav-group-header">
           <span className="nav-group-label">导航</span>
         </div>
+        {searchActive && (
+          <SidebarItem
+            icon={Search}
+            label={
+              searchQuery.trim() ? `搜索：“${searchQuery.trim()}”` : "全库搜索"
+            }
+            active={true}
+            onClick={() => undefined}
+          />
+        )}
         {systemNav.map((item) => (
           <SidebarItem
             key={item.view}
             icon={item.icon}
             label={taskViewCopy[item.view].title}
             active={
-              !recurringActive && isScopeActive(scope, viewScope(item.view))
+              !recurringActive &&
+              !searchActive &&
+              isScopeActive(scope, viewScope(item.view))
             }
             count={
               item.view === "deleted"

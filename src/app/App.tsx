@@ -74,6 +74,8 @@ import { StatsDialog } from "../components/dialog/StatsDialog";
 import { FocusDialog } from "../components/dialog/FocusDialog";
 import { ReviewDialog } from "../components/dialog/ReviewDialog";
 import { ProjectHeader } from "../components/project/ProjectHeader";
+import { SearchResultView } from "../components/search/SearchResultView";
+import { searchAllTasks } from "../components/search/searchUtils";
 import { TagManagerDialog } from "../components/dialog/TagManagerDialog";
 import { notifyFocusFinished } from "../services/focusService";
 import { toggleMini } from "../services/miniService";
@@ -138,6 +140,9 @@ function App() {
   // 阶段 C：标签管理弹窗（T-07 二期）。
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const tagManagerPresence = usePresence(tagManagerOpen, 280);
+  // 阶段 D-3：独立全库搜索结果页（T-08）。
+  const [searchViewActive, setSearchViewActive] = useState(false);
+  const [createTaskInitialTitle, setCreateTaskInitialTitle] = useState("");
 
   const dialog = useDialogManager();
   const {
@@ -224,13 +229,7 @@ function App() {
     };
     const timer = window.setInterval(check, 30_000);
     return () => window.clearInterval(timer);
-  }, [
-    localDateKey,
-    pushToast,
-    sendNotice,
-    settings.reviewReminderEnabled,
-    settings.reviewReminderTime,
-  ]);
+  }, [pushToast, settings.reviewReminderEnabled, settings.reviewReminderTime]);
   // 阶段 A：专注一轮自然结束 —— 本地提示 + Rust 权威系统通知。
   const handleFocusFinished = useCallback(() => {
     pushToast("本轮专注已完成", "success");
@@ -354,9 +353,19 @@ function App() {
     [allTasks, selectedTaskId, tasks],
   );
 
+  const searchMatchingTasks = useMemo(() => {
+    if (!searchViewActive) return [];
+    return searchAllTasks(allTasks, searchQuery, filter, showCompleted);
+  }, [allTasks, filter, searchQuery, searchViewActive, showCompleted]);
+
   const currentTitle = useMemo(
-    () => (recurringViewActive ? "循环任务" : getScopeTitle(scope, lists)),
-    [lists, recurringViewActive, scope],
+    () =>
+      searchViewActive
+        ? "搜索结果"
+        : recurringViewActive
+          ? "循环任务"
+          : getScopeTitle(scope, lists),
+    [lists, recurringViewActive, scope, searchViewActive],
   );
   const counts = useMemo(
     () => buildCounts(allTasks, lists, showCompleted),
@@ -461,16 +470,28 @@ function App() {
   const contentKey = useMemo(
     () =>
       [
-        recurringViewActive ? "recurring" : effectiveLayout,
+        searchViewActive
+          ? "search"
+          : recurringViewActive
+            ? "recurring"
+            : effectiveLayout,
         scope.kind,
         scope.kind === "view" ? scope.view : scope.listId,
         sortBy,
         showCompleted,
       ].join(":"),
-    [effectiveLayout, recurringViewActive, scope, sortBy, showCompleted],
+    [
+      effectiveLayout,
+      recurringViewActive,
+      scope,
+      searchViewActive,
+      sortBy,
+      showCompleted,
+    ],
   );
   const openRecurringView = useCallback(() => {
     setRecurringViewActive(true);
+    setSearchViewActive(false);
     setMenuOpen(false);
     setMobileSidebarOpen(false);
     selectTask(null);
@@ -484,10 +505,30 @@ function App() {
     setMobileSidebarOpen,
   ]);
 
+  const handleOpenSearch = useCallback(
+    (queryToSearch: string) => {
+      void setSearchQuery(queryToSearch);
+      setSearchViewActive(true);
+      setRecurringViewActive(false);
+      setMenuOpen(false);
+      setMobileSidebarOpen(false);
+      selectTask(null);
+      clearBatchSelection();
+    },
+    [
+      clearBatchSelection,
+      selectTask,
+      setMenuOpen,
+      setMobileSidebarOpen,
+      setSearchQuery,
+    ],
+  );
+
   const closeEverything = useCallback(() => {
     closeDialogs();
     setSavedViewDialogOpen(false);
     setRecurringViewActive(false);
+    setSearchViewActive(false);
     selectTask(null);
     clearBatchSelection();
   }, [closeDialogs, clearBatchSelection, selectTask, setRecurringViewActive]);
@@ -556,6 +597,10 @@ function App() {
       setRecurringViewActive(false);
       return true;
     }
+    if (searchViewActive) {
+      setSearchViewActive(false);
+      return true;
+    }
     if (selectedTask) {
       selectTask(null);
       return true;
@@ -573,6 +618,7 @@ function App() {
     menuOpen,
     mobileSidebarOpen,
     recurringViewActive,
+    searchViewActive,
     savedViewDialogOpen,
     focusOpen,
     reviewOpen,
@@ -701,8 +747,9 @@ function App() {
   }, []);
   // 稳定引用：useTrayQuickAdd / useKeyboardShortcuts 依赖它，每次渲染新建会重复订阅 IPC
   const openTaskCreateDialog = useCallback(
-    (scheduledDate = "") => {
+    (scheduledDate = "", initialTitle = "") => {
       setCreateScheduledDate(scheduledDate);
+      setCreateTaskInitialTitle(initialTitle);
       openCreateDialog();
     },
     [openCreateDialog],
@@ -854,6 +901,7 @@ function App() {
   }
 
   async function handleSelectScope(nextScope: TaskScope) {
+    setSearchViewActive(false);
     setRecurringViewActive(false);
     setMenuOpen(false);
     setMobileSidebarOpen(false);
@@ -1247,7 +1295,10 @@ function App() {
           onClearTags={() => void clearFilterTags()}
           onSearchChange={(query) => void setSearchQuery(query)}
           onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
-          onSavedViewOpen={(view) => void handleOpenSavedView(view)}
+          onSavedViewOpen={(view) => {
+            setSearchViewActive(false);
+            void handleOpenSavedView(view);
+          }}
           onSavedViewAdd={openCreateSavedViewDialog}
           onSavedViewEdit={openEditSavedViewDialog}
           onSavedViewDelete={requestDeleteSavedView}
@@ -1257,6 +1308,8 @@ function App() {
           recurringActive={recurringViewActive}
           recurringCount={recurringRules.length}
           onOpenRecurring={openRecurringView}
+          searchActive={searchViewActive}
+          onSearchSubmit={handleOpenSearch}
           onClose={closeMobileSidebar}
         />
 
@@ -1265,8 +1318,14 @@ function App() {
             title={currentTitle}
             detailOpen={Boolean(selectedTask)}
             headerHidden={mobile && mobileHeaderHidden}
-            meta={scopeSubtitle}
-            taskCount={tasks.length}
+            meta={
+              searchViewActive
+                ? `共找到 ${searchMatchingTasks.length} 项`
+                : scopeSubtitle
+            }
+            taskCount={
+              searchViewActive ? searchMatchingTasks.length : tasks.length
+            }
             layout={effectiveLayout}
             theme={settings.theme}
             sortBy={sortBy}
@@ -1301,7 +1360,9 @@ function App() {
             onOpenReview={() => setReviewOpen(true)}
             onToggleBatchMode={toggleBatchMode}
             syncStatus={syncStatus}
-            showLayoutControls={!recurringViewActive && !deletedViewActive}
+            showLayoutControls={
+              !searchViewActive && !recurringViewActive && !deletedViewActive
+            }
           />
 
           {displayError && (
@@ -1322,6 +1383,7 @@ function App() {
           )}
 
           {scope.kind === "list" &&
+            !searchViewActive &&
             !recurringViewActive &&
             !deletedViewActive &&
             currentList && (
@@ -1332,7 +1394,31 @@ function App() {
               key={contentKey}
               className={`content-motion content-motion-${effectiveLayout}`}
             >
-              {recurringViewActive ? (
+              {searchViewActive ? (
+                <SearchResultView
+                  query={searchQuery}
+                  tasks={searchMatchingTasks}
+                  lists={lists}
+                  loading={loading}
+                  selectedTaskId={selectedTaskId}
+                  batchMode={batchMode}
+                  batchSelectedIds={batchSelectedIds}
+                  attachmentCounts={attachmentCounts}
+                  onOpenTask={(task) => selectTask(task.id)}
+                  onToggleTask={(task) => void handleToggleTask(task)}
+                  onDeleteTask={(task) => void requestDeleteTask(task)}
+                  onRestoreTask={(task) => void handleRestoreTask(task)}
+                  onPermanentDeleteTask={(task) =>
+                    void requestPermanentDeleteTask(task)
+                  }
+                  onToggleBatchSelected={toggleBatchSelected}
+                  onExitSearch={() => setSearchViewActive(false)}
+                  onOpenCreateDialog={(initialTitle) =>
+                    openTaskCreateDialog("", initialTitle)
+                  }
+                  onSaveAsView={openCreateSavedViewDialog}
+                />
+              ) : recurringViewActive ? (
                 <RecurringRulesView
                   rules={recurringRules}
                   lists={lists}
@@ -1491,10 +1577,12 @@ function App() {
           defaultReminderMinutes={settings.defaultReminderMinutes}
           defaultPriority={settings.defaultPriority}
           defaultDueDate={settings.defaultDueDate}
+          initialTitle={createTaskInitialTitle}
           presence={createPresence.phase}
           onClose={() => {
             setCreateOpen(false);
             setCreateScheduledDate("");
+            setCreateTaskInitialTitle("");
           }}
           onSubmit={handleCreateTask}
           onSubmitRecurring={handleCreateRecurring}
@@ -1502,12 +1590,13 @@ function App() {
         />
       )}
 
-      {/* F2 · T-01：命令面板（Ctrl K / 工具栏图标） */}
+      {/* F2 · T-01：命令面板（Ctrl K / 工具栏图标，T-08 并入全局全库搜索） */}
       {commandPalettePresence.rendered && (
         <CommandPalette
           commands={commandEntries}
           presence={commandPalettePresence.phase}
           onClose={() => setCommandPaletteOpen(false)}
+          onSearchGlobal={handleOpenSearch}
         />
       )}
 

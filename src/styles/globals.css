@@ -17,6 +17,7 @@
 @import "./filter.css";
 @import "./responsive.css";
 @import "./widget.css";
+@import "./search.css";
 
 @font-face {
   font-family: "Frex Sans GB";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Command } from "lucide-react";
+import { Command, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { PresencePhase } from "../../hooks/usePresence";
 
@@ -7,6 +7,7 @@ import type { PresencePhase } from "../../hooks/usePresence";
  * F2 · T-01 命令面板（Ctrl K / 工具栏图标唤起）。
  * 命令表由 App 层组装传入（保持组件无业务依赖）；输入按子串过滤，
  * ↑↓ 选择、Enter 执行、Esc 关闭。Esc 由全局 closeEverything 链兜底。
+ * T-08 并入全局全库搜索入口（onSearchGlobal）。
  */
 export interface CommandEntry {
   id: string;
@@ -21,25 +22,42 @@ export function CommandPalette({
   commands,
   presence,
   onClose,
+  onSearchGlobal,
 }: {
   commands: CommandEntry[];
   presence: PresencePhase;
   onClose: () => void;
+  onSearchGlobal?: (query: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  const searchGlobalCommand = useMemo<CommandEntry | null>(() => {
+    const trimmed = query.trim();
+    if (!trimmed || !onSearchGlobal) return null;
+    return {
+      id: "search-global-tasks",
+      title: `在全部事项中搜索 “${trimmed}”`,
+      group: "全库搜索",
+      keywords: trimmed,
+      icon: Search,
+      run: () => onSearchGlobal(trimmed),
+    };
+  }, [query, onSearchGlobal]);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return commands;
-    return commands.filter((command) =>
-      `${command.title} ${command.group} ${command.keywords ?? ""}`
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [commands, query]);
+    const matched = needle
+      ? commands.filter((command) =>
+          `${command.title} ${command.group} ${command.keywords ?? ""}`
+            .toLowerCase()
+            .includes(needle),
+        )
+      : commands;
+    return searchGlobalCommand ? [searchGlobalCommand, ...matched] : matched;
+  }, [commands, query, searchGlobalCommand]);
 
   // 过滤结果变短时索引可能越界，取有效值而不是在 effect 里回写 state
   const activeRow = filtered.length

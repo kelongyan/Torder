@@ -28,6 +28,7 @@ export function TaskCreateDialog({
   defaultReminderMinutes,
   defaultPriority = -1,
   defaultDueDate = "none",
+  initialTitle = "",
   presence,
   onClose,
   onSubmit,
@@ -42,6 +43,7 @@ export function TaskCreateDialog({
   defaultPriority?: AppSettings["defaultPriority"];
   /** T-10 甲组：设置的默认截止。 */
   defaultDueDate?: AppSettings["defaultDueDate"];
+  initialTitle?: string;
   presence: PresencePhase;
   onClose: () => void;
   onSubmit: (
@@ -55,6 +57,7 @@ export function TaskCreateDialog({
     emptyDraft(defaultListId, defaultReminderMinutes, defaultScheduledDate, {
       priority: defaultPriority,
       dueDate: defaultDueDate,
+      title: initialTitle,
     }),
   );
   const [attachments, setAttachments] = useState<PendingTaskAttachment[]>([]);

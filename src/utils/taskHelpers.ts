@@ -127,6 +127,7 @@ export function emptyDraft(
   defaults?: {
     priority?: AppSettings["defaultPriority"];
     dueDate?: DefaultDueDate;
+    title?: string;
   },
 ): TaskDraft {
   const useScheduledOnly = Boolean(defaultScheduledDate);
@@ -149,7 +150,7 @@ export function emptyDraft(
     dueAt = `${toLocalDateKey(due.toISOString()) ?? toDateKey(due)}T${time}`;
   }
   return {
-    title: "",
+    title: defaults?.title ?? "",
     note: "",
     priority,
     listId: defaultListId,
