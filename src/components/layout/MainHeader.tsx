@@ -64,6 +64,7 @@ export function MainHeader({
   onShowCompletedChange,
   onOpenFocus,
   onToggleMini,
+  onOpenReview,
   onOpenSettings,
   onOpenStats,
   onOpenCommandPalette,
@@ -108,6 +109,8 @@ export function MainHeader({
   onOpenFocus: () => void;
   /** 阶段 B · T-03：迷你速记窗开关。 */
   onToggleMini: () => void;
+  /** 阶段 C · T-04：每日回顾面板。 */
+  onOpenReview: () => void;
   onToggleBatchMode: () => void;
   syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
@@ -398,17 +401,16 @@ export function MainHeader({
           >
             <Sparkles aria-hidden="true" className="menu-icon" />
           </button>
-          <div className="tool-group tool-group--soon">
-            <button
-              type="button"
-              className="icon-button ui-placeholder"
-              aria-disabled="true"
-              tabIndex={-1}
-              aria-label="每日回顾"
-            >
-              <TrendingUp aria-hidden="true" className="menu-icon" />
-            </button>
-          </div>
+          {/* T-04 每日回顾已转正（阶段 C）：T-03 迷你窗/专注模式同批核销 */}
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onOpenReview}
+            aria-label="每日回顾"
+            title="每日回顾"
+          >
+            <TrendingUp aria-hidden="true" className="menu-icon" />
+          </button>
         </div>
 
         {/* 分组二：应用操作（主题 / 同步状态 / 更多）。桌面 display:contents；移动端主行。 */}

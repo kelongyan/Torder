@@ -1,0 +1,157 @@
+import { describe, expect, it } from "vitest";
+import type { Task } from "../types/database";
+import {
+  completedToday,
+  createdTodayCount,
+  dueTodayTodos,
+  overdueTodos,
+  shiftOverdueTaskPatch,
+  weekTrend,
+} from "./taskStats";
+
+/** 本地某日某时的 ISO 时间戳（避免时区脆弱：任何时区本地日期=给定 y/m/d）。 */
+function at(year: number, month: number, day: number, hour = 12): string {
+  return new Date(year, month - 1, day, hour, 0, 0).toISOString();
+}
+
+const TODAY = "2026-09-03";
+const TOMORROW = "2026-09-04";
+
+function makeTask(overrides: Partial<Task>): Task {
+  return {
+    id: `t-${Math.random().toString(36).slice(2)}`,
+    title: "任务",
+    note: null,
+    status: "todo",
+    priority: 0,
+    listId: "work",
+    scheduledDate: null,
+    dueAt: null,
+    completedAt: null,
+    sortOrder: 0,
+    remindBefore: null,
+    remindAt: null,
+    remindedAt: null,
+    repeatRule: null,
+    subtasks: [],
+    tags: [],
+    recurringRuleId: null,
+    occurrenceAt: null,
+    createdAt: at(2026, 9, 1),
+    updatedAt: at(2026, 9, 1),
+    deletedAt: null,
+    ...overrides,
+  };
+}
+
+describe("weekTrend 近 7 日趋势", () => {
+  it("按 completedAt / createdAt 本地日分桶，含今日共 7 日从旧到新", () => {
+    const tasks = [
+      makeTask({ status: "done", completedAt: at(2026, 9, 3) }),
+      makeTask({ status: "done", completedAt: at(2026, 9, 2) }),
+      makeTask({ status: "done", completedAt: at(2026, 9, 2) }),
+      makeTask({ status: "done", completedAt: at(2026, 8, 20) }), // 窗口外不计
+      makeTask({ createdAt: at(2026, 9, 3) }),
+      makeTask({ createdAt: at(2026, 9, 1) }),
+    ];
+    const trend = weekTrend(tasks, TODAY);
+    expect(trend).toHaveLength(7);
+    expect(trend[6]).toMatchObject({
+      key: TODAY,
+      label: "今天",
+      completed: 1,
+      created: 1,
+    });
+    expect(trend[5]).toMatchObject({ completed: 2, created: 0 });
+    expect(trend[0].key).toBe("2026-08-28");
+    const createdSum = trend.reduce((sum, day) => sum + day.created, 0);
+    expect(createdSum).toBe(6);
+  });
+});
+
+describe("completedToday / createdTodayCount / dueTodayTodos / overdueTodos", () => {
+  const tasks = [
+    makeTask({ status: "done", completedAt: at(2026, 9, 3, 9) }),
+    makeTask({ status: "done", completedAt: at(2026, 9, 2) }),
+    makeTask({ createdAt: at(2026, 9, 3) }),
+    makeTask({ createdAt: at(2026, 9, 1) }),
+    makeTask({ dueAt: at(2026, 9, 3, 18) }),
+    makeTask({ dueAt: at(2026, 9, 2, 18) }),
+    makeTask({
+      status: "done",
+      dueAt: at(2026, 9, 2),
+      completedAt: at(2026, 9, 3),
+    }),
+    makeTask({ dueAt: at(2026, 9, 4, 18) }),
+    makeTask({ dueAt: null }),
+  ];
+
+  it("今日完成只看 completedAt 落在今天（含今日完成的逾期任务）", () => {
+    const done = completedToday(tasks, TODAY);
+    expect(done).toHaveLength(2);
+    expect(done.every((task) => task.status === "done")).toBe(true);
+  });
+
+  it("今日新增按 createdAt 计数", () => {
+    expect(createdTodayCount(tasks, TODAY)).toBe(1);
+  });
+
+  it("今日到期待办（todo + dueAt 今天）", () => {
+    const due = dueTodayTodos(tasks, TODAY);
+    expect(due.map((task) => task.title)).toEqual(["任务"]);
+    expect(due).toHaveLength(1);
+  });
+
+  it("逾期 = todo 且 dueAt 本地日期早于今天", () => {
+    const overdue = overdueTodos(tasks, TODAY);
+    expect(overdue).toHaveLength(1);
+  });
+});
+
+describe("shiftOverdueTaskPatch 顺延唯一规则", () => {
+  it("有计划日 → 计划日顺延到明天", () => {
+    const task = makeTask({
+      status: "todo",
+      scheduledDate: "2026-09-02",
+      dueAt: at(2026, 9, 2, 18),
+    });
+    expect(shiftOverdueTaskPatch(task, TOMORROW)).toEqual({
+      scheduledDate: TOMORROW,
+    });
+  });
+
+  it("只有截止 → 截止整体平移一天且保留时刻", () => {
+    const task = makeTask({
+      status: "todo",
+      dueAt: at(2026, 9, 2, 18),
+    });
+    const patch = shiftOverdueTaskPatch(task, TOMORROW);
+    expect(patch).not.toBeNull();
+    expect(new Date(patch!.dueAt as string).getHours()).toBe(18);
+    expect(new Date(patch!.dueAt as string).toISOString()).not.toBeNull();
+    // 平移后本地日期应为 2026-09-04
+    const key = new Date(patch!.dueAt as string).toISOString();
+    expect(new Date(key).getDate()).toBe(4);
+  });
+
+  it("已完成/无截止/已在明天 → 不产生 patch", () => {
+    expect(
+      shiftOverdueTaskPatch(
+        makeTask({ status: "done", dueAt: at(2026, 9, 2) }),
+        TOMORROW,
+      ),
+    ).toBeNull();
+    expect(
+      shiftOverdueTaskPatch(
+        makeTask({ status: "todo", dueAt: null }),
+        TOMORROW,
+      ),
+    ).toBeNull();
+    expect(
+      shiftOverdueTaskPatch(
+        makeTask({ scheduledDate: TOMORROW, dueAt: at(2026, 9, 4) }),
+        TOMORROW,
+      ),
+    ).toBeNull();
+  });
+});

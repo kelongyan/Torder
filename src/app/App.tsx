@@ -72,6 +72,7 @@ import { ConfirmDialog } from "../components/dialog/ConfirmDialog";
 import { SettingsDialog } from "../components/dialog/SettingsDialog";
 import { StatsDialog } from "../components/dialog/StatsDialog";
 import { FocusDialog } from "../components/dialog/FocusDialog";
+import { ReviewDialog } from "../components/dialog/ReviewDialog";
 import { notifyFocusFinished } from "../services/focusService";
 import { toggleMini } from "../services/miniService";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
@@ -127,6 +128,9 @@ function App() {
   // 阶段 A：专注模式控制面板（T-02）。
   const [focusOpen, setFocusOpen] = useState(false);
   const focusPresence = usePresence(focusOpen, 280);
+  // 阶段 C：每日回顾面板（T-04）。
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewPresence = usePresence(reviewOpen, 280);
 
   const dialog = useDialogManager();
   const {
@@ -195,6 +199,12 @@ function App() {
     pushToast("本轮专注已完成", "success");
     void notifyFocusFinished();
   }, [pushToast]);
+  const handleReviewShifts = useCallback(
+    (count: number) => {
+      if (count > 0) pushToast(`已顺延 ${count} 项逾期任务到明天`, "success");
+    },
+    [pushToast],
+  );
   const mobile = isMobile();
 
   // M3.2 移动端滚动折叠：捕获 .content-panel 滚动，向下隐藏主 header。
@@ -475,6 +485,10 @@ function App() {
       setFocusOpen(false);
       return true;
     }
+    if (reviewOpen) {
+      setReviewOpen(false);
+      return true;
+    }
     if (recurringViewActive) {
       setRecurringViewActive(false);
       return true;
@@ -531,6 +545,7 @@ function App() {
     (dialog.calendarEventDialogOpen ? 1 : 0) +
     (savedViewDialogOpen ? 1 : 0) +
     (focusOpen ? 1 : 0) +
+    (reviewOpen ? 1 : 0) +
     (recurringViewActive ? 1 : 0) +
     (selectedTask ? 1 : 0) +
     (menuOpen ? 1 : 0) +
@@ -1216,6 +1231,7 @@ function App() {
             onOpenStats={openStatsDialog}
             onOpenFocus={() => setFocusOpen(true)}
             onToggleMini={() => void toggleMini()}
+            onOpenReview={() => setReviewOpen(true)}
             onToggleBatchMode={toggleBatchMode}
             syncStatus={syncStatus}
             showLayoutControls={!recurringViewActive && !deletedViewActive}
@@ -1505,6 +1521,15 @@ function App() {
           presence={focusPresence.phase}
           onClose={() => setFocusOpen(false)}
           onFinished={handleFocusFinished}
+        />
+      )}
+
+      {reviewPresence.rendered && (
+        <ReviewDialog
+          tasks={allTasks}
+          presence={reviewPresence.phase}
+          onClose={() => setReviewOpen(false)}
+          onShiftsApplied={handleReviewShifts}
         />
       )}
 

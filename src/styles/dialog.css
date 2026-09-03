@@ -1114,3 +1114,110 @@
 .focus-actions {
   justify-content: center;
 }
+
+/* 阶段 C：每日回顾（T-04 打样，2026-09-03） */
+.review-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.review-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-secondary);
+}
+.review-card-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.review-card-value {
+  font-size: var(--text-xl);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.review-card--danger .review-card-value {
+  color: var(--danger);
+}
+.review-trend {
+  margin: 4px 0 12px;
+}
+.review-trend-bars {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 72px;
+  padding: 4px 0 0;
+}
+.review-trend-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 72px;
+  justify-content: flex-end;
+}
+.review-trend-bar {
+  width: 14px;
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+  opacity: 0.85;
+  min-height: 4px;
+}
+.review-trend-label {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  line-height: 1;
+}
+.review-sections {
+  margin: 8px 0 12px;
+}
+.review-list {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.review-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+.review-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-item-meta {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  flex: none;
+}
+.review-item--more,
+.review-item--empty {
+  color: var(--text-secondary);
+}
+.review-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.review-duo-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
