@@ -31,6 +31,7 @@ import {
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
 import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
+import { setFocusDndEnabled } from "../stores/focusStore";
 import type {
   CreateTaskInput,
   Task,
@@ -879,6 +880,12 @@ function App() {
   // 阶段 D · T-10 乙组：显示偏好（密度/字号）→ html data 属性，档位覆写在 tokens.css
   useEffect(() => applyDisplayDensity(settings.density), [settings.density]);
   useEffect(() => applyFontSizeScale(settings.fontSize), [settings.fontSize]);
+  // 专注免打扰开关注入 focusStore：状态切换由 store 写 focusDndUntil KV，
+  // Rust notifier 轮询读取抑制；专注运行中切换开关立即生效/解除。
+  useEffect(
+    () => setFocusDndEnabled(settings.focusDndEnabled),
+    [settings.focusDndEnabled],
+  );
 
   useEffect(() => {
     // 移动端无桌面安装包更新机制，跳过启动静默检查

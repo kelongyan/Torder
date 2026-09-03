@@ -7,13 +7,39 @@ import {
   it,
   vi,
 } from "vitest";
-import { hydrateFocus, useFocusStore, type PersistedFocus } from "./focusStore";
+import {
+  hydrateFocus,
+  setFocusDndEnabled,
+  useFocusStore,
+  type PersistedFocus,
+} from "./focusStore";
 
 /**
  * focusStore 状态机测试。计时以真实时间戳差实现，全部用 fake timers
  * （Vitest 4 需 { now } 配置对象）驱动时间前进。
  * node 环境无 localStorage，测试注入内存 stub。
  */
+
+/** 免打扰 KV 写入捕获（node 环境无 Tauri，mock settingsService）。 */
+const dndWrites = vi.hoisted(() => {
+  const writes: Array<{ key: string; value: unknown }> = [];
+  return writes;
+});
+
+/** 最近一次 KV 写入（lib 目标不含 Array.at，用索引取尾）。 */
+function lastWrite(): { key: string; value: unknown } | undefined {
+  return dndWrites[dndWrites.length - 1];
+}
+vi.mock("../services/settingsService", () => ({
+  upsertSetting: vi.fn((key: string, value: unknown) => {
+    dndWrites.push({ key, value });
+    return Promise.resolve({
+      key,
+      value: JSON.stringify(value),
+      updatedAt: "",
+    });
+  }),
+}));
 
 const NOW = new Date("2026-09-03T04:00:00.000Z").getTime();
 
@@ -227,5 +253,67 @@ describe("持久化写入", () => {
     advance(25 * 60_000);
     useFocusStore.getState().tick();
     expect(localStorage.getItem("torder-focus")).toBeNull();
+  });
+});
+
+describe("专注免打扰 focusDndUntil KV（T-10 乙组 D-6）", () => {
+  afterEach(() => {
+    // 先解除开关（running 中会产生一条解除写入），再清空捕获
+    setFocusDndEnabled(false);
+    dndWrites.length = 0;
+  });
+
+  it("开关关闭（默认）时任何状态切换都不写 KV", () => {
+    useFocusStore.getState().start();
+    useFocusStore.getState().pause();
+    useFocusStore.getState().reset();
+    expect(dndWrites).toEqual([]);
+  });
+
+  it("开启后 start 写本轮结束时刻，pause/reset 立即失效", () => {
+    setFocusDndEnabled(true);
+    useFocusStore.getState().start();
+    expect(lastWrite()).toEqual({
+      key: "focusDndUntil",
+      value: new Date(NOW + 25 * 60_000).toISOString(),
+    });
+
+    useFocusStore.getState().pause();
+    expect(lastWrite()).toEqual({
+      key: "focusDndUntil",
+      value: new Date(NOW).toISOString(),
+    });
+
+    useFocusStore.getState().resume();
+    expect(lastWrite()!.value).toBe(new Date(NOW + 25 * 60_000).toISOString());
+
+    useFocusStore.getState().reset();
+    expect(lastWrite()).toEqual({
+      key: "focusDndUntil",
+      value: new Date(NOW).toISOString(),
+    });
+  });
+
+  it("到期 tick 完成后标记失效（补发窗口打开）", () => {
+    setFocusDndEnabled(true);
+    useFocusStore.getState().start();
+    advance(25 * 60_000 + 500);
+    useFocusStore.getState().tick();
+    expect(lastWrite()).toEqual({
+      key: "focusDndUntil",
+      value: new Date(NOW + 25 * 60_000 + 500).toISOString(),
+    });
+  });
+
+  it("运行中显式关闭开关立即解除抑制", () => {
+    setFocusDndEnabled(true);
+    useFocusStore.getState().start();
+    expect(lastWrite()!.value).toBe(new Date(NOW + 25 * 60_000).toISOString());
+
+    setFocusDndEnabled(false);
+    expect(lastWrite()).toEqual({
+      key: "focusDndUntil",
+      value: new Date(NOW).toISOString(),
+    });
   });
 });

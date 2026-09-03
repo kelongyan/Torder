@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { upsertSetting } from "../services/settingsService";
 
 /**
  * 专注模式（T-02 一期）状态机 —— 独立 store，不塞 taskStore：
@@ -10,6 +11,10 @@ import { create } from "zustand";
  * 持久化（localStorage "torder-focus"）：关窗到托盘后窗口重新可见、
  * 或应用重启后按时间差续算；running 且已过期 → 归 idle（一期不跨进程
  * 补发系统通知，见实现方案书 §3）。
+ *
+ * 专注免打扰（阶段 D · T-10 乙组）：开关开启时，状态切换把本轮结束时刻
+ * 写入 settings KV `focusDndUntil`（RFC3339），Rust notifier 轮询读取并在
+ * 窗口内抑制任务提醒（暂停语义：不标记 reminded_at，结束后下轮补发）。
  */
 
 export type FocusMode = "idle" | "running" | "paused";
@@ -99,6 +104,39 @@ function clampMinutes(minutes: number): number {
   return Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, Math.round(minutes)));
 }
 
+/** 免打扰用户开关（App 按设置注入）；默认关闭时不写任何 KV。 */
+let dndEnabled = false;
+
+function writeDndUntil(until: Date): void {
+  void upsertSetting("focusDndUntil", until.toISOString()).catch(() => {
+    // 设置 KV 写失败只影响本轮免打扰生效，不影响计时与提醒主链路。
+  });
+}
+
+/**
+ * 免打扰标记唯一写入点：running 写本轮结束时刻，其余状态写当前时刻
+ * （立即失效）。时间戳形式可自愈——应用崩溃后标记自然过期，Rust 侧
+ * 解析失败/过期一律视为不在免打扰（fail-open）。
+ */
+function syncDnd(mode: FocusMode, endAt: number | null): void {
+  if (!dndEnabled) return;
+  writeDndUntil(
+    mode === "running" && endAt !== null ? new Date(endAt) : new Date(),
+  );
+}
+
+/**
+ * App 按设置注入开关（阶段 D · T-10 乙组）。专注运行中切换开关立即生效：
+ * 开启 → 以当前 endAt 生效；关闭 → 立即解除抑制（此时开关位已为 false，
+ * 须绕过 syncDnd 的开关门直写）。
+ */
+export function setFocusDndEnabled(enabled: boolean): void {
+  dndEnabled = enabled;
+  const state = useFocusStore.getState();
+  if (state.mode !== "running" || state.endAt === null) return;
+  writeDndUntil(enabled ? new Date(state.endAt) : new Date());
+}
+
 /** 启动续算：running 且已过期 → 归 idle（一期不跨进程补发通知）。 */
 export function hydrateFocus(
   saved: Partial<PersistedFocus>,
@@ -172,6 +210,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
         now,
       };
       persist(next);
+      syncDnd(next.mode, next.endAt);
       return next;
     });
   },
@@ -194,6 +233,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
         now: current.now,
       };
       persist(next);
+      syncDnd(next.mode, null);
       return next;
     });
   },
@@ -213,6 +253,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
         now,
       };
       persist(next);
+      syncDnd(next.mode, next.endAt);
       return next;
     });
   },
@@ -231,6 +272,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
       startedAt: null,
       now: Date.now(),
     });
+    syncDnd("idle", null);
   },
 
   remaining: () => {
@@ -263,6 +305,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
         lastCompletedAt: now,
         now,
       });
+      syncDnd("idle", null);
       return;
     }
     if (state.now !== now) set({ now });

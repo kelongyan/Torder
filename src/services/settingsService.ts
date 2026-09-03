@@ -107,6 +107,10 @@ export async function loadAppSettings(): Promise<AppSettings> {
     ),
     density: parseDensity(settings.get("density")),
     fontSize: parseFontSize(settings.get("fontSize")),
+    focusDndEnabled: parseBoolean(
+      settings.get("focusDndEnabled"),
+      defaultAppSettings.focusDndEnabled,
+    ),
   };
 }
 

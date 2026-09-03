@@ -61,6 +61,8 @@ export interface AppSettings {
   density: DensityPreference;
   /** 阶段 D · T-10 乙组：字号（standard 为默认即无 data-font-size 属性）。 */
   fontSize: FontSizePreference;
+  /** 阶段 D · T-10 乙组：专注时段免打扰（专注运行期间抑制任务提醒，结束后补发）。 */
+  focusDndEnabled: boolean;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -82,6 +84,7 @@ export const defaultAppSettings: AppSettings = {
   autoPostponeOverdue: false,
   density: "standard",
   fontSize: "standard",
+  focusDndEnabled: false,
   notificationSound: "system",
 };
 

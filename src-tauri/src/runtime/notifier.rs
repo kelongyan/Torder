@@ -47,6 +47,13 @@ fn check_and_notify(app_handle: &AppHandle, database_path: &PathBuf) -> Result<(
         return Ok(());
     }
 
+    // 专注免打扰（T-10 乙组）：专注运行期间抑制任务提醒。与通知总开关相同的
+    // 「暂停」语义——不标记 reminded_at，专注结束后下轮轮询补发，避免用户
+    // 以为提醒已消费却从未收到。
+    if focus_dnd_active(&connection) {
+        return Ok(());
+    }
+
     let tasks = due_reminder_tasks(&connection)?;
 
     if tasks.is_empty() {
@@ -116,6 +123,32 @@ fn notifications_enabled(connection: &Connection) -> bool {
             _ => true,
         })
         .unwrap_or(true)
+}
+
+/// 专注免打扰（阶段 D · T-10 乙组）：读取 focusDndUntil（settings KV，值为
+/// JSON 编码的 RFC3339 时间戳，专注 running 期间由前端写入本轮结束时刻）。
+///
+/// 缺省、非法 JSON、非时间戳或已过期一律视为「不在免打扰」——与
+/// notifications_enabled 的 fail-open 取向一致：设置读写异常时宁可多响，
+/// 不能静默吞掉用户提醒（本功能失败形态就是提醒不响，见方案书风险表）。
+fn focus_dnd_active(connection: &Connection) -> bool {
+    let raw = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'focusDndUntil'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok();
+    let Some(raw) = raw else {
+        return false;
+    };
+    let Some(stamp) = serde_json::from_str::<String>(&raw).ok() else {
+        return false;
+    };
+    match chrono::DateTime::parse_from_rfc3339(&stamp) {
+        Ok(until) => until > chrono::Utc::now(),
+        Err(_) => false,
+    }
 }
 
 fn due_reminder_tasks(connection: &Connection) -> Result<Vec<Task>, String> {
@@ -491,5 +524,96 @@ mod tests {
         let failed =
             notify_focus_if_enabled(true, &mut || Err("native notification: boom".to_owned()));
         assert_eq!(failed, Err("native notification: boom".to_owned()));
+    }
+
+    // ---- T-10 乙组：专注免打扰门控（fail-open 专项） ----
+
+    #[test]
+    fn focus_dnd_defaults_inactive_and_reads_until_setting() {
+        let path = temp_db("focus-dnd");
+        let database = Database::initialize(path.clone()).unwrap();
+        let connection = database.connect().unwrap();
+
+        // 缺省（未写入设置）视为不在免打扰
+        assert!(!focus_dnd_active(&connection));
+
+        // 运行中：前端写 JSON 编码的 RFC3339 未来时间戳 → 生效
+        let future = (chrono::Utc::now() + chrono::Duration::minutes(25)).to_rfc3339();
+        connection
+            .execute(
+                "INSERT INTO settings (key, value) VALUES ('focusDndUntil', ?1)",
+                params![serde_json::to_string(&future).unwrap()],
+            )
+            .unwrap();
+        assert!(focus_dnd_active(&connection));
+
+        // 已过期（专注结束/暂停写入当前时刻）→ 不再抑制
+        let past = (chrono::Utc::now() - chrono::Duration::minutes(1)).to_rfc3339();
+        connection
+            .execute(
+                "UPDATE settings SET value = ?1 WHERE key = 'focusDndUntil'",
+                params![serde_json::to_string(&past).unwrap()],
+            )
+            .unwrap();
+        assert!(!focus_dnd_active(&connection));
+
+        // 非法 JSON → fail-open（不抑制）
+        connection
+            .execute(
+                "UPDATE settings SET value = 'not-json' WHERE key = 'focusDndUntil'",
+                [],
+            )
+            .unwrap();
+        assert!(!focus_dnd_active(&connection));
+
+        // 合法 JSON 但非时间戳 → fail-open（不抑制）
+        connection
+            .execute(
+                "UPDATE settings SET value = '\"yesterday\"' WHERE key = 'focusDndUntil'",
+                [],
+            )
+            .unwrap();
+        assert!(!focus_dnd_active(&connection));
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
+    }
+
+    #[test]
+    fn focus_dnd_suppressed_tasks_stay_unreminded_for_later_delivery() {
+        let path = temp_db("focus-dnd-pause");
+        let database = Database::initialize(path.clone()).unwrap();
+        let task = create_test_task(&database, "免打扰期间到期的提醒");
+        let mut connection = database.connect().unwrap();
+
+        // 模拟免打扰期间 notify 层被短路：此时 reminded_at 必须仍为空，
+        // 专注结束后下轮轮询补发（暂停语义，与通知总开关一致）。
+        let until = (chrono::Utc::now() + chrono::Duration::minutes(10)).to_rfc3339();
+        connection
+            .execute(
+                "INSERT INTO settings (key, value) VALUES ('focusDndUntil', ?1)",
+                params![serde_json::to_string(&until).unwrap()],
+            )
+            .unwrap();
+        assert!(focus_dnd_active(&connection));
+        assert!(
+            focus_dnd_active(&connection),
+            "免打扰窗口内重复轮询应持续抑制"
+        );
+
+        // 免打扰结束后，任务因 reminded_at 未标记而进入待提醒集合
+        let reminded_at: Option<String> = connection
+            .query_row(
+                "SELECT reminded_at FROM tasks WHERE id = ?1",
+                params![&task.id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .unwrap();
+        assert!(reminded_at.is_none());
+
+        drop(connection);
+        drop(database);
+        cleanup_db(&path);
     }
 }
