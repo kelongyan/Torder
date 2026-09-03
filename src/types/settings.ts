@@ -47,6 +47,10 @@ export interface AppSettings {
   notificationsEnabled: boolean;
   /** T-10 甲组：提示音（system=系统音；silent=静音通知）。 */
   notificationSound: NotificationSound;
+  /** 阶段 D · T-10 乙组：每日回顾提醒（到点发系统通知，未启动不补发）。 */
+  reviewReminderEnabled: boolean;
+  /** 阶段 D · T-10 乙组：每日回顾提醒时刻，格式 "HH:MM"。 */
+  reviewReminderTime: string;
 }
 
 export const defaultAppSettings: AppSettings = {
@@ -63,6 +67,8 @@ export const defaultAppSettings: AppSettings = {
   quickAddNaturalLanguage: true,
   moveCompletedImmediately: true,
   notificationsEnabled: true,
+  reviewReminderEnabled: false,
+  reviewReminderTime: "21:00",
   notificationSound: "system",
 };
 

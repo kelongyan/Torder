@@ -170,6 +170,25 @@ pub fn send_focus_finished_notification(
     })
 }
 
+/// 通用单条桌面通知（阶段 D）：受「系统通知」总开关门控，不标记任何数据。
+pub fn send_text_notification(
+    app_handle: &AppHandle,
+    connection: &Connection,
+    title: &str,
+    body: &str,
+) -> Result<(), String> {
+    let enabled = notifications_enabled(connection);
+    notify_focus_if_enabled(enabled, &mut || {
+        app_handle
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map_err(|error| format!("native notification: {error}"))
+    })
+}
+
 /// 门控 + 发送拆开便于单测（仿 notify_tasks 的 sender 注入）：
 /// 关闭通知时静默成功；开启时调用 send 一次，失败原样透传。
 fn notify_focus_if_enabled(

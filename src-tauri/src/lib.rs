@@ -274,6 +274,7 @@ pub fn run() {
             #[cfg(desktop)]
             commands::mini::toggle_mini,
             commands::tag::manage_tag,
+            commands::notice::send_notice,
             #[cfg(desktop)]
             commands::widget::remove_note_font,
         ])

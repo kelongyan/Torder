@@ -91,6 +91,14 @@ export async function loadAppSettings(): Promise<AppSettings> {
     notificationSound: parseNotificationSound(
       settings.get("notificationSound"),
     ),
+    reviewReminderEnabled: parseBoolean(
+      settings.get("reviewReminderEnabled"),
+      defaultAppSettings.reviewReminderEnabled,
+    ),
+    reviewReminderTime: parseString(
+      settings.get("reviewReminderTime"),
+      defaultAppSettings.reviewReminderTime,
+    ),
   };
 }
 

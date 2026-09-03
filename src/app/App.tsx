@@ -76,6 +76,8 @@ import { ReviewDialog } from "../components/dialog/ReviewDialog";
 import { TagManagerDialog } from "../components/dialog/TagManagerDialog";
 import { notifyFocusFinished } from "../services/focusService";
 import { toggleMini } from "../services/miniService";
+import { sendNotice } from "../services/noticeService";
+import { localDateKey } from "../services/taskQuery";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
 import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
@@ -198,6 +200,36 @@ function App() {
   } = useAppDataLoaders(handleDataLoadError);
 
   const { toasts, pushToast } = useToast();
+  // 阶段 D · T-10 乙组：每日回顾提醒（到点发系统通知 + 本地 toast；
+  // 未启动不补发——应用运行中每 30s 检查一次整分匹配，localStorage 节流当日一次）。
+  useEffect(() => {
+    if (!settings.reviewReminderEnabled) return;
+    const lastKey = "torder-review-reminder-date";
+    const check = () => {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(
+        now.getMinutes(),
+      ).padStart(2, "0")}`;
+      if (hhmm !== settings.reviewReminderTime) return;
+      const today = localDateKey(now);
+      try {
+        if (localStorage.getItem(lastKey) === today) return;
+        localStorage.setItem(lastKey, today);
+      } catch {
+        // 隐私模式等不可用时每次整分都提醒一次（低风险）。
+      }
+      pushToast("该做每日回顾了", "info");
+      void sendNotice("每日回顾", "看一眼今天：完成、逾期与顺延。");
+    };
+    const timer = window.setInterval(check, 30_000);
+    return () => window.clearInterval(timer);
+  }, [
+    localDateKey,
+    pushToast,
+    sendNotice,
+    settings.reviewReminderEnabled,
+    settings.reviewReminderTime,
+  ]);
   // 阶段 A：专注一轮自然结束 —— 本地提示 + Rust 权威系统通知。
   const handleFocusFinished = useCallback(() => {
     pushToast("本轮专注已完成", "success");

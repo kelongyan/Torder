@@ -16,6 +16,18 @@ const soundOptions: SelectOption<NotificationSound>[] = [
   { value: "silent", label: "静音" },
 ];
 
+/** 每日回顾提醒时刻：17:00–23:30，每 30 分钟一档。 */
+const reviewTimeOptions: SelectOption<string>[] = Array.from(
+  { length: 14 },
+  (_, index) => {
+    const minutes = (17 + index * 0.5) * 60;
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    const value = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+    return { value, label: value };
+  },
+);
+
 export function SettingsNotificationsSection({
   settings,
   onSettingsChange,
@@ -59,6 +71,38 @@ export function SettingsNotificationsSection({
           }
         />
       </div>
+      <div className="settings-toggle-row">
+        <span className="settings-toggle-label">每日回顾提醒</span>
+        <ToggleSwitch
+          checked={settings.reviewReminderEnabled}
+          label="每日回顾提醒"
+          onChange={(next) =>
+            void savePreference(
+              "reviewReminderEnabled",
+              next,
+              next ? "已开启每日回顾提醒" : "已关闭每日回顾提醒",
+            )
+          }
+        />
+      </div>
+      {settings.reviewReminderEnabled && (
+        <div className="settings-preference-grid">
+          <label className="form-field">
+            <span>提醒时刻</span>
+            <Select<string>
+              value={settings.reviewReminderTime}
+              options={reviewTimeOptions}
+              onChange={(value) =>
+                void savePreference(
+                  "reviewReminderTime",
+                  value,
+                  "已更新提醒时刻",
+                )
+              }
+            />
+          </label>
+        </div>
+      )}
       <div className="settings-preference-grid">
         <label className="form-field">
           <span>提示音</span>
