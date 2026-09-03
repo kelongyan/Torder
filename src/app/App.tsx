@@ -73,6 +73,7 @@ import { SettingsDialog } from "../components/dialog/SettingsDialog";
 import { StatsDialog } from "../components/dialog/StatsDialog";
 import { FocusDialog } from "../components/dialog/FocusDialog";
 import { ReviewDialog } from "../components/dialog/ReviewDialog";
+import { TagManagerDialog } from "../components/dialog/TagManagerDialog";
 import { notifyFocusFinished } from "../services/focusService";
 import { toggleMini } from "../services/miniService";
 import { BatchEditDialog } from "../components/dialog/BatchEditDialog";
@@ -131,6 +132,9 @@ function App() {
   // 阶段 C：每日回顾面板（T-04）。
   const [reviewOpen, setReviewOpen] = useState(false);
   const reviewPresence = usePresence(reviewOpen, 280);
+  // 阶段 C：标签管理弹窗（T-07 二期）。
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const tagManagerPresence = usePresence(tagManagerOpen, 280);
 
   const dialog = useDialogManager();
   const {
@@ -199,6 +203,13 @@ function App() {
     pushToast("本轮专注已完成", "success");
     void notifyFocusFinished();
   }, [pushToast]);
+  const handleTagChanged = useCallback(
+    (affected: number, message: string) => {
+      void useTaskStore.getState().loadTasks();
+      if (affected > 0) pushToast(message, "success");
+    },
+    [pushToast],
+  );
   const handleReviewShifts = useCallback(
     (count: number) => {
       if (count > 0) pushToast(`已顺延 ${count} 项逾期任务到明天`, "success");
@@ -489,6 +500,10 @@ function App() {
       setReviewOpen(false);
       return true;
     }
+    if (tagManagerOpen) {
+      setTagManagerOpen(false);
+      return true;
+    }
     if (recurringViewActive) {
       setRecurringViewActive(false);
       return true;
@@ -512,6 +527,8 @@ function App() {
     recurringViewActive,
     savedViewDialogOpen,
     focusOpen,
+    reviewOpen,
+    tagManagerOpen,
     selectedTask,
     selectTask,
     setBatchEditOpen,
@@ -546,6 +563,7 @@ function App() {
     (savedViewDialogOpen ? 1 : 0) +
     (focusOpen ? 1 : 0) +
     (reviewOpen ? 1 : 0) +
+    (tagManagerOpen ? 1 : 0) +
     (recurringViewActive ? 1 : 0) +
     (selectedTask ? 1 : 0) +
     (menuOpen ? 1 : 0) +
@@ -1175,6 +1193,7 @@ function App() {
           savedViews={settings.savedViews}
           activeSavedViewId={activeSavedViewId}
           tags={sidebarTags}
+          onOpenTagManager={() => setTagManagerOpen(true)}
           activeTags={filter.tags}
           onTagToggle={(tag) => void toggleFilterTag(tag)}
           onClearTags={() => void clearFilterTags()}
@@ -1530,6 +1549,15 @@ function App() {
           presence={reviewPresence.phase}
           onClose={() => setReviewOpen(false)}
           onShiftsApplied={handleReviewShifts}
+        />
+      )}
+
+      {tagManagerPresence.rendered && (
+        <TagManagerDialog
+          tags={sidebarTags}
+          presence={tagManagerPresence.phase}
+          onClose={() => setTagManagerOpen(false)}
+          onChanged={handleTagChanged}
         />
       )}
 

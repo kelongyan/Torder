@@ -621,3 +621,38 @@ pub fn date_field(payload: &serde_json::Map<String, Value>, key: &str) -> Reposi
         .map_err(|_| RepositoryError::Validation("invalid sync date"))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod validate_tags_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn tags_non_array_rejected() {
+        let error = validate_task_tags(Some(&json!("not-an-array"))).unwrap_err();
+        assert!(matches!(error, RepositoryError::Validation(_)));
+    }
+
+    #[test]
+    fn tags_rejects_empty_and_oversized_entries() {
+        assert!(validate_task_tags(Some(&json!([""]))).is_err());
+        assert!(validate_task_tags(Some(&json!(["  "]))).is_err());
+        assert!(validate_task_tags(Some(&json!(["a".repeat(41)]))).is_err());
+    }
+
+    #[test]
+    fn tags_rejects_too_many_entries() {
+        let many: Vec<String> = (0..31).map(|index| format!("tag-{index}")).collect();
+        assert!(validate_task_tags(Some(&serde_json::to_value(many).unwrap())).is_err());
+    }
+
+    #[test]
+    fn tags_accepts_boundary_ok() {
+        let thirty: Vec<String> = (0..30).map(|index| format!("tag-{index}")).collect();
+        assert!(validate_task_tags(Some(&serde_json::to_value(thirty).unwrap())).is_ok());
+        // 规则按 UTF-8 字节数（String::len）：超 40 字节的中文标签被拒。
+        assert!(validate_task_tags(Some(&json!(["t", "标签-短"]))).is_ok());
+        assert!(validate_task_tags(Some(&json!(["长标签".repeat(7)]))).is_err());
+        assert!(validate_task_tags(None).is_ok());
+    }
+}

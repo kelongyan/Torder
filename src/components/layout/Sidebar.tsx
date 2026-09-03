@@ -6,6 +6,7 @@ import {
   Plus,
   Repeat2,
   Search,
+  SlidersHorizontal,
   Star,
   Tag,
   X,
@@ -43,6 +44,7 @@ export function Sidebar({
   activeTags,
   onTagToggle,
   onClearTags,
+  onOpenTagManager,
   onSearchChange,
   onScopeChange,
   onSavedViewOpen,
@@ -71,6 +73,8 @@ export function Sidebar({
   activeTags: string[];
   onTagToggle: (tag: string) => void;
   onClearTags: () => void;
+  /** 阶段 C · T-07 二期：标签管理弹窗。 */
+  onOpenTagManager: () => void;
   onSearchChange: (query: string) => void;
   onScopeChange: (scope: TaskScope) => void;
   onSavedViewOpen: (view: SavedTaskView) => void;
@@ -254,6 +258,15 @@ export function Sidebar({
             <div className="sidebar-divider" />
             <div className="nav-group-header">
               <span className="nav-group-label">标签</span>
+              <button
+                type="button"
+                className="btn-add-list"
+                onClick={onOpenTagManager}
+                title="标签管理"
+                aria-label="标签管理"
+              >
+                <SlidersHorizontal className="icon-xs" />
+              </button>
               {activeTags.length > 0 && (
                 <button
                   type="button"

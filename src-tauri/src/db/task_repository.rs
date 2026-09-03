@@ -1015,3 +1015,158 @@ fn map_not_found<T>(
         Err(error) => Err(error.into()),
     }
 }
+
+/// 标签管理（T-07 二期）变更类型。
+#[derive(Debug, Clone, PartialEq)]
+pub enum TagChange {
+    Rename { from: String, to: String },
+    Merge { from: String, to: String },
+    Remove { from: String },
+}
+
+/// 对单个任务的 tags 应用变更（纯函数，便于单测与边界校验）：
+/// - 标签为文本；变换结果去重、保持原顺序；
+/// - rename/merge 的目标若与任务已有标签重复 → 只保留一份；
+/// - 空标签/超长（>40 字节，与 sync validate 同口径）一律不允许进入结果。
+pub(crate) fn rewrite_task_tags(tags: &[String], change: &TagChange) -> Vec<String> {
+    let (from, to) = match change {
+        TagChange::Remove { from } => (from.as_str(), None),
+        TagChange::Rename { from, to } | TagChange::Merge { from, to } => {
+            (from.as_str(), Some(to.as_str()))
+        }
+    };
+    let mut out: Vec<String> = Vec::with_capacity(tags.len());
+    for tag in tags {
+        if tag == from {
+            if let Some(target) = to {
+                if !out.iter().any(|existing| existing == target) && valid_tag_length(target) {
+                    out.push(target.to_string());
+                }
+            }
+            continue;
+        }
+        if tag.is_empty() || !valid_tag_length(tag) || out.iter().any(|item| item == tag) {
+            continue;
+        }
+        out.push(tag.clone());
+    }
+    out
+}
+
+fn valid_tag_length(tag: &str) -> bool {
+    !tag.is_empty() && tag.len() <= 40
+}
+
+impl TaskRepository<'_> {
+    /// 全表应用标签变更（Rename/Merge/Remove），返回实际受影响的任务数。
+    /// 每行在事务内读-改-写；tags 无法解析为字符串数组的行跳过不报错
+    /// （脏数据不扩散）；结果恒满足 sync 的 validate_task_tags 约束。
+    pub fn apply_tag_change(&self, change: &TagChange) -> RepositoryResult<usize> {
+        use rusqlite::TransactionBehavior;
+
+        let mut connection = self.database.connect()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(RepositoryError::from)?;
+
+        let rows: Vec<(String, String)> = {
+            let mut statement = transaction
+                .prepare("SELECT id, tags FROM tasks")
+                .map_err(RepositoryError::from)?;
+            let mapped = statement
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })
+                .map_err(RepositoryError::from)?;
+            mapped
+                .collect::<Result<_, _>>()
+                .map_err(RepositoryError::from)?
+        };
+
+        let mut affected = 0usize;
+        for (id, tags_json) in rows {
+            let parsed: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            let rewritten = rewrite_task_tags(&parsed, change);
+            if rewritten == parsed {
+                continue;
+            }
+            transaction
+                .execute(
+                    "UPDATE tasks SET tags = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?2",
+                    rusqlite::params![
+                        serde_json::to_string(&rewritten).unwrap_or_else(|_| "[]".to_string()),
+                        id
+                    ],
+                )
+                .map_err(RepositoryError::from)?;
+            affected += 1;
+        }
+        transaction.commit().map_err(RepositoryError::from)?;
+        Ok(affected)
+    }
+}
+
+#[cfg(test)]
+mod tag_change_tests {
+    use super::*;
+
+    fn tags(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn rename_replaces_and_dedupes() {
+        let change = TagChange::Rename {
+            from: "a".to_string(),
+            to: "c".to_string(),
+        };
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "b"]), &change),
+            tags(&["c", "b"])
+        );
+        // 已含目标 c → 不重复
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "c", "b"]), &change),
+            tags(&["c", "b"])
+        );
+        // 不含 from → 原样
+        assert_eq!(
+            rewrite_task_tags(&tags(&["x", "y"]), &change),
+            tags(&["x", "y"])
+        );
+    }
+
+    #[test]
+    fn merge_keeps_target_once() {
+        let change = TagChange::Merge {
+            from: "b".to_string(),
+            to: "c".to_string(),
+        };
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "b", "c"]), &change),
+            tags(&["a", "c"])
+        );
+        assert_eq!(rewrite_task_tags(&tags(&["b"]), &change), tags(&["c"]));
+    }
+
+    #[test]
+    fn remove_strips_tag() {
+        let change = TagChange::Remove {
+            from: "a".to_string(),
+        };
+        assert_eq!(rewrite_task_tags(&tags(&["a", "b"]), &change), tags(&["b"]));
+        assert_eq!(rewrite_task_tags(&tags(&["b"]), &change), tags(&["b"]));
+    }
+
+    #[test]
+    fn never_emits_empty_or_oversized_tags() {
+        let change = TagChange::Rename {
+            from: "a".to_string(),
+            to: "超长标签超长标签超长标签超长标签超长标签超长标签超长".to_string(),
+        };
+        assert_eq!(
+            rewrite_task_tags(&tags(&["a", "b", ""]), &change),
+            tags(&["b"])
+        );
+    }
+}

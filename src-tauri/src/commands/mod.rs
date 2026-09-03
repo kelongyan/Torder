@@ -8,6 +8,7 @@ pub mod list;
 pub mod recurring;
 pub mod settings;
 pub mod sync;
+pub mod tag;
 pub mod task;
 pub mod task_link;
 

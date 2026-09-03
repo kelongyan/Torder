@@ -273,6 +273,7 @@ pub fn run() {
             commands::widget::read_note_font_bytes,
             #[cfg(desktop)]
             commands::mini::toggle_mini,
+            commands::tag::manage_tag,
             #[cfg(desktop)]
             commands::widget::remove_note_font,
         ])
