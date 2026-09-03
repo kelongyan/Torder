@@ -821,7 +821,8 @@ mark {
 /* F1 · T-05：由灰显占位转为真实控件（收起态是按钮，展开态是输入行） */
 .task-composer {
   display: flex;
-  width: 100%;
+  /* 不设 width:100%——侧边 20px margin 是设计稿安全边距，块级/flex-item 的
+     auto 宽度会自动扣掉 margin，正好内缩 20px；写 100% 会向右溢出容器 20px */
   min-height: 46px;
   align-items: center;
   gap: calc(var(--space-3) - 1px);
@@ -838,6 +839,28 @@ mark {
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
+}
+
+/* 桌面端列表视图：内容不足一屏时 composer 也要钉在可视区底部，与列表始终对齐。
+   content-motion 高度是 auto + min-height:100%，孙级（list-container）的百分比
+   高度解析不到，所以把链路显式 flex 化：content-motion-list → list-container
+   走列布局，list-container flex:1 拉伸占满，composer 用 margin-top:auto 下沉。
+   内容超过一屏时回到正常文档流（跟在最后一行任务后），无 fixed/sticky 的
+   containing-block 问题（content-reveal 动画的 transform 困不住 auto margin）。
+   board variant 嵌在列内不参与；mobile 端由 responsive.css 接管。 */
+.window-frame:not(.mobile) .content-motion-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.window-frame:not(.mobile) .content-motion-list .list-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.window-frame:not(.mobile) .content-motion-list .list-container > .task-composer {
+  margin-top: auto;
 }
 
 .task-composer:hover {
