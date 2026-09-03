@@ -56,3 +56,6 @@ src-tauri/*.keystore
 # tsc 编译 vite.config.ts 的副产物
 vite.config.d.ts
 vite.config.js
+
+# 开发规划（私有，仅本地，不提交远端）
+docx/
