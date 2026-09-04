@@ -234,3 +234,90 @@ describe("listProgress 清单进度口径", () => {
     });
   });
 });
+
+describe("逾期自动顺延 · 跨日与日期边界（真机需改系统时间，由测试锁定）", () => {
+  it("仅截止（无计划日）：顺延后 dueAt 平移到明天，次日不再逾期 → 幂等", () => {
+    const task = makeTask({ dueAt: at(2026, 9, 1, 18) });
+    const first = overdueShiftPatches([task], "2026-09-03");
+    expect(first).toHaveLength(1);
+    const shifted: Task = { ...task, dueAt: first[0].patch.dueAt as string };
+    // 次日（09-04）再跑：dueAt 就在当天，不算逾期
+    expect(overdueShiftPatches([shifted], "2026-09-04")).toEqual([]);
+    expect(overdueShiftPatches([shifted], "2026-09-04")).toEqual([]);
+  });
+
+  it("有计划日：顺延只改计划日、dueAt 不改写 → 次日仍判逾期，逐日顺延（现状快照）", () => {
+    // 现状语义：overdueTodos 只看 dueAt 判定逾期，而 shiftOverdueTaskPatch
+    // 优先改写 scheduledDate；两者不同步，故有计划日的逾期任务会每天 +1 天，
+    // 且因 dueAt 永不变而始终处于逾期态。此用例锁定该现状，语义若调整须同步改。
+    const task = makeTask({
+      scheduledDate: "2026-09-01",
+      dueAt: at(2026, 9, 1, 18),
+    });
+    const day1 = overdueShiftPatches([task], "2026-09-03");
+    expect(day1[0].patch.scheduledDate).toBe("2026-09-04");
+
+    const afterDay1: Task = { ...task, ...(day1[0].patch as Partial<Task>) };
+    const day2 = overdueShiftPatches([afterDay1], "2026-09-04");
+    expect(day2).toHaveLength(1);
+    expect(day2[0].patch.scheduledDate).toBe("2026-09-05");
+
+    const afterDay2: Task = {
+      ...afterDay1,
+      ...(day2[0].patch as Partial<Task>),
+    };
+    expect(
+      overdueShiftPatches([afterDay2], "2026-09-05")[0].patch.scheduledDate,
+    ).toBe("2026-09-06");
+  });
+
+  it("顺延目标日期进位：月末 / 跨年 / 闰年 / 平年", () => {
+    const monthEnd = makeTask({
+      scheduledDate: "2026-01-29",
+      dueAt: at(2026, 1, 29),
+    });
+    expect(
+      overdueShiftPatches([monthEnd], "2026-01-31")[0].patch.scheduledDate,
+    ).toBe("2026-02-01");
+
+    const yearEnd = makeTask({
+      scheduledDate: "2026-12-29",
+      dueAt: at(2026, 12, 29),
+    });
+    expect(
+      overdueShiftPatches([yearEnd], "2026-12-31")[0].patch.scheduledDate,
+    ).toBe("2027-01-01");
+
+    const leapYear = makeTask({
+      scheduledDate: "2028-02-26",
+      dueAt: at(2028, 2, 26),
+    });
+    expect(
+      overdueShiftPatches([leapYear], "2028-02-28")[0].patch.scheduledDate,
+    ).toBe("2028-02-29");
+
+    const commonYear = makeTask({
+      scheduledDate: "2026-02-26",
+      dueAt: at(2026, 2, 26),
+    });
+    expect(
+      overdueShiftPatches([commonYear], "2026-02-28")[0].patch.scheduledDate,
+    ).toBe("2026-03-01");
+  });
+
+  it("跨日边界：昨天 23 点算逾期，今天 0 点不算（按本地日期键比较）", () => {
+    const lastNight = makeTask({ dueAt: at(2026, 9, 2, 23) });
+    const thisMorning = makeTask({ dueAt: at(2026, 9, 3, 0) });
+    const patches = overdueShiftPatches([lastNight, thisMorning], "2026-09-03");
+    expect(patches).toHaveLength(1);
+    expect(patches[0].taskId).toBe(lastNight.id);
+  });
+
+  it("顺延保留原截止时刻（只换日期、不改成正午）", () => {
+    const task = makeTask({ dueAt: at(2026, 9, 1, 18) });
+    const patch = overdueShiftPatches([task], "2026-09-03")[0];
+    const shifted = new Date(patch.patch.dueAt as string);
+    expect(shifted.getHours()).toBe(18);
+    expect(shifted.getMinutes()).toBe(0);
+  });
+});
