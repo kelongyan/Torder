@@ -1478,3 +1478,86 @@
 .m-review-duo-list .m-review-empty {
   color: var(--text-3);
 }
+
+/* ---- M-D：外观 Sheet 与 Me 详情 ---- */
+.m-badge {
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-appearance-body {
+  padding-top: 6px;
+}
+.m-appearance-label {
+  margin: 14px 2px 8px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--text-3);
+}
+.m-appearance-label:first-child {
+  margin-top: 4px;
+}
+.m-appearance-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.m-appearance-theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 84px;
+  justify-content: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--stroke);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.m-appearance-theme-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.m-appearance-accent-row {
+  display: flex;
+  gap: 14px;
+  padding: 4px 2px;
+}
+.m-appearance-accent {
+  flex: 1;
+  aspect-ratio: 1;
+  max-width: 44px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.m-appearance-accent.selected {
+  border-color: var(--text-1);
+  box-shadow: 0 0 0 2px var(--mica);
+}
+.m-appearance-font-row {
+  display: flex;
+  gap: 8px;
+}
+.m-appearance-font-chip {
+  flex: 1;
+  height: 40px;
+  border-radius: var(--radius);
+  border: 1px solid var(--stroke);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.m-appearance-font-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}

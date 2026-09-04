@@ -34,6 +34,12 @@ export interface MobileShellProps {
   onToast: (message: string, kind?: "success" | "error" | "info") => void;
   onToggleTask: (task: Task) => void;
   onSaveTask: (input: UpdateTaskInput) => Promise<void> | void;
+  /** 设置字段落盘并同步 App 本地 state（saveAppSetting + setSettings 合并） */
+  onSavePreference: <K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K],
+  ) => Promise<void>;
+  /** 移入回收站（软删除）：前置确认已由移动端 ConfirmSheet/滑删语义完成 */
   onDeleteTask: (task: Task) => void;
   onRestoreTask: (task: Task) => void;
   onPermanentDeleteTask: (task: Task) => void;

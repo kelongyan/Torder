@@ -1338,7 +1338,15 @@ function App() {
     onToast: (message, kind) => pushToast(message, kind ?? "info"),
     onToggleTask: (task) => void handleToggleTask(task),
     onSaveTask: (input) => handleSaveTask(input),
-    onDeleteTask: (task) => requestDeleteTask(task),
+    onSavePreference: async (key, value) => {
+      await saveAppSetting(key, value);
+      setSettings((current) => ({ ...current, [key]: value }));
+    },
+    // 移动端删除：前置确认已由移动端 ConfirmSheet 完成（菜单/详情/滑删），
+    // 此处直接走 store 软删除（避免与桌面 requestDeleteTask 的确认框叠加）。
+    onDeleteTask: (task) => {
+      void useTaskStore.getState().removeTask(task.id);
+    },
     onRestoreTask: (task) => void handleRestoreTask(task),
     onPermanentDeleteTask: (task) => void requestPermanentDeleteTask(task),
   };

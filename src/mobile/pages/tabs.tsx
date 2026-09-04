@@ -1,12 +1,11 @@
 /**
- * mobile/pages/tabs.tsx — 四个主 Tab 落地屏（M-A 基础版）
- *   today   今日（问候 + 逾期/时间轴/全天/今日已完成 的轻量分组）
+ * mobile/pages/tabs.tsx — 四个主 Tab 落地屏
+ *   today   今日（问候/快捷芯片 + 逾期/时间轴/全天/今日已完成）
  *   browse  浏览（智能视图 8 + 清单 + 标签 + 工具）
  *   calendar 月历（复用 MonthCalendar）
- *   me      我的（设置分组入口，M-D 换真页）
- * 数据全部取自 store 的 allTasks 本地派生，不动桌面 scope/layout 状态。
+ *   me      我的（外观真改 Sheet + 设置入口分组，M-D）
  */
-import { useMemo, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import {
   AlertCircle,
   Calendar,
@@ -16,18 +15,33 @@ import {
   Flame,
   Hash,
   ListTodo,
+  Monitor,
+  Moon,
+  Palette,
   Repeat2,
   Search,
   Settings,
   Star,
+  Sun,
   Trash2,
   TrendingUp,
+  Type,
 } from "lucide-react";
 import { useTaskStore } from "../../stores/taskStore";
 import { viewScope } from "../../stores/taskStore";
 import { filterAndSortTasks, localDateKey } from "../../services/taskQuery";
 import { buildCounts } from "../../utils/taskHelpers";
 import type { Task } from "../../types/database";
+import type {
+  AccentPreference,
+  FontSizePreference,
+  ThemePreference,
+} from "../../types/settings";
+import {
+  applyAccentPreference,
+  applyFontSizeScale,
+  applyThemePreference,
+} from "../../utils/theme";
 import { MonthCalendar } from "../../components/task/MonthCalendar";
 import { useMobilePage } from "../router";
 import { useMobileProps } from "../context";
@@ -113,7 +127,6 @@ export function TodayScreen(): JSX.Element {
     onMore: openMore,
   };
   const today = new Date();
-  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
   const pendingCount = overdue.length + timed.length + allday.length;
 
   const quickChips: Array<{ label: string; path: string; danger?: boolean }> = [
@@ -132,7 +145,7 @@ export function TodayScreen(): JSX.Element {
       topbar={
         <TopBar
           title="Torder"
-          sub={`${today.getMonth() + 1}月${today.getDate()}日 · 周${weekdays[today.getDay()]}`}
+          sub="今序 · 待办清单"
           actions={[
             {
               icon: <Search aria-hidden="true" />,
@@ -435,10 +448,38 @@ export function CalendarScreen(): JSX.Element {
 
 /* ================= 我的 ================= */
 
+const THEME_LABELS: Record<ThemePreference, string> = {
+  light: "浅色",
+  dark: "深色",
+  system: "跟随系统",
+};
+
+const ACCENT_LABELS: Array<{
+  value: AccentPreference;
+  label: string;
+  color: string;
+}> = [
+  { value: "blue", label: "海蓝", color: "#6e9bff" },
+  { value: "violet", label: "紫罗兰", color: "#a98af5" },
+  { value: "teal", label: "青碧", color: "#4bc0c8" },
+  { value: "green", label: "森绿", color: "#43c48d" },
+  { value: "amber", label: "琥珀", color: "#e8b04b" },
+  { value: "rose", label: "玫粉", color: "#f0819e" },
+];
+
+const FONT_LABELS: Array<{ value: FontSizePreference; label: string }> = [
+  { value: "small", label: "小" },
+  { value: "standard", label: "标准" },
+  { value: "large", label: "大" },
+];
+
 export function MeScreen(): JSX.Element {
   const { nav } = useMobilePage();
   const props = useMobileProps();
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const syncConfigured = props.syncStatus != null;
+  const accentLabel =
+    ACCENT_LABELS.find((a) => a.value === props.settings.accent)?.label ?? "";
 
   return (
     <ScreenShell topbar={<TopBar title="我的" />}>
@@ -450,13 +491,24 @@ export function MeScreen(): JSX.Element {
         </div>
       </div>
 
-      <SectionTitle>外观与默认</SectionTitle>
+      <SectionTitle>外观与显示</SectionTitle>
       <div className="m-group-card">
         <NavRow
           tint="var(--accent)"
-          icon={<Settings aria-hidden="true" />}
-          label="主题、强调色与字号"
-          onClick={() => props.openSettingsDialog()}
+          icon={<Palette aria-hidden="true" />}
+          label="主题与强调色"
+          badge={`${THEME_LABELS[props.settings.theme] ?? "深色"} · ${accentLabel}`}
+          onClick={() => setAppearanceOpen(true)}
+        />
+        <NavRow
+          tint="var(--accent)"
+          icon={<Type aria-hidden="true" />}
+          label="字号"
+          badge={
+            FONT_LABELS.find((f) => f.value === props.settings.fontSize)
+              ?.label ?? "标准"
+          }
+          onClick={() => setAppearanceOpen(true)}
         />
       </div>
 
@@ -466,6 +518,12 @@ export function MeScreen(): JSX.Element {
           tint={syncConfigured ? "var(--green)" : "var(--amber)"}
           icon={<ListTodo aria-hidden="true" />}
           label={syncConfigured ? "WebDAV 同步已配置" : "WebDAV 同步未配置"}
+          onClick={() => props.openSettingsDialog()}
+        />
+        <NavRow
+          tint="var(--text-3)"
+          icon={<Settings aria-hidden="true" />}
+          label="备份、导入导出与更多设置"
           onClick={() => props.openSettingsDialog()}
         />
       </div>
@@ -492,7 +550,122 @@ export function MeScreen(): JSX.Element {
         />
       </div>
 
-      <p className="m-me-foot">Torder 今序 · 移动端界面（重构批次 M-A）</p>
+      <p className="m-me-foot">Torder 今序 2.7.0 · 安卓移动端</p>
+
+      {appearanceOpen && (
+        <AppearanceSheet onClose={() => setAppearanceOpen(false)} />
+      )}
     </ScreenShell>
+  );
+}
+
+/** 外观直改 Sheet：主题三卡 + 强调色六色板 + 字号三档（真实生效并落盘） */
+function AppearanceSheet({ onClose }: { onClose: () => void }): JSX.Element {
+  const props = useMobileProps();
+  const themeCleanup = useRef<(() => void) | null>(null);
+  const { settings } = props;
+
+  useEffect(() => () => themeCleanup.current?.(), []);
+
+  async function persist<K extends keyof typeof settings>(
+    key: K,
+    value: (typeof settings)[K],
+  ) {
+    try {
+      await props.onSavePreference(key as never, value as never);
+    } catch (error) {
+      props.onToast(`设置保存失败：${String(error)}`, "error");
+    }
+  }
+
+  function pickTheme(theme: ThemePreference) {
+    themeCleanup.current?.();
+    themeCleanup.current = applyThemePreference(theme);
+    void persist("theme", theme);
+  }
+  function pickAccent(accent: AccentPreference) {
+    applyAccentPreference(accent);
+    void persist("accent", accent);
+  }
+  function pickFont(size: FontSizePreference) {
+    applyFontSizeScale(size);
+    void persist("fontSize", size);
+  }
+
+  return (
+    <div
+      className="m-scrim m-scrim-open"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="m-sheet" role="dialog" aria-modal="true">
+        <div className="m-sheet-title">外观</div>
+        <div className="m-sheet-body m-appearance-body">
+          <div className="m-appearance-label">主题</div>
+          <div className="m-appearance-theme-grid">
+            {(["light", "dark", "system"] as ThemePreference[]).map((theme) => (
+              <button
+                key={theme}
+                type="button"
+                className={`m-appearance-theme-card ${settings.theme === theme ? "active" : ""}`}
+                onClick={() => {
+                  navigator.vibrate?.(8);
+                  pickTheme(theme);
+                }}
+              >
+                {theme === "light" ? (
+                  <Sun aria-hidden="true" />
+                ) : theme === "dark" ? (
+                  <Moon aria-hidden="true" />
+                ) : (
+                  <Monitor aria-hidden="true" />
+                )}
+                <span>{THEME_LABELS[theme]}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="m-appearance-label">强调色</div>
+          <div className="m-appearance-accent-row">
+            {ACCENT_LABELS.map((accent) => (
+              <button
+                key={accent.value}
+                type="button"
+                className={`m-appearance-accent ${settings.accent === accent.value ? "selected" : ""}`}
+                aria-label={accent.label}
+                title={accent.label}
+                style={{ background: accent.color }}
+                onClick={() => {
+                  navigator.vibrate?.(8);
+                  pickAccent(accent.value);
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="m-appearance-label">字号</div>
+          <div className="m-appearance-font-row">
+            {FONT_LABELS.map((font) => (
+              <button
+                key={font.value}
+                type="button"
+                className={`m-appearance-font-chip ${settings.fontSize === font.value ? "active" : ""}`}
+                onClick={() => {
+                  navigator.vibrate?.(8);
+                  pickFont(font.value);
+                }}
+              >
+                {font.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button type="button" className="m-sheet-cancel" onClick={onClose}>
+          完成
+        </button>
+      </div>
+    </div>
   );
 }
