@@ -1,0 +1,249 @@
+/* ============================================================================
+ * tokens.css — 移动端设计令牌（唯一颜色/尺寸来源）
+ *
+ * 颜色角色与桌面端 theme-tokens.css 一一对应（同名 --text-1/--accent/…），
+ * 后续安卓重构时可直接映射回 Rust/前端主题层；这里只追加移动端专属的
+ * 表面层级、触摸尺寸与安全区令牌。默认深色，[data-theme="light"] 切换浅色。
+ * ========================================================================== */
+
+:root {
+  /* ---- 动效 ---- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1); /* 页面/弹层进入 */
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-micro: 120ms;
+  --dur-fast: 180ms;
+  --dur-page: 280ms;
+  --dur-sheet: 320ms;
+
+  /* ---- 字号阶梯（移动端略放大，保证触读距离） ---- */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+
+  /* ---- 4px 间距栅格 ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* ---- 圆角 ---- */
+  --r-xs: 8px;
+  --r-sm: 10px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+
+  /* ---- 触摸目标（WCAG 2.5.5 / M3 最小 48dp，FAB 56dp） ---- */
+  --touch-min: 44px;
+  --touch-comfort: 48px;
+  --fab-size: 56px;
+
+  /* ---- 结构尺寸 ---- */
+  --app-header-h: 52px;
+  --tabbar-h: 64px;
+  --sheet-handle-w: 36px;
+
+  /* ---- 安全区（真机刘海/手势条） ---- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ---- 字体栈（与桌面 --font-ui 对齐） ---- */
+  --font-ui:
+    "Source Han Sans SC", "Noto Sans SC", "Noto Sans CJK SC",
+    "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* ============================================================================
+ * 深色主题（默认，对齐桌面 Dracula 基调）
+ * ========================================================================== */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* 背景与表面层级 */
+  --page-bg: #282a36;
+  --page-bg-gradient:
+    radial-gradient(130% 60% at 50% 0%, rgba(189, 147, 249, 0.10) 0%, rgba(40, 42, 54, 0) 70%),
+    #282a36;
+  --surface: #343746;           /* 卡片 */
+  --surface-2: #3d4153;         /* 抬升表面 / 输入框 */
+  --surface-3: #44475a;         /* 按下态 */
+  --scrim: rgba(20, 21, 30, 0.62);
+
+  /* 描边 */
+  --hairline: rgba(98, 114, 164, 0.28);
+  --hairline-strong: rgba(98, 114, 164, 0.5);
+
+  /* 文本 */
+  --text-1: #f8f8f2;
+  --text-2: #c3ccdb;
+  --text-3: #8b97b8;
+  --text-on-accent: #282a36;
+
+  /* 品牌强调色（深色 = 紫，与桌面深色一致） */
+  --accent: #bd93f9;
+  --accent-hi: #d1b3ff;
+  --accent-soft: rgba(189, 147, 249, 0.18);
+  --accent-line: rgba(189, 147, 249, 0.42);
+
+  /* 语义色 */
+  --red: #ff5555;
+  --amber: #ffb86c;
+  --blue: #8be9fd;
+  --green: #50fa7b;
+  --rose: #ff79c6;
+  --teal: #4bc0c8;
+
+  --red-soft: rgba(255, 85, 85, 0.16);
+  --amber-soft: rgba(255, 184, 108, 0.16);
+  --blue-soft: rgba(139, 233, 253, 0.14);
+  --green-soft: rgba(80, 250, 123, 0.14);
+
+  /* 阴影 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.22);
+  --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 4px 20px -2px rgba(0, 0, 0, 0.55);
+
+  /* 底栏 / 顶栏磨砂 */
+  --bar-bg: rgba(40, 42, 54, 0.92);
+  --blur-bar: blur(18px);
+}
+
+/* ============================================================================
+ * 浅色主题（对齐桌面 light）
+ * ========================================================================== */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --page-bg: #f4f6fa;
+  --page-bg-gradient:
+    radial-gradient(120% 55% at 50% 0%, rgba(37, 99, 235, 0.08) 0%, rgba(244, 246, 250, 0) 70%),
+    linear-gradient(180deg, #f8fafd 0%, #f1f4f9 100%);
+  --surface: #ffffff;
+  --surface-2: #f1f4f9;
+  --surface-3: #e7ecf3;
+  --scrim: rgba(15, 23, 42, 0.36);
+
+  --hairline: rgba(15, 23, 42, 0.09);
+  --hairline-strong: rgba(15, 23, 42, 0.18);
+
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --text-on-accent: #ffffff;
+
+  --accent: #2563eb;
+  --accent-hi: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.10);
+  --accent-line: rgba(37, 99, 235, 0.30);
+
+  --red: #dc2626;
+  --amber: #d97706;
+  --blue: #0284c7;
+  --green: #059669;
+  --rose: #e11d48;
+  --teal: #0d9488;
+
+  --red-soft: rgba(220, 38, 38, 0.08);
+  --amber-soft: rgba(217, 119, 6, 0.10);
+  --blue-soft: rgba(2, 132, 199, 0.08);
+  --green-soft: rgba(5, 150, 105, 0.08);
+
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 6px 16px rgba(15, 23, 42, 0.05);
+  --shadow-sheet: 0 -8px 32px rgba(15, 23, 42, 0.16);
+  --shadow-fab: 0 6px 18px rgba(37, 99, 235, 0.32), 0 2px 6px rgba(15, 23, 42, 0.12);
+  --shadow-pop: 0 4px 16px -2px rgba(15, 23, 42, 0.12);
+
+  --bar-bg: rgba(255, 255, 255, 0.9);
+}
+
+/* ============================================================================
+ * 强调色预设（对齐桌面 data-accent 六色板；blue 为浅色默认无属性，
+ * 深色默认走紫色基调故 violet 为深色缺省 —— 由 app 在切换主题时同步）
+ * ========================================================================== */
+:root[data-accent="violet"] {
+  --accent: #a98af5;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+  --text-on-accent: #0b1020;
+}
+:root[data-accent="teal"] {
+  --accent: #4bc0c8;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+  --text-on-accent: #0b1020;
+}
+:root[data-accent="green"] {
+  --accent: #43c48d;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+  --text-on-accent: #0b1020;
+}
+:root[data-accent="amber"] {
+  --accent: #e8b04b;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+  --text-on-accent: #0b1020;
+}
+:root[data-accent="rose"] {
+  --accent: #f0819e;
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+  --text-on-accent: #0b1020;
+}
+:root[data-accent="blue"] {
+  --accent: #6aa6ff;
+  --accent-hi: color-mix(in srgb, var(--accent) 80%, #fff);
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 42%, transparent);
+  --text-on-accent: #0b1020;
+}
+:root[data-theme="light"][data-accent="violet"] { --accent: #9333ea; --accent-hi: #7e22ce; --accent-soft: rgba(147, 51, 234, 0.10); --accent-line: rgba(147, 51, 234, 0.30); --text-on-accent: #fff; }
+:root[data-theme="light"][data-accent="teal"]   { --accent: #0d9488; --accent-hi: #0f766e; --accent-soft: rgba(13, 148, 136, 0.10); --accent-line: rgba(13, 148, 136, 0.30); --text-on-accent: #fff; }
+:root[data-theme="light"][data-accent="green"]  { --accent: #059669; --accent-hi: #047857; --accent-soft: rgba(5, 150, 105, 0.10); --accent-line: rgba(5, 150, 105, 0.30); --text-on-accent: #fff; }
+:root[data-theme="light"][data-accent="amber"]  { --accent: #d97706; --accent-hi: #b45309; --accent-soft: rgba(217, 119, 6, 0.10); --accent-line: rgba(217, 119, 6, 0.30); --text-on-accent: #fff; }
+:root[data-theme="light"][data-accent="rose"]   { --accent: #e11d48; --accent-hi: #be123c; --accent-soft: rgba(225, 29, 72, 0.10); --accent-line: rgba(225, 29, 72, 0.30); --text-on-accent: #fff; }
+:root[data-theme="light"][data-accent="blue"]   { --accent: #2563eb; --accent-hi: #1d4ed8; --accent-soft: rgba(37, 99, 235, 0.10); --accent-line: rgba(37, 99, 235, 0.30); --text-on-accent: #fff; }
+
+/* ---- 字号档位（设置页可切，整体 ±1px，对齐桌面 data-font-size 思路） ---- */
+:root[data-font-size="small"] {
+  --fs-2xs: 10px; --fs-xs: 11px; --fs-sm: 12px; --fs-base: 13px;
+  --fs-md: 15px; --fs-lg: 17px; --fs-xl: 20px; --fs-2xl: 26px;
+}
+:root[data-font-size="large"] {
+  --fs-2xs: 12px; --fs-xs: 13px; --fs-sm: 14px; --fs-base: 15px;
+  --fs-md: 17px; --fs-lg: 19px; --fs-xl: 24px; --fs-2xl: 30px;
+}
+
+/* ============================================================================
+ * 清单调色板（镜像 constants/listConfig.ts presetListColors，8 色）
+ * ========================================================================== */
+:root {
+  --list-indigo: #6366f1;
+  --list-emerald: #10b981;
+  --list-cyan: #06b6d4;
+  --list-amber: #f59e0b;
+  --list-red: #ef4444;
+  --list-purple: #a855f7;
+  --list-pink: #ec4899;
+  --list-slate: #64748b;
+}

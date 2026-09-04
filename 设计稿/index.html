@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-accent="violet">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Torder 今序 · 移动端 UI 设计稿</title>
+  <meta name="description" content="Torder 安卓端 UI 重构设计稿（纯静态 HTML/CSS/JS 模块化实现）" />
+
+  <!-- 设计系统：令牌 → 基础 → 外壳 → 组件 → 任务 → 视图，顺序不可调换 -->
+  <link rel="stylesheet" href="./css/tokens.css" />
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shell.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/task.css" />
+  <link rel="stylesheet" href="./css/views.css" />
+</head>
+<body>
+  <div class="stage">
+    <aside class="stage-note">
+      <h2>Torder · 移动端设计稿</h2>
+      <p>纯静态实现，无构建、无外部依赖。</p>
+      <p>窄屏（≤760px）自动铺满；桌面端以手机框预览。</p>
+      <p>可体验：页面栈转场、底部 Tab、长按/拖拽滑动任务行、底部弹层、专注计时、深浅主题切换。</p>
+      <p style="margin-top:10px">目录结构与设计决策见 <code>README.md</code>。</p>
+    </aside>
+
+    <!-- 手机舞台：所有屏幕都在 .phone 内渲染 -->
+    <div class="phone">
+      <div class="screen-root"><!-- 路由注入屏幕 --></div>
+      <!-- 状态栏 / Tab 栏 / Sheet / Toast 由 JS 挂载 -->
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

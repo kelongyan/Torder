@@ -1,0 +1,159 @@
+/* ============================================================================
+ * task.css — 任务行 / 滑动操作 / 分组卡片 / 今日议程时间轴
+ * ========================================================================== */
+
+/* ---------- 滑动容器（左滑完成、右滑删除，手势由 gestures.js 驱动） ---------- */
+.swipe {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: var(--sp-2);
+}
+.swipe-track {
+  position: relative;
+  z-index: 1;
+  transition: transform var(--dur-fast) var(--ease-standard);
+  background: var(--surface);
+  border-radius: var(--r-md);
+}
+.swipe.is-dragging .swipe-track { transition: none; }
+.swipe-action {
+  position: absolute; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 80px;
+  color: #fff;
+  font-size: var(--fs-xs);
+  flex-direction: column; gap: 4px;
+  z-index: 0;
+}
+.swipe-action .i { width: 20px; height: 20px; }
+.swipe-left { left: 0; background: var(--green); border-radius: var(--r-md) 0 0 var(--r-md); }
+.swipe-right { right: 0; background: var(--red); border-radius: 0 var(--r-md) var(--r-md) 0; }
+
+/* ---------- 任务行 ---------- */
+.task-row {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-3);
+  min-height: 56px;
+  border-radius: var(--r-md);
+}
+.task-row:active { background: var(--surface-2); }
+.task-row .check { margin-top: 2px; }
+.task-main { flex: 1; min-width: 0; }
+.task-title-line { display: flex; align-items: center; gap: 6px; }
+.task-title {
+  font-size: var(--fs-base);
+  color: var(--text-1);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.task-row.completed .task-title {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-3);
+}
+.pri-flag { display: inline-flex; flex: none; }
+.pri-flag.priority-high { color: var(--red); }
+.pri-flag.priority-medium { color: var(--amber); }
+.pri-flag.priority-low { color: var(--blue); }
+
+.task-meta {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 4px var(--sp-3);
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.task-meta .meta-item { display: inline-flex; align-items: center; gap: 3px; }
+.task-meta .meta-item .i { width: 12px; height: 12px; }
+.task-meta .due.today { color: var(--accent); font-weight: 600; }
+.task-meta .due.overdue { color: var(--red); font-weight: 600; }
+.task-meta .due.tomorrow { color: var(--text-2); }
+.task-meta .meta-list { display: inline-flex; align-items: center; gap: 4px; }
+.task-row-chevron { color: var(--text-3); margin-top: 4px; }
+
+/* ---------- 今日议程：时间槽（位于任务行最左侧） ---------- */
+.agenda-time {
+  width: 42px; flex: none;
+  text-align: left;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  padding-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.now-line {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+}
+.now-line .now-time {
+  font-size: 11px; font-weight: 700; color: var(--red);
+  font-variant-numeric: tabular-nums;
+}
+.now-line .now-track { flex: 1; height: 2px; background: color-mix(in srgb, var(--red) 55%, transparent); position: relative; }
+.now-line .now-track::after {
+  content: ""; position: absolute; right: 0; top: -3px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--red);
+}
+
+/* ---------- 今日节奏卡 ---------- */
+.pace-card {
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, var(--surface)) 0%, var(--surface) 70%);
+  box-shadow: var(--shadow-card);
+}
+.pace-top { display: flex; align-items: baseline; gap: var(--sp-2); }
+.pace-top strong { font-size: var(--fs-2xl); font-weight: 700; color: var(--accent); }
+.pace-top span { font-size: var(--fs-sm); color: var(--text-2); }
+.pace-card .progress { margin: var(--sp-3) 0 var(--sp-2); height: 8px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.pace-foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); }
+.pace-foot .overdue { color: var(--red); font-weight: 600; }
+
+/* ---------- 分组卡片（list/agenda 段落） ---------- */
+.group-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--sp-4);
+  position: relative;
+}
+.group-card::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--group-accent, var(--accent));
+  opacity: 0.85;
+}
+.group-card.danger::before { background: var(--red); }
+.group-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+}
+.group-card-head h3 { font-size: var(--fs-sm); color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+.group-card-head .head-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--group-accent, var(--accent)); }
+.group-card-body { padding: 0 var(--sp-2) var(--sp-2); }
+.group-card-body .swipe:last-child { margin-bottom: 0; }
+.group-card-body .task-row { background: transparent; box-shadow: none; }
+/* 轨道必须不透明以遮住底层滑动动作色（与卡片同色，视觉无界） */
+.group-card-body .swipe-track { background: var(--surface); }
+.group-card-body .swipe-track:active { background: var(--surface-2); }
+.group-card-body .swipe-track:active .task-row { background: transparent; }
+
+/* ---------- 浏览页：导航行 ---------- */
+.nav-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-height: var(--touch-comfort);
+  padding: var(--sp-2) var(--sp-3);
+  width: 100%; text-align: left;
+  border-radius: var(--r-sm);
+}
+.nav-row:active { background: var(--surface-2); }
+.nav-row .nav-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.nav-row .nav-label { flex: 1; font-size: var(--fs-base); }
+.nav-row .i.chevron { color: var(--text-3); }

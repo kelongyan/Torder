@@ -44,9 +44,6 @@ RULE.md
 output/
 codex-notes/
 
-# Local-only UI mockup (high-fidelity static render, never commit)
-设计稿/
-
 # Tauri generated mobile project (init/build artifacts, contains 2.5GB gradle+APK)
 src-tauri/gen/
 
