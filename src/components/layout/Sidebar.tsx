@@ -17,6 +17,7 @@ import { DEFAULT_LIST_COLOR } from "../../constants/listConfig";
 import { systemNav } from "../../constants/taskConfig";
 import { taskViewCopy } from "../../constants/taskViews";
 import { isScopeActive } from "../../utils/taskHelpers";
+import { isMobile } from "../../utils/platform";
 import { listScope, viewScope } from "../../stores/taskStore";
 import type { TaskList, TaskScope } from "../../types/database";
 import type { SavedTaskView, SavedViewIcon } from "../../types/settings";
@@ -105,19 +106,22 @@ export function Sidebar({
           <div className="brand-title">Torder</div>
           <div className="brand-subtitle">待办清单</div>
         </div>
-        <button
-          type="button"
-          className="brand-collapse"
-          onClick={toggleSidebarCollapsed}
-          aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
-          title={collapsed ? "展开侧栏 (Ctrl B)" : "折叠侧栏 (Ctrl B)"}
-        >
-          {collapsed ? (
-            <ChevronRight aria-hidden="true" className="icon-sm" />
-          ) : (
-            <ChevronLeft aria-hidden="true" className="icon-sm" />
-          )}
-        </button>
+        {/* 安卓端：侧栏为抽屉形态，靠 onClose 关闭；折叠态（68px 图标条）是桌面专属交互 */}
+        {!isMobile() && (
+          <button
+            type="button"
+            className="brand-collapse"
+            onClick={toggleSidebarCollapsed}
+            aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
+            title={collapsed ? "展开侧栏 (Ctrl B)" : "折叠侧栏 (Ctrl B)"}
+          >
+            {collapsed ? (
+              <ChevronRight aria-hidden="true" className="icon-sm" />
+            ) : (
+              <ChevronLeft aria-hidden="true" className="icon-sm" />
+            )}
+          </button>
+        )}
         {onClose && (
           <button
             type="button"
@@ -185,9 +189,12 @@ export function Sidebar({
               </button>
             </div>
           ) : (
-            <kbd className="search-kbd" aria-hidden="true">
-              Ctrl F
-            </kbd>
+            /* 安卓端：无物理键盘，Ctrl F 提示无意义（搜索入口直接在侧栏内可见） */
+            !isMobile() && (
+              <kbd className="search-kbd" aria-hidden="true">
+                Ctrl F
+              </kbd>
+            )
           )}
         </div>
       )}
