@@ -55,6 +55,8 @@ import {
 
 import { Sidebar } from "../components/layout/Sidebar";
 import { BottomNav } from "../components/layout/BottomNav";
+import { MobileShell } from "../mobile/MobileShell";
+import type { MobileShellProps } from "../mobile/types";
 import { MainHeader } from "../components/layout/MainHeader";
 import { TaskListView } from "../components/task/TaskListView";
 import { TaskBoard } from "../components/task/TaskBoard";
@@ -1319,6 +1321,30 @@ function App() {
 
   const displayError = error ?? appError;
 
+  // M-A：移动壳 props —— 复用桌面同一批闭包动作，保证行为一致。
+  const mobileShellProps: MobileShellProps = {
+    lists,
+    settings,
+    calendarEvents,
+    syncStatus,
+    tags: availableTags,
+    recurringCount: recurringRules.length,
+    loading,
+    attachmentCounts,
+    openCreateDialog: (scheduledDate, initialTitle) =>
+      openTaskCreateDialog(scheduledDate, initialTitle),
+    openSettingsDialog,
+    onNewCalendarEvent: openNewCalendarEvent,
+    onEditCalendarEvent: openEditCalendarEvent,
+    onMoveTaskDate: (taskId, dateKey) => handleMoveTaskDate(taskId, dateKey),
+    onToast: (message) => pushToast(message, "info"),
+    onToggleTask: (task) => void handleToggleTask(task),
+    onSaveTask: (input) => void handleSaveTask(input),
+    onDeleteTask: (task) => requestDeleteTask(task),
+    onRestoreTask: (task) => void handleRestoreTask(task),
+    onPermanentDeleteTask: (task) => void requestPermanentDeleteTask(task),
+  };
+
   return (
     <div
       className={[
@@ -1329,304 +1355,317 @@ function App() {
         .filter(Boolean)
         .join(" ")}
     >
-      {!mobile && <WindowTitleBar />}
+      {mobile ? (
+        <MobileShell {...mobileShellProps} />
+      ) : (
+        <>
+          <WindowTitleBar />
 
-      <div className="app-shell">
-        {mobileSidebarOpen && (
-          <button
-            type="button"
-            className="sidebar-backdrop"
-            onClick={closeMobileSidebar}
-            aria-label="关闭导航"
-          />
-        )}
-        <Sidebar
-          lists={lists}
-          scope={scope}
-          searchQuery={searchQuery}
-          counts={counts}
-          savedViews={settings.savedViews}
-          activeSavedViewId={activeSavedViewId}
-          tags={sidebarTags}
-          onOpenTagManager={() => setTagManagerOpen(true)}
-          activeTags={filter.tags}
-          onTagToggle={(tag) => void toggleFilterTag(tag)}
-          onClearTags={() => void clearFilterTags()}
-          onSearchChange={(query) => void setSearchQuery(query)}
-          onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
-          onSavedViewOpen={(view) => {
-            setSearchViewActive(false);
-            void handleOpenSavedView(view);
-          }}
-          onSavedViewAdd={openCreateSavedViewDialog}
-          onSavedViewEdit={openEditSavedViewDialog}
-          onSavedViewDelete={requestDeleteSavedView}
-          onAddList={openAddListDialog}
-          onEditList={openEditListDialog}
-          onDeleteList={requestDeleteList}
-          recurringActive={recurringViewActive}
-          recurringCount={recurringRules.length}
-          onOpenRecurring={openRecurringView}
-          searchActive={searchViewActive}
-          onSearchSubmit={handleOpenSearch}
-          onClose={closeMobileSidebar}
-        />
-
-        <main className="main">
-          <MainHeader
-            title={currentTitle}
-            detailOpen={Boolean(selectedTask)}
-            headerHidden={mobile && mobileHeaderHidden}
-            meta={
-              searchViewActive
-                ? `共找到 ${searchMatchingTasks.length} 项`
-                : scopeSubtitle
-            }
-            taskCount={
-              searchViewActive ? searchMatchingTasks.length : tasks.length
-            }
-            layout={effectiveLayout}
-            theme={settings.theme}
-            sortBy={sortBy}
-            sortAsc={sortAsc}
-            filter={filter}
-            filterCount={filterCount}
-            lists={lists}
-            tags={availableTags}
-            showCompleted={showCompleted}
-            batchMode={batchMode}
-            onOpenSidebar={openMobileSidebar}
-            onOpenCreate={() => openTaskCreateDialog()}
-            onLayoutChange={setLayout}
-            onThemeToggle={() => void handleThemeToggle()}
-            onOpenCommandPalette={openCommandPalette}
-            onMenuToggle={() => setMenuOpen((open) => !open)}
-            menuOpen={menuOpen}
-            onSortChange={(nextSort) => void handleSortChange(nextSort)}
-            onSortAscToggle={() => void handleSortAscToggle()}
-            onToggleFilterList={(listId) => void toggleFilterList(listId)}
-            onToggleFilterTag={(tag) => void toggleFilterTag(tag)}
-            onToggleFilterPriority={(priority) =>
-              void toggleFilterPriority(priority)
-            }
-            onToggleFilterCompleted={() => void toggleFilterCompleted()}
-            onClearFilter={() => void handleClearFilter()}
-            onShowCompletedChange={() => void handleShowCompletedChange()}
-            onOpenSettings={openSettingsDialog}
-            onOpenStats={openStatsDialog}
-            onOpenFocus={() => setFocusOpen(true)}
-            onToggleMini={() => void toggleMini()}
-            onOpenReview={() => setReviewOpen(true)}
-            onToggleBatchMode={toggleBatchMode}
-            syncStatus={syncStatus}
-            showLayoutControls={
-              !searchViewActive && !recurringViewActive && !deletedViewActive
-            }
-          />
-
-          {displayError && (
-            <div className="alert-banner" role="alert">
-              <AlertCircle aria-hidden="true" className="icon-sm" />
-              <span>{displayError}</span>
+          <div className="app-shell">
+            {mobileSidebarOpen && (
               <button
                 type="button"
-                onClick={() => {
-                  clearError();
-                  setAppError(null);
-                }}
-                aria-label="关闭错误"
-              >
-                <X aria-hidden="true" />
-              </button>
-            </div>
-          )}
-
-          {scope.kind === "list" &&
-            !searchViewActive &&
-            !recurringViewActive &&
-            !deletedViewActive &&
-            currentList && (
-              <ProjectHeader list={currentList} tasks={currentListTasks} />
+                className="sidebar-backdrop"
+                onClick={closeMobileSidebar}
+                aria-label="关闭导航"
+              />
             )}
-          <section className="content-panel" aria-label={`${currentTitle}任务`}>
-            <div
-              key={contentKey}
-              className={`content-motion content-motion-${effectiveLayout}`}
-            >
-              {searchViewActive ? (
-                <SearchResultView
-                  query={searchQuery}
-                  tasks={searchMatchingTasks}
-                  lists={lists}
-                  loading={loading}
-                  selectedTaskId={selectedTaskId}
-                  batchMode={batchMode}
-                  batchSelectedIds={batchSelectedIds}
-                  attachmentCounts={attachmentCounts}
-                  onOpenTask={(task) => selectTask(task.id)}
-                  onToggleTask={(task) => void handleToggleTask(task)}
-                  onDeleteTask={(task) => void requestDeleteTask(task)}
-                  onRestoreTask={(task) => void handleRestoreTask(task)}
-                  onPermanentDeleteTask={(task) =>
-                    void requestPermanentDeleteTask(task)
-                  }
-                  onToggleBatchSelected={toggleBatchSelected}
-                  onExitSearch={() => setSearchViewActive(false)}
-                  onOpenCreateDialog={(initialTitle) =>
-                    openTaskCreateDialog("", initialTitle)
-                  }
-                  onSaveAsView={openCreateSavedViewDialog}
-                />
-              ) : recurringViewActive ? (
-                <RecurringRulesView
-                  rules={recurringRules}
-                  lists={lists}
-                  loading={recurringLoading}
-                  onCreate={openNewRecurringDialog}
-                  onEdit={(rule) => {
-                    setEditingRecurringRule(rule);
-                    setRecurringSourceTask(null);
-                    setRecurringDialogOpen(true);
-                  }}
-                  onToggle={(rule) => void handleToggleRecurring(rule)}
-                  onSkip={(rule) => void handleSkipRecurring(rule)}
-                  onGenerate={(rule) => void handleGenerateRecurring(rule)}
-                  onDelete={requestDeleteRecurring}
-                />
-              ) : effectiveLayout === "list" ? (
-                <TaskListView
-                  tasks={tasks}
-                  completedToday={completedTodayTasks}
-                  lists={lists}
-                  loading={loading}
-                  selectedTaskId={selectedTaskId}
-                  batchMode={batchMode}
-                  batchSelectedIds={batchSelectedIds}
-                  searchQuery={searchQuery}
-                  scope={scope}
-                  defaultListId={defaultListId}
-                  trashRetentionDays={settings.trashRetentionDays}
-                  attachmentCounts={attachmentCounts}
-                  parseNaturalLanguage={settings.quickAddNaturalLanguage}
-                  moveCompletedImmediately={settings.moveCompletedImmediately}
-                  onOpenCreateDialog={() => openTaskCreateDialog()}
-                  onQuickCreate={handleQuickCreate}
-                  onOpen={(task) => selectTask(task.id)}
-                  onToggle={(task) => void handleToggleTask(task)}
-                  onDelete={requestDeleteTask}
-                  onRestore={(task) => void handleRestoreTask(task)}
-                  onPermanentDelete={requestPermanentDeleteTask}
-                  onToggleBatchSelected={toggleBatchSelected}
-                  onBatchComplete={() => void handleBatchComplete()}
-                  onBatchDelete={requestBatchDelete}
-                  onBatchRestore={() => void handleBatchRestore()}
-                  onBatchPermanentDelete={requestBatchPermanentDelete}
-                  onBatchEdit={() => setBatchEditOpen(true)}
-                  onExitBatch={clearBatchSelection}
-                  onEmptyTrash={requestEmptyTrash}
-                  onReorder={(sourceId, targetId) =>
-                    void handleReorderTask(sourceId, targetId)
-                  }
-                />
-              ) : effectiveLayout === "board" ? (
-                <TaskBoard
-                  tasks={tasks}
-                  lists={lists}
-                  searchQuery={searchQuery}
-                  selectedTaskId={selectedTaskId}
-                  defaultListId={defaultListId}
-                  onQuickCreate={handleQuickCreate}
-                  onOpen={(task) => selectTask(task.id)}
-                  onToggle={(task) => void handleToggleTask(task)}
-                  onMove={(task, columnId) =>
-                    void handleBoardMove(task, columnId)
-                  }
-                />
-              ) : effectiveLayout === "month" ? (
-                <MonthCalendar
-                  tasks={tasks}
-                  lists={lists}
-                  events={calendarEvents}
-                  showCompleted={showCompleted}
-                  onOpenTask={(task) => selectTask(task.id)}
-                  onCreateTask={(date) => openTaskCreateDialog(date)}
-                  onCreateEvent={openNewCalendarEvent}
-                  onEditEvent={openEditCalendarEvent}
-                  onMoveTaskDate={handleMoveTaskDate}
-                />
-              ) : effectiveLayout === "week" ? (
-                <WeekCalendar
-                  tasks={tasks}
-                  events={calendarEvents}
-                  showCompleted={showCompleted}
-                  onOpenTask={(task) => selectTask(task.id)}
-                  onCreateTask={(date) => openTaskCreateDialog(date)}
-                  onCreateEvent={openNewCalendarEvent}
-                  onEditEvent={openEditCalendarEvent}
-                  onMoveTaskDate={handleMoveTaskDate}
-                />
-              ) : (
-                <TaskCalendar
-                  tasks={tasks}
-                  lists={lists}
-                  searchQuery={searchQuery}
-                  selectedTaskId={selectedTaskId}
-                  onOpen={(task) => selectTask(task.id)}
-                  onToggle={(task) => void handleToggleTask(task)}
-                  onDelete={requestDeleteTask}
-                />
+            <Sidebar
+              lists={lists}
+              scope={scope}
+              searchQuery={searchQuery}
+              counts={counts}
+              savedViews={settings.savedViews}
+              activeSavedViewId={activeSavedViewId}
+              tags={sidebarTags}
+              onOpenTagManager={() => setTagManagerOpen(true)}
+              activeTags={filter.tags}
+              onTagToggle={(tag) => void toggleFilterTag(tag)}
+              onClearTags={() => void clearFilterTags()}
+              onSearchChange={(query) => void setSearchQuery(query)}
+              onScopeChange={(nextScope) => void handleSelectScope(nextScope)}
+              onSavedViewOpen={(view) => {
+                setSearchViewActive(false);
+                void handleOpenSavedView(view);
+              }}
+              onSavedViewAdd={openCreateSavedViewDialog}
+              onSavedViewEdit={openEditSavedViewDialog}
+              onSavedViewDelete={requestDeleteSavedView}
+              onAddList={openAddListDialog}
+              onEditList={openEditListDialog}
+              onDeleteList={requestDeleteList}
+              recurringActive={recurringViewActive}
+              recurringCount={recurringRules.length}
+              onOpenRecurring={openRecurringView}
+              searchActive={searchViewActive}
+              onSearchSubmit={handleOpenSearch}
+              onClose={closeMobileSidebar}
+            />
+
+            <main className="main">
+              <MainHeader
+                title={currentTitle}
+                detailOpen={Boolean(selectedTask)}
+                headerHidden={mobile && mobileHeaderHidden}
+                meta={
+                  searchViewActive
+                    ? `共找到 ${searchMatchingTasks.length} 项`
+                    : scopeSubtitle
+                }
+                taskCount={
+                  searchViewActive ? searchMatchingTasks.length : tasks.length
+                }
+                layout={effectiveLayout}
+                theme={settings.theme}
+                sortBy={sortBy}
+                sortAsc={sortAsc}
+                filter={filter}
+                filterCount={filterCount}
+                lists={lists}
+                tags={availableTags}
+                showCompleted={showCompleted}
+                batchMode={batchMode}
+                onOpenSidebar={openMobileSidebar}
+                onOpenCreate={() => openTaskCreateDialog()}
+                onLayoutChange={setLayout}
+                onThemeToggle={() => void handleThemeToggle()}
+                onOpenCommandPalette={openCommandPalette}
+                onMenuToggle={() => setMenuOpen((open) => !open)}
+                menuOpen={menuOpen}
+                onSortChange={(nextSort) => void handleSortChange(nextSort)}
+                onSortAscToggle={() => void handleSortAscToggle()}
+                onToggleFilterList={(listId) => void toggleFilterList(listId)}
+                onToggleFilterTag={(tag) => void toggleFilterTag(tag)}
+                onToggleFilterPriority={(priority) =>
+                  void toggleFilterPriority(priority)
+                }
+                onToggleFilterCompleted={() => void toggleFilterCompleted()}
+                onClearFilter={() => void handleClearFilter()}
+                onShowCompletedChange={() => void handleShowCompletedChange()}
+                onOpenSettings={openSettingsDialog}
+                onOpenStats={openStatsDialog}
+                onOpenFocus={() => setFocusOpen(true)}
+                onToggleMini={() => void toggleMini()}
+                onOpenReview={() => setReviewOpen(true)}
+                onToggleBatchMode={toggleBatchMode}
+                syncStatus={syncStatus}
+                showLayoutControls={
+                  !searchViewActive &&
+                  !recurringViewActive &&
+                  !deletedViewActive
+                }
+              />
+
+              {displayError && (
+                <div className="alert-banner" role="alert">
+                  <AlertCircle aria-hidden="true" className="icon-sm" />
+                  <span>{displayError}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearError();
+                      setAppError(null);
+                    }}
+                    aria-label="关闭错误"
+                  >
+                    <X aria-hidden="true" />
+                  </button>
+                </div>
               )}
-            </div>
-          </section>
-          {!createPresence.rendered &&
-            !selectedTask &&
-            !batchMode &&
-            !recurringViewActive &&
-            !deletedViewActive &&
-            !mobile && (
-              <button
-                type="button"
-                className="mobile-create-fab"
-                onClick={() => {
-                  // M1.4 触感：新建入口 tap（desktop no-op）
+
+              {scope.kind === "list" &&
+                !searchViewActive &&
+                !recurringViewActive &&
+                !deletedViewActive &&
+                currentList && (
+                  <ProjectHeader list={currentList} tasks={currentListTasks} />
+                )}
+              <section
+                className="content-panel"
+                aria-label={`${currentTitle}任务`}
+              >
+                <div
+                  key={contentKey}
+                  className={`content-motion content-motion-${effectiveLayout}`}
+                >
+                  {searchViewActive ? (
+                    <SearchResultView
+                      query={searchQuery}
+                      tasks={searchMatchingTasks}
+                      lists={lists}
+                      loading={loading}
+                      selectedTaskId={selectedTaskId}
+                      batchMode={batchMode}
+                      batchSelectedIds={batchSelectedIds}
+                      attachmentCounts={attachmentCounts}
+                      onOpenTask={(task) => selectTask(task.id)}
+                      onToggleTask={(task) => void handleToggleTask(task)}
+                      onDeleteTask={(task) => void requestDeleteTask(task)}
+                      onRestoreTask={(task) => void handleRestoreTask(task)}
+                      onPermanentDeleteTask={(task) =>
+                        void requestPermanentDeleteTask(task)
+                      }
+                      onToggleBatchSelected={toggleBatchSelected}
+                      onExitSearch={() => setSearchViewActive(false)}
+                      onOpenCreateDialog={(initialTitle) =>
+                        openTaskCreateDialog("", initialTitle)
+                      }
+                      onSaveAsView={openCreateSavedViewDialog}
+                    />
+                  ) : recurringViewActive ? (
+                    <RecurringRulesView
+                      rules={recurringRules}
+                      lists={lists}
+                      loading={recurringLoading}
+                      onCreate={openNewRecurringDialog}
+                      onEdit={(rule) => {
+                        setEditingRecurringRule(rule);
+                        setRecurringSourceTask(null);
+                        setRecurringDialogOpen(true);
+                      }}
+                      onToggle={(rule) => void handleToggleRecurring(rule)}
+                      onSkip={(rule) => void handleSkipRecurring(rule)}
+                      onGenerate={(rule) => void handleGenerateRecurring(rule)}
+                      onDelete={requestDeleteRecurring}
+                    />
+                  ) : effectiveLayout === "list" ? (
+                    <TaskListView
+                      tasks={tasks}
+                      completedToday={completedTodayTasks}
+                      lists={lists}
+                      loading={loading}
+                      selectedTaskId={selectedTaskId}
+                      batchMode={batchMode}
+                      batchSelectedIds={batchSelectedIds}
+                      searchQuery={searchQuery}
+                      scope={scope}
+                      defaultListId={defaultListId}
+                      trashRetentionDays={settings.trashRetentionDays}
+                      attachmentCounts={attachmentCounts}
+                      parseNaturalLanguage={settings.quickAddNaturalLanguage}
+                      moveCompletedImmediately={
+                        settings.moveCompletedImmediately
+                      }
+                      onOpenCreateDialog={() => openTaskCreateDialog()}
+                      onQuickCreate={handleQuickCreate}
+                      onOpen={(task) => selectTask(task.id)}
+                      onToggle={(task) => void handleToggleTask(task)}
+                      onDelete={requestDeleteTask}
+                      onRestore={(task) => void handleRestoreTask(task)}
+                      onPermanentDelete={requestPermanentDeleteTask}
+                      onToggleBatchSelected={toggleBatchSelected}
+                      onBatchComplete={() => void handleBatchComplete()}
+                      onBatchDelete={requestBatchDelete}
+                      onBatchRestore={() => void handleBatchRestore()}
+                      onBatchPermanentDelete={requestBatchPermanentDelete}
+                      onBatchEdit={() => setBatchEditOpen(true)}
+                      onExitBatch={clearBatchSelection}
+                      onEmptyTrash={requestEmptyTrash}
+                      onReorder={(sourceId, targetId) =>
+                        void handleReorderTask(sourceId, targetId)
+                      }
+                    />
+                  ) : effectiveLayout === "board" ? (
+                    <TaskBoard
+                      tasks={tasks}
+                      lists={lists}
+                      searchQuery={searchQuery}
+                      selectedTaskId={selectedTaskId}
+                      defaultListId={defaultListId}
+                      onQuickCreate={handleQuickCreate}
+                      onOpen={(task) => selectTask(task.id)}
+                      onToggle={(task) => void handleToggleTask(task)}
+                      onMove={(task, columnId) =>
+                        void handleBoardMove(task, columnId)
+                      }
+                    />
+                  ) : effectiveLayout === "month" ? (
+                    <MonthCalendar
+                      tasks={tasks}
+                      lists={lists}
+                      events={calendarEvents}
+                      showCompleted={showCompleted}
+                      onOpenTask={(task) => selectTask(task.id)}
+                      onCreateTask={(date) => openTaskCreateDialog(date)}
+                      onCreateEvent={openNewCalendarEvent}
+                      onEditEvent={openEditCalendarEvent}
+                      onMoveTaskDate={handleMoveTaskDate}
+                    />
+                  ) : effectiveLayout === "week" ? (
+                    <WeekCalendar
+                      tasks={tasks}
+                      events={calendarEvents}
+                      showCompleted={showCompleted}
+                      onOpenTask={(task) => selectTask(task.id)}
+                      onCreateTask={(date) => openTaskCreateDialog(date)}
+                      onCreateEvent={openNewCalendarEvent}
+                      onEditEvent={openEditCalendarEvent}
+                      onMoveTaskDate={handleMoveTaskDate}
+                    />
+                  ) : (
+                    <TaskCalendar
+                      tasks={tasks}
+                      lists={lists}
+                      searchQuery={searchQuery}
+                      selectedTaskId={selectedTaskId}
+                      onOpen={(task) => selectTask(task.id)}
+                      onToggle={(task) => void handleToggleTask(task)}
+                      onDelete={requestDeleteTask}
+                    />
+                  )}
+                </div>
+              </section>
+              {!createPresence.rendered &&
+                !selectedTask &&
+                !batchMode &&
+                !recurringViewActive &&
+                !deletedViewActive &&
+                !mobile && (
+                  <button
+                    type="button"
+                    className="mobile-create-fab"
+                    onClick={() => {
+                      // M1.4 触感：新建入口 tap（desktop no-op）
+                      navigator.vibrate?.(8);
+                      openTaskCreateDialog();
+                    }}
+                    aria-label="新建任务"
+                    title="新建任务"
+                  >
+                    <Plus aria-hidden="true" />
+                  </button>
+                )}
+            </main>
+
+            {/* M3.1 移动端底部导航（含中央新建 FAB）；横屏/桌面不渲染 */}
+            {mobile && (
+              <BottomNav
+                layout={effectiveLayout}
+                onLayoutChange={(next) => setLayout(next)}
+                onCreate={() => {
                   navigator.vibrate?.(8);
                   openTaskCreateDialog();
                 }}
-                aria-label="新建任务"
-                title="新建任务"
-              >
-                <Plus aria-hidden="true" />
-              </button>
+                onOpenSettings={openSettingsDialog}
+              />
             )}
-        </main>
 
-        {/* M3.1 移动端底部导航（含中央新建 FAB）；横屏/桌面不渲染 */}
-        {mobile && (
-          <BottomNav
-            layout={effectiveLayout}
-            onLayoutChange={(next) => setLayout(next)}
-            onCreate={() => {
-              navigator.vibrate?.(8);
-              openTaskCreateDialog();
-            }}
-            onOpenSettings={openSettingsDialog}
-          />
-        )}
-
-        {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
-        <TaskDetailPanel
-          task={selectedTask}
-          lists={lists}
-          busy={loading}
-          onClose={() => selectTask(null)}
-          onSave={handleSaveTask}
-          onToggle={(task) => void handleToggleTask(task)}
-          onDelete={requestDeleteTask}
-          onOpenRecurring={openTaskRecurring}
-          onOpenTask={selectTask}
-          onToast={pushToast}
-        />
-      </div>
+            {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
+            <TaskDetailPanel
+              task={selectedTask}
+              lists={lists}
+              busy={loading}
+              onClose={() => selectTask(null)}
+              onSave={handleSaveTask}
+              onToggle={(task) => void handleToggleTask(task)}
+              onDelete={requestDeleteTask}
+              onOpenRecurring={openTaskRecurring}
+              onOpenTask={selectTask}
+              onToast={pushToast}
+            />
+          </div>
+        </>
+      )}
 
       {createPresence.rendered && (
         <TaskCreateDialog
