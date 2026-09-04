@@ -24,6 +24,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Task } from "../../types/database";
+import { formatDueLabel } from "./taskEdits";
 
 const SWIPE_FIRE = 64;
 const SWIPE_MAX = 96;
@@ -34,27 +35,6 @@ const PRIORITY_COLOR: Record<number, string> = {
   1: "var(--amber)",
   0: "var(--p-blue)",
 };
-
-function formatDue(iso: string): { text: string; danger: boolean } {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  const past = d.getTime() < now.getTime();
-  if (sameDay)
-    return {
-      text: `今天 ${pad(d.getHours())}:${pad(d.getMinutes())}`,
-      danger: false,
-    };
-  if (past) return { text: "已逾期", danger: true };
-  return {
-    text: `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`,
-    danger: false,
-  };
-}
 
 export function MobileTaskRow({
   task,
@@ -83,7 +63,7 @@ export function MobileTaskRow({
 }): JSX.Element {
   const rowRef = useRef<HTMLDivElement | null>(null);
   const done = task.status === "done";
-  const overdue = task.dueAt ? formatDue(task.dueAt) : null;
+  const overdue = task.dueAt ? formatDueLabel(task.dueAt) : null;
   const accent = listColor ?? "var(--accent)";
 
   // 手势回调最新引用：事件只绑一次，render 期不写 ref（由 effect 同步）

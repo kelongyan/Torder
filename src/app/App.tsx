@@ -54,7 +54,6 @@ import {
 } from "../utils/taskHelpers";
 
 import { Sidebar } from "../components/layout/Sidebar";
-import { BottomNav } from "../components/layout/BottomNav";
 import { MobileShell } from "../mobile/MobileShell";
 import type { MobileShellProps } from "../mobile/types";
 import { MainHeader } from "../components/layout/MainHeader";
@@ -1642,19 +1641,6 @@ function App() {
                   </button>
                 )}
             </main>
-
-            {/* M3.1 移动端底部导航（含中央新建 FAB）；横屏/桌面不渲染 */}
-            {mobile && (
-              <BottomNav
-                layout={effectiveLayout}
-                onLayoutChange={(next) => setLayout(next)}
-                onCreate={() => {
-                  navigator.vibrate?.(8);
-                  openTaskCreateDialog();
-                }}
-                onOpenSettings={openSettingsDialog}
-              />
-            )}
 
             {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
             <TaskDetailPanel

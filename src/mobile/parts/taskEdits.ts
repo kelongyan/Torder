@@ -95,3 +95,26 @@ export function formatDateKey(dateKey: string): string {
   const [, m, d] = dateKey.split("-");
   return `${Number(m)}月${Number(d)}日`;
 }
+
+/** 任务行截止标签（本地时间口径）：今天 HH:mm / 已逾期 / MM-DD HH:mm */
+export function formatDueLabel(iso: string): { text: string; danger: boolean } {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const past = d.getTime() < now.getTime();
+  if (sameDay) {
+    return {
+      text: `今天 ${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      danger: false,
+    };
+  }
+  if (past) return { text: "已逾期", danger: true };
+  return {
+    text: `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    danger: false,
+  };
+}
