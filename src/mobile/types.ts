@@ -4,6 +4,7 @@
  */
 import type {
   CalendarEvent,
+  RecurringRule,
   Task,
   TaskList,
   UpdateTaskInput,
@@ -16,25 +17,23 @@ export interface MobileShellProps {
   lists: TaskList[];
   settings: AppSettings;
   calendarEvents: CalendarEvent[];
+  recurringRules: RecurringRule[];
   syncStatus: SyncStatus | null;
   /** 全库去重标签（availableTags） */
   tags: string[];
-  /** 循环规则启用数（浏览页角标用） */
-  recurringCount: number;
   /** 任务加载中 */
   loading: boolean;
   /** taskId → 附件数（详情页徽标） */
   attachmentCounts: Record<string, number>;
 
   /* ------- 动作（App 闭包注入，与桌面同一实现） ------- */
-  openCreateDialog: (scheduledDate?: string, initialTitle?: string) => void;
   openSettingsDialog: () => void;
   onNewCalendarEvent: (date: string) => void;
   onEditCalendarEvent: (event: CalendarEvent) => void;
   onMoveTaskDate: (taskId: string, dateKey: string) => Promise<void>;
   onToast: (message: string) => void;
   onToggleTask: (task: Task) => void;
-  onSaveTask: (input: UpdateTaskInput) => void;
+  onSaveTask: (input: UpdateTaskInput) => Promise<void> | void;
   onDeleteTask: (task: Task) => void;
   onRestoreTask: (task: Task) => void;
   onPermanentDeleteTask: (task: Task) => void;

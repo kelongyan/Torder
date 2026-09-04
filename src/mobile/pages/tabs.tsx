@@ -111,6 +111,18 @@ export function TodayScreen(): JSX.Element {
   };
   const today = new Date();
   const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  const pendingCount = overdue.length + timed.length + allday.length;
+
+  const quickChips: Array<{ label: string; path: string; danger?: boolean }> = [
+    { label: "计划中", path: "/view/planned" },
+    {
+      label: `已逾期${overdue.length > 0 ? ` ${overdue.length}` : ""}`,
+      path: "/view/overdue",
+      danger: overdue.length > 0,
+    },
+    { label: "无日期", path: "/view/no-date" },
+    { label: "重要", path: "/view/important" },
+  ];
 
   return (
     <ScreenShell
@@ -138,12 +150,26 @@ export function TodayScreen(): JSX.Element {
           {today.getMonth() + 1}月{today.getDate()}日
         </div>
         <h2 className="m-today-greet">今天</h2>
+        <div className="m-today-tip">
+          {pendingCount > 0
+            ? `共 ${pendingCount} 项待推进，专注当下一件事`
+            : "今天没有安排，享受留白"}
+        </div>
+        <div className="m-chip-row">
+          {quickChips.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              className={`m-chip ${chip.danger ? "danger" : ""}`}
+              onClick={() => nav.push(chip.path)}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {overdue.length === 0 &&
-      timed.length === 0 &&
-      allday.length === 0 &&
-      completedToday.length === 0 ? (
+      {pendingCount === 0 && completedToday.length === 0 ? (
         <EmptyView
           title="今天没有任务"
           body="点击下方 ＋ 新建一项，或到「浏览」查看全部任务"
@@ -152,15 +178,21 @@ export function TodayScreen(): JSX.Element {
         <>
           {overdue.length > 0 && (
             <div className="m-group-card m-group-danger">
-              <SectionTitle>
-                <span className="m-group-title-accent">逾期</span>
-              </SectionTitle>
+              <div className="m-group-head">
+                <span className="m-group-head-title">逾期</span>
+                <span className="m-group-head-count">{overdue.length}</span>
+              </div>
               <MobileTaskRows tasks={overdue} {...rowCtx} />
             </div>
           )}
           {timed.length + allday.length > 0 && (
             <div className="m-group-card">
-              <SectionTitle>今天</SectionTitle>
+              <div className="m-group-head">
+                <span className="m-group-head-title">今天</span>
+                <span className="m-group-head-count">
+                  {timed.length + allday.length}
+                </span>
+              </div>
               <MobileTaskRows
                 tasks={[...timed, ...allday]}
                 {...rowCtx}
@@ -172,7 +204,12 @@ export function TodayScreen(): JSX.Element {
           )}
           {completedToday.length > 0 && (
             <div className="m-group-card">
-              <SectionTitle>今日已完成</SectionTitle>
+              <div className="m-group-head">
+                <span className="m-group-head-title">今日已完成</span>
+                <span className="m-group-head-count">
+                  {completedToday.length}
+                </span>
+              </div>
               <MobileTaskRows tasks={completedToday} {...rowCtx} />
             </div>
           )}
@@ -267,7 +304,7 @@ export function BrowseScreen(): JSX.Element {
     }
     return map;
   }, [allTasks]);
-  const activeRules = props.recurringCount;
+  const activeRules = props.recurringRules.length;
 
   return (
     <ScreenShell
@@ -383,7 +420,7 @@ export function CalendarScreen(): JSX.Element {
         events={props.calendarEvents}
         showCompleted={showCompleted}
         onOpenTask={(task) => nav.push(`/task/${task.id}`)}
-        onCreateTask={(date) => props.openCreateDialog(date)}
+        onCreateTask={(date) => nav.push(`/new?scheduledDate=${date}`)}
         onCreateEvent={props.onNewCalendarEvent}
         onEditEvent={props.onEditCalendarEvent}
         onMoveTaskDate={props.onMoveTaskDate}

@@ -1,23 +1,21 @@
 /**
- * mobile/pages/sub.tsx — 移动端次级页（页面栈 push 目标，M-A）
+ * mobile/pages/sub.tsx — 移动端次级页（列表类，M-B）
  *   /view/:view /list/:listId /tag/:tag → TaskListPage（复用 taskQuery + TaskRow）
- *   /task/:id → TaskDetailPage（复用 TaskDetailPanel，全屏呈现）
- *   其余（search/recurring/focus/review）→ 占位页（对应批次实装）
+ *   /focus /review → 占位页（M-C 实装）
  */
 import { useMemo, type JSX } from "react";
-import { CalendarDays, Flame, Repeat2, Search, TrendingUp } from "lucide-react";
+import { CalendarDays, Flame, TrendingUp } from "lucide-react";
 import { useTaskStore } from "../../stores/taskStore";
 import { listScope, viewScope } from "../../stores/taskStore";
-import { emptyTaskFilter, type TaskScope } from "../../types/database";
+import { emptyTaskFilter } from "../../types/database";
+import type { TaskScope, Task } from "../../types/database";
 import { filterAndSortTasks } from "../../services/taskQuery";
 import { taskViewCopy } from "../../constants/taskViews";
 import { getScopeTitle } from "../../utils/taskHelpers";
-import { TaskDetailPanel } from "../../components/detail/TaskDetailPanel";
 import { useMobilePage } from "../router";
 import { useMobileProps } from "../context";
 import { EmptyView, ScreenShell, TopBar } from "../ui";
 import { MobileTaskRows } from "./rows";
-import type { Task } from "../../types/database";
 
 /* ================= 任务列表页（view / list / tag） ================= */
 
@@ -44,12 +42,11 @@ export function TaskListPage({
     return null;
   }, [kind, view, listId]);
 
-  const isDeleted =
-    kind === "view" && (view === "deleted" || view === "completed");
+  const isDeletedView = kind === "view" && view === "deleted";
 
   const rows = useMemo(() => {
     if (!scope) return [];
-    const input = {
+    return filterAndSortTasks(allTasks, {
       scope,
       query: "",
       sortBy,
@@ -57,8 +54,7 @@ export function TaskListPage({
       showCompleted: kind === "view" && view === "completed",
       filter:
         kind === "tag" && tag ? { ...emptyTaskFilter, tags: [tag] } : null,
-    };
-    return filterAndSortTasks(allTasks, input);
+    });
   }, [allTasks, scope, sortBy, sortAsc, kind, view, tag]);
 
   const title = useMemo(() => {
@@ -70,8 +66,7 @@ export function TaskListPage({
       return taskViewCopy[view as keyof typeof taskViewCopy].title;
     }
     if (kind === "list" && listId) {
-      const list = props.lists.find((l) => l.id === listId);
-      return list?.name ?? "清单";
+      return props.lists.find((l) => l.id === listId)?.name ?? "清单";
     }
     if (kind === "tag" && tag) return `#${tag}`;
     return getScopeTitle(scope ?? viewScope("all"), props.lists);
@@ -106,7 +101,7 @@ export function TaskListPage({
           tasks={rows}
           lists={props.lists}
           attachmentCounts={props.attachmentCounts}
-          deleted={isDeleted && kind === "view" && view === "deleted"}
+          deleted={isDeletedView}
           onOpen={openTask}
           onToggle={props.onToggleTask}
           onDelete={props.onDeleteTask}
@@ -118,65 +113,12 @@ export function TaskListPage({
   );
 }
 
-/* ================= 任务详情页（全屏承载 TaskDetailPanel） ================= */
-
-export function TaskDetailPage({ taskId }: { taskId: string }): JSX.Element {
-  const { nav } = useMobilePage();
-  const props = useMobileProps();
-  const allTasks = useTaskStore((s) => s.allTasks);
-  const loading = useTaskStore((s) => s.loading);
-
-  const task = useMemo(
-    () => allTasks.find((t) => t.id === taskId) ?? null,
-    [allTasks, taskId],
-  );
-
-  if (!task) {
-    return (
-      <ScreenShell
-        topbar={<TopBar back onBack={() => nav.back()} title="任务详情" />}
-      >
-        <EmptyView title="任务不存在或已删除" />
-      </ScreenShell>
-    );
-  }
-
-  return (
-    <div className="m-detail-host">
-      <TaskDetailPanel
-        task={task}
-        lists={props.lists}
-        busy={loading}
-        onClose={() => nav.back()}
-        onSave={props.onSaveTask}
-        onToggle={(item) => props.onToggleTask(item)}
-        onDelete={props.onDeleteTask}
-        onOpenRecurring={() => nav.push("/recurring")}
-        onOpenTask={(id) => nav.push(`/task/${id}`)}
-        onToast={props.onToast}
-      />
-    </div>
-  );
-}
-
 /* ================= 占位页（后续批次实装） ================= */
 
 const PLACEHOLDER_META: Record<
   string,
   { title: string; note: string; icon: JSX.Element; batch: string }
 > = {
-  "/search": {
-    title: "搜索",
-    note: "全库搜索页（含常用标签）将在批次 M-B 实装",
-    icon: <Search aria-hidden="true" />,
-    batch: "M-B",
-  },
-  "/recurring": {
-    title: "循环任务",
-    note: "循环规则列表页将在批次 M-B 实装",
-    icon: <Repeat2 aria-hidden="true" />,
-    batch: "M-B",
-  },
   "/focus": {
     title: "专注模式",
     note: "专注计时页将在批次 M-C 实装",

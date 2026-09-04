@@ -43,7 +43,7 @@ export function MobileShell(props: MobileShellProps): JSX.Element {
           active={activeTab}
           onCreate={() => {
             navigator.vibrate?.(8);
-            props.openCreateDialog();
+            api.push("/new");
           }}
           onTab={(key) => {
             api.tab(key);

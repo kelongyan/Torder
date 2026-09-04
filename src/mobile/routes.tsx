@@ -1,6 +1,8 @@
 /**
- * mobile/routes.tsx — 移动端路由表（镜像 `设计稿/phone/js/app.js` 的页面清单）
- * tab 非空 = 主 Tab 根页（底部导航可见）；tab=null = 次级页（隐藏导航，顶栏出返回）。
+ * mobile/routes.tsx — 移动端路由表（镜像 `设计稿/phone/js/app.js`）
+ * tab 非空 = 主 Tab 根页（底部导航可见）；tab=null = 次级页（隐藏导航）。
+ * M-B 实装：/new、/task/:id/edit（表单页）、/task/:id（设计稿详情页）、
+ *          /search（全库搜索）、/recurring（规则列表）；/focus /review 占位至 M-C。
  */
 import type { JSX } from "react";
 import type { MobileRoute } from "./router";
@@ -10,7 +12,11 @@ import {
   MeScreen,
   TodayScreen,
 } from "./pages/tabs";
-import { PlaceholderPage, TaskDetailPage, TaskListPage } from "./pages/sub";
+import { PlaceholderPage, TaskListPage } from "./pages/sub";
+import { TaskDetailPage } from "./pages/taskDetail";
+import { TaskFormPage } from "./pages/form";
+import { SearchScreen } from "./pages/search";
+import { RecurringScreen } from "./pages/recurring";
 
 export const mobileRoutes: MobileRoute[] = [
   {
@@ -62,14 +68,28 @@ export const mobileRoutes: MobileRoute[] = [
     render: (_ctx, params) => <TaskDetailPage taskId={params.id} />,
   },
   {
+    pattern: "/task/:id/edit",
+    tab: null,
+    render: (_ctx, params) => (
+      <TaskFormPage key={`edit-${params.id}`} mode="edit" taskId={params.id} />
+    ),
+  },
+  {
+    pattern: "/new",
+    tab: null,
+    render: (_ctx, _params, query) => (
+      <TaskFormPage key="new" mode="new" query={query} />
+    ),
+  },
+  {
     pattern: "/search",
     tab: null,
-    render: () => <PlaceholderPage path="/search" />,
+    render: () => <SearchScreen />,
   },
   {
     pattern: "/recurring",
     tab: null,
-    render: () => <PlaceholderPage path="/recurring" />,
+    render: () => <RecurringScreen />,
   },
   {
     pattern: "/focus",
