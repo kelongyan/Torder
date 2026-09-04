@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const ICONS_DIR = join(here, "..", "..", "node_modules", "lucide-react", "dist", "esm", "icons");
+const ICONS_DIR = join(here, "..", "..", "..", "node_modules", "lucide-react", "dist", "esm", "icons");
 const OUT = join(here, "..", "js", "core", "icons.generated.js");
 
 /** 设计稿实际使用到的图标清单（kebab-case，与 lucide 文件名一致）。 */
