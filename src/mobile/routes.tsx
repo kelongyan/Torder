@@ -12,11 +12,12 @@ import {
   MeScreen,
   TodayScreen,
 } from "./pages/tabs";
-import { PlaceholderPage, TaskListPage } from "./pages/sub";
+import { TaskListPage } from "./pages/sub";
 import { TaskDetailPage } from "./pages/taskDetail";
 import { TaskFormPage } from "./pages/form";
 import { SearchScreen } from "./pages/search";
 import { RecurringScreen } from "./pages/recurring";
+import { FocusScreen, ReviewScreen } from "./pages/focusReview";
 
 export const mobileRoutes: MobileRoute[] = [
   {
@@ -94,11 +95,11 @@ export const mobileRoutes: MobileRoute[] = [
   {
     pattern: "/focus",
     tab: null,
-    render: () => <PlaceholderPage path="/focus" />,
+    render: () => <FocusScreen />,
   },
   {
     pattern: "/review",
     tab: null,
-    render: () => <PlaceholderPage path="/review" />,
+    render: () => <ReviewScreen />,
   },
 ];

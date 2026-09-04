@@ -31,7 +31,7 @@ export interface MobileShellProps {
   onNewCalendarEvent: (date: string) => void;
   onEditCalendarEvent: (event: CalendarEvent) => void;
   onMoveTaskDate: (taskId: string, dateKey: string) => Promise<void>;
-  onToast: (message: string) => void;
+  onToast: (message: string, kind?: "success" | "error" | "info") => void;
   onToggleTask: (task: Task) => void;
   onSaveTask: (input: UpdateTaskInput) => Promise<void> | void;
   onDeleteTask: (task: Task) => void;

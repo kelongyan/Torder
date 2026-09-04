@@ -10,12 +10,14 @@ import { viewScope } from "../../stores/taskStore";
 import { filterAndSortTasks } from "../../services/taskQuery";
 import { useMobilePage } from "../router";
 import { useMobileProps } from "../context";
+import { useTaskMore } from "../parts/TaskMoreMenu";
 import { EmptyView, ScreenShell, TopBar } from "../ui";
-import { MobileTaskRows } from "./rows";
+import { MobileTaskRows } from "../parts/MobileTaskRows";
 
 export function SearchScreen(): JSX.Element {
   const { nav } = useMobilePage();
   const props = useMobileProps();
+  const { openMore, moreMenu } = useTaskMore();
   const allTasks = useTaskStore((s) => s.allTasks);
   const [query, setQuery] = useState("");
 
@@ -91,14 +93,18 @@ export function SearchScreen(): JSX.Element {
           body="换个关键词，或用 p: / l: / # 精确搜索"
         />
       ) : (
-        <MobileTaskRows
-          tasks={results}
-          lists={props.lists}
-          attachmentCounts={props.attachmentCounts}
-          onOpen={(task) => nav.push(`/task/${task.id}`)}
-          onToggle={props.onToggleTask}
-          onDelete={props.onDeleteTask}
-        />
+        <>
+          <MobileTaskRows
+            tasks={results}
+            lists={props.lists}
+            attachmentCounts={props.attachmentCounts}
+            onOpen={(task) => nav.push(`/task/${task.id}`)}
+            onToggle={props.onToggleTask}
+            onDelete={props.onDeleteTask}
+            onMore={openMore}
+          />
+          {moreMenu}
+        </>
       )}
     </ScreenShell>
   );

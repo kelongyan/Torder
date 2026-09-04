@@ -31,8 +31,9 @@ import type { Task } from "../../types/database";
 import { MonthCalendar } from "../../components/task/MonthCalendar";
 import { useMobilePage } from "../router";
 import { useMobileProps } from "../context";
+import { useTaskMore } from "../parts/TaskMoreMenu";
 import { EmptyView, NavRow, ScreenShell, SectionTitle, TopBar } from "../ui";
-import { MobileTaskRows } from "./rows";
+import { MobileTaskRows } from "../parts/MobileTaskRows";
 
 /* ================= 公共派生 ================= */
 
@@ -102,12 +103,14 @@ export function TodayScreen(): JSX.Element {
   );
 
   const openTask = (task: Task) => nav.push(`/task/${task.id}`);
+  const { openMore, moreMenu } = useTaskMore();
   const rowCtx = {
     lists: props.lists,
     attachmentCounts: props.attachmentCounts,
     onOpen: openTask,
     onToggle: props.onToggleTask,
     onDelete: props.onDeleteTask,
+    onMore: openMore,
   };
   const today = new Date();
   const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
@@ -215,6 +218,7 @@ export function TodayScreen(): JSX.Element {
           )}
         </>
       )}
+      {moreMenu}
     </ScreenShell>
   );
 }

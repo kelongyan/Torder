@@ -1,11 +1,10 @@
 /**
- * mobile/pages/rows.tsx — 移动端任务行列表（复用桌面 TaskRow，M-A）
- * 分组/编辑等排版细节 M-B 再按设计稿打磨；此处保证点击进详情、
- * 勾选完成、回收站恢复/删除等主操作立即可用。
+ * mobile/parts/MobileTaskRows.tsx — 移动端任务行列表（M-C）
+ * 行组件 MobileTaskRow（右滑完成/左滑删除/长按更多）；回收站行恢复/彻底删除。
  */
 import type { JSX } from "react";
 import type { Task, TaskList } from "../../types/database";
-import { TaskRow } from "../../components/task/TaskRow";
+import { MobileTaskRow } from "./MobileTaskRow";
 
 export function MobileTaskRows({
   tasks,
@@ -18,6 +17,7 @@ export function MobileTaskRows({
   onDelete,
   onRestore,
   onPermanentDelete,
+  onMore,
 }: {
   tasks: Task[];
   lists: TaskList[];
@@ -29,27 +29,26 @@ export function MobileTaskRows({
   onDelete: (task: Task) => void;
   onRestore?: (task: Task) => void;
   onPermanentDelete?: (task: Task) => void;
+  onMore?: (task: Task) => void;
 }): JSX.Element {
   return (
     <div className="m-task-list">
       {tasks.map((task) => (
-        <TaskRow
+        <MobileTaskRow
           key={task.id}
           task={task}
-          lists={lists}
-          selected={false}
-          batchMode={false}
-          batchSelected={false}
-          searchQuery=""
-          deleted={deleted}
+          listColor={
+            lists.find((l) => l.id === task.listId)?.color ?? undefined
+          }
           timeGutter={timeGutterFor ? timeGutterFor(task) : undefined}
           attachmentCount={attachmentCounts[task.id] ?? 0}
+          deleted={deleted}
           onOpen={onOpen}
           onToggle={onToggle}
           onDelete={onDelete}
           onRestore={onRestore}
           onPermanentDelete={onPermanentDelete}
-          onToggleBatchSelected={() => undefined}
+          onMore={onMore}
         />
       ))}
     </div>

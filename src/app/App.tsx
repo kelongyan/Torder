@@ -1335,7 +1335,7 @@ function App() {
     onNewCalendarEvent: openNewCalendarEvent,
     onEditCalendarEvent: openEditCalendarEvent,
     onMoveTaskDate: (taskId, dateKey) => handleMoveTaskDate(taskId, dateKey),
-    onToast: (message) => pushToast(message, "info"),
+    onToast: (message, kind) => pushToast(message, kind ?? "info"),
     onToggleTask: (task) => void handleToggleTask(task),
     onSaveTask: (input) => handleSaveTask(input),
     onDeleteTask: (task) => requestDeleteTask(task),

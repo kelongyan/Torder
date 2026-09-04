@@ -31,15 +31,16 @@
   background: var(--mica);
 }
 
-/* 进场动画：push 右入 / back 左入 / tab 淡入（280ms 强调缓动，与设计稿一致） */
+/* 进场动画：push 右入 / back 左入 / tab 淡入（280ms 强调缓动，与设计稿一致）
+   fill-mode 不留持，结束后 transform 归 none，避免给 fixed 浮层制造包含块 */
 .m-anim-push {
-  animation: m-in-right 280ms var(--ease-out) both;
+  animation: m-in-right 280ms var(--ease-out);
 }
 .m-anim-back {
-  animation: m-in-left 280ms var(--ease-out) both;
+  animation: m-in-left 280ms var(--ease-out);
 }
 .m-anim-tab {
-  animation: m-in-fade 200ms var(--ease-out) both;
+  animation: m-in-fade 200ms var(--ease-out);
 }
 
 @keyframes m-in-right {
@@ -1063,4 +1064,417 @@
   font-size: var(--text-sm);
   color: var(--text-3);
   line-height: 1.5;
+}
+
+/* ============================================================
+ * M-C：移动任务行 / 专注与回顾页 / Sheet 细节
+ * ============================================================ */
+
+/* ---- Sheet 手柄视觉 ---- */
+.m-sheet {
+  position: relative;
+}
+.m-sheet::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--stroke-strong);
+}
+
+/* ---- 移动任务行 ---- */
+.m-mrow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 6px 12px;
+  margin: 0;
+  background: transparent;
+  color: var(--text-1);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.m-mrow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--pri, var(--text-3));
+}
+.m-mrow:active {
+  background: var(--hover);
+}
+.m-mrow.done .m-mrow-title {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-3) 60%, transparent);
+}
+.m-mrow.done::before {
+  background: var(--text-3);
+}
+.m-mrow-time {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  width: 44px;
+}
+.m-mrow-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--stroke-strong);
+  background: transparent;
+  color: var(--on-accent);
+  padding: 0;
+  cursor: pointer;
+}
+.m-mrow-check.checked {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--on-success);
+}
+.m-mrow-del-icon {
+  flex: none;
+  color: var(--text-3);
+  width: 16px;
+}
+.m-mrow-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.m-mrow-title {
+  font-size: var(--text-md);
+  line-height: 1.35;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.m-mrow-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.m-mrow-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.m-mrow-overdue {
+  color: var(--danger);
+  font-weight: 550;
+}
+.m-mrow-att {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.m-mrow-more {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.m-mrow-more:active {
+  background: var(--hover);
+}
+/* 回收站行内动作 */
+.m-mrow-deleted-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.m-mrow-del-btn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.m-mrow-del-btn.ok {
+  background: var(--success-bg);
+  color: var(--green);
+}
+.m-mrow-del-btn.bad {
+  display: inline-flex;
+  align-items: center;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* 列表容器（移动行改透明、无卡片边框） */
+.m-task-list {
+  display: flex;
+  flex-direction: column;
+}
+.m-group-card .m-mrow + .m-mrow {
+  border-top: 1px solid var(--stroke);
+}
+
+/* ---- 专注页 ---- */
+.m-focus-page .m-page-body {
+  display: flex;
+  flex-direction: column;
+}
+.m-focus-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 8px;
+}
+.m-focus-clock-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.m-focus-clock {
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+.m-focus-clock.dim {
+  color: var(--text-3);
+}
+.m-focus-hint {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+}
+.m-focus-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.m-focus-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--stroke);
+  background: var(--sunken);
+  color: var(--text-1);
+  font-size: var(--text-md);
+}
+.m-focus-duration-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.m-focus-chip {
+  flex: 1;
+  height: 40px;
+  border-radius: var(--radius);
+  border: 1px solid var(--stroke);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.m-focus-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.m-focus-start {
+  width: 100%;
+}
+.m-focus-task {
+  font-size: var(--text-sm);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+}
+.m-focus-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.m-focus-actions .m-primary-btn {
+  flex: 1;
+}
+
+/* ---- 每日回顾页 ---- */
+.m-review-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+.m-review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--stroke);
+  background: var(--pop);
+}
+.m-review-card.danger .m-review-value {
+  color: var(--danger);
+}
+.m-review-label {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.m-review-value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.m-review-trend {
+  margin-top: 6px;
+}
+.m-review-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 88px;
+  padding: 6px 4px 0;
+}
+.m-review-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+}
+.m-review-bar {
+  width: 60%;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+}
+.m-review-bar-label {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+}
+.m-review-overdue {
+  border-radius: var(--radius);
+  background: var(--pop);
+  border: 1px solid var(--danger-border);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.m-review-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.m-review-item + .m-review-item {
+  border-top: 1px solid var(--stroke);
+}
+.m-review-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-review-item-meta {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.m-review-more {
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  border-top: 1px solid var(--stroke);
+}
+.m-review-shift {
+  width: 100%;
+  border-radius: 0;
+}
+.m-review-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.m-review-duo-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.m-review-duo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius);
+  background: var(--pop);
+  border: 1px solid var(--stroke);
+  overflow: hidden;
+}
+.m-review-duo-list li {
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  color: var(--text-1);
+}
+.m-review-duo-list li + li {
+  border-top: 1px solid var(--stroke);
+}
+.m-review-duo-list .m-review-empty {
+  color: var(--text-3);
 }
