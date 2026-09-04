@@ -2,6 +2,7 @@ import { BarChart3, Check, Eye, Settings } from "lucide-react";
 import { layoutOptions, sortOptions } from "../../constants/taskConfig";
 import type { PresencePhase } from "../../hooks/usePresence";
 import type { TaskLayout, TaskSortBy } from "../../types/database";
+import { isMobile } from "../../utils/platform";
 
 export function ViewMenu({
   layout,
@@ -92,7 +93,7 @@ export function ViewMenu({
       </button>
       <button type="button" className="menu-item" onClick={onOpenSettings}>
         <Settings aria-hidden="true" className="icon-sm" />
-        <span>设置与备份</span>
+        <span>{isMobile() ? "设置" : "设置与备份"}</span>
       </button>
     </div>
   );

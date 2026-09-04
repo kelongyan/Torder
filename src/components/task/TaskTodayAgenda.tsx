@@ -6,6 +6,7 @@ import {
 } from "../../utils/taskDates";
 import type { Task, TaskList } from "../../types/database";
 import type { AnimatedTask } from "../../hooks/useAnimatedTasks";
+import { isMobile } from "../../utils/platform";
 import { SectionHeader } from "../common/SectionHeader";
 import { TaskRow } from "./TaskRow";
 
@@ -49,6 +50,7 @@ export function TaskTodayAgenda({
   const now = useNowMinute();
   const todayKey = toLocalDateKey(now.toISOString());
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragEnabled = !isMobile();
 
   const overdueItems = items
     .filter(({ task }) => isOverdue(task.dueAt, task.status))
@@ -160,7 +162,9 @@ export function TaskTodayAgenda({
           })}
           {agendaItems.length > 0 && insertAt < 0 && <TaskNowLine now={now} />}
           {alldayItems.map((item, index) =>
-            renderRow(item, agendaItems.length + index, { draggable: true }),
+            renderRow(item, agendaItems.length + index, {
+              draggable: dragEnabled,
+            }),
           )}
         </Fragment>
       )}

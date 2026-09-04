@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getSetting } from "./settingsService";
 import { taskPlanDateKey } from "./taskQuery";
+import { isMobile } from "../utils/platform";
 import {
   defaultWidgetAppearance,
   normalizeAppearance,
@@ -175,7 +176,7 @@ export function notifyTasksChanged(
     currentTasks?: ReadonlyArray<Task>;
   },
 ): void {
-  if (!isTauri()) return;
+  if (!isTauri() || isMobile()) return;
   let affectedDateKeys: string[] = [];
   if (source === "main" && context) {
     const prev = context.previousTasks ?? [];

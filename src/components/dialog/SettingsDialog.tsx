@@ -54,7 +54,8 @@ const settingsPanels = [
   {
     id: "appearance",
     title: "外观",
-    description: "应用主题、强调色与桌面便签外观",
+    description: "应用主题与强调色",
+    descriptionDesktop: "应用主题、强调色与桌面便签外观",
     icon: Palette,
     keywords: "主题 深色 浅色 强调色 颜色 便签",
   },
@@ -94,6 +95,7 @@ const settingsPanels = [
     title: "快捷键",
     description: "全局、事项与视图快捷键速查",
     icon: Settings2,
+    desktopOnly: true,
     keywords: "快捷键 键盘 ctrl 组合键",
   },
   {
@@ -108,6 +110,7 @@ const settingsPanels = [
   title: string;
   navTitle?: string;
   description: string;
+  descriptionDesktop?: string;
   icon: LucideIcon;
   desktopOnly?: boolean;
   keywords: string;
@@ -253,7 +256,11 @@ export function SettingsDialog({
         >
           <div className="settings-content-head">
             <h3>{effectiveMeta.title}</h3>
-            <p>{effectiveMeta.description}</p>
+            <p>
+              {mobile && effectiveMeta.descriptionDesktop
+                ? effectiveMeta.description
+                : effectiveMeta.descriptionDesktop ?? effectiveMeta.description}
+            </p>
           </div>
 
           <div className="settings-panel">

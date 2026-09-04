@@ -17,6 +17,7 @@ import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { Attachment } from "../../types/database";
 import type { ToastKind } from "../../types/ui";
+import { isMobile } from "../../utils/platform";
 import {
   addLocalAttachmentReference,
   addManagedAttachment,
@@ -434,6 +435,104 @@ function AttachmentDropZone({
     onAddWebLink(url, displayName);
   }
 
+  // 移动端不渲染拖放区（触摸端无 drag 事件）
+  if (isMobile()) {
+    return (
+      <div className="attachment-composer">
+        <div className="attachment-drop-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={chooseFiles}
+            disabled={disabled}
+          >
+            <FilePlus2 aria-hidden="true" className="icon-sm" />
+            选择文件
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setLinkOpen(true)}
+            disabled={disabled}
+          >
+            <Link aria-hidden="true" className="icon-sm" />
+            添加链接
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(event) => {
+            const paths = Array.from(event.currentTarget.files ?? [])
+              .filter((file) => file.name)
+              .map((file) => file.name);
+            event.currentTarget.value = "";
+            if (paths.length > 0) setPendingPaths(paths);
+          }}
+        />
+        {pendingPaths.length > 0 && (
+          <div className="attachment-mode-panel">
+            <div>
+              <strong>添加 {pendingPaths.length} 个文件</strong>
+              <span>文件将复制到应用内。</span>
+            </div>
+            <div className="attachment-mode-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => confirmFiles("managed")}
+                disabled={disabled}
+              >
+                <Upload aria-hidden="true" className="icon-sm" />
+                复制文件
+              </button>
+              <button
+                type="button"
+                className="icon-button compact"
+                onClick={() => setPendingPaths([])}
+                disabled={disabled}
+                aria-label="取消添加附件"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        )}
+        {linkOpen && (
+          <form
+            className="attachment-link-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitLink();
+            }}
+          >
+            <input
+              value={linkUrl}
+              onChange={(event) => setLinkUrl(event.target.value)}
+              placeholder="https://example.com/file"
+              disabled={disabled}
+            />
+            <input
+              value={linkName}
+              onChange={(event) => setLinkName(event.target.value)}
+              placeholder="显示名称，可选"
+              disabled={disabled}
+            />
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={disabled || !linkUrl.trim()}
+            >
+              添加
+            </button>
+          </form>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="attachment-composer">
       <div
@@ -488,7 +587,11 @@ function AttachmentDropZone({
         <div className="attachment-mode-panel">
           <div>
             <strong>添加 {pendingPaths.length} 个文件</strong>
-            <span>选择复制到应用内，或只引用本机路径。</span>
+            <span>
+              {isMobile()
+                ? "文件将复制到应用内。"
+                : "选择复制到应用内，或只引用本机路径。"}
+            </span>
           </div>
           <div className="attachment-mode-actions">
             <button
@@ -500,15 +603,17 @@ function AttachmentDropZone({
               <Upload aria-hidden="true" className="icon-sm" />
               复制文件
             </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => confirmFiles("localReference")}
-              disabled={disabled}
-            >
-              <MapPin aria-hidden="true" className="icon-sm" />
-              引用路径
-            </button>
+            {!isMobile() && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => confirmFiles("localReference")}
+                disabled={disabled}
+              >
+                <MapPin aria-hidden="true" className="icon-sm" />
+                引用路径
+              </button>
+            )}
             <button
               type="button"
               className="icon-button compact"
@@ -603,7 +708,7 @@ function AttachmentRow({
         >
           <ExternalLink aria-hidden="true" />
         </button>
-        {attachment.kind !== "webLink" && (
+        {attachment.kind !== "webLink" && !isMobile() && (
           <button
             type="button"
             className="icon-button compact"

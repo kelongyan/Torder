@@ -30,6 +30,7 @@ import type { TaskFilter, TaskLayout, TaskList } from "../../types/database";
 import type { TaskSortBy } from "../../types/database";
 import type { ThemePreference } from "../../types/settings";
 import type { SyncStatus } from "../../types/sync";
+import { isMobile } from "../../utils/platform";
 import { FilterPanel } from "../common/FilterPanel";
 import { SortMenu } from "../common/SortMenu";
 import { ViewMenu } from "../common/ViewMenu";
@@ -359,7 +360,7 @@ export function MainHeader({
             )}
           </div>
 
-          {showLayoutControls && (
+          {showLayoutControls && !isMobile() && (
             <button
               type="button"
               className={`icon-button batch-toggle-btn ${batchMode ? "active" : ""}`}
@@ -372,17 +373,19 @@ export function MainHeader({
             </button>
           )}
 
-          {/* F2 · T-01 命令面板：已接通（Ctrl K / 图标） */}
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="命令面板"
-            title="命令面板 (Ctrl K)"
-            onClick={onOpenCommandPalette}
-          >
-            <Command aria-hidden="true" className="menu-icon" />
-          </button>
-          {/* T-02 专注模式已转正（阶段 A）；T-03 迷你窗 / T-04 每日回顾仍灰显占位（§13 规则 4） */}
+          {/* F2 · T-01 命令面板：桌面端键盘驱动，移动端通过侧栏搜索 */}
+          {!isMobile() && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="命令面板"
+              title="命令面板 (Ctrl K)"
+              onClick={onOpenCommandPalette}
+            >
+              <Command aria-hidden="true" className="menu-icon" />
+            </button>
+          )}
+          {/* T-02 专注模式：移动端保留（手机更适合专注计时） */}
           <button
             type="button"
             className="icon-button focus-launch"
@@ -392,16 +395,19 @@ export function MainHeader({
           >
             <Flame aria-hidden="true" className="menu-icon" />
           </button>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={onToggleMini}
-            aria-label="迷你窗"
-            title="迷你窗 (Ctrl Shift M)"
-          >
-            <Sparkles aria-hidden="true" className="menu-icon" />
-          </button>
-          {/* T-04 每日回顾已转正（阶段 C）：T-03 迷你窗/专注模式同批核销 */}
+          {/* T-03 迷你窗：桌面置顶小窗 + 全局热键，移动端无多窗口语义 */}
+          {!isMobile() && (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onToggleMini}
+              aria-label="迷你窗"
+              title="迷你窗 (Ctrl Shift M)"
+            >
+              <Sparkles aria-hidden="true" className="menu-icon" />
+            </button>
+          )}
+          {/* T-04 每日回顾：纯前端聚合，移动端保留 */}
           <button
             type="button"
             className="icon-button"

@@ -8,6 +8,7 @@ import type {
 } from "../../types/database";
 import { useAnimatedTasks } from "../../hooks/useAnimatedTasks";
 import { toDateKey } from "../../utils/taskDates";
+import { isMobile } from "../../utils/platform";
 import { EmptyState } from "../common/EmptyState";
 import { SectionHeader } from "../common/SectionHeader";
 import { TaskQuickComposer } from "./TaskQuickComposer";
@@ -88,6 +89,7 @@ export function TaskListView({
   const deletedView = scope.kind === "view" && scope.view === "deleted";
   const todayView = scope.kind === "view" && scope.view === "today";
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragEnabled = !isMobile();
   const animatedTasks = useAnimatedTasks(tasks);
   /**
    * T-10 甲组「完成后立刻归入已完成」关闭时的留位行为：记住本次浏览中刚打勾的
@@ -333,7 +335,7 @@ export function TaskListView({
                   onRestore={onRestore}
                   onPermanentDelete={onPermanentDelete}
                   onToggleBatchSelected={onToggleBatchSelected}
-                  draggable={!batchMode && !item.leaving}
+                  draggable={dragEnabled && !batchMode && !item.leaving}
                   dragging={draggingId === item.task.id}
                   onDragStart={(task) => setDraggingId(task.id)}
                   onDragOver={() => undefined}
@@ -370,7 +372,7 @@ export function TaskListView({
                   onRestore={onRestore}
                   onPermanentDelete={onPermanentDelete}
                   onToggleBatchSelected={onToggleBatchSelected}
-                  draggable={!batchMode && !item.leaving}
+                  draggable={dragEnabled && !batchMode && !item.leaving}
                   dragging={draggingId === item.task.id}
                   onDragStart={(task) => setDraggingId(task.id)}
                   onDragOver={() => undefined}
