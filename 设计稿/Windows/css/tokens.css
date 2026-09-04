@@ -1,0 +1,201 @@
+/* ============================================================================
+ * tokens.css — Windows 桌面端设计令牌（唯一颜色/尺寸来源）
+ * 与 phone 设计稿共用同一套颜色角色与 Dracula 基调，保证双端风格一致；
+ * 字号按桌面视距收紧一档，追加桌面结构尺寸（标题栏/侧栏/抽屉/浮层）。
+ * 默认深色，[data-theme="light"] 切换浅色。
+ * ========================================================================== */
+
+:root {
+  /* ---- 动效 ---- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-micro: 110ms;
+  --dur-fast: 160ms;
+  --dur-dialog: 190ms;
+
+  /* ---- 字号阶梯（桌面密度，比移动端小一档） ---- */
+  --fs-2xs: 10.5px;
+  --fs-xs: 11.5px;
+  --fs-sm: 12.5px;
+  --fs-base: 13px;
+  --fs-md: 14.5px;
+  --fs-lg: 16px;
+  --fs-xl: 19px;
+  --fs-2xl: 24px;
+
+  /* ---- 4px 间距栅格 ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* ---- 圆角 ---- */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-pill: 999px;
+
+  /* ---- 控件尺寸（桌面指针，无需 44px 触摸目标） ---- */
+  --ctrl-sm: 26px;
+  --ctrl-md: 32px;
+  --ctrl-lg: 38px;
+  --icon-btn: 32px;
+
+  /* ---- 桌面结构尺寸 ---- */
+  --titlebar-h: 38px;
+  --header-h: 56px;
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 64px;
+  --detail-w: 384px;
+  --win-min-w: 920px;
+  --win-min-h: 600px;
+
+  /* ---- 字体栈（与主项目 --font-ui 对齐） ---- */
+  --font-ui:
+    "Source Han Sans SC", "Noto Sans SC", "Noto Sans CJK SC",
+    "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* ============================================================================
+ * 深色主题（默认，Dracula 基调，与 phone 一致）
+ * ========================================================================== */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --page-bg: #282a36;
+  --page-bg-gradient:
+    radial-gradient(130% 60% at 50% 0%, rgba(189, 147, 249, 0.10) 0%, rgba(40, 42, 54, 0) 70%),
+    #282a36;
+  --surface: #343746;
+  --surface-2: #3d4153;
+  --surface-3: #44475a;
+  --scrim: rgba(16, 17, 24, 0.55);
+
+  /* 桌面窗口分层：侧栏比主区略深，标题栏更深 */
+  --sidebar-bg: #2b2d3a;
+  --titlebar-bg: #232530;
+  --hover-bg: rgba(189, 147, 249, 0.08);
+  --active-bg: rgba(189, 147, 249, 0.16);
+
+  --hairline: rgba(98, 114, 164, 0.24);
+  --hairline-strong: rgba(98, 114, 164, 0.46);
+
+  --text-1: #f8f8f2;
+  --text-2: #c3ccdb;
+  --text-3: #8b97b8;
+  --text-on-accent: #282a36;
+
+  --accent: #bd93f9;
+  --accent-hi: #d1b3ff;
+  --accent-soft: rgba(189, 147, 249, 0.18);
+  --accent-line: rgba(189, 147, 249, 0.42);
+
+  --red: #ff5555;
+  --amber: #ffb86c;
+  --blue: #8be9fd;
+  --green: #50fa7b;
+  --rose: #ff79c6;
+  --teal: #4bc0c8;
+
+  --red-soft: rgba(255, 85, 85, 0.16);
+  --amber-soft: rgba(255, 184, 108, 0.16);
+  --blue-soft: rgba(139, 233, 253, 0.14);
+  --green-soft: rgba(80, 250, 123, 0.14);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 3px 10px rgba(0, 0, 0, 0.18);
+  --shadow-pop: 0 6px 24px -4px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-window: 0 24px 80px -12px rgba(0, 0, 0, 0.75), 0 8px 28px rgba(0, 0, 0, 0.5);
+  --bar-bg: rgba(43, 45, 58, 0.92);
+  --blur-bar: blur(18px);
+}
+
+/* ============================================================================
+ * 浅色主题
+ * ========================================================================== */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --page-bg: #f4f6fa;
+  --page-bg-gradient:
+    radial-gradient(120% 55% at 50% 0%, rgba(37, 99, 235, 0.07) 0%, rgba(244, 246, 250, 0) 70%),
+    linear-gradient(180deg, #f8fafd 0%, #eef1f6 100%);
+  --surface: #ffffff;
+  --surface-2: #f1f4f9;
+  --surface-3: #e7ecf3;
+  --scrim: rgba(15, 23, 42, 0.34);
+
+  --sidebar-bg: #f7f9fc;
+  --titlebar-bg: #eef1f6;
+  --hover-bg: rgba(37, 99, 235, 0.06);
+  --active-bg: rgba(37, 99, 235, 0.12);
+
+  --hairline: rgba(15, 23, 42, 0.09);
+  --hairline-strong: rgba(15, 23, 42, 0.18);
+
+  --text-1: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --text-on-accent: #ffffff;
+
+  --accent: #2563eb;
+  --accent-hi: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.10);
+  --accent-line: rgba(37, 99, 235, 0.30);
+
+  --red: #dc2626;
+  --amber: #d97706;
+  --blue: #0284c7;
+  --green: #059669;
+  --rose: #e11d48;
+  --teal: #0d9488;
+
+  --red-soft: rgba(220, 38, 38, 0.08);
+  --amber-soft: rgba(217, 119, 6, 0.10);
+  --blue-soft: rgba(2, 132, 199, 0.08);
+  --green-soft: rgba(5, 150, 105, 0.08);
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.05);
+  --shadow-pop: 0 8px 28px -6px rgba(15, 23, 42, 0.22), 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-window: 0 28px 80px -16px rgba(15, 23, 42, 0.4), 0 10px 30px rgba(15, 23, 42, 0.18);
+  --bar-bg: rgba(247, 249, 252, 0.92);
+}
+
+/* ============================================================================
+ * 强调色预设（6 色，与 phone 一致）
+ * ========================================================================== */
+:root[data-accent="violet"] { --accent:#a98af5; --accent-hi:color-mix(in srgb,var(--accent) 78%,#fff); --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent); --accent-line:color-mix(in srgb,var(--accent) 42%,transparent); --text-on-accent:#0b1020; }
+:root[data-accent="teal"]   { --accent:#4bc0c8; --accent-hi:color-mix(in srgb,var(--accent) 78%,#fff); --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent); --accent-line:color-mix(in srgb,var(--accent) 42%,transparent); --text-on-accent:#0b1020; }
+:root[data-accent="green"]  { --accent:#43c48d; --accent-hi:color-mix(in srgb,var(--accent) 78%,#fff); --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent); --accent-line:color-mix(in srgb,var(--accent) 42%,transparent); --text-on-accent:#0b1020; }
+:root[data-accent="amber"]  { --accent:#e8b04b; --accent-hi:color-mix(in srgb,var(--accent) 78%,#fff); --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent); --accent-line:color-mix(in srgb,var(--accent) 42%,transparent); --text-on-accent:#0b1020; }
+:root[data-accent="rose"]   { --accent:#f0819e; --accent-hi:color-mix(in srgb,var(--accent) 78%,#fff); --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent); --accent-line:color-mix(in srgb,var(--accent) 42%,transparent); --text-on-accent:#0b1020; }
+:root[data-accent="blue"]   { --accent:#6aa6ff; --accent-hi:color-mix(in srgb,var(--accent) 80%,#fff); --accent-soft:color-mix(in srgb,var(--accent) 18%,transparent); --accent-line:color-mix(in srgb,var(--accent) 42%,transparent); --text-on-accent:#0b1020; }
+:root[data-theme="light"][data-accent="violet"] { --accent:#9333ea; --accent-hi:#7e22ce; --accent-soft:rgba(147,51,234,.10); --accent-line:rgba(147,51,234,.30); --text-on-accent:#fff; }
+:root[data-theme="light"][data-accent="teal"]   { --accent:#0d9488; --accent-hi:#0f766e; --accent-soft:rgba(13,148,136,.10); --accent-line:rgba(13,148,136,.30); --text-on-accent:#fff; }
+:root[data-theme="light"][data-accent="green"]  { --accent:#059669; --accent-hi:#047857; --accent-soft:rgba(5,150,105,.10); --accent-line:rgba(5,150,105,.30); --text-on-accent:#fff; }
+:root[data-theme="light"][data-accent="amber"]  { --accent:#d97706; --accent-hi:#b45309; --accent-soft:rgba(217,119,6,.10); --accent-line:rgba(217,119,6,.30); --text-on-accent:#fff; }
+:root[data-theme="light"][data-accent="rose"]   { --accent:#e11d48; --accent-hi:#be123c; --accent-soft:rgba(225,29,72,.10); --accent-line:rgba(225,29,72,.30); --text-on-accent:#fff; }
+:root[data-theme="light"][data-accent="blue"]   { --accent:#2563eb; --accent-hi:#1d4ed8; --accent-soft:rgba(37,99,235,.10); --accent-line:rgba(37,99,235,.30); --text-on-accent:#fff; }
+
+/* 字号档（设置可切） */
+:root[data-font-size="small"] { --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-base:12.5px; --fs-md:14px; --fs-lg:15px; --fs-xl:18px; --fs-2xl:22px; }
+:root[data-font-size="large"] { --fs-2xs:11.5px; --fs-xs:12.5px; --fs-sm:13.5px; --fs-base:14px; --fs-md:15.5px; --fs-lg:17px; --fs-xl:21px; --fs-2xl:26px; }
+
+/* 清单调色板（8 色，镜像 listConfig） */
+:root {
+  --list-indigo: #6366f1;
+  --list-emerald: #10b981;
+  --list-cyan: #06b6d4;
+  --list-amber: #f59e0b;
+  --list-red: #ef4444;
+  --list-purple: #a855f7;
+  --list-pink: #ec4899;
+  --list-slate: #64748b;
+}
