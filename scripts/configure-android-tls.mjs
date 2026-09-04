@@ -63,8 +63,7 @@ rootBuild = rootBuild.replace(
   /\s*\/\/ TORDER_RUSTLS_REPOSITORY_START[\s\S]*?\/\/ TORDER_RUSTLS_REPOSITORY_END/g,
   "",
 );
-const repositoriesAnchor =
-  /(allprojects\s*\{\s*repositories\s*\{\s*google\(\)\s*mavenCentral\(\))/;
+const repositoriesAnchor = /(allprojects\s*\{\s*repositories\s*\{)/;
 if (!repositoriesAnchor.test(rootBuild)) {
   throw new Error("Unable to locate Android repository configuration");
 }
