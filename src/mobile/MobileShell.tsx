@@ -8,7 +8,7 @@
  *  - 转场：push 右入 / back 左入 / tab 淡入（M-A 进场动画；退出动画 M-B 精修）
  */
 import { type JSX } from "react";
-import { Calendar, CalendarCheck, Layers, Plus, Settings } from "lucide-react";
+import { Calendar, CalendarRange, Layers, Plus, Settings } from "lucide-react";
 import { useMobileRouter, MobilePageProvider } from "./router";
 import type { MobileTab, MobilePageContext } from "./router";
 import { mobileRoutes } from "./routes";
@@ -63,22 +63,42 @@ function MobileTabBar({
   onCreate: () => void;
   onTab: (key: MobileTab) => void;
 }): JSX.Element {
-  const tabs: Array<{
-    key: MobileTab;
-    label: string;
-    icon: JSX.Element;
-  }> = [
-    { key: "today", label: "今天", icon: <CalendarCheck aria-hidden="true" /> },
-    { key: "browse", label: "浏览", icon: <Layers aria-hidden="true" /> },
-    { key: "calendar", label: "日历", icon: <Calendar aria-hidden="true" /> },
-    { key: "me", label: "我的", icon: <Settings aria-hidden="true" /> },
+  // 槽位顺序镜像设计稿 chrome.js TABS：今天 · 浏览 · ＋FAB · 日历 · 我的
+  const slots: Array<
+    | { kind: "tab"; key: MobileTab; label: string; icon: JSX.Element }
+    | { kind: "fab" }
+  > = [
+    {
+      kind: "tab",
+      key: "today",
+      label: "今天",
+      icon: <Calendar aria-hidden="true" />,
+    },
+    {
+      kind: "tab",
+      key: "browse",
+      label: "浏览",
+      icon: <Layers aria-hidden="true" />,
+    },
+    { kind: "fab" },
+    {
+      kind: "tab",
+      key: "calendar",
+      label: "日历",
+      icon: <CalendarRange aria-hidden="true" />,
+    },
+    {
+      kind: "tab",
+      key: "me",
+      label: "我的",
+      icon: <Settings aria-hidden="true" />,
+    },
   ];
-  const fabIndex = 2;
 
   return (
     <nav className="m-tabbar" aria-label="主导航">
-      {tabs.map((tab, index) => {
-        if (index === fabIndex) {
+      {slots.map((slot, index) => {
+        if (slot.kind === "fab") {
           return (
             <div key="fab-slot" className="m-tab-fab-slot" aria-hidden="true">
               <button
@@ -92,9 +112,10 @@ function MobileTabBar({
             </div>
           );
         }
+        const tab = slot;
         return (
           <button
-            key={tab.key}
+            key={tab.key ?? index}
             type="button"
             className={`m-tab ${active === tab.key ? "active" : ""}`}
             aria-label={tab.label}
