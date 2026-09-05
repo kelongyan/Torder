@@ -191,25 +191,38 @@ function TaskFormContent({
           title={mode === "edit" ? "编辑任务" : "新建任务"}
         />
       }
+      footer={
+        <button
+          type="button"
+          className="m-primary-btn grow"
+          disabled={saving}
+          onClick={() => void handleSave()}
+        >
+          {mode === "edit" ? "保存修改" : "创建任务"}
+        </button>
+      }
       className="m-form-page"
     >
       <div className="m-form">
-        <input
-          ref={titleRef}
-          className="m-form-title-input"
-          placeholder="任务标题"
-          maxLength={120}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          autoFocus
-        />
-        <textarea
-          className="m-form-note"
-          placeholder="补充描述、背景或验收标准…"
-          rows={3}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
+        <div className="m-form-card">
+          <input
+            ref={titleRef}
+            className="m-form-title-input"
+            placeholder="任务标题"
+            maxLength={120}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+          />
+          <div className="m-form-card-divider" />
+          <textarea
+            className="m-form-note"
+            placeholder="补充描述、背景或验收标准…"
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
 
         <div className="m-field-label">优先级</div>
         <div className="m-pri-options">
@@ -232,92 +245,106 @@ function TaskFormContent({
         </div>
 
         <div className="m-field-label">安排</div>
-        <button
-          type="button"
-          className="m-field-row"
-          onClick={() => setListSheet(true)}
-        >
-          <Folder aria-hidden="true" />
-          <span className="m-field-row-label">所属清单</span>
-          <span className="m-field-row-value">{listName}</span>
-          <span className="m-field-row-chev" />
-        </button>
-
-        <button
-          type="button"
-          className="m-field-row"
-          onClick={() => openNativePicker(dateScheduledRef.current)}
-        >
-          <CalendarDays aria-hidden="true" />
-          <span className="m-field-row-label">计划日期</span>
-          <span className={`m-field-row-value ${scheduledDate ? "set" : ""}`}>
-            {scheduledDate ? formatDateKey(scheduledDate) : "选择日期"}
-          </span>
-          <span className="m-field-row-chev" />
-        </button>
-
-        <button
-          type="button"
-          className="m-field-row"
-          onClick={() => openNativePicker(dateDueRef.current)}
-        >
-          <CalendarClock aria-hidden="true" />
-          <span className="m-field-row-label">截止时间</span>
-          <span className={`m-field-row-value ${dueLocal ? "set" : ""}`}>
-            {dueLocal ? dueLocal.replace("T", " ") : "选择时间"}
-          </span>
-          <span className="m-field-row-chev" />
-        </button>
-
-        <button
-          type="button"
-          className="m-field-row"
-          onClick={() => setRemindSheet(true)}
-        >
-          <CalendarClock aria-hidden="true" />
-          <span className="m-field-row-label">提醒</span>
-          <span
-            className={`m-field-row-value ${remindBefore != null ? "set" : ""}`}
+        <div className="m-field-group">
+          <button
+            type="button"
+            className="m-field-row"
+            onClick={() => setListSheet(true)}
           >
-            {describeReminder(remindBefore)}
-          </span>
-          <span className="m-field-row-chev" />
-        </button>
+            <span className="m-field-row-icon">
+              <Folder aria-hidden="true" size={18} />
+            </span>
+            <span className="m-field-row-label">所属清单</span>
+            <span className="m-field-row-value">{listName}</span>
+            <span className="m-field-row-chev" />
+          </button>
 
-        {existing?.recurringRuleId ? (
-          <div className="m-field-row m-field-row-static">
-            <CalendarDays aria-hidden="true" />
-            <span className="m-field-row-label">循环任务</span>
-            <span className="m-field-row-value">由循环规则管理</span>
-          </div>
-        ) : null}
+          <button
+            type="button"
+            className="m-field-row"
+            onClick={() => openNativePicker(dateScheduledRef.current)}
+          >
+            <span className="m-field-row-icon">
+              <CalendarDays aria-hidden="true" size={18} />
+            </span>
+            <span className="m-field-row-label">计划日期</span>
+            <span className={`m-field-row-value ${scheduledDate ? "set" : ""}`}>
+              {scheduledDate ? formatDateKey(scheduledDate) : "选择日期"}
+            </span>
+            <span className="m-field-row-chev" />
+          </button>
+
+          <button
+            type="button"
+            className="m-field-row"
+            onClick={() => openNativePicker(dateDueRef.current)}
+          >
+            <span className="m-field-row-icon">
+              <CalendarClock aria-hidden="true" size={18} />
+            </span>
+            <span className="m-field-row-label">截止时间</span>
+            <span className={`m-field-row-value ${dueLocal ? "set" : ""}`}>
+              {dueLocal ? dueLocal.replace("T", " ") : "选择时间"}
+            </span>
+            <span className="m-field-row-chev" />
+          </button>
+
+          <button
+            type="button"
+            className="m-field-row"
+            onClick={() => setRemindSheet(true)}
+          >
+            <span className="m-field-row-icon">
+              <CalendarClock aria-hidden="true" size={18} />
+            </span>
+            <span className="m-field-row-label">提醒</span>
+            <span
+              className={`m-field-row-value ${remindBefore != null ? "set" : ""}`}
+            >
+              {describeReminder(remindBefore)}
+            </span>
+            <span className="m-field-row-chev" />
+          </button>
+
+          {existing?.recurringRuleId ? (
+            <div className="m-field-row m-field-row-static">
+              <span className="m-field-row-icon">
+                <CalendarDays aria-hidden="true" size={18} />
+              </span>
+              <span className="m-field-row-label">循环任务</span>
+              <span className="m-field-row-value">由循环规则管理</span>
+            </div>
+          ) : null}
+        </div>
 
         <div className="m-field-label">标签</div>
-        <div className="m-tag-row">
-          {tags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className="m-tag-pill"
-              onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
-            >
-              #{tag} <span aria-hidden="true">×</span>
-            </button>
-          ))}
-          <input
-            className="m-tag-input"
-            placeholder={tags.length ? "" : "输入标签后回车"}
-            maxLength={12}
-            value={tagDraft}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                commitTag();
-              }
-            }}
-            onBlur={commitTag}
-          />
+        <div className="m-field-group m-tag-group">
+          <div className="m-tag-row">
+            {tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="m-tag-pill"
+                onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+              >
+                #{tag} <span aria-hidden="true">×</span>
+              </button>
+            ))}
+            <input
+              className="m-tag-input"
+              placeholder={tags.length ? "" : "输入标签后回车"}
+              maxLength={12}
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitTag();
+                }
+              }}
+              onBlur={commitTag}
+            />
+          </div>
         </div>
 
         {/* 原生日期控件（点击行经 showPicker 唤起） */}
@@ -337,15 +364,6 @@ function TaskFormContent({
           onChange={(e) => setDueLocal(e.target.value)}
           tabIndex={-1}
         />
-
-        <button
-          type="button"
-          className="m-primary-btn"
-          disabled={saving}
-          onClick={() => void handleSave()}
-        >
-          {mode === "edit" ? "保存修改" : "创建任务"}
-        </button>
       </div>
 
       {listSheet && (

@@ -60,20 +60,25 @@ export function TopBar({
   );
 }
 
-/** 全屏页骨架：顶栏 + 可滚动正文 */
+/** 全屏页骨架：顶栏 + 可滚动正文 + 可选吸底操作栏 */
 export function ScreenShell({
   topbar,
   children,
+  footer,
   className = "",
 }: {
   topbar: ReactNode;
   children: ReactNode;
+  footer?: ReactNode;
   className?: string;
 }): JSX.Element {
   return (
     <section className={`m-page ${className}`}>
       {topbar}
-      <div className="m-page-body">{children}</div>
+      <div className={`m-page-body ${footer ? "has-footer" : ""}`}>
+        {children}
+      </div>
+      {footer ? <footer className="m-page-footer">{footer}</footer> : null}
     </section>
   );
 }

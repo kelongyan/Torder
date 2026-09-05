@@ -137,6 +137,33 @@ function TaskDetailContent({ task }: { task: Task }): JSX.Element {
           ]}
         />
       }
+      footer={
+        <div className="m-detail-footer">
+          <button
+            type="button"
+            className={`m-primary-btn grow ${done ? "ghost" : ""}`}
+            onClick={() => {
+              props.onToggleTask(task);
+              if (done) props.onToast("已恢复为进行中");
+            }}
+          >
+            {done ? (
+              <RotateCcw aria-hidden="true" />
+            ) : (
+              <Check aria-hidden="true" />
+            )}
+            {done ? "恢复为进行中" : "标记完成"}
+          </button>
+          <button
+            type="button"
+            className="m-icon-danger-btn"
+            aria-label="删除任务"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 aria-hidden="true" />
+          </button>
+        </div>
+      }
       className="m-detail-page"
     >
       <div className="m-detail-body">
@@ -335,32 +362,7 @@ function TaskDetailContent({ task }: { task: Task }): JSX.Element {
         )}
       </div>
 
-      {/* 底部固定操作条 */}
-      <div className="m-detail-footer">
-        <button
-          type="button"
-          className={`m-primary-btn ${done ? "ghost" : ""}`}
-          onClick={() => {
-            props.onToggleTask(task);
-            if (done) props.onToast("已恢复为进行中");
-          }}
-        >
-          {done ? (
-            <RotateCcw aria-hidden="true" />
-          ) : (
-            <Check aria-hidden="true" />
-          )}
-          {done ? "恢复为进行中" : "标记完成"}
-        </button>
-        <button
-          type="button"
-          className="m-icon-danger-btn"
-          aria-label="删除任务"
-          onClick={() => setConfirmDelete(true)}
-        >
-          <Trash2 aria-hidden="true" />
-        </button>
-      </div>
+
 
       {/* 浮层 */}
       {sheet === "more" && (

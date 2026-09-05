@@ -97,6 +97,8 @@ export function MobileTaskRow({
       el.style.transform = x ? `translateX(${x}px)` : "";
     };
 
+    let firedThreshold = false;
+
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0];
       startX = t.clientX;
@@ -104,6 +106,7 @@ export function MobileTaskRow({
       offset = 0;
       lock = null;
       dragging = false;
+      firedThreshold = false;
     };
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0];
@@ -115,10 +118,15 @@ export function MobileTaskRow({
       }
       if (lock !== "h") return;
       dragging = true;
-      // 方向无对应动作时不跟手：右滑需 onToggle(完成)，左滑需 onDelete
-      if ((dx < 0 && !deletedRef.current) || (dx > 0 && !deletedRef.current)) {
-        // deleted 行不走滑动；正常行双向都允许（完成/删除）
+
+      // 临界触发展开点轻微触感
+      if (!firedThreshold && Math.abs(dx) >= SWIPE_FIRE) {
+        firedThreshold = true;
+        navigator.vibrate?.(10);
+      } else if (firedThreshold && Math.abs(dx) < SWIPE_FIRE) {
+        firedThreshold = false;
       }
+
       const clamped = Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, dx));
       offset = clamped;
       setOffset(clamped);
@@ -127,11 +135,11 @@ export function MobileTaskRow({
       if (!dragging) return;
       const { onToggle, onDelete } = handlersRef.current;
       if (offset <= -SWIPE_FIRE) {
-        navigator.vibrate?.(12);
+        navigator.vibrate?.(14);
         suppressClickRef.current = true;
         onDelete(task);
       } else if (offset >= SWIPE_FIRE) {
-        navigator.vibrate?.(12);
+        navigator.vibrate?.(14);
         suppressClickRef.current = true;
         onToggle(task);
       }
@@ -139,11 +147,13 @@ export function MobileTaskRow({
       dragging = false;
       lock = null;
       offset = 0;
+      firedThreshold = false;
     };
     const cancel = () => {
       if (dragging) setOffset(0, true);
       dragging = false;
       lock = null;
+      firedThreshold = false;
     };
 
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -198,105 +208,123 @@ export function MobileTaskRow({
   } as CSSProperties;
 
   return (
-    <div
-      ref={rowRef}
-      className={`m-mrow ${done ? "done" : ""} ${deleted ? "deleted" : ""}`}
-      style={priBarStyle}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={clearPress}
-      onClick={onRowClick}
-    >
-      {timeGutter ? <span className="m-mrow-time">{timeGutter}</span> : null}
+    <div className="m-swipe-wrap">
       {!deleted && (
-        <button
-          type="button"
-          className={`m-mrow-check ${done ? "checked" : ""}`}
-          aria-label={done ? "恢复任务" : "完成任务"}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigator.vibrate?.(8);
-            onToggle(task);
-          }}
-        >
-          {done ? <Check aria-hidden="true" /> : null}
-        </button>
+        <>
+          <div className="m-swipe-action m-swipe-left">
+            {done ? (
+              <RotateCcw size={16} aria-hidden="true" />
+            ) : (
+              <Check size={16} aria-hidden="true" />
+            )}
+            <span>{done ? "恢复" : "完成"}</span>
+          </div>
+          <div className="m-swipe-action m-swipe-right">
+            <Trash2 size={16} aria-hidden="true" />
+            <span>删除</span>
+          </div>
+        </>
       )}
-      {deleted ? (
-        <RotateCcw aria-hidden="true" className="m-mrow-del-icon" />
-      ) : null}
-
-      <div className="m-mrow-main">
-        <span className="m-mrow-title">{task.title}</span>
-        <span className="m-mrow-meta">
-          <span
-            className="m-mrow-dot"
-            style={{ background: done ? "var(--text-3)" : accent }}
-          />
-          {overdue ? (
-            <span className={overdue.danger ? "m-mrow-overdue" : ""}>
-              {overdue.text}
-            </span>
-          ) : (
-            <span>无日期</span>
-          )}
-          {task.tags.length > 0 && <span>#{task.tags[0]}</span>}
-          {task.subtasks.length > 0 && (
-            <span>
-              {task.subtasks.filter((s) => s.completed).length}/
-              {task.subtasks.length}
-            </span>
-          )}
-        </span>
-      </div>
-
-      {attachmentCount > 0 && (
-        <span className="m-mrow-att" aria-label={`${attachmentCount} 个附件`}>
-          <Paperclip aria-hidden="true" />
-          {attachmentCount}
-        </span>
-      )}
-
-      {deleted ? (
-        <div className="m-mrow-deleted-actions">
+      <div
+        ref={rowRef}
+        className={`m-mrow ${done ? "done" : ""} ${deleted ? "deleted" : ""}`}
+        style={priBarStyle}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={clearPress}
+        onClick={onRowClick}
+      >
+        {timeGutter ? <span className="m-mrow-time">{timeGutter}</span> : null}
+        {!deleted && (
           <button
             type="button"
-            className="m-mrow-del-btn ok"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestore?.(task);
-            }}
-          >
-            恢复
-          </button>
-          <button
-            type="button"
-            className="m-mrow-del-btn bad"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPermanentDelete?.(task);
-            }}
-          >
-            <Trash2 aria-hidden="true" />
-          </button>
-        </div>
-      ) : (
-        onMore && (
-          <button
-            type="button"
-            className="m-mrow-more"
-            aria-label="更多操作"
+            className={`m-mrow-check ${done ? "checked" : ""}`}
+            aria-label={done ? "恢复任务" : "完成任务"}
             onClick={(e) => {
               e.stopPropagation();
               navigator.vibrate?.(8);
-              onMore(task);
+              onToggle(task);
             }}
           >
-            <MoreHorizontal aria-hidden="true" />
+            {done ? <Check aria-hidden="true" /> : null}
           </button>
-        )
-      )}
+        )}
+        {deleted ? (
+          <RotateCcw aria-hidden="true" className="m-mrow-del-icon" />
+        ) : null}
+
+        <div className="m-mrow-main">
+          <span className="m-mrow-title">{task.title}</span>
+          <span className="m-mrow-meta">
+            <span
+              className="m-mrow-dot"
+              style={{ background: done ? "var(--text-3)" : accent }}
+            />
+            {overdue ? (
+              <span className={overdue.danger ? "m-mrow-overdue" : ""}>
+                {overdue.text}
+              </span>
+            ) : (
+              <span>无日期</span>
+            )}
+            {task.tags.length > 0 && <span>#{task.tags[0]}</span>}
+            {task.subtasks.length > 0 && (
+              <span>
+                {task.subtasks.filter((s) => s.completed).length}/
+                {task.subtasks.length}
+              </span>
+            )}
+          </span>
+        </div>
+
+        {attachmentCount > 0 && (
+          <span className="m-mrow-att" aria-label={`${attachmentCount} 个附件`}>
+            <Paperclip aria-hidden="true" />
+            {attachmentCount}
+          </span>
+        )}
+
+        {deleted ? (
+          <div className="m-mrow-deleted-actions">
+            <button
+              type="button"
+              className="m-mrow-del-btn ok"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore?.(task);
+              }}
+            >
+              恢复
+            </button>
+            <button
+              type="button"
+              className="m-mrow-del-btn bad"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPermanentDelete?.(task);
+              }}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          </div>
+        ) : (
+          onMore && (
+            <button
+              type="button"
+              className="m-mrow-more"
+              aria-label="更多操作"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.vibrate?.(8);
+                onMore(task);
+              }}
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 }

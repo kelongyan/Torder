@@ -88,6 +88,21 @@
   overscroll-behavior: contain;
 }
 
+.m-page-body.has-footer {
+  padding-bottom: 16px;
+}
+
+.m-page-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--mica) 96%, transparent);
+  backdrop-filter: var(--blur-panel, blur(16px));
+  border-top: 1px solid var(--stroke);
+  padding: 10px 16px calc(12px + var(--safe-bottom, 0px));
+}
+
 /* 顶部应用栏（设计稿 appbar：52px + 安全区） */
 .m-topbar {
   flex: none;
@@ -345,7 +360,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 88px 1fr 1fr;
   align-items: stretch;
-  min-height: var(--bottom-nav-height, calc(56px + var(--safe-bottom, 0px)));
+  min-height: var(--bottom-nav-height, calc(58px + var(--safe-bottom, 0px)));
   padding-bottom: var(--safe-bottom, 0px);
   background: color-mix(in srgb, var(--mica) 96%, transparent);
   backdrop-filter: var(--blur-panel, blur(16px));
@@ -356,7 +371,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
+  padding: 6px 0;
   border: none;
   background: transparent;
   color: var(--text-3);
@@ -373,15 +389,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 24px;
+  width: 32px;
+  height: 26px;
   border-radius: 999px;
+  transition: background 180ms ease, color 180ms ease;
 }
 .m-tab.active .m-tab-icon {
   background: var(--accent-soft);
+  color: var(--accent);
 }
 .m-tab-label {
   line-height: 1;
+  font-weight: 500;
 }
 .m-tab-fab-slot {
   position: relative;
@@ -395,24 +414,240 @@
   justify-content: center;
   width: var(--touch-fab, 56px);
   height: var(--touch-fab, 56px);
-  margin-top: -18px;
+  margin-top: -20px;
   border: none;
   border-radius: 50%;
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: var(--shadow-fab, var(--shadow-md));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 36%, transparent), var(--shadow-sm);
   font-size: 26px;
   cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
 }
 .m-tab-fab:active {
-  opacity: 0.9;
-  transform: scale(0.96);
+  transform: scale(0.92);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
-/* ---- 月历页（复用桌面 MonthCalendar，容器内滚动） ---- */
+/* ---- 移动端专属月历页（对齐设计稿 calendarView） ---- */
 .m-calendar-page .m-page-body {
-  padding-left: 12px;
-  padding-right: 12px;
+  padding: 8px 16px calc(80px + var(--safe-bottom, 0px));
+}
+.m-calendar-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.m-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+}
+.m-cal-month-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.m-cal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.m-cal-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.m-cal-nav-btn:active {
+  background: var(--surface-2, var(--sunken));
+}
+.m-cal-today-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.m-cal-today-btn:active,
+.m-cal-today-btn.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+.m-cal-card {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg, 16px);
+  padding: 12px 8px 10px;
+  box-shadow: var(--shadow-sm);
+}
+.m-cal-weekrow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 6px;
+}
+.m-cal-weekrow span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  padding: 2px 0;
+}
+.m-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 4px;
+}
+.m-cal-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.m-cal-cell.outside {
+  color: var(--text-3);
+  opacity: 0.35;
+}
+.m-cal-cell.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.m-cal-cell.today .m-cal-num {
+  background: var(--accent);
+  color: var(--on-accent);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.m-cal-cell .m-cal-dots {
+  display: flex;
+  gap: 2.5px;
+  height: 4px;
+  align-items: center;
+}
+.m-cal-cell .m-cal-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+.m-cal-cell.has-event-band::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--amber);
+  opacity: 0.85;
+}
+.m-cal-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.m-cal-count-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-weight: normal;
+}
+.m-cal-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.m-cal-add-btn:active {
+  opacity: 0.8;
+}
+.m-event-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  font-size: var(--text-sm);
+  border-left: 3px solid var(--band-color, var(--amber));
+  background: color-mix(in srgb, var(--band-color, var(--amber)) 10%, transparent);
+}
+.m-event-icon {
+  color: var(--band-color, var(--amber));
+  display: flex;
+  flex: none;
+}
+.m-event-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.m-event-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.m-event-note {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.m-event-badge {
+  font-size: var(--text-2xs);
+  color: var(--band-color, var(--amber));
+  border: 1px solid color-mix(in srgb, var(--band-color, var(--amber)) 30%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex: none;
+}
+.m-cal-done-group {
+  margin-top: 8px;
+  border-top: 1px dashed var(--stroke);
+  padding-top: 8px;
+}
+.m-cal-done-header {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  margin-bottom: 6px;
 }
 
 /* ============================================================
@@ -744,7 +979,14 @@
 
 /* ---- 表单页 ---- */
 .m-form {
-  padding: 10px 2px 24px;
+  padding: 6px 2px 24px;
+}
+.m-form-card {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg, 16px);
+  padding: 10px 14px 8px;
+  box-shadow: var(--shadow-sm);
 }
 .m-form-title-input {
   width: 100%;
@@ -753,29 +995,39 @@
   background: transparent;
   color: var(--text-1);
   font-size: var(--text-lg);
-  font-weight: 650;
-  padding: 8px 2px;
+  font-weight: 700;
+  padding: 4px 0 6px;
 }
 .m-form-title-input::placeholder {
   color: var(--text-3);
 }
+.m-form-card-divider {
+  height: 1px;
+  background: var(--stroke);
+  margin: 2px 0 8px;
+}
 .m-form-note {
   width: 100%;
   resize: none;
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius);
-  background: var(--sunken);
+  border: none;
+  outline: none;
+  background: transparent;
   color: var(--text-1);
   font-size: var(--text-sm);
   line-height: 1.6;
-  padding: 10px 12px;
+  padding: 2px 0;
   font-family: inherit;
 }
+.m-form-note::placeholder {
+  color: var(--text-3);
+}
 .m-field-label {
-  margin: 16px 2px 8px;
-  font-size: var(--text-sm);
+  margin: 16px 4px 8px;
+  font-size: var(--text-xs);
   font-weight: 650;
   color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .m-pri-options {
   display: flex;
@@ -787,13 +1039,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 40px;
-  border-radius: var(--radius);
+  height: 42px;
+  border-radius: var(--radius-sm, 10px);
   border: 1px solid var(--stroke);
-  background: transparent;
+  background: var(--surface);
   color: var(--text-2);
   font-size: var(--text-sm);
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
 }
 .m-pri-opt.active {
   background: var(--accent);
@@ -801,13 +1054,23 @@
   color: var(--on-accent);
   font-weight: 600;
 }
+.m-field-group {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg, 16px);
+  padding: 2px 14px;
+  box-shadow: var(--shadow-sm);
+}
+.m-field-group.m-tag-group {
+  padding: 10px 12px;
+}
 .m-field-row {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  min-height: 50px;
-  padding: 6px 4px;
+  min-height: 48px;
+  padding: 6px 0;
   border: none;
   border-bottom: 1px solid var(--stroke);
   background: transparent;
@@ -818,6 +1081,17 @@
 }
 .m-field-row:last-of-type {
   border-bottom: none;
+}
+.m-field-row-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2, var(--sunken));
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
 }
 .m-field-row-static {
   cursor: default;
@@ -838,14 +1112,15 @@
 }
 .m-field-row-value.set {
   color: var(--accent);
+  font-weight: 500;
 }
 .m-field-row-value.muted {
   color: var(--text-3);
 }
 .m-field-row-chev {
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-right: 2px solid var(--text-3);
   border-bottom: 2px solid var(--text-3);
   transform: rotate(-45deg);
@@ -856,10 +1131,6 @@
   pointer-events: none;
   width: 1px;
   height: 1px;
-}
-.m-form .m-primary-btn {
-  width: 100%;
-  margin-top: 24px;
 }
 
 /* ---- Sheet / ActionSheet / Confirm ---- */
@@ -1086,20 +1357,68 @@
   background: var(--stroke-strong);
 }
 
-/* ---- 移动任务行 ---- */
+/* ---- 移动任务行（含滑动操作底衬） ---- */
+.m-swipe-wrap {
+  position: relative;
+  border-radius: var(--radius-sm, 10px);
+  overflow: hidden;
+  margin-bottom: 8px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-sm);
+}
+.m-group-card .m-swipe-wrap {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  background: transparent;
+}
+.m-group-card .m-swipe-wrap + .m-swipe-wrap {
+  border-top: 1px solid var(--stroke);
+}
+.m-swipe-action {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: #fff;
+  user-select: none;
+}
+.m-swipe-action.m-swipe-left {
+  left: 0;
+  right: 40%;
+  justify-content: flex-start;
+  background: var(--green);
+}
+.m-swipe-action.m-swipe-right {
+  right: 0;
+  left: 40%;
+  justify-content: flex-end;
+  background: var(--danger);
+}
 .m-mrow {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 54px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   margin: 0;
-  background: transparent;
+  background: var(--surface);
   color: var(--text-1);
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+}
+.m-group-card .m-mrow {
+  background: var(--pop);
 }
 .m-mrow::before {
   content: "";

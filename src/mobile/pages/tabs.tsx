@@ -42,7 +42,7 @@ import {
   applyFontSizeScale,
   applyThemePreference,
 } from "../../utils/theme";
-import { MonthCalendar } from "../../components/task/MonthCalendar";
+import { MobileCalendar } from "../parts/MobileCalendar";
 import { useMobilePage } from "../router";
 import { useMobileProps } from "../context";
 import { useTaskMore } from "../parts/TaskMoreMenu";
@@ -421,6 +421,7 @@ export function BrowseScreen(): JSX.Element {
 export function CalendarScreen(): JSX.Element {
   const { nav } = useMobilePage();
   const props = useMobileProps();
+  const { openMore, moreMenu } = useTaskMore();
   const allTasks = useTaskStore((s) => s.allTasks);
   const showCompleted = useTaskStore((s) => s.showCompleted);
   const activeTasks = useMemo(
@@ -431,17 +432,18 @@ export function CalendarScreen(): JSX.Element {
 
   return (
     <ScreenShell topbar={<TopBar title="日历" />} className="m-calendar-page">
-      <MonthCalendar
+      <MobileCalendar
         tasks={activeTasks}
         lists={props.lists}
         events={props.calendarEvents}
         showCompleted={showCompleted}
         onOpenTask={(task) => nav.push(`/task/${task.id}`)}
         onCreateTask={(date) => nav.push(`/new?scheduledDate=${date}`)}
-        onCreateEvent={props.onNewCalendarEvent}
-        onEditEvent={props.onEditCalendarEvent}
-        onMoveTaskDate={props.onMoveTaskDate}
+        onToggleTask={(task) => props.onToggleTask(task)}
+        onDeleteTask={(task) => props.onDeleteTask(task)}
+        onMoreTask={openMore}
       />
+      {moreMenu}
     </ScreenShell>
   );
 }
