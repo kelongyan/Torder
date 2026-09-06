@@ -10,6 +10,7 @@ export function DialogShell({
   width,
   presence = "enter",
   overlayClassName,
+  leading,
   children,
   onClose,
 }: {
@@ -19,6 +20,8 @@ export function DialogShell({
   width: string;
   presence?: PresencePhase;
   overlayClassName?: string;
+  /** 替换头部左侧图标槽（移动端二级页用它放返回按钮）。 */
+  leading?: ReactNode;
   children: ReactNode;
   onClose: () => void;
 }) {
@@ -41,9 +44,11 @@ export function DialogShell({
         style={{ maxWidth: width }}
       >
         <header className="dialog-header">
-          <span className="dialog-icon">
-            <Icon aria-hidden="true" />
-          </span>
+          {leading ?? (
+            <span className="dialog-icon">
+              <Icon aria-hidden="true" />
+            </span>
+          )}
           <div>
             <h2>{title}</h2>
             {subtitle && <p>{subtitle}</p>}

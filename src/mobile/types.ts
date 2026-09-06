@@ -9,7 +9,7 @@ import type {
   TaskList,
   UpdateTaskInput,
 } from "../types/database";
-import type { AppSettings } from "../types/settings";
+import type { AppSettings, SettingsPanelId } from "../types/settings";
 import type { SyncStatus } from "../types/sync";
 
 export interface MobileShellProps {
@@ -27,7 +27,8 @@ export interface MobileShellProps {
   attachmentCounts: Record<string, number>;
 
   /* ------- 动作（App 闭包注入，与桌面同一实现） ------- */
-  openSettingsDialog: () => void;
+  /** 打开设置；传面板 id 则直达该面板（移动端跳过分类列表）。 */
+  openSettingsDialog: (panel?: SettingsPanelId) => void;
   onNewCalendarEvent: (date: string) => void;
   onEditCalendarEvent: (event: CalendarEvent) => void;
   onMoveTaskDate: (taskId: string, dateKey: string) => Promise<void>;

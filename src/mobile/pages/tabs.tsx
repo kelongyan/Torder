@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   CalendarClock,
   CheckCircle2,
+  Cloud,
   Flame,
   Hash,
   ListTodo,
@@ -518,14 +519,16 @@ export function MeScreen(): JSX.Element {
       <div className="m-group-card">
         <NavRow
           tint={syncConfigured ? "var(--green)" : "var(--amber)"}
-          icon={<ListTodo aria-hidden="true" />}
+          icon={<Cloud aria-hidden="true" />}
           label={syncConfigured ? "WebDAV 同步已配置" : "WebDAV 同步未配置"}
-          onClick={() => props.openSettingsDialog()}
+          onClick={() => props.openSettingsDialog("sync")}
         />
+        {/* 移动端「数据与备份」pane 已按安卓裁剪隐藏（M-1），
+            这里的文案不能承诺导入导出，只指向真实可达的设置项。 */}
         <NavRow
           tint="var(--text-3)"
           icon={<Settings aria-hidden="true" />}
-          label="备份、导入导出与更多设置"
+          label="全部设置"
           onClick={() => props.openSettingsDialog()}
         />
       </div>

@@ -592,6 +592,11 @@ function App() {
       return true;
     }
     if (dialog.settingsOpen) {
+      // 移动端设置是两级流：先退回分类列表，再退才关整个弹窗。
+      if (mobile && dialog.settingsPanel) {
+        dialog.setSettingsPanel(null);
+        return true;
+      }
       setSettingsOpen(false);
       return true;
     }
@@ -690,6 +695,7 @@ function App() {
     setSettingsOpen,
     setShortcutsOpen,
     setStatsOpen,
+    mobile,
     dialog,
   ]);
 
@@ -697,6 +703,8 @@ function App() {
   const layerCount =
     (dialog.confirmState ? 1 : 0) +
     (dialog.settingsOpen ? 1 : 0) +
+    // 移动端设置二级面板算独立一层，系统返回才会先退回分类列表
+    (mobile && dialog.settingsOpen && dialog.settingsPanel ? 1 : 0) +
     (dialog.statsOpen ? 1 : 0) +
     (dialog.batchEditOpen ? 1 : 0) +
     (dialog.commandPaletteOpen ? 1 : 0) +
@@ -1740,6 +1748,8 @@ function App() {
           syncWifiOnly={syncWifiOnly}
           externalSyncStatus={syncStatus}
           presence={settingsPresence.phase}
+          activePanel={dialog.settingsPanel}
+          onActivePanelChange={dialog.setSettingsPanel}
           onClose={() => setSettingsOpen(false)}
           onAutoBackupChange={setAutoBackup}
           onSettingsChange={setSettings}

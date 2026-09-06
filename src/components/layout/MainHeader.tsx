@@ -28,7 +28,7 @@ import { layoutOptions } from "../../constants/taskConfig";
 import { usePresence } from "../../hooks/usePresence";
 import type { TaskFilter, TaskLayout, TaskList } from "../../types/database";
 import type { TaskSortBy } from "../../types/database";
-import type { ThemePreference } from "../../types/settings";
+import type { SettingsPanelId, ThemePreference } from "../../types/settings";
 import type { SyncStatus } from "../../types/sync";
 import { isMobile } from "../../utils/platform";
 import { FilterPanel } from "../common/FilterPanel";
@@ -102,7 +102,7 @@ export function MainHeader({
   onToggleFilterCompleted: () => void;
   onClearFilter: () => void;
   onShowCompletedChange: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (panel?: SettingsPanelId) => void;
   onOpenStats: () => void;
   /** F2 · T-01：命令面板（Ctrl K / 图标）。 */
   onOpenCommandPalette: () => void;
@@ -440,7 +440,7 @@ export function MainHeader({
               <button
                 type="button"
                 className={`icon-button sync-status-button state-${syncStatus.state}`}
-                onClick={onOpenSettings}
+                onClick={() => onOpenSettings("sync")}
                 aria-label={syncLabel}
                 title={syncLabel}
               >
@@ -477,7 +477,7 @@ export function MainHeader({
                   }
                   onSortChange={handleSortSelect}
                   onShowCompletedChange={handleShowCompletedToggle}
-                  onOpenSettings={onOpenSettings}
+                  onOpenSettings={() => onOpenSettings()}
                   onOpenStats={onOpenStats}
                 />
               )}

@@ -12,6 +12,7 @@ import type {
   TaskList,
 } from "../types/database";
 import type { ConfirmState } from "../types/ui";
+import type { SettingsPanelId } from "../types/settings";
 
 interface DialogPresence {
   rendered: boolean;
@@ -27,6 +28,13 @@ export interface DialogManager {
   editingList: TaskList | null;
   shortcutsOpen: boolean;
   settingsOpen: boolean;
+  /**
+   * 当前设置面板。null = 移动端停在分类列表 / 桌面用首个面板兜底。
+   * 提到这里而不是留在 SettingsDialog 内部，是为了让 App 的弹层返回栈
+   * （closeTopLayer + layerCount）能把「二级面板」算作独立一层，
+   * 安卓系统返回才会先退回分类列表而不是直接关掉设置。
+   */
+  settingsPanel: SettingsPanelId | null;
   statsOpen: boolean;
   batchEditOpen: boolean;
   /** F2 · T-01：命令面板（Ctrl K）。 */
@@ -55,6 +63,7 @@ export interface DialogManager {
   setEditingList: Dispatch<SetStateAction<TaskList | null>>;
   setShortcutsOpen: Dispatch<SetStateAction<boolean>>;
   setSettingsOpen: Dispatch<SetStateAction<boolean>>;
+  setSettingsPanel: Dispatch<SetStateAction<SettingsPanelId | null>>;
   setStatsOpen: Dispatch<SetStateAction<boolean>>;
   setBatchEditOpen: Dispatch<SetStateAction<boolean>>;
   setCommandPaletteOpen: Dispatch<SetStateAction<boolean>>;
@@ -66,7 +75,7 @@ export interface DialogManager {
   setEditingCalendarEvent: Dispatch<SetStateAction<CalendarEvent | null>>;
   setEventDialogDefaultDate: Dispatch<SetStateAction<string>>;
   openCreateDialog: () => void;
-  openSettingsDialog: () => void;
+  openSettingsDialog: (panel?: SettingsPanelId) => void;
   openStatsDialog: () => void;
   openAddListDialog: () => void;
   openEditListDialog: (list: TaskList) => void;
@@ -86,6 +95,9 @@ export function useDialogManager(): DialogManager {
   const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPanel, setSettingsPanel] = useState<SettingsPanelId | null>(
+    null,
+  );
   const [statsOpen, setStatsOpen] = useState(false);
   const [batchEditOpen, setBatchEditOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -120,9 +132,12 @@ export function useDialogManager(): DialogManager {
   }, []);
   const closeMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
   const openCreateDialog = useCallback(() => setCreateOpen(true), []);
-  const openSettingsDialog = useCallback(() => {
+  const openSettingsDialog = useCallback((panel?: SettingsPanelId) => {
     setMenuOpen(false);
     setMobileSidebarOpen(false);
+    // 参数化深链：调用点若直接把 onClick 事件对象透传进来，这里的类型会拦住，
+    // 但运行期仍要防御——只有字符串才当面板 id 用。
+    setSettingsPanel(typeof panel === "string" ? panel : null);
     setSettingsOpen(true);
   }, []);
   const openStatsDialog = useCallback(() => {
@@ -162,6 +177,7 @@ export function useDialogManager(): DialogManager {
     setListDialogOpen(false);
     setShortcutsOpen(false);
     setSettingsOpen(false);
+    setSettingsPanel(null);
     setStatsOpen(false);
     setBatchEditOpen(false);
     setCommandPaletteOpen(false);
@@ -181,6 +197,7 @@ export function useDialogManager(): DialogManager {
     editingList,
     shortcutsOpen,
     settingsOpen,
+    settingsPanel,
     statsOpen,
     batchEditOpen,
     commandPaletteOpen,
@@ -208,6 +225,7 @@ export function useDialogManager(): DialogManager {
     setEditingList,
     setShortcutsOpen,
     setSettingsOpen,
+    setSettingsPanel,
     setStatsOpen,
     setBatchEditOpen,
     setCommandPaletteOpen,

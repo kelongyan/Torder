@@ -16,6 +16,9 @@
 @import "./feedback.css";
 @import "./filter.css";
 @import "./responsive.css";
+/* 移动端设置：必须晚于 responsive.css——后者的 .dialog-card / .select-trigger
+   窄屏改写与本文件同特异度（0,2,0），靠顺序决胜。 */
+@import "./settings-mobile.css";
 @import "./widget.css";
 @import "./search.css";
 
