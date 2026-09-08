@@ -1,0 +1,796 @@
+/* ============================================================
+   Torder 便签 UI 大尺度重构 · 三方向渲染稿
+   方向一「曜石」深色玻璃卡 —— 与主窗同源的常驻 widget 质感
+   方向二「纸间」和纸胶带文具 —— 纸感隐喻的彻底现代表达
+   方向三「墨牌」黑白强排版 —— Notion/Things 式极简效率卡
+   三个方向均为范式级重构（无图钉、无荧光黄、无旧抬头结构）。
+   方案书：docx/widget-ui-redesign-plan-2026-09-08.md
+   ============================================================ */
+
+/* ---------- 展示台 ---------- */
+
+.showcase-body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background: #2e3238;
+  transition: background-color 0.35s ease;
+}
+
+.showcase-body.desktop-light {
+  background: #d9d5cc;
+}
+
+.showcase-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 44px 40px 90px;
+}
+
+.showcase-head h1 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+  color: #f2f0ea;
+}
+
+.showcase-head .sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(242, 240, 234, 0.5);
+}
+
+.desktop-light .showcase-head h1 {
+  color: #2e3238;
+}
+
+.desktop-light .showcase-head .sub {
+  color: rgba(46, 50, 56, 0.55);
+}
+
+.showcase-controls {
+  margin: 20px 0 0;
+}
+
+.showcase-controls button {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 5px 14px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.showcase-controls button:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+
+.desktop-light .showcase-controls button {
+  border-color: rgba(46, 50, 56, 0.3);
+  color: rgba(46, 50, 56, 0.7);
+}
+
+.desktop-light .showcase-controls button:hover {
+  border-color: rgba(46, 50, 56, 0.6);
+  color: #2e3238;
+}
+
+.dir-section {
+  margin-top: 52px;
+}
+
+.dir-section > h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(242, 240, 234, 0.92);
+}
+
+.dir-section > h2 code {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(242, 240, 234, 0.45);
+  margin-left: 8px;
+}
+
+.dir-section > p {
+  margin: 6px 0 20px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: rgba(242, 240, 234, 0.52);
+}
+
+.desktop-light .dir-section > h2 {
+  color: rgba(46, 50, 56, 0.92);
+}
+
+.desktop-light .dir-section > h2 code {
+  color: rgba(46, 50, 56, 0.45);
+}
+
+.desktop-light .dir-section > p {
+  color: rgba(46, 50, 56, 0.58);
+}
+
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 40px 30px;
+  align-items: start;
+}
+
+.note-frame {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.note-frame figcaption {
+  font-size: 12px;
+  color: rgba(242, 240, 234, 0.55);
+  letter-spacing: 0.02em;
+}
+
+.desktop-light .note-frame figcaption {
+  color: rgba(46, 50, 56, 0.6);
+}
+
+/* 公共：条目行骨架 */
+
+.w-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.w-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.w-time,
+.w-until {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   方向一「曜石」OBSIDIAN —— 深色玻璃卡
+   半透明深底 + 白色描边高光 + accent 紫跟随主窗；
+   抛弃图钉/纸纹，「贴在桌面」由大投影 + 顶部提手条表达。
+   ============================================================ */
+
+.dir-obsidian .note-card {
+  position: relative;
+  width: 280px;
+  border-radius: 16px;
+  background: rgba(21, 23, 28, 0.88);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 22px 48px -18px rgba(0, 0, 0, 0.66);
+  padding: 22px 20px 18px;
+  color: #f4f3f6;
+  font-size: 14px;
+}
+
+/* 顶部提手条：替代图钉的「可拿取」暗示 */
+.dir-obsidian .handle {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dir-obsidian .date-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dir-obsidian .date-big {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+.dir-obsidian .date-week {
+  font-size: 13px;
+  color: rgba(244, 243, 246, 0.45);
+}
+
+.dir-obsidian .meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 3px;
+  font-size: 12px;
+  color: rgba(244, 243, 246, 0.42);
+}
+
+.dir-obsidian .nav-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(244, 243, 246, 0.55);
+  cursor: pointer;
+}
+
+.dir-obsidian .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.dir-obsidian .nav-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dir-obsidian .divider {
+  height: 1px;
+  margin: 14px 0 4px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.dir-obsidian .w-item {
+  padding: 10px 0 10px 12px;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.dir-obsidian .w-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* 高优先级：左缘 accent 竖条 + 时间 accent 色（替代红字） */
+.dir-obsidian .w-item.is-high {
+  box-shadow: inset 3px 0 0 0 var(--ob-accent);
+}
+
+.dir-obsidian .w-item.is-high .w-time {
+  color: var(--ob-accent);
+  font-weight: 500;
+}
+
+.dir-obsidian .w-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dir-obsidian .w-check:hover {
+  border-color: var(--ob-accent);
+}
+
+.dir-obsidian .is-done .w-check {
+  border-color: var(--ob-accent);
+  background: var(--ob-accent);
+}
+
+.dir-obsidian .is-done .w-check svg {
+  width: 11px;
+  height: 11px;
+}
+
+.dir-obsidian .is-done .w-title {
+  color: rgba(244, 243, 246, 0.38);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.dir-obsidian .w-time {
+  font-size: 12px;
+  color: rgba(244, 243, 246, 0.42);
+}
+
+.dir-obsidian .w-until {
+  font-size: 12px;
+  color: var(--ob-accent-2);
+}
+
+.dir-obsidian .quick-add {
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  font-size: 13px;
+  color: rgba(244, 243, 246, 0.45);
+  text-align: center;
+  cursor: pointer;
+}
+
+.dir-obsidian .quick-add:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  color: rgba(244, 243, 246, 0.75);
+}
+
+/* 底部进度条：今日完成度 */
+.dir-obsidian .progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dir-obsidian .progress .track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.dir-obsidian .progress .fill {
+  width: 33%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--ob-accent);
+}
+
+.dir-obsidian .progress .num {
+  font-size: 11px;
+  color: rgba(244, 243, 246, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.dir-obsidian .empty {
+  padding: 26px 0 18px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(244, 243, 246, 0.35);
+}
+
+/* 曜石的两个 accent 变体（跟随主窗强调色体系） */
+.dir-obsidian {
+  --ob-accent: #8b7cf6;
+  --ob-accent-2: #b9a8ff;
+}
+
+.dir-obsidian.accent-teal {
+  --ob-accent: #2fbf9a;
+  --ob-accent-2: #6fdcc0;
+}
+
+/* ============================================================
+   方向二「纸间」WASHI —— 和纸胶带文具卡
+   保留纸的隐喻但 100% 换血：奶油白纸 + 真横线 + 斜贴和纸胶带
+   （替代图钉）+ 楷体手写日期 + 红笔波浪线批注。
+   ============================================================ */
+
+.dir-washi .note-card {
+  position: relative;
+  width: 280px;
+  border-radius: 4px;
+  background: #faf7f0;
+  box-shadow:
+    inset 0 0 0 1px rgba(90, 80, 60, 0.08),
+    0 14px 34px -16px rgba(45, 40, 28, 0.45);
+  padding: 34px 20px 20px;
+  color: #3a352c;
+  font-size: 14px;
+}
+
+/* 和纸胶带：斜贴盖住纸顶边，两端锯齿 + 细白织纹 */
+.dir-washi .washi-tape {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 104px;
+  height: 27px;
+  transform: translateX(-50%) rotate(-2.4deg);
+  background: rgba(232, 176, 84, 0.78);
+  clip-path: polygon(
+    0 3px, 4px 0, 8px 3px, 12px 0, 16px 3px, 20px 0, 24px 3px, 28px 0,
+    32px 3px, 36px 0, 40px 3px, 44px 0, 48px 3px, 52px 0, 56px 3px, 60px 0,
+    64px 3px, 68px 0, 72px 3px, 76px 0, 80px 3px, 84px 0, 88px 3px, 92px 0,
+    96px 3px, 100px 0, 104px 3px,
+    104px 24px, 100px 27px, 96px 24px, 92px 27px, 88px 24px, 84px 27px,
+    80px 24px, 76px 27px, 72px 24px, 68px 27px, 64px 24px, 60px 27px,
+    56px 24px, 52px 27px, 48px 24px, 44px 27px, 40px 24px, 36px 27px,
+    32px 24px, 28px 27px, 24px 24px, 20px 27px, 16px 24px, 12px 27px,
+    8px 24px, 4px 27px, 0 24px
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dir-washi .washi-tape::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.14) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.dir-washi .washi-tape span {
+  position: relative;
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  color: rgba(90, 62, 20, 0.55);
+  text-indent: 0.34em;
+}
+
+.dir-washi .date-big {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #35302a;
+}
+
+.dir-washi .meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(90, 80, 60, 0.55);
+}
+
+.dir-washi .nav-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(90, 80, 60, 0.6);
+  cursor: pointer;
+}
+
+.dir-washi .nav-btn:hover {
+  background: rgba(90, 80, 60, 0.1);
+  color: #3a352c;
+}
+
+.dir-washi .nav-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* 真横线纸面：列表区每行落在 24px 横线上 */
+.dir-washi .list {
+  margin-top: 14px;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 23px,
+    rgba(88, 108, 132, 0.18) 23px 24px
+  );
+}
+
+.dir-washi .w-item {
+  min-height: 24px;
+  padding: 0 2px;
+  line-height: 24px;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* 手写风复选框：细圆圈，完成后填实 */
+.dir-washi .w-check {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  align-self: center;
+  border: 1.5px solid rgba(90, 80, 60, 0.5);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dir-washi .w-check svg {
+  width: 10px;
+  height: 10px;
+  display: none;
+}
+
+.dir-washi .is-done .w-check {
+  border-color: rgba(58, 53, 44, 0.35);
+  background: rgba(58, 53, 44, 0.12);
+}
+
+.dir-washi .is-done .w-check svg {
+  display: block;
+}
+
+.dir-washi .w-title {
+  font-size: 14px;
+}
+
+/* 红笔批注：高优先级 = 红字 + 波浪下划线（手写批改感） */
+.dir-washi .is-high .w-title {
+  color: #b5362a;
+  text-decoration: underline wavy rgba(181, 54, 42, 0.55) 1px;
+  text-underline-offset: 4px;
+}
+
+.dir-washi .is-done .w-title {
+  color: rgba(90, 80, 60, 0.45);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.dir-washi .w-time,
+.dir-washi .w-until {
+  font-size: 11.5px;
+  color: rgba(90, 80, 60, 0.5);
+}
+
+.dir-washi .is-high .w-time {
+  color: #b5362a;
+}
+
+.dir-washi .w-until {
+  color: #a06a1f;
+}
+
+.dir-washi .quick-add {
+  margin-top: 12px;
+  padding: 7px 2px;
+  border-bottom: 1.5px solid rgba(90, 80, 60, 0.3);
+  font-size: 13.5px;
+  color: rgba(90, 80, 60, 0.45);
+  cursor: text;
+}
+
+.dir-washi .empty {
+  padding: 30px 0 26px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 2;
+  color: rgba(90, 80, 60, 0.5);
+}
+
+.dir-washi .empty em {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-style: normal;
+  font-size: 15px;
+  color: rgba(58, 53, 44, 0.62);
+  border-bottom: 1px dashed rgba(90, 80, 60, 0.4);
+  padding-bottom: 2px;
+}
+
+/* 胶带色变体 */
+.dir-washi.tape-sakura .washi-tape {
+  background: rgba(226, 141, 152, 0.75);
+}
+
+.dir-washi.tape-mint .washi-tape {
+  background: rgba(122, 186, 154, 0.72);
+}
+
+/* ============================================================
+   方向三「墨牌」INKLINE —— 黑白强排版效率卡
+   超大细体日期数字 + 黑白灰 + 国际橙点缀；无边纯白，
+   结构全部由留白与字重表达。Notion / Things 气质。
+   ============================================================ */
+
+.dir-inkline .note-card {
+  position: relative;
+  width: 280px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px rgba(24, 26, 30, 0.07),
+    0 14px 38px -18px rgba(24, 26, 30, 0.4);
+  padding: 24px 22px 20px;
+  color: #191b1f;
+  font-size: 14px;
+}
+
+.dir-inkline .weekday {
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: rgba(25, 27, 31, 0.4);
+}
+
+.dir-inkline .date-big {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.dir-inkline .date-big .d {
+  font-size: 54px;
+  font-weight: 200;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #141518;
+}
+
+.dir-inkline .date-big .m {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(25, 27, 31, 0.42);
+}
+
+.dir-inkline .date-big .count {
+  margin-left: auto;
+  font-size: 12px;
+  color: rgba(25, 27, 31, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* section marker：2px 短黑横 */
+.dir-inkline .mark {
+  width: 34px;
+  height: 2px;
+  background: #141518;
+  margin: 14px 0 6px;
+}
+
+.dir-inkline .w-item {
+  padding: 10px 0;
+  line-height: 1.5;
+  align-items: center;
+}
+
+.dir-inkline .w-item + .w-item {
+  border-top: 1px solid rgba(25, 27, 31, 0.07);
+}
+
+.dir-inkline .w-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #191b1f;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dir-inkline .w-check:hover {
+  background: rgba(25, 27, 31, 0.06);
+}
+
+.dir-inkline .w-check svg {
+  width: 12px;
+  height: 12px;
+  display: none;
+}
+
+.dir-inkline .is-done .w-check {
+  background: #191b1f;
+}
+
+.dir-inkline .is-done .w-check svg {
+  display: block;
+}
+
+.dir-inkline .is-done .w-check svg path {
+  stroke: #fff;
+}
+
+.dir-inkline .w-title {
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+/* 高优先级：前置橙色方块 + 时间橙色（黑白世界里唯一的颜色） */
+.dir-inkline .is-high .w-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--ik-accent);
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.dir-inkline .is-high .w-time {
+  color: var(--ik-accent);
+  font-weight: 500;
+}
+
+.dir-inkline .is-done .w-title {
+  color: rgba(25, 27, 31, 0.35);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.dir-inkline .w-time,
+.dir-inkline .w-until {
+  font-size: 12px;
+  color: rgba(25, 27, 31, 0.4);
+}
+
+.dir-inkline .w-until {
+  color: var(--ik-accent);
+}
+
+.dir-inkline .quick-add {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(25, 27, 31, 0.18);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(25, 27, 31, 0.5);
+  cursor: pointer;
+}
+
+.dir-inkline .quick-add:hover {
+  color: #141518;
+}
+
+/* 底部完成度分条：黑框 + accent 填充 */
+.dir-inkline .progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dir-inkline .progress .track {
+  flex: 1;
+  height: 8px;
+  border: 1.5px solid #191b1f;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dir-inkline .progress .fill {
+  width: 33%;
+  height: 100%;
+  background: var(--ik-accent);
+}
+
+.dir-inkline .progress .num {
+  font-size: 11px;
+  font-weight: 500;
+  color: #191b1f;
+  font-variant-numeric: tabular-nums;
+}
+
+.dir-inkline .empty {
+  padding: 34px 0 30px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(25, 27, 31, 0.35);
+}
+
+.dir-inkline {
+  --ik-accent: #ff5c38;
+}
+
+.dir-inkline.accent-blue {
+  --ik-accent: #2563eb;
+}
