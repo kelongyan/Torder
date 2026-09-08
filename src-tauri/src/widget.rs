@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use tauri::{
-    App, AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
+    App, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
 };
 
@@ -218,19 +218,52 @@ fn normalize_existing_widget_size(window: &WebviewWindow) -> tauri::Result<()> {
     Ok(())
 }
 
+/// 触发便签「淡出隐藏」流程（方案书 widget-ux-polish-plan-2026-09-08.md W2-2）：
+/// 1. emit `widget-hide-request` 到 widget 窗，前端复用 `.is-closing` 播 360ms 淡出；
+/// 2. 前端播完后 invoke `hide_widget_window`（commands/widget.rs）执行真正 hide；
+/// 3. 这里同时起 500ms 兜底线程——WebView 卡死 / 事件丢失时直接 hide，
+///    宁可硬切不可失灵。
+///
+/// 返回是否找到了窗口（调用方据此决定是否需要建窗）。
+pub fn request_widget_hide(app: &AppHandle) -> bool {
+    let Some(window) = app.get_webview_window(WIDGET_LABEL) else {
+        return false;
+    };
+    if !window.is_visible().unwrap_or(false) {
+        return true; // 已隐藏，视为成功
+    }
+    if let Err(error) = app.emit_to(WIDGET_LABEL, "widget-hide-request", ()) {
+        eprintln!("widget hide-request emit failed: {error}");
+        let _ = window.hide();
+        return true;
+    }
+    let fallback = window;
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if fallback.is_visible().unwrap_or(false) {
+            let _ = fallback.hide();
+        }
+    });
+    true
+}
+
 /// 切换小窗可见性；窗口不存在时按需创建。返回切换后是否可见。
 /// 托盘菜单路径：同时持久化 enabled，重启后按此恢复。
+/// 显隐均走事件驱动的前端动效（W2-2）：show 后 emit `widget-shown`
+/// 让前端重播 drop-in；hide 走 `request_widget_hide` 淡出。
 pub fn toggle_widget_window(app: &AppHandle) -> tauri::Result<bool> {
     if let Some(window) = app.get_webview_window(WIDGET_LABEL) {
         let visible = window.is_visible().unwrap_or(false);
         if visible {
-            window.hide()?;
+            persist_widget_enabled(app, false);
+            request_widget_hide(app);
         } else {
             normalize_existing_widget_size(&window)?;
             window.show()?;
             window.set_focus()?;
+            let _ = app.emit_to(WIDGET_LABEL, "widget-shown", ());
+            persist_widget_enabled(app, true);
         }
-        persist_widget_enabled(app, !visible);
         return Ok(!visible);
     }
     create_widget_window(app)?;

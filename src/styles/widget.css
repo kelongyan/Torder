@@ -718,6 +718,23 @@ html.widget-entry body {
 
 .widget-list-inner {
   display: block;
+  /* 日期切换方向感（W1-3）：仅 .is-leaving-* 期间生效的滑出过渡；
+     新条目入场方向由 [data-nav] 选择器换 animation-name（D-3 轮播语义：
+     prev 从左入/旧内容向右出，next 相反）。transform/opacity 不影响
+     高度实测链路（offsetTop/offsetHeight 与 transform 无关）。 */
+  transition:
+    opacity 0.13s ease-in,
+    transform 0.13s ease-in;
+}
+
+.widget-list-inner.is-leaving-prev {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.widget-list-inner.is-leaving-next {
+  opacity: 0;
+  transform: translateX(-10px);
 }
 
 /* .is-scrollable 现在只是语义标记：滚动行为已由上面恒定的 overflow-y 提供，
@@ -774,7 +791,12 @@ html.widget-entry body {
   font-weight: 400;
   cursor: pointer;
   user-select: none;
-  transition: opacity 0.25s;
+  /* hover 色块用圆角贴在格线上（纸面隐喻：铅笔轻轻描了一遍底色），
+     只动 background/opacity，不触发 layout */
+  border-radius: 6px;
+  transition:
+    opacity 0.25s,
+    background-color 0.15s var(--ease-standard);
   animation: item-fade-in 0.4s ease-out backwards;
 }
 
@@ -811,8 +833,30 @@ html.widget-entry body {
   }
 }
 
+/* 下一天（next）：条目从右入（与默认的 prev 左入成对） */
+@keyframes item-fade-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.widget-list-inner[data-nav="next"] .widget-item {
+  animation-name: item-fade-in-right;
+}
+
 .widget-item:hover {
   opacity: 0.85;
+  background: rgba(var(--note-ink), 0.05);
+}
+
+/* 按压反馈：色块加深一档（不用 scale——文字缩放会有一帧模糊，且违背纸面克制） */
+.widget-item:active {
+  background: rgba(var(--note-ink), 0.08);
 }
 
 .widget-item.is-done {
@@ -841,8 +885,19 @@ html.widget-entry body {
   transition:
     background 0.2s,
     border-color 0.2s,
-    opacity 0.2s;
+    opacity 0.2s,
+    transform 0.15s var(--ease-standard);
   padding: 0;
+}
+
+/* hover：微放大 + 描边加深，明示「这一格是可以勾的」 */
+.widget-item-checkbox:hover:not(:disabled) {
+  border-color: var(--note-strong);
+  transform: scale(1.08);
+}
+
+.widget-item-checkbox:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .widget-item.is-busy .widget-item-checkbox {
@@ -860,8 +915,9 @@ html.widget-entry body {
   opacity: 0;
   transform: scale(0.4);
   transition:
-    opacity 0.2s,
-    transform 0.2s;
+    opacity 0.15s ease-out,
+    /* 弹性曲线：勾上的一下有「笔尖落下」的回弹（方案书 W1-1） */ transform
+      0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   stroke: var(--note-check);
   stroke-width: 3;
 }
@@ -869,6 +925,26 @@ html.widget-entry body {
 .widget-item-checkbox.checked svg {
   opacity: 1;
   transform: scale(1);
+}
+
+/* 对勾描边绘制：lucide Check 的 path 长度 ≈22.6，dashoffset 24→0
+   即「一笔画出」。svg 是条件渲染（完成时才插入），用 animation 触发 */
+.widget-item-checkbox svg path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+}
+
+.widget-item-checkbox.checked svg path {
+  animation: check-draw 0.18s ease-out backwards;
+}
+
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* 标题不拉伸占满：让清单色点紧跟文字，时间钉在行尾；最多 2 行 */
@@ -943,25 +1019,52 @@ html.widget-entry body {
   font-variant-numeric: tabular-nums;
 }
 
-/* === QuickAdd：下划线式行内编辑（纸上书写感） === */
+/* === QuickAdd：下划线式行内编辑（纸上书写感） ===
+   常挂载 + grid-template-rows 过渡（方案书 D-2）：展开/收起双向动画，
+   不再条件渲染卸载。收起后内容盒归 0（min-height:0 + overflow:hidden），
+   实测高度链路（list.offsetTop 含本区）自动跟随；visibility 延迟切换
+   保证收起动画播完前输入条仍可见，播完后彻底隐藏（含 border，不留残线）。 */
 
 .widget-quick-add {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-bottom: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    grid-template-rows 0.18s var(--ease-standard),
+    opacity 0.15s var(--ease-standard),
+    margin-bottom 0.18s var(--ease-standard),
+    visibility 0s 0.18s;
+}
+
+.widget-quick-add.is-open {
+  grid-template-rows: 1fr;
+  margin-bottom: 8px;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    grid-template-rows 0.18s var(--ease-standard),
+    opacity 0.15s var(--ease-standard),
+    margin-bottom 0.18s var(--ease-standard),
+    visibility 0s 0s;
+}
+
+.widget-quick-add-inner {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 30px;
+  /* grid 0fr 收缩三件套：min-height:0 放行收缩、overflow 裁内容 */
+  min-height: 0;
+  overflow: hidden;
   padding: 2px 2px 4px;
-  border: none;
   border-bottom: 1.5px solid rgba(var(--note-ink), 0.25);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  margin-bottom: 8px;
-  animation: item-fade-in 0.25s ease-out;
   transition: border-color var(--motion-micro) var(--ease-standard);
 }
 
-.widget-quick-add:focus-within {
+.widget-quick-add-inner:focus-within {
   border-bottom-color: rgba(var(--note-ink), 0.55);
 }
 
@@ -1070,4 +1173,30 @@ html.widget-entry body {
 /* 关清单色点 */
 .note-no-dots .widget-item-dot {
   display: none;
+}
+
+/* === 动效降级（方案书 D-7）：系统开启「减少动态效果」时全部动画/过渡
+   收敛为瞬时切换。覆盖新增的 FLIP 滑出/QuickAdd 过渡/对勾绘制，
+   以及既有的 drop-in、item-fade-in、关闭动效。FLIP 走 WAAPI
+   （element.animate），在 TS 侧按同一媒体查询短路（WidgetApp.tsx）。 === */
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-shell,
+  .widget-stage.is-closing .widget-shell,
+  .widget-stage.is-closing .widget-pin-top,
+  .widget-item,
+  .widget-list-inner,
+  .widget-quick-add,
+  .widget-quick-add-inner,
+  .widget-item-checkbox,
+  .widget-item-checkbox svg {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .widget-list-inner.is-leaving-prev,
+  .widget-list-inner.is-leaving-next {
+    opacity: 0;
+    transform: none;
+  }
 }

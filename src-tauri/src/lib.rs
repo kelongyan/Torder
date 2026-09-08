@@ -267,6 +267,8 @@ pub fn run() {
             #[cfg(desktop)]
             commands::widget::set_widget_enabled,
             #[cfg(desktop)]
+            commands::widget::hide_widget_window,
+            #[cfg(desktop)]
             commands::widget::patch_widget_settings,
             #[cfg(desktop)]
             commands::widget::import_note_font,

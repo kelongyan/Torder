@@ -45,6 +45,7 @@ export function WidgetTaskItem({
   return (
     <article
       className={className}
+      data-task-id={task.id}
       data-tauri-drag-region="false"
       onClick={onOpen}
     >

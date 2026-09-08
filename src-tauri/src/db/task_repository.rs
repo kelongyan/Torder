@@ -228,6 +228,7 @@ impl<'database> TaskRepository<'database> {
     /// 2. 跨天区间：计划日期与截止时间齐全的未完成任务，在
     ///    [计划日, 截止日] 区间内的每一天都命中——便签里「从今天做到
     ///    周一」的任务每天可见，勾选完成（同一条记录）后区间内自然消失。
+    ///
     /// 排序语义与前端 `taskService.ts::compareWidgetTasks` 保持一致：
     /// 有日期（`scheduled_date` 或 `date(due_at)`）的任务在前、按日期升序，
     /// 无日期的在后；同组内 priority DESC，最后 created_at DESC。

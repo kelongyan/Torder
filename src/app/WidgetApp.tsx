@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useLayoutEffect,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { listen } from "@tauri-apps/api/event";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   LogicalPosition,
   LogicalSize,
@@ -45,11 +52,35 @@ import {
   clampWidgetWidth,
   type WidgetSizeMode,
 } from "../services/widgetLayout";
+import {
+  easeOutCubic,
+  leaveClassName,
+  navDirectionFromDelta,
+  type NavDirection,
+} from "../utils/widgetMotion";
 
 /** 关闭淡出动效时长（与 widget.css `.widget-stage.is-closing` 保持一致） */
 const CLOSE_ANIMATION_MS = 360;
 /** 位置 / 尺寸落盘的防抖时长 */
 const GEOMETRY_FLUSH_MS = 300;
+/** 日期切换：旧内容滑出时长（与 widget.css `.is-leaving-*` transition 一致） */
+const NAV_LEAVE_MS = 130;
+/** auto 模式窗口高度动画时长（W2-1，rAF 分帧插值） */
+const WINDOW_SIZE_ANIM_MS = 180;
+
+/** 窗口高度动画（W2-1）的插值状态；跨 effect 运行共享于 heightAnimRef */
+type HeightAnimState = {
+  raf: number | null;
+  writeInFlight: boolean;
+  startedAt: number;
+  lastHeight: number;
+  targetHeight: number;
+  start: { x: number; bottomY: number; height: number; width: number };
+};
+/** 拖拽 / 动画中 prefers-reduced-motion 短路用 */
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function WidgetApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -97,6 +128,23 @@ export function WidgetApp() {
    */
   const [sizeMode, setSizeMode] = useState<WidgetSizeMode | null>(null);
   const sizeModeRef = useRef<WidgetSizeMode | null>(null);
+
+  // ==== 动效状态（方案书 docx/widget-ux-polish-plan-2026-09-08.md W1/W2） ====
+  /** 日期切换方向（W1-3）：决定旧内容滑出 class 与新条目入场 keyframes */
+  const [navDirection, setNavDirection] = useState<NavDirection | null>(null);
+  const [navLeaving, setNavLeaving] = useState(false);
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * FLIP（W1-1）：上一帧条目位置快照（key = task id）。
+   * 仅在 flipEnabledRef 置位后的第一次重排播放位移（勾选完成/取消沉降），
+   * 日期切换 / 重拉 / 草稿变化不播（各有自己的过渡或应即时呈现）。
+   */
+  const prevRectsRef = useRef<Map<string, { el: HTMLElement; rect: DOMRect }>>(
+    new Map(),
+  );
+  const flipEnabledRef = useRef(false);
+  /** 窗口高度动画（W2-1）：进行中的插值状态，跨 effect 运行共享 */
+  const heightAnimRef = useRef<HeightAnimState | null>(null);
 
   const displayedDateKey = anchorDate ?? todayKey;
   // 事件回调里要拿最新值；闭包旧值会让"按日重拉"打错目标
@@ -301,11 +349,18 @@ export function WidgetApp() {
     return () => clearInterval(timer);
   }, [refreshDate, todayKey]);
 
+  // 卸载时清掉日期导航的滑出定时器（W1-3），避免卸载后 setState
+  useEffect(
+    () => () => {
+      if (navTimer.current) clearTimeout(navTimer.current);
+    },
+    [],
+  );
+
   // 拖拽 / 拉伸后的几何记忆（仅 Tauri）：onMoved + onResized 合并防抖写入设置键。
   // 拖起手本身由 .widget-stage 上的 data-tauri-drag-region="deep" + Tauri 注入的
   // drag.js 负责；拉伸起手由 WidgetResizeHandles 调 startResizeDragging，
   // 这里都不碰鼠标，只记结果。
-  //
   // 尺寸只在 manual 模式下落盘：auto 模式下自动高度自己也会调 setSize，
   // 把那些程序化尺寸存下来会让「跟随内容」变成一个僵化的存档值。
   useEffect(() => {
@@ -380,16 +435,57 @@ export function WidgetApp() {
     return () => observer.disconnect();
   }, [tasks.length, adding, failed]);
 
+  // FLIP 沉降动画（W1-1）：勾选完成/取消后条目在待办区↔完成区之间位移，
+  // 用「记录旧位置 → 重排 → invert → play」补上缺失的滑动。
+  // 只动 transform（合成层友好，透明窗红线安全）；WAAPI 动画不会与
+  // CSS transition/animation 打架。reduced-motion 下直接跳过。
+  useLayoutEffect(() => {
+    const inner = listInnerRef.current;
+    if (!inner) return;
+    const current = new Map<string, { el: HTMLElement; rect: DOMRect }>();
+    for (const el of inner.querySelectorAll<HTMLElement>("[data-task-id]")) {
+      const id = el.dataset.taskId;
+      if (id) current.set(id, { el, rect: el.getBoundingClientRect() });
+    }
+    if (flipEnabledRef.current) {
+      flipEnabledRef.current = false;
+      if (!prefersReducedMotion()) {
+        for (const [id, entry] of current) {
+          const prev = prevRectsRef.current.get(id);
+          if (!prev) continue;
+          const dx = prev.rect.left - entry.rect.left;
+          const dy = prev.rect.top - entry.rect.top;
+          if (Math.abs(dx) < 2 && Math.abs(dy) < 2) continue;
+          entry.el.animate(
+            [
+              { transform: `translate(${dx}px, ${dy}px)` },
+              { transform: "translate(0, 0)" },
+            ],
+            { duration: 240, easing: "cubic-bezier(0.25, 0.8, 0.25, 1)" },
+          );
+        }
+      }
+    }
+    prevRectsRef.current = current;
+  }, [tasks]);
+
   // 按实测高度重设窗口；固定底边，避免向下扩出屏幕。
-  // manual 模式（用户拖过手柄）下完全不介入，否则任何内容变化都会把手动尺寸吃掉。
+  // W2-1：auto 模式下高度变化不再一次 setSize 硬跳，而是 rAF 在
+  // WINDOW_SIZE_ANIM_MS 内 ease-out 分帧插值（每帧至多一次写 IPC，
+  // 上一次写未返回则跳帧防堆积），内容与窗口同步渐变。
+  // - 动画进行中目标变化：从当前插值高度重新起跑（连续，无跳变）；
+  // - 起点即目标（<1px）：不启动；
+  // - manual 模式（用户拖过手柄）与关闭动效中不介入并停掉动画。
+  // 手动拖拽 onResized 只在 manual 模式落盘，与这里的 auto 动画天然互斥。
   useEffect(() => {
     if (!isTauri()) return;
-    // 关闭动效中不再调整高度，避免与 .is-closing 动画打架
-    if (closing || naturalHeight === 0) return;
-    // null = 设置还没读出来，先别动；manual = 尺寸归用户
-    if (sizeMode !== "auto") return;
+    const running = heightAnimRef.current;
+    if (running?.raf != null) {
+      cancelAnimationFrame(running.raf);
+      running.raf = null;
+    }
+    if (closing || naturalHeight === 0 || sizeMode !== "auto") return;
     const targetHeight = clampWidgetHeight(naturalHeight);
-    let cancelled = false;
     void (async () => {
       try {
         const win = getCurrentWindow();
@@ -398,48 +494,122 @@ export function WidgetApp() {
           win.outerPosition(),
           win.outerSize(),
         ]);
-        if (cancelled) return;
-        const currentHeightLogical = size.height / scale;
-        // 宽度必须沿用当前实际值，不能写回常量：否则用户横向拉宽后，
-        // 任何一次内容变化都会把宽度按回默认值。clamp 只用于自愈越界存档。
-        const targetWidth = clampWidgetWidth(size.width / scale);
-        const widthChanged = Math.abs(targetWidth - size.width / scale) >= 1;
-        if (
-          Math.abs(currentHeightLogical - targetHeight) < 1 &&
-          !widthChanged
-        ) {
+        // await 期间可能又有一次 effect 触发——重读最新动画状态，
+        // 若已有人在跑则只更新目标并从当前插值高度重新起跑
+        const existing = heightAnimRef.current;
+        if (existing?.raf != null) {
+          existing.targetHeight = targetHeight;
+          existing.startedAt = performance.now();
+          existing.start = { ...existing.start, height: existing.lastHeight };
           return;
         }
-        const bottomY = pos.y / scale + currentHeightLogical;
-        const newY = Math.max(0, bottomY - targetHeight);
-        await win.setSize(new LogicalSize(targetWidth, targetHeight));
-        await win.setPosition(new LogicalPosition(pos.x / scale, newY));
+        const startHeight = size.height / scale;
+        if (Math.abs(startHeight - targetHeight) < 1) return;
+        const nextState: HeightAnimState = {
+          raf: null,
+          writeInFlight: false,
+          startedAt: performance.now(),
+          lastHeight: startHeight,
+          targetHeight,
+          start: {
+            x: pos.x / scale,
+            bottomY: pos.y / scale + startHeight,
+            height: startHeight,
+            width: clampWidgetWidth(size.width / scale),
+          },
+        };
+        heightAnimRef.current = nextState;
+        const step = () => {
+          const a = heightAnimRef.current;
+          // 世代校验：被更新的 effect 覆盖后旧循环自动退出
+          if (a !== nextState || a.raf === null) return;
+          const t = (performance.now() - a.startedAt) / WINDOW_SIZE_ANIM_MS;
+          const k = easeOutCubic(Math.min(1, t));
+          const height = a.start.height + (a.targetHeight - a.start.height) * k;
+          a.lastHeight = height;
+          const y = Math.max(0, a.start.bottomY - height);
+          if (!a.writeInFlight) {
+            a.writeInFlight = true;
+            const { x, width: w } = a.start;
+            void win
+              .setSize(new LogicalSize(w, height))
+              .catch(() => undefined)
+              .then(() => win.setPosition(new LogicalPosition(x, y)))
+              .catch(() => undefined)
+              .finally(() => {
+                a.writeInFlight = false;
+              });
+          }
+          if (t < 1) {
+            a.raf = requestAnimationFrame(step);
+          } else {
+            a.raf = null;
+          }
+        };
+        nextState.raf = requestAnimationFrame(step);
       } catch {
-        // 窗口尚未就绪 / IPC 失败时静默
+        // 窗口尚未就绪 / IPC 失败时静默，下次 naturalHeight 变化重试
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [naturalHeight, closing, sizeMode]);
 
   /**
-   * 关闭：播淡出动效（opacity → 0 + 上移 + 缩放 0.95），
-   * 动效结束后再调 Rust close（被 Rust 拦截为 hide，window 仍存活）。
-   * 非 Tauri 模式下直接走原 getCurrentWindow().close 路径。
+   * 隐藏：播淡出动效（opacity → 0 + 上移 + 缩放 0.95），
+   * 动效结束后 invoke `hide_widget_window`（Rust hide，window 仍存活）。
+   * 关窗按钮与托盘「widget-hide-request」共用此函数（方案书 D-5）；
+   * 托盘路径由 Rust 侧 500ms 兜底，前端卡死也不会关不掉。
    */
   const handleClose = useCallback(() => {
     if (!isTauri()) return;
     if (closing) return;
     setClosing(true);
     window.setTimeout(() => {
-      void getCurrentWindow()
-        .close()
-        .catch(() => undefined);
-      // 兜底：万一 close 真的销毁了 window，下次渲染不会发生；保留 setClosing(false) 也没事
+      void invoke("hide_widget_window").catch(() => undefined);
       setClosing(false);
     }, CLOSE_ANIMATION_MS);
   }, [closing]);
+
+  // 事件回调要拿最新 handleClose；listener 只注册一次（与 displayedDateKeyRef 同款模式）
+  const handleCloseRef = useRef(handleClose);
+  useEffect(() => {
+    handleCloseRef.current = handleClose;
+  }, [handleClose]);
+
+  // W2-2 show/hide 双向动效：
+  // - widget-shown：Rust show() 后广播 → WAAPI 重播 drop-in 曲线（与首次
+  //   建窗的 CSS note-drop-in 同幅度），hide→show 不再硬切出现；
+  // - widget-hide-request：托盘隐藏路径 → 复用 .is-closing 淡出后 invoke hide。
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    const unlisteners: Array<() => void> = [];
+    void (async () => {
+      const next = await Promise.all([
+        listen("widget-shown", () => {
+          if (prefersReducedMotion()) return;
+          shellRef.current?.animate(
+            [
+              { opacity: 0, transform: "translateY(-12px) scale(0.99)" },
+              { opacity: 1, transform: "translateY(0) scale(1)" },
+            ],
+            { duration: 300, easing: "ease-out" },
+          );
+        }),
+        listen("widget-hide-request", () => {
+          handleCloseRef.current();
+        }),
+      ]);
+      if (disposed) {
+        next.forEach((unlisten) => unlisten());
+        return;
+      }
+      unlisteners.push(...next);
+    })();
+    return () => {
+      disposed = true;
+      unlisteners.forEach((unlisten) => unlisten());
+    };
+  }, []);
 
   // 数据已经按日期过滤过；这里只做"已完成沉底"的本地派生，
   // 不改后端 priority / dueAt 顺序，也不额外发 IPC。
@@ -483,9 +653,42 @@ export function WidgetApp() {
     enqueueSettings(() => patchWidgetSettings({ anchorDate: normalized }));
   }
 
+  /**
+   * 日期导航（W1-3 方向感）：旧内容向进入方向的反侧滑出（NAV_LEAVE_MS），
+   * 换数据后新条目按方向 keyframes 滑入（CSS `[data-nav]`）。
+   * 连点时跳过滑出直接切换，不叠动画。方向语义见方案书 D-3：
+   * prev（←，过去）内容从左入，next（→，未来）从右入。
+   */
+  function navigateBy(delta: number) {
+    const direction = navDirectionFromDelta(delta);
+    const nextKey = shiftDateKey(displayedDateKey, delta);
+    setNavDirection(direction);
+    if (navTimer.current) {
+      // 连点：取消待完成的滑出，立即切数据
+      clearTimeout(navTimer.current);
+      navTimer.current = null;
+      setNavLeaving(false);
+      changeAnchorDate(nextKey);
+      return;
+    }
+    const hasContent = displayedTasks.length > 0;
+    if (!hasContent || prefersReducedMotion()) {
+      changeAnchorDate(nextKey);
+      return;
+    }
+    setNavLeaving(true);
+    navTimer.current = setTimeout(() => {
+      navTimer.current = null;
+      changeAnchorDate(nextKey);
+      setNavLeaving(false);
+    }, NAV_LEAVE_MS);
+  }
+
   async function handleToggle(task: Task) {
     const completed = task.status !== "done";
     setBusyTaskId(task.id);
+    // 下一次 tasks 重排播 FLIP 沉降（W1-1）；失败回滚的重排不会置位，不播
+    flipEnabledRef.current = true;
     // 最小乐观：先本地打勾，服务端返回行整行替换
     setTasks((previous) =>
       previous.map((row) =>
@@ -551,25 +754,33 @@ export function WidgetApp() {
           todayKey={todayKey}
           isAnchored={anchorDate !== null}
           progressLabel={progressLabel}
-          onPrev={() => changeAnchorDate(shiftDateKey(displayedDateKey, -1))}
-          onNext={() => changeAnchorDate(shiftDateKey(displayedDateKey, 1))}
+          onPrev={() => navigateBy(-1)}
+          onNext={() => navigateBy(1)}
           onBackToToday={() => changeAnchorDate(null)}
         />
-        {adding && (
-          <WidgetQuickAdd
-            lists={lists}
-            defaultListId={defaultListId}
-            targetDateKey={displayedDateKey}
-            onCreate={handleCreate}
-            onClose={() => setAdding(false)}
-          />
-        )}
+        <WidgetQuickAdd
+          open={adding}
+          lists={lists}
+          defaultListId={defaultListId}
+          targetDateKey={displayedDateKey}
+          onCreate={handleCreate}
+          onClose={() => setAdding(false)}
+        />
         <div
           className={`widget-list ${scrollable ? "is-scrollable" : ""}`.trim()}
           data-tauri-drag-region={scrollable ? "false" : undefined}
           ref={listRef}
         >
-          <div className="widget-list-inner" ref={listInnerRef}>
+          <div
+            className={[
+              "widget-list-inner",
+              navLeaving && navDirection ? leaveClassName(navDirection) : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            data-nav={navDirection ?? undefined}
+            ref={listInnerRef}
+          >
             {failed ? (
               <button
                 type="button"
