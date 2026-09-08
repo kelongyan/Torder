@@ -220,12 +220,18 @@ impl<'database> TaskRepository<'database> {
         Ok(tasks)
     }
 
-    /// 桌面小窗专用查询：只返回指定日期对应的任务。
+    /// 桌面小窗专用查询：返回指定日期对应的任务。
     /// 配合前端的 `taskPlanDateKey === dateKey` 过滤，少量行直接消费，
     /// 避免通用 query 在 view="all" 时拉全表的浪费。
+    /// 命中口径（前端 `taskService.ts::matchesWidgetDate` 保持同一语义）：
+    /// 1. 精确单日：计划日期或截止时间的本地日期恰为查询日（含已完成）；
+    /// 2. 跨天区间：计划日期与截止时间齐全的未完成任务，在
+    ///    [计划日, 截止日] 区间内的每一天都命中——便签里「从今天做到
+    ///    周一」的任务每天可见，勾选完成（同一条记录）后区间内自然消失。
     /// 排序语义与前端 `taskService.ts::compareWidgetTasks` 保持一致：
     /// 有日期（`scheduled_date` 或 `date(due_at)`）的任务在前、按日期升序，
     /// 无日期的在后；同组内 priority DESC，最后 created_at DESC。
+    /// 跨天任务的排序键取计划日（起点），早于查询日时自然置顶。
     pub fn query_for_widget(
         &self,
         date_key: &str,
@@ -239,7 +245,17 @@ impl<'database> TaskRepository<'database> {
             "t.deleted_at IS NULL".to_owned(),
             "t.purged_at IS NULL".to_owned(),
             "t.status != 'archived'".to_owned(),
-            "COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) = ?".to_owned(),
+            "(
+                COALESCE(t.scheduled_date, date(t.due_at, 'localtime')) = ?
+                OR (
+                    t.status = 'todo'
+                    AND t.scheduled_date IS NOT NULL
+                    AND t.due_at IS NOT NULL
+                    AND t.scheduled_date <= ?
+                    AND date(t.due_at, 'localtime') >= ?
+                )
+            )"
+            .to_owned(),
         ];
         if !include_completed {
             clauses.push("t.status != 'done'".to_owned());
@@ -256,7 +272,7 @@ impl<'database> TaskRepository<'database> {
         let connection = self.database.connect()?;
         let mut statement = connection.prepare(&sql)?;
         let tasks = statement
-            .query_map(params![date_key], map_task)?
+            .query_map(params![date_key, date_key, date_key], map_task)?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(tasks)
     }

@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getSetting } from "./settingsService";
-import { taskPlanDateKey } from "./taskQuery";
+import { localDateKey, taskPlanDateKey } from "./taskQuery";
 import { isMobile } from "../utils/platform";
 import {
   defaultWidgetAppearance,
@@ -140,14 +140,27 @@ export async function patchWidgetSettings(
   return next;
 }
 
-/** 收集 tasks 中所有非空 `taskPlanDateKey`，去重返回。 */
-function collectDateKeys(tasks: ReadonlyArray<Task>): string[] {
+/**
+ * 收集 tasks 中所有非空 `taskPlanDateKey`，去重返回；存在跨天任务
+ * （计划日期与截止日期并存且不是同一天——便签按区间显示，见 Rust
+ * `query_for_widget`）时返回 null：区间中间日期无法枚举，调用方应
+ * 改发空数组（"任意日期都可能受影响"）让便签保守重拉。
+ * 与完成状态无关——完成后区间中间日同样需要重拉才能刷新掉。
+ */
+function collectDateKeys(tasks: ReadonlyArray<Task>): string[] | null {
   const set = new Set<string>();
   for (const task of tasks) {
+    if (isSpanningTask(task)) return null;
     const key = taskPlanDateKey(task);
     if (key) set.add(key);
   }
   return [...set];
+}
+
+/** 跨天任务：计划日期与截止日期齐全且不属于同一天。 */
+function isSpanningTask(task: Task): boolean {
+  if (!task.scheduledDate || !task.dueAt) return false;
+  return task.scheduledDate !== localDateKey(new Date(task.dueAt));
 }
 
 let notifyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -179,13 +192,15 @@ export function notifyTasksChanged(
   if (!isTauri() || isMobile()) return;
   let affectedDateKeys: string[] = [];
   if (source === "main" && context) {
-    const prev = context.previousTasks ?? [];
-    const curr = context.currentTasks ?? [];
-    const merged = new Set<string>([
-      ...collectDateKeys(curr),
-      ...collectDateKeys(prev),
-    ]);
-    affectedDateKeys = [...merged];
+    const prev = collectDateKeys(context.previousTasks ?? []);
+    const curr = collectDateKeys(context.currentTasks ?? []);
+    if (prev === null || curr === null) {
+      // 任一侧存在跨天任务：受影响日期不可枚举，空数组走保守广播
+      affectedDateKeys = [];
+    } else {
+      const merged = new Set<string>([...curr, ...prev]);
+      affectedDateKeys = [...merged];
+    }
   }
   if (affectedDateKeys.length === 0) {
     pendingAnyDate = true;
