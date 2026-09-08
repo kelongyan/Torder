@@ -1,0 +1,89 @@
+/* ============================================================================
+ * task.css — 桌面任务行（指针密度、悬停工具、拖拽手柄）+ 今日时间轴
+ * ========================================================================== */
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px 7px 10px;
+  border-top: 1px solid var(--hairline);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--dur-micro);
+}
+.group-card .task-row:first-of-type { border-top: none; }
+.task-row:hover { background: var(--hover-bg); }
+.task-row.selected { background: var(--active-bg); }
+
+/* 手动排序手柄（桌面专属，hover 显现） */
+.row-grip {
+  width: 14px;
+  color: var(--text-3);
+  opacity: 0;
+  display: grid; place-items: center;
+  cursor: grab;
+  flex: none;
+  transition: opacity var(--dur-micro);
+}
+.task-row:hover .row-grip { opacity: .55; }
+.row-grip:hover { opacity: 1 !important; }
+
+.row-check { flex: none; display: grid; place-items: center; }
+.row-main { flex: 1; min-width: 0; }
+.row-title-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.row-title {
+  font-size: var(--fs-base);
+  color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.task-row.is-done .row-title { color: var(--text-3); text-decoration: line-through; }
+.row-meta-line { display: flex; align-items: center; gap: 10px; margin-top: 3px; flex-wrap: wrap; }
+.row-meta-line .meta-sep { color: var(--hairline-strong); }
+.row-actions {
+  display: flex; align-items: center; gap: 2px;
+  opacity: 0;
+  transition: opacity var(--dur-micro);
+  flex: none;
+}
+.task-row:hover .row-actions, .task-row.menu-open .row-actions { opacity: 1; }
+.row-actions .icon-btn { width: 26px; height: 26px; }
+
+/* 今日时间轴 */
+.agenda-timeline { position: relative; padding-left: 6px; }
+.timeline-row { display: flex; gap: 14px; position: relative; }
+.timeline-time {
+  width: 52px;
+  flex: none;
+  text-align: right;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  padding-top: 9px;
+}
+.timeline-rail { width: 12px; flex: none; position: relative; }
+.timeline-rail::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1.5px; background: var(--hairline); }
+.timeline-dot {
+  position: absolute;
+  top: 12px; left: 50%;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  z-index: 1;
+}
+.timeline-card { flex: 1; }
+.now-line {
+  display: flex; align-items: center; gap: 8px;
+  margin: 4px 0;
+  color: var(--red);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.now-line::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+.now-line::after { content: ""; flex: 1; height: 1.5px; background: color-mix(in srgb, var(--red) 55%, transparent); }
+
+/* 批量选择态 */
+.batch-check { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--hairline-strong); flex: none; display: grid; place-items: center; }
+.batch-check.on { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }

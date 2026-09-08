@@ -6,6 +6,7 @@ import { useTaskStore } from "../../stores/taskStore";
 import type { SystemView } from "../../types/database";
 import type { AppSettings } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
+import { isMobile } from "../../utils/platform";
 import { Select, type SelectOption } from "../common/Select";
 import { ToggleSwitch } from "../common/ToggleSwitch";
 
@@ -105,21 +106,23 @@ export function SettingsPreferencesSection({
             ariaLabel="启动默认视图"
           />
         </label>
-        <label className="form-field">
-          <span>备份保留</span>
-          <Select<number>
-            value={settings.backupRetentionCount}
-            options={backupRetentionOptions}
-            onChange={(value) =>
-              void savePreference(
-                "backupRetentionCount",
-                value,
-                "已更新备份保留份数",
-              )
-            }
-            ariaLabel="备份保留份数"
-          />
-        </label>
+        {!isMobile() && (
+          <label className="form-field">
+            <span>备份保留</span>
+            <Select<number>
+              value={settings.backupRetentionCount}
+              options={backupRetentionOptions}
+              onChange={(value) =>
+                void savePreference(
+                  "backupRetentionCount",
+                  value,
+                  "已更新备份保留份数",
+                )
+              }
+              ariaLabel="备份保留份数"
+            />
+          </label>
+        )}
         <label className="form-field form-grid-full">
           <span>回收站清理</span>
           <Select<number>
@@ -149,7 +152,7 @@ export function SettingsPreferencesSection({
         />
       </div>
       <p className="settings-section-hint">
-        开启后，每天首次打开应用时把昨日逾期的事项顺延到明天（与每日回顾的顺延规则一致）。
+        每天首次打开应用时，自动把昨日逾期事项顺延到明天。
       </p>
     </section>
   );

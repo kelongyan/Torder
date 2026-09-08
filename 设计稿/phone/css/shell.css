@@ -1,0 +1,272 @@
+/* ============================================================================
+ * shell.css — 应用外壳：预览舞台 / 页面栈转场 / 顶部栏 / 底部 Tab / FAB
+ * ========================================================================== */
+
+/* ---------- 桌面预览舞台：居中手机框；真机/窄屏自动铺满 ---------- */
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  background:
+    radial-gradient(900px 500px at 30% 10%, #23253a 0%, #14151d 60%);
+  padding: 24px;
+}
+
+.stage-note {
+  color: #7b83a6;
+  font-size: 13px;
+  line-height: 1.9;
+  max-width: 240px;
+}
+.stage-note h2 { color: #c9d0ea; font-size: 18px; margin-bottom: 10px; }
+.stage-note code {
+  background: rgba(255,255,255,.08); border-radius: 6px; padding: 1px 6px;
+  font-size: 12px; color: #dfe4ff;
+}
+
+.phone {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  border-radius: 46px;
+  background: var(--page-bg);
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 0 0 10px #1b1c26,
+    0 0 0 12px #3a3d52,
+    0 40px 90px rgba(0, 0, 0, 0.65);
+}
+
+/* 窄屏（真机或小窗口）：铺满，不画手机框 */
+@media (max-width: 760px) {
+  .stage { padding: 0; gap: 0; background: var(--page-bg); }
+  .stage-note { display: none; }
+  .phone {
+    width: 100%; height: 100%;
+    border-radius: 0; box-shadow: none;
+  }
+}
+
+/* ---------- 模拟安卓状态栏（仅视觉，真机由系统提供） ---------- */
+.statusbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  z-index: 40;
+  pointer-events: none;
+}
+.statusbar .sb-icons { display: flex; align-items: center; gap: 6px; }
+.statusbar .sb-icons svg { width: 15px; height: 15px; }
+
+/* ---------- 页面栈 ---------- */
+.screen-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--page-bg-gradient);
+  will-change: transform;
+  transition: transform var(--dur-page) var(--ease-emphasized);
+}
+.screen.is-under { transform: translateX(-26%); }
+.screen--enter-fwd { transform: translateX(100%); }
+.screen--enter-back { transform: translateX(-26%); }
+.screen.is-active { transform: translateX(0); }
+.screen--leave-fwd { transform: translateX(-26%); }
+.screen--leave-back { transform: translateX(100%); }
+
+.screen-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--sp-4) calc(var(--tabbar-h) + var(--safe-bottom) + var(--sp-4));
+}
+.screen-body.no-tab { padding-bottom: var(--sp-6); }
+
+/* ---------- 顶部应用栏 ---------- */
+.appbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  /* 30px 为模拟状态栏高度；真机上由 safe-area 接管 */
+  height: calc(var(--app-header-h) + var(--safe-top) + 30px);
+  padding: calc(var(--safe-top) + 30px) var(--sp-3) 0;
+  z-index: 20;
+}
+.appbar.glass {
+  background: var(--bar-bg);
+  backdrop-filter: var(--blur-bar);
+  -webkit-backdrop-filter: var(--blur-bar);
+  border-bottom: 1px solid var(--hairline);
+}
+.appbar-title { min-width: 0; flex: 1; }
+.appbar-title h1 { font-size: var(--fs-lg); line-height: 1.25; }
+.appbar-title .appbar-sub { font-size: var(--fs-xs); color: var(--text-3); margin-top: 1px; }
+
+.icon-btn {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  transition: background var(--dur-fast) var(--ease-standard), transform var(--dur-micro);
+}
+.icon-btn:active { background: var(--surface-3); transform: scale(0.92); }
+.icon-btn.accent { color: var(--accent); }
+
+/* ---------- 底部 Tab 栏（M3 风格：活跃药丸 + 中央 FAB） ---------- */
+.tabbar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 30;
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding: 6px 10px var(--safe-bottom);
+  display: grid;
+  grid-template-columns: 1fr 1fr 72px 1fr 1fr;
+  align-items: center;
+  background: var(--bar-bg);
+  backdrop-filter: var(--blur-bar);
+  -webkit-backdrop-filter: var(--blur-bar);
+  border-top: 1px solid var(--hairline);
+  transition: transform 0.28s var(--ease-emphasized);
+}
+.phone.is-subpage .tabbar { transform: translateY(calc(100% + var(--safe-bottom))); }
+.phone.is-subpage .screen-body { padding-bottom: calc(24px + var(--safe-bottom)); }
+.tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  height: 52px; justify-content: center;
+  color: var(--text-3);
+  font-size: 11px;
+  border-radius: var(--r-pill);
+  transition: color var(--dur-fast);
+}
+.tab .tab-pill {
+  display: flex; align-items: center; justify-content: center;
+  height: 30px; padding: 0 14px;
+  border-radius: var(--r-pill);
+  transition: background var(--dur-fast);
+}
+.tab.active { color: var(--accent); font-weight: 600; }
+.tab.active .tab-pill { background: var(--accent-soft); }
+.tab-fab-slot { display: flex; justify-content: center; align-items: center; }
+.fab {
+  width: var(--fab-size); height: var(--fab-size);
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-fab);
+  transition: transform var(--dur-micro) var(--ease-standard);
+}
+.fab:active { transform: scale(0.9); }
+.fab .i { width: 26px; height: 26px; stroke-width: 2.4; }
+
+/* 次级页面右下角小 FAB（如清单内新建） */
+.fab-mini {
+  position: absolute;
+  right: 18px;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 18px);
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  z-index: 25;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-fab);
+}
+.fab-mini:active { transform: scale(0.92); }
+
+/* ---------- 底部弹层 Sheet ---------- */
+.sheet-scrim {
+  position: absolute; inset: 0; z-index: 50;
+  background: var(--scrim);
+  opacity: 0; transition: opacity var(--dur-sheet) var(--ease-standard);
+}
+.sheet-scrim.open { opacity: 1; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 51;
+  max-height: 82%;
+  background: var(--surface);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-2) var(--sp-4) calc(var(--sp-4) + var(--safe-bottom));
+  transform: translateY(105%);
+  transition: transform var(--dur-sheet) var(--ease-emphasized);
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-sheet);
+}
+.sheet.open { transform: translateY(0); }
+.sheet-handle {
+  align-self: center;
+  width: var(--sheet-handle-w); height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--hairline-strong);
+  margin: 6px 0 var(--sp-3);
+}
+.sheet-title { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--sp-3); }
+.sheet-body { overflow-y: auto; }
+
+/* 居中对话框 */
+.modal-scrim {
+  position: absolute; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-6);
+  background: var(--scrim);
+  opacity: 0; transition: opacity var(--dur-fast);
+}
+.modal-scrim.open { opacity: 1; }
+.modal {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-pop);
+  transform: scale(0.92);
+  transition: transform var(--dur-fast) var(--ease-emphasized);
+}
+.modal-scrim.open .modal { transform: scale(1); }
+
+/* ---------- Toast ---------- */
+.toast-host {
+  position: absolute;
+  left: 50%; bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 20px);
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface-3);
+  color: var(--text-1);
+  font-size: var(--fs-sm);
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-pop);
+  animation: toast-in var(--dur-fast) var(--ease-emphasized);
+  white-space: nowrap;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast.leaving { animation: toast-out 180ms var(--ease-exit) forwards; }
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(8px); }
+}

@@ -120,8 +120,7 @@ export function SettingsDefaultsSection({
           />
         </div>
         <p className="settings-status-note">
-          开启后，快速新建与速记里「明天 15:00 交周报 #工作
-          !高」这类写法会自动解析出日期、清单与优先级。
+          「明天 15:00 交周报 #工作 !高」会自动解析出日期、清单与优先级。
         </p>
       </section>
       <section className="settings-section">
@@ -143,9 +142,6 @@ export function SettingsDefaultsSection({
             }
           />
         </div>
-        <p className="settings-status-note">
-          关闭后，刚打勾的事项暂留原位，切换视图或重新加载才归入「已完成」。若视图已关闭「显示已完成」，打勾仍会隐藏该行——那是视图过滤的语义。
-        </p>
       </section>
     </>
   );

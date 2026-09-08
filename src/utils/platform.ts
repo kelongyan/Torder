@@ -15,6 +15,11 @@ export function isMobile(): boolean {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   }
   try {
+    if (typeof window !== "undefined") {
+      const param = new URLSearchParams(window.location.search).get("mobile");
+      if (param === "1") return true;
+      if (param === "0") return false;
+    }
     return localStorage.getItem(FORCE_MOBILE_KEY) === "1";
   } catch {
     return false;

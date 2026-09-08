@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { TaskList } from "../types/database";
 import { createTask } from "../services/taskService";
 import { listLists } from "../services/listService";
+import { localDateKey } from "../services/taskQuery";
 import { notifyTasksChanged } from "../services/widgetService";
 import { parseQuickAddText } from "../utils/taskHelpers";
 import "../styles/mini.css";
@@ -65,7 +66,8 @@ export function MiniApp() {
             : (lists[0]?.id ?? "work")),
         tags: parsed.tags,
         dueAt: parsed.dueAt,
-        scheduledDate: null,
+        // 「到周X」截止语法：从今天跨到截止日（区间任务，便签逐日可见）
+        scheduledDate: parsed.dueIsDeadline ? localDateKey(new Date()) : null,
         remindBefore: null,
       });
       notifyTasksChanged("mini");
@@ -124,6 +126,7 @@ export function MiniApp() {
             )}
             {parsed.dueAt && (
               <span className="mini-chip mini-chip--date">
+                {parsed.dueIsDeadline && "至 "}
                 {previewDate(parsed.dueAt)}
               </span>
             )}

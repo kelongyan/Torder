@@ -1,0 +1,114 @@
+/* ============================================================================
+ * base.css — reset / 排版 / 通用原子类
+ * 只放与业务无关的基础设施；组件样式见 components.css，视图样式见 views.css
+ * ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+* { margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text-1);
+  background: #14151d; /* 桌面预览时手机外的舞台背景 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+input, textarea { -webkit-tap-highlight-color: transparent; }
+ul, ol { list-style: none; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+h1, h2, h3, h4 { font-weight: 600; }
+
+/* 全局滚动条隐藏（移动端原生观感；桌面预览同样不显示） */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; }
+
+/* ---- 图标 ---- */
+.i {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.i-sm { width: 16px; height: 16px; }
+.i-lg { width: 24px; height: 24px; }
+.i-xl { width: 28px; height: 28px; }
+
+/* ---- 文本工具 ---- */
+.t-secondary { color: var(--text-2); }
+.t-muted { color: var(--text-3); }
+.t-accent { color: var(--accent); }
+.t-danger { color: var(--red); }
+.fs-xs { font-size: var(--fs-xs); }
+.fs-sm { font-size: var(--fs-sm); }
+.fs-md { font-size: var(--fs-md); }
+.fw-600 { font-weight: 600; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- 布局工具 ---- */
+.row { display: flex; align-items: center; }
+.row-between { display: flex; align-items: center; justify-content: space-between; }
+.col { display: flex; flex-direction: column; }
+.gap-1 { gap: var(--sp-1); } .gap-2 { gap: var(--sp-2); }
+.gap-3 { gap: var(--sp-3); } .gap-4 { gap: var(--sp-4); }
+.grow { flex: 1; min-width: 0; }
+.center { display: flex; align-items: center; justify-content: center; }
+.hide { display: none !important; }
+
+/* ---- 触感按压（统一替代 hover） ---- */
+.pressable { transition: transform var(--dur-micro) var(--ease-standard), background var(--dur-fast) var(--ease-standard); }
+.pressable:active { transform: scale(0.96); }
+
+/* ---- 通用毛玻璃 ---- */
+.glass {
+  background: var(--bar-bg);
+  backdrop-filter: var(--blur-bar);
+  -webkit-backdrop-filter: var(--blur-bar);
+}
+
+/* 屏幕阅读器专用 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* 减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

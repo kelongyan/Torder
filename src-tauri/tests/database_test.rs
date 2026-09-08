@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use chrono::{Datelike, Duration, Local, SecondsFormat, TimeZone};
 use uuid::Uuid;
 
 use torder_lib::db::attachment_repository::{sha256_file, AttachmentRepository};
@@ -14,7 +15,7 @@ use torder_lib::db::task_repository::TaskRepository;
 use torder_lib::db::Database;
 use torder_lib::error::{RepositoryError, RepositoryResult};
 use torder_lib::models::{
-    CreateCalendarEventInput, CreateRecurringRuleInput, CreateTaskInput, CreateTaskLinkInput,
+    CreateCalendarEventInput, CreateRecurringRuleInput, CreateTaskInput, CreateTaskLinkInput, Task,
     TaskQueryInput, UpdateCalendarEventInput, UpdateRecurringRuleInput, UpdateTaskInput,
     UpsertSettingInput,
 };
@@ -378,6 +379,92 @@ fn scheduled_date_without_deadline_participates_in_planned_views() -> Repository
             .collect::<Vec<_>>(),
         vec![overdue.id]
     );
+
+    drop(database);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
+#[test]
+fn widget_query_spans_scheduled_deadline_range_until_done() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-widget-span-test-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let repository = TaskRepository::new(&database);
+
+    // 起点取本地今天；截止时刻取本地正午——date(due_at, 'localtime') 会把
+    // 它还原回同一天，测试结果不随运行环境的时区漂移。
+    let start = Local::now().date_naive();
+    let middle = start + Duration::days(2);
+    let end = start + Duration::days(6);
+    let date_key = |date: chrono::NaiveDate| {
+        format!("{:04}-{:02}-{:02}", date.year(), date.month(), date.day())
+    };
+    let local_noon_utc = |date: chrono::NaiveDate| -> String {
+        Local
+            .with_ymd_and_hms(date.year(), date.month(), date.day(), 12, 0, 0)
+            .single()
+            .expect("local noon is unambiguous")
+            .to_rfc3339_opts(SecondsFormat::Secs, true)
+    };
+
+    let spanning = repository.create(widget_task_input(
+        "跨天任务",
+        Some(date_key(start)),
+        Some(local_noon_utc(end)),
+    ))?;
+    let scheduled_only =
+        repository.create(widget_task_input("仅计划日", Some(date_key(start)), None))?;
+    let due_only = repository.create(widget_task_input(
+        "仅截止日",
+        None,
+        Some(local_noon_utc(end)),
+    ))?;
+    let before_range = repository.create(widget_task_input(
+        "区间前任务",
+        Some(date_key(start - Duration::days(3))),
+        Some(local_noon_utc(start - Duration::days(3))),
+    ))?;
+
+    let widget_ids =
+        |tasks: &[Task]| -> Vec<String> { tasks.iter().map(|task| task.id.clone()).collect() };
+
+    // 起点日：跨天与仅计划日命中；仅截止日/区间前任务不出现
+    let start_day = widget_ids(&repository.query_for_widget(&date_key(start), true)?);
+    assert!(start_day.contains(&spanning.id));
+    assert!(start_day.contains(&scheduled_only.id));
+    assert!(!start_day.contains(&due_only.id));
+    assert!(!start_day.contains(&before_range.id));
+
+    // 中间日：只有跨天任务命中（旧行为下这天是空的）
+    assert_eq!(
+        widget_ids(&repository.query_for_widget(&date_key(middle), true)?),
+        vec![spanning.id.clone()]
+    );
+
+    // 截止日当天：跨天任务仍在区间内；仅截止日按精确匹配命中
+    let end_day = widget_ids(&repository.query_for_widget(&date_key(end), true)?);
+    assert!(end_day.contains(&spanning.id));
+    assert!(end_day.contains(&due_only.id));
+
+    // 完成后：中间日不再命中；计划日以已完成身份仍显示（沉底），
+    // include_completed=false 时计划日也不再出现
+    repository.set_completed(&spanning.id, true)?;
+    assert_eq!(
+        widget_ids(&repository.query_for_widget(&date_key(middle), true)?),
+        Vec::<String>::new()
+    );
+    let start_day_after = widget_ids(&repository.query_for_widget(&date_key(start), true)?);
+    assert!(start_day_after.contains(&spanning.id));
+    assert!(
+        !widget_ids(&repository.query_for_widget(&date_key(start), false)?).contains(&spanning.id)
+    );
+
+    // 空白 date_key 仍返回校验错误
+    assert!(matches!(
+        repository.query_for_widget("  ", true),
+        Err(RepositoryError::Validation("date_key cannot be empty"))
+    ));
 
     drop(database);
     cleanup_database_files(&database_path);
@@ -1378,6 +1465,27 @@ fn task_input(
         scheduled_date: None,
         due_at: due_at.map(str::to_owned),
         sort_order: Some(sort_order),
+        remind_before: None,
+        repeat_rule: None,
+        subtasks: None,
+        tags: None,
+    }
+}
+
+/// 便签小窗查询测试用：显式携带 scheduled_date / due_at 组合。
+fn widget_task_input(
+    title: &str,
+    scheduled_date: Option<String>,
+    due_at: Option<String>,
+) -> CreateTaskInput {
+    CreateTaskInput {
+        title: title.to_owned(),
+        note: None,
+        priority: Some(1),
+        list_id: None,
+        scheduled_date,
+        due_at,
+        sort_order: None,
         remind_before: None,
         repeat_rule: None,
         subtasks: None,

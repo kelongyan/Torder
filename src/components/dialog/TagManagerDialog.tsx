@@ -210,9 +210,6 @@ export function TagManagerDialog({
         {error && (
           <p className="settings-section-hint tag-manage-error">{error}</p>
         )}
-        {!error && pending && (
-          <p className="settings-section-hint">按 Esc 取消当前操作。</p>
-        )}
         <button
           type="button"
           className="btn-secondary btn-sm"

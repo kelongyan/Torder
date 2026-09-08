@@ -859,7 +859,10 @@ mark {
   flex: 1;
 }
 
-.window-frame:not(.mobile) .content-motion-list .list-container > .task-composer {
+.window-frame:not(.mobile)
+  .content-motion-list
+  .list-container
+  > .task-composer {
   margin-top: auto;
 }
 

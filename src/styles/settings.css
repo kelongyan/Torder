@@ -33,11 +33,13 @@
   justify-self: end;
 }
 
+/* 壳：左导航 186px（设计稿 .set-nav；原 R7 补丁块已并入，避免声明后置
+   压过 @media (max-width: 720px) 的窄屏改写） */
 .settings-layout {
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 186px minmax(0, 1fr);
 }
 
 .settings-sidebar {
@@ -54,9 +56,10 @@
 }
 
 .settings-side-nav-item {
+  position: relative;
   display: grid;
   width: 100%;
-  min-height: 32px;
+  min-height: 34px;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
@@ -64,7 +67,7 @@
   border-radius: var(--radius-sm);
   outline: none;
   background: transparent;
-  padding: 6px 8px;
+  padding: 0 10px;
   color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
@@ -83,10 +86,24 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+/* 设计稿 .set-nav item is-on：主色软底 + 左缘 3×16 accent 药丸 */
 .settings-side-nav-item.is-active {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--text-primary);
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.settings-side-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(-50%);
 }
 
 .settings-side-nav-item svg {
@@ -133,13 +150,6 @@
   font-weight: 700;
   line-height: 26px;
   letter-spacing: 0;
-}
-
-.settings-content-head p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
 }
 
 .settings-panel {
@@ -837,13 +847,14 @@
     display: none;
   }
 
+  /* 窄屏导航改为横向条：能放下就均分，放不下就横向滚动（不再按面板数硬挤压，
+     否则 6 个面板在 390px 宽下每格只剩 22px，标题会互相压字） */
   .settings-side-nav {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: repeat(
-      var(--settings-panel-count, 4),
-      minmax(0, 1fr)
-    );
+    display: grid;
+    width: max-content;
+    min-width: 100%;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(60px, 1fr);
     gap: 4px;
     border: 1px solid var(--border-light);
     border-radius: 14px;
@@ -859,7 +870,7 @@
     gap: 4px;
     border-color: transparent;
     border-radius: 10px;
-    padding: 4px 4px;
+    padding: 4px 6px;
     text-align: center;
   }
 
@@ -867,10 +878,14 @@
     transform: none;
   }
 
+  /* 横向条形态下左缘药丸会压住图标，改回纯软底 */
   .settings-side-nav-item.is-active {
     border-color: color-mix(in srgb, var(--accent) 18%, transparent);
     background: color-mix(in srgb, var(--accent) 13%, var(--bg-primary));
-    box-shadow: 0 5px 14px rgba(88, 80, 236, 0.12);
+  }
+
+  .settings-side-nav-item.is-active::before {
+    content: none;
   }
 
   .settings-side-nav-item svg {
@@ -896,11 +911,6 @@
   .settings-content-head h3 {
     font-size: 16px;
     line-height: 23px;
-  }
-
-  .settings-content-head p {
-    font-size: 11px;
-    line-height: 16px;
   }
 
   .settings-panel {
@@ -1704,42 +1714,14 @@
 
 /* ---------- R7 设置对齐设计稿 settings.css（2026-09-01） ---------- */
 
-/* 壳：左导航 186px（设计稿 .set-nav） */
-.settings-layout {
-  grid-template-columns: 186px minmax(0, 1fr);
-}
+/* 壳与左导航的 R7 数值已并入本文件顶部的基础声明（见 .settings-layout /
+   .settings-side-nav-item）：这些规则曾放在文件末尾，位置晚于
+   @media (max-width: 720px)，在窄屏下反向覆盖了移动端的横向导航改写。 */
 
-.settings-side-nav-item {
-  position: relative;
-  min-height: 34px;
-  padding: 0 10px;
-}
-
-/* 设计稿 .set-nav item is-on：主色软底 + 左缘 3×16 accent 药丸 */
-.settings-side-nav-item.is-active {
-  border-color: transparent;
-  background: var(--accent-soft);
-  color: var(--text-1);
-  font-weight: 600;
-}
-
-.settings-side-nav-item.is-active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 3px;
-  height: 16px;
-  border-radius: 2px;
-  background: var(--accent);
-  transform: translateY(-50%);
-}
-
-/* 页脚：自动保存文案（设计稿 sheet__foot） */
-.settings-footer .settings-footer-note {
+/* 页脚：「恢复默认设置」次要动作靠左，主动作靠右（原自动保存文案已删，
+   margin-right: auto 职责转移给 reset 按钮） */
+.settings-footer .settings-reset-button {
   margin-right: auto;
-  color: var(--text-3);
-  font-size: 11.5px;
 }
 
 /* 应用主题三卡（设计稿 settings-theme.css .theme-card，缩略色为固定示意值） */
@@ -1856,6 +1838,13 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 30px;
+}
+
+/* 说明条删除后，外观分区以控件收尾，留出分隔线前的呼吸空隙 */
+.theme-cards:last-child,
+.accent-swatches:last-child,
+.display-pref-row:last-child {
+  margin-bottom: 8px;
 }
 
 .display-pref-label {

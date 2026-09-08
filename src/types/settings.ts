@@ -14,6 +14,20 @@ export type DensityPreference = "compact" | "standard" | "relaxed";
 export type FontSizePreference = "small" | "standard" | "large";
 export type SavedViewIcon = "filter" | "star" | "calendar" | "tag";
 
+/**
+ * 设置面板标识。放在 types 层而非 SettingsDialog，是为了让移动壳契约
+ * （mobile/types.ts）能声明「打开设置并直达某面板」而不反向依赖组件。
+ */
+export type SettingsPanelId =
+  | "general"
+  | "appearance"
+  | "defaults"
+  | "notifications"
+  | "sync"
+  | "data"
+  | "shortcuts"
+  | "about";
+
 export interface SavedTaskView {
   id: string;
   name: string;

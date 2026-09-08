@@ -1,0 +1,215 @@
+/* ============================================================
+ * settings-mobile.css — 移动端设置（分类列表 → 二级面板）
+ *
+ * 只在 .settings-dialog-mobile 作用域内生效，桌面三栏布局零影响。
+ * 与 mobile.css 同源的视觉语言（.m-nav-row 行高 52px、卡片圆角、
+ * accent-soft 图标底），但设置弹窗是桌面 DialogShell 复用体，
+ * 所以样式落在 styles/ 而非 mobile/。
+ * ============================================================ */
+
+/* 弹窗壳：底部 sheet 由 responsive.css 的 .window-frame.mobile 提供，
+   这里只解除 settings.css 桌面块钉死的固定宽高。 */
+.settings-dialog-mobile .dialog-card {
+  width: 100%;
+  height: auto;
+}
+
+.settings-dialog-mobile .dialog-header {
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+}
+
+.settings-m-back {
+  justify-self: start;
+}
+
+/* 正文：整块可滚动，底部留安全区 */
+.settings-m-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px calc(14px + var(--safe-bottom, 0px));
+}
+
+.settings-dialog-mobile .settings-search {
+  height: 40px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+}
+
+.settings-dialog-mobile .settings-search input {
+  font-size: 14px;
+}
+
+/* ---- 一级：分类列表 ---- */
+.settings-m-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--pop);
+}
+
+.settings-m-row {
+  display: grid;
+  width: 100%;
+  min-height: 60px;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  color: var(--text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-m-row + .settings-m-row {
+  border-top: 1px solid var(--stroke);
+}
+
+.settings-m-row:active {
+  background: var(--hover);
+}
+
+.settings-m-row-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.settings-m-row-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-m-row-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-m-row-copy strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.settings-m-row-copy span {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-m-row-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--text-3);
+}
+
+/* 列表页页脚（弹窗 footer 在移动端不渲染，改为随正文滚动） */
+.settings-m-reset {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  background: var(--pop);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.settings-m-reset:active {
+  background: var(--hover);
+  color: var(--danger);
+}
+
+/* ---- 二级：面板正文 ---- */
+.settings-m-panel-hint {
+  margin: 0 0 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+/* 面板区块在窄屏下一律单列铺满，控件放大到触摸尺寸 */
+.settings-dialog-mobile .settings-panel {
+  gap: 14px;
+}
+
+.settings-dialog-mobile .settings-preference-grid,
+.settings-dialog-mobile .sync-config-grid,
+.settings-dialog-mobile .sync-encryption-fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-dialog-mobile .settings-section-title {
+  font-size: 14px;
+}
+
+.settings-dialog-mobile .form-field > span,
+.settings-dialog-mobile .settings-toggle-label {
+  font-size: 13px;
+}
+
+.settings-dialog-mobile .select-trigger,
+.settings-dialog-mobile .form-field input,
+.settings-dialog-mobile .form-field select {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.settings-dialog-mobile .btn-secondary,
+.settings-dialog-mobile .btn-primary,
+.settings-dialog-mobile .btn-danger-solid {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.settings-dialog-mobile .settings-toggle-row {
+  min-height: 48px;
+}
+
+/* 触摸尺寸：桌面这几个控件是 24–26px 的紧凑件，手指点不准。
+   加大到 ≥40px（色板用 32px 圆点 + padding 撑到 44px 命中区）。 */
+.settings-dialog-mobile .display-pref-chips {
+  gap: 8px;
+}
+
+.settings-dialog-mobile .display-pref-chip {
+  min-width: 56px;
+  height: 40px;
+  justify-content: center;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.settings-dialog-mobile .accent-swatches {
+  gap: 14px;
+}
+
+.settings-dialog-mobile .accent-swatch {
+  width: 32px;
+  height: 32px;
+}
+
+.settings-dialog-mobile .theme-card {
+  width: calc((100% - 20px) / 3);
+  min-width: 96px;
+}

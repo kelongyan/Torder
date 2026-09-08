@@ -155,11 +155,22 @@ pub fn show_main_window(app: AppHandle) {
 }
 
 /// 设置面板开关用：显示/隐藏小窗。`enabled` 设置键由前端经 `patch_widget_settings` 写入。
+/// 隐藏走淡出流程（W2-2），与托盘开关行为一致。
 #[tauri::command]
 pub fn set_widget_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
     if enabled {
         widget::create_widget_window(&app).map_err(|error| error.to_string())?;
-    } else if let Some(window) = app.get_webview_window(widget::WIDGET_LABEL) {
+    } else {
+        widget::request_widget_hide(&app);
+    }
+    Ok(())
+}
+
+/// 便签淡出动效播完后的落点：真正隐藏窗口（window 仍存活，下次 show 复用）。
+/// 关窗按钮与托盘/设置开关的 `widget-hide-request` 流程共用。
+#[tauri::command]
+pub fn hide_widget_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(widget::WIDGET_LABEL) {
         window.hide().map_err(|error| error.to_string())?;
     }
     Ok(())

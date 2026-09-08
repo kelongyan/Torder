@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { Plus } from "lucide-react";
 import type { CreateTaskInput, Task, TaskList } from "../../types/database";
+import { isMobile } from "../../utils/platform";
 import { TaskCard } from "./TaskCard";
 import { TaskQuickComposer } from "./TaskQuickComposer";
 
@@ -32,6 +33,7 @@ export function TaskBoard({
 }) {
   const [draggingTask, setDraggingTask] = useState<Task | null>(null);
   const [composerColumn, setComposerColumn] = useState<string | null>(null);
+  const dragEnabled = !isMobile();
   const columns = [
     {
       id: "todo",
@@ -124,7 +126,7 @@ export function TaskBoard({
                 motionIndex={taskIndex}
                 onOpen={onOpen}
                 onToggle={onToggle}
-                draggable
+                draggable={dragEnabled}
                 onDragStart={setDraggingTask}
               />
             ))}

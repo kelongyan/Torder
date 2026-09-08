@@ -187,6 +187,7 @@ pub fn run() {
             }
 
             let backup_handle = app.handle().clone();
+            #[cfg(desktop)]
             std::thread::spawn(move || run_startup_backup_if_enabled(backup_handle));
             run_trash_cleanup_if_configured(app.handle().clone());
             Ok(())
@@ -265,6 +266,8 @@ pub fn run() {
             commands::widget::show_main_window,
             #[cfg(desktop)]
             commands::widget::set_widget_enabled,
+            #[cfg(desktop)]
+            commands::widget::hide_widget_window,
             #[cfg(desktop)]
             commands::widget::patch_widget_settings,
             #[cfg(desktop)]

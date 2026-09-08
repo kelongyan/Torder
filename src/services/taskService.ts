@@ -13,6 +13,7 @@ import {
 import {
   filterAndSortTasks,
   type QueryTasksInput,
+  localDateKey,
   taskPlanDateKey,
 } from "./taskQuery";
 import {
@@ -170,7 +171,9 @@ export function snoozeTaskReminder(
 
 /**
  * 桌面小窗专用按日期查询。
- * 走 Rust `query_tasks_for_date`，按 `scheduled_date || date(due_at)` 精确匹配，
+ * 走 Rust `query_tasks_for_date`，命中口径（见 `matchesWidgetDate`）：
+ * 计划日期/截止时间精确命中查询日，或「计划日期 + 截止日期」齐全的
+ * 未完成任务在区间内的每一天命中（跨天任务持续可见），
  * 远小于通用 `query_tasks` 的全表返回。
  * 排序语义两侧统一（见 Rust `query_for_widget` 的 ORDER BY）：
  * 有日期（scheduledDate 或 dueAt 的本地日期）的任务在前、按日期升序，
@@ -184,13 +187,7 @@ export function queryTasksForDate(
   if (!isTauri()) {
     return Promise.resolve(
       getBrowserTasksSnapshot()
-        .filter(
-          (task) =>
-            !task.deletedAt &&
-            task.status !== "archived" &&
-            (includeCompleted || task.status !== "done") &&
-            taskPlanDateKey(task) === dateKey,
-        )
+        .filter((task) => matchesWidgetDate(task, dateKey, includeCompleted))
         .sort(compareWidgetTasks),
     );
   }
@@ -199,6 +196,25 @@ export function queryTasksForDate(
     dateKey,
     includeCompleted,
   });
+}
+
+/** 与 Rust `query_for_widget` 的 WHERE 保持同一语义（见 `queryTasksForDate` 注释）。 */
+function matchesWidgetDate(
+  task: Task,
+  dateKey: string,
+  includeCompleted: boolean,
+): boolean {
+  if (task.deletedAt || task.status === "archived") return false;
+  if (!includeCompleted && task.status === "done") return false;
+  if (taskPlanDateKey(task) === dateKey) return true;
+  // 跨天区间：仅未完成且计划日期/截止日期齐全时按区间命中
+  if (task.status !== "todo" || !task.scheduledDate || !task.dueAt) {
+    return false;
+  }
+  return (
+    task.scheduledDate <= dateKey &&
+    localDateKey(new Date(task.dueAt)) >= dateKey
+  );
 }
 
 /** 与 Rust `query_for_widget` 的 ORDER BY 保持同一语义（见上方注释）。 */

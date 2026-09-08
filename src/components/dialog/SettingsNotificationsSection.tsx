@@ -3,6 +3,7 @@ import { reminderOptions } from "../../constants/reminderConfig";
 import { saveAppSetting } from "../../services/settingsService";
 import type { AppSettings, NotificationSound } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
+import { isMobile } from "../../utils/platform";
 import { ToggleSwitch } from "../common/ToggleSwitch";
 import { Select, type SelectOption } from "../common/Select";
 
@@ -57,6 +58,11 @@ export function SettingsNotificationsSection({
         <Bell aria-hidden="true" className="icon-sm" />
         通知
       </h3>
+      {isMobile() && (
+        <p className="settings-section-note">
+          移动端提醒在应用打开时补发，不做后台常驻。
+        </p>
+      )}
       <div className="settings-toggle-row">
         <span className="settings-toggle-label">系统通知</span>
         <ToggleSwitch
@@ -124,7 +130,7 @@ export function SettingsNotificationsSection({
       </div>
       {settings.focusDndEnabled && (
         <p className="settings-section-hint">
-          开启后，专注计时期间暂停任务提醒，专注结束或暂停后自动补发。
+          专注期间暂停任务提醒，结束后自动补发。
         </p>
       )}
       <div className="settings-preference-grid">
@@ -159,9 +165,6 @@ export function SettingsNotificationsSection({
           />
         </label>
       </div>
-      <p className="settings-status-note">
-        关闭系统通知后，任务到点将不再弹出提醒；提前时间用于新建事项时的默认值。
-      </p>
     </section>
   );
 }

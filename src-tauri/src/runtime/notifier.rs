@@ -585,7 +585,7 @@ mod tests {
         let path = temp_db("focus-dnd-pause");
         let database = Database::initialize(path.clone()).unwrap();
         let task = create_test_task(&database, "免打扰期间到期的提醒");
-        let mut connection = database.connect().unwrap();
+        let connection = database.connect().unwrap();
 
         // 模拟免打扰期间 notify 层被短路：此时 reminded_at 必须仍为空，
         // 专注结束后下轮轮询补发（暂停语义，与通知总开关一致）。

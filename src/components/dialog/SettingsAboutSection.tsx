@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Info, RefreshCw } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
+import { isMobile } from "../../utils/platform";
 import {
   checkForUpdate,
   getAppInfo,
@@ -76,25 +77,27 @@ export function SettingsAboutSection({
         <span className="settings-version">
           {appInfo ? `当前版本 v${appInfo.version}` : ""}
         </span>
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={updateState.state === "checking"}
-          onClick={() => void handleCheckUpdate()}
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={`icon-sm ${
-              updateState.state === "checking" ? "is-spinning" : ""
-            }`}
-          />
-          {updateState.state === "checking" ? "检查中…" : "检查更新"}
-        </button>
+        {!isMobile() && (
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={updateState.state === "checking"}
+            onClick={() => void handleCheckUpdate()}
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={`icon-sm ${
+                updateState.state === "checking" ? "is-spinning" : ""
+              }`}
+            />
+            {updateState.state === "checking" ? "检查中…" : "检查更新"}
+          </button>
+        )}
       </div>
-      {updateState.state === "none" && (
+      {!isMobile() && updateState.state === "none" && (
         <p className="settings-status-note success">当前已是最新版本。</p>
       )}
-      {updateState.state === "found" && (
+      {!isMobile() && updateState.state === "found" && (
         <div className="settings-update-card">
           <div className="settings-list-label">
             发现新版本 v{updateState.info.latestVersion}
@@ -112,7 +115,7 @@ export function SettingsAboutSection({
           </button>
         </div>
       )}
-      {updateState.state === "error" && (
+      {!isMobile() && updateState.state === "error" && (
         <p className="settings-status-note danger">
           检查失败（{updateState.message}）。
         </p>
