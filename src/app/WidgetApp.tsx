@@ -145,6 +145,18 @@ export function WidgetApp() {
   const flipEnabledRef = useRef(false);
   /** 窗口高度动画（W2-1）：进行中的插值状态，跨 effect 运行共享 */
   const heightAnimRef = useRef<HeightAnimState | null>(null);
+  // ==== 拖拽「拿起」反馈（W3-1） ====
+  // Tauri 拖拽区是原生接管，前端拿不到拖拽生命周期；用 onMoved 事件流近似：
+  // 连续事件（间隔 <120ms）累计 ≥2 次判定为拖拽中，260ms 静默复位。
+  // 程序化 setPosition（高度动画逐帧、几何自愈）同样会触发 onMoved，
+  // 以 heightAnimRef 活动为标志抑制，避免「动画被当成拖拽」的误亮。
+  const [isDragging, setIsDragging] = useState(false);
+  const draggingRef = useRef(false);
+  const dragTraceRef = useRef<{
+    lastAt: number;
+    count: number;
+    timer: ReturnType<typeof setTimeout> | null;
+  }>({ lastAt: 0, count: 0, timer: null });
 
   const displayedDateKey = anchorDate ?? todayKey;
   // 事件回调里要拿最新值；闭包旧值会让"按日重拉"打错目标
@@ -368,6 +380,8 @@ export function WidgetApp() {
     let cancelled = false;
     let unlistenMove: (() => void) | null = null;
     let unlistenResize: (() => void) | null = null;
+    // ref 对象本身稳定，cleanup 读取同一对象的 timer 字段（exhaustive-deps 友好）
+    const dragTrace = dragTraceRef.current;
     const currentWindow = getCurrentWindow();
     void (async () => {
       const nextUnlisteners = await Promise.all([
@@ -377,6 +391,32 @@ export function WidgetApp() {
             y: event.payload.y,
           };
           scheduleGeometryFlush();
+          // W3-1：拖拽中判定（程序化移动不计入，见 dragTraceRef 注释）
+          const anim = heightAnimRef.current;
+          const programmatic =
+            (anim?.raf != null || anim?.writeInFlight) === true;
+          const now = performance.now();
+          if (programmatic) {
+            dragTrace.lastAt = now;
+            dragTrace.count = 0;
+            return;
+          }
+          if (now - dragTrace.lastAt < 120) {
+            dragTrace.count += 1;
+            if (dragTrace.count >= 2 && !draggingRef.current) {
+              draggingRef.current = true;
+              setIsDragging(true);
+            }
+          } else {
+            dragTrace.count = 1;
+          }
+          dragTrace.lastAt = now;
+          if (dragTrace.timer) clearTimeout(dragTrace.timer);
+          dragTrace.timer = setTimeout(() => {
+            dragTrace.timer = null;
+            draggingRef.current = false;
+            setIsDragging(false);
+          }, 260);
         }),
         currentWindow.onResized((event) => {
           if (sizeModeRef.current !== "manual") return;
@@ -400,6 +440,7 @@ export function WidgetApp() {
       unlistenMove?.();
       unlistenResize?.();
       if (moveTimer.current) clearTimeout(moveTimer.current);
+      if (dragTrace.timer) clearTimeout(dragTrace.timer);
       window.removeEventListener("beforeunload", flushOnUnload);
     };
   }, [flushGeometry, scheduleGeometryFlush]);
@@ -740,7 +781,13 @@ export function WidgetApp() {
   return (
     <div
       ref={stageRef}
-      className={`widget-stage ${closing ? "is-closing" : ""}`.trim()}
+      className={[
+        "widget-stage",
+        closing ? "is-closing" : "",
+        isDragging ? "is-dragging" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-tauri-drag-region="deep"
     >
       <WidgetPinTop />

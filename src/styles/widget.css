@@ -1175,6 +1175,30 @@ html.widget-entry body {
   display: none;
 }
 
+/* === 拖拽「拿起」反馈（W3-1，D-6） ===
+   原生拖拽拿不到生命周期，由 WidgetApp 的 onMoved 事件流判定后挂
+   .is-dragging。约束：纸面任何 scale/rotate 都会产生透明角（Windows
+   Release 白合成风险），所以只做三种无几何变化的反馈——
+   底部内阴影加深（纸被压得更贴手）、图钉按住微放、光标握紧。 */
+
+.widget-stage.is-dragging {
+  cursor: grabbing;
+}
+
+.widget-stage.is-dragging .widget-shell::before {
+  box-shadow:
+    var(--note-shadow),
+    inset 0 -26px 32px -20px rgba(var(--note-ink), 0.2);
+}
+
+.widget-pin-top {
+  transition: transform 0.15s var(--ease-standard);
+}
+
+.widget-stage.is-dragging .widget-pin-top {
+  transform: translateX(-50%) scale(1.12);
+}
+
 /* === 动效降级（方案书 D-7）：系统开启「减少动态效果」时全部动画/过渡
    收敛为瞬时切换。覆盖新增的 FLIP 滑出/QuickAdd 过渡/对勾绘制，
    以及既有的 drop-in、item-fade-in、关闭动效。FLIP 走 WAAPI
