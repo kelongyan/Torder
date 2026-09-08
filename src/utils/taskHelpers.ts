@@ -253,6 +253,12 @@ export interface QuickAddParsed {
   listId?: string;
   tags: string[];
   dueAt: string | null;
+  /**
+   * dueAt 来自「到X」截止词（如「到周五」）：任务应从创建/查看日期跨天
+   * 持续到 dueAt（跨天任务，便签区间逐日可见）。普通日期词（今天/周X）
+   * 恒为 false——那只表达「某天要做」，不表达「持续到某天」。
+   */
+  dueIsDeadline: boolean;
 }
 
 const weekdayNumber: Record<string, number> = {
@@ -267,8 +273,10 @@ const weekdayNumber: Record<string, number> = {
 };
 
 /**
- * 自然语言快速添加解析：`#清单` `!高|!中|!低` `今天/明天/后天/周X/下周X` `HH:MM`。
- * 其余文本拼成标题。未识别的 token 一律保留在标题里，不打断输入。
+ * 自然语言快速添加解析：`#清单` `!高|!中|!低` `今天/明天/后天/周X/下周X`
+ * `到周X`（截止词，跨天任务）`HH:MM`。其余文本拼成标题。
+ * 未识别的 token 一律保留在标题里，不打断输入。
+ * 日期词与截止词占同一个槽位，先出现者生效（`到X` 生效时置 dueIsDeadline）。
  */
 export function parseQuickAddText(
   text: string,
@@ -279,6 +287,7 @@ export function parseQuickAddText(
   let listId: string | undefined;
   const tags: string[] = [];
   let dateToken: string | undefined;
+  let dueIsDeadline = false;
   let timeToken: string | undefined;
   const titleParts: string[] = [];
 
@@ -317,6 +326,15 @@ export function parseQuickAddText(
       dateToken ??= token;
       continue;
     }
+    if (/^到(今天|明天|后天|(下?周|星期)[一二三四五六日天])$/.test(token)) {
+      // 「到X」截止词：吞掉不进标题；已有日期词时让位（首个日期词生效）
+      const word = token.slice(1);
+      if (!dateToken) {
+        dateToken = word;
+        dueIsDeadline = true;
+      }
+      continue;
+    }
     if (/^([01]?\d|2[0-3]):[0-5]\d$/.test(token)) {
       timeToken ??= token;
       continue;
@@ -330,6 +348,7 @@ export function parseQuickAddText(
     listId,
     tags: normalizeTags(tags),
     dueAt: resolveQuickAddDue(dateToken, timeToken),
+    dueIsDeadline,
   };
 }
 

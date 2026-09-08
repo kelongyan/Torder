@@ -42,9 +42,14 @@ export function WidgetQuickAdd({
         priority: parsed.priority ?? 1,
         listId,
         tags: parsed.tags,
-        // 未显式指定日期时落到小窗当前查看日期，保证任务出现在当前视图
+        // 无日期词落到小窗当前查看日期；「到周X」截止语法从当前查看日期
+        // 跨到截止日（区间任务，便签逐日可见）；普通日期词只设截止（原行为）
         dueAt: parsed.dueAt,
-        scheduledDate: parsed.dueAt ? null : targetDateKey,
+        scheduledDate: parsed.dueAt
+          ? parsed.dueIsDeadline
+            ? targetDateKey
+            : null
+          : targetDateKey,
         remindBefore: null,
       });
       setTitle("");

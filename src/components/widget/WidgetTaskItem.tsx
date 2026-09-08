@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import type { Task } from "../../types/database";
+import { widgetSpanBadge } from "../../services/widgetService";
 
 function formatTime(iso: string | null): string | null {
   if (!iso) return null;
@@ -29,6 +30,9 @@ export function WidgetTaskItem({
 }) {
   const completed = task.status === "done";
   const time = formatTime(task.dueAt);
+  // 跨天任务的截止标识（「至 MM-DD」）：区分「进行中」与「今天的事」；
+  // 区间任务必有 dueAt，标识恒与时间并排出现在行尾
+  const spanBadge = widgetSpanBadge(task);
   const className = [
     "widget-item",
     completed ? "is-done" : "",
@@ -70,6 +74,7 @@ export function WidgetTaskItem({
       {listColor && (
         <span className="widget-item-dot" style={{ background: listColor }} />
       )}
+      {spanBadge && <span className="widget-item-until">{spanBadge}</span>}
       {time && <span className="widget-item-time">{time}</span>}
     </article>
   );

@@ -160,7 +160,19 @@ function collectDateKeys(tasks: ReadonlyArray<Task>): string[] | null {
 /** 跨天任务：计划日期与截止日期齐全且不属于同一天。 */
 function isSpanningTask(task: Task): boolean {
   if (!task.scheduledDate || !task.dueAt) return false;
-  return task.scheduledDate !== localDateKey(new Date(task.dueAt));
+  const due = new Date(task.dueAt);
+  return (
+    !Number.isNaN(due.getTime()) && task.scheduledDate !== localDateKey(due)
+  );
+}
+
+/**
+ * 跨天任务在便签条目上的截止标识（「至 MM-DD」，本地日期）；非跨天任务
+ * 返回 null。判定与查询口径（Rust `query_for_widget` 的区间子句）同源。
+ */
+export function widgetSpanBadge(task: Task): string | null {
+  if (!isSpanningTask(task) || !task.dueAt) return null;
+  return `至 ${localDateKey(new Date(task.dueAt)).slice(5)}`;
 }
 
 let notifyTimer: ReturnType<typeof setTimeout> | null = null;

@@ -932,6 +932,17 @@ html.widget-entry body {
   font-variant-numeric: tabular-nums;
 }
 
+/* 跨天任务截止标识（「至 MM-DD」）：把「进行中」事项和「今天的事」区分开。
+   恒与时间并排（区间任务必有截止时间），右侧留白由 .widget-item-time 的
+   margin-left: auto 统一负责，这里不再分配自动边距。 */
+.widget-item-until {
+  flex-shrink: 0;
+  line-height: inherit;
+  font-size: var(--note-fs-meta);
+  color: var(--note-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* === QuickAdd：下划线式行内编辑（纸上书写感） === */
 
 .widget-quick-add {

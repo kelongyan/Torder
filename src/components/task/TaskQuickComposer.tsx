@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type { CreateTaskInput, TaskList } from "../../types/database";
+import { localDateKey } from "../../services/taskQuery";
 import { parseQuickAddText } from "../../utils/taskHelpers";
 
 /**
@@ -56,6 +57,7 @@ export function TaskQuickComposer({
           listId: undefined,
           tags: [],
           dueAt: null,
+          dueIsDeadline: false,
         };
     const title = parsed.title.trim();
     // 整行都是修饰词（如只写了「#工作 !高」）时不建空标题任务
@@ -67,6 +69,15 @@ export function TaskQuickComposer({
         ? defaultListId
         : "work");
 
+    // 普通日期词只设截止（scheduledDate 置空）；「到周X」截止语法从当前
+    // 落位日期跨到截止日（区间任务，便签逐日可见），落位日期缺省为今天
+    let scheduledDate: string | null | undefined;
+    if (parsed.dueAt) {
+      scheduledDate = parsed.dueIsDeadline
+        ? (overrides?.scheduledDate ?? localDateKey(new Date()))
+        : null;
+    }
+
     setBusy(true);
     try {
       await onCreate({
@@ -77,8 +88,7 @@ export function TaskQuickComposer({
         dueAt: parsed.dueAt,
         remindBefore: null,
         ...overrides,
-        // 解析出显式日期时以它为准，否则才用调用方给的落位日期
-        ...(parsed.dueAt ? { scheduledDate: null } : {}),
+        ...(scheduledDate !== undefined ? { scheduledDate } : {}),
       });
       setText("");
       if (!keepOpen) setOpen(false);
