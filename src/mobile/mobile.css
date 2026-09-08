@@ -1871,23 +1871,3 @@
   border-color: var(--text-1);
   box-shadow: 0 0 0 2px var(--mica);
 }
-.m-appearance-font-row {
-  display: flex;
-  gap: 8px;
-}
-.m-appearance-font-chip {
-  flex: 1;
-  height: 40px;
-  border-radius: var(--radius);
-  border: 1px solid var(--stroke);
-  background: transparent;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-.m-appearance-font-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-}

@@ -14,38 +14,16 @@ import { emit, listen } from "@tauri-apps/api/event";
  *   缓存只读于首帧前（main.tsx），用于消灭「默认纸色闪一帧」，不作数据源。
  */
 
-export const noteThemeIds = [
-  "classic",
-  "cloud",
-  "kraft",
-  "mint",
-  "sakura",
-  "sky",
-  "lilac",
-  "slate",
-  "night",
-  "auto",
-] as const;
+export const noteThemeIds = ["sky"] as const;
 export type NoteThemeId = (typeof noteThemeIds)[number];
 
 /** 主题展示名（设置界面色卡）。顺序即 UI 呈现顺序；id 须与 widget.css 主题块一一对应。
- *  `auto`（跟随应用主题）不在 widget.css 里——applyWidgetAppearance 会把它解析成
- *  classic/night 再落属性。 */
+ *  2026-09-08 老大定稿：纸色只保留海蓝（sky）并作为默认，其余配色与「跟随应用」
+ *  全部移除；normalizeAppearance 会把旧存档里的历史主题值归一到 sky。 */
 export const noteThemeOptions: ReadonlyArray<{
   id: NoteThemeId;
   name: string;
-}> = [
-  { id: "classic", name: "经典黄" },
-  { id: "cloud", name: "云白" },
-  { id: "kraft", name: "牛皮纸" },
-  { id: "mint", name: "薄荷" },
-  { id: "sakura", name: "樱粉" },
-  { id: "sky", name: "海蓝" },
-  { id: "lilac", name: "薰衣草" },
-  { id: "slate", name: "石板灰" },
-  { id: "night", name: "夜墨" },
-  { id: "auto", name: "跟随应用" },
-];
+}> = [{ id: "sky", name: "海蓝" }];
 
 export const noteFontIds = ["handwriting", "sans", "system", "custom"] as const;
 export type NoteFontId = (typeof noteFontIds)[number];
@@ -66,8 +44,6 @@ export const CUSTOM_NOTE_FONT_FAMILY = "Torder Note Custom";
 
 /** 透明度区间（UI 用百分数 30–100 展示）。下限 30% 给 Release 白合成坑留安全边际。 */
 export const MIN_NOTE_OPACITY = 0.3;
-export const MIN_NOTE_FONT_SIZE = 12;
-export const MAX_NOTE_FONT_SIZE = 17;
 
 /** 便签外观字段的扁平集合；`widget` 设置键在此基础上再带几何/锚点字段。 */
 export interface WidgetAppearance {
@@ -119,22 +95,23 @@ function clampNumber(
 
 /**
  * 非法值一律回默认（与 settingsService 的守卫风格一致）。null/undefined/坏对象
- * 都返回默认外观——即经典黄，保证旧存档与损坏缓存天然兼容。
+ * 都返回默认外观——即海蓝纸，保证旧存档与损坏缓存天然兼容。
+ *
+ * 2026-09-08 老大定稿收敛：
+ * - 纸色只保留 sky，历史存档里的任何主题值（classic/sakura/auto…）都归一到 sky；
+ * - 字号设置面已移除，noteFontSize 锁死 14px（存档中的历史值一并忽略）；
+ * - 纸面细节开关（纹理/格线/图钉/色点）的设置面已移除，字段与归一逻辑保留，
+ *   历史存档值继续生效（无 UI 可再修改）。
  */
 export function normalizeAppearance(parsed: unknown): WidgetAppearance {
   const raw = (
     typeof parsed === "object" && parsed !== null ? parsed : {}
   ) as Partial<WidgetAppearance>;
   return {
-    noteTheme: isNoteThemeId(raw.noteTheme) ? raw.noteTheme : "classic",
+    noteTheme: isNoteThemeId(raw.noteTheme) ? raw.noteTheme : "sky",
     noteOpacity: clampNumber(raw.noteOpacity, MIN_NOTE_OPACITY, 1, 1),
     noteFont: isNoteFontId(raw.noteFont) ? raw.noteFont : "handwriting",
-    noteFontSize: clampNumber(
-      raw.noteFontSize,
-      MIN_NOTE_FONT_SIZE,
-      MAX_NOTE_FONT_SIZE,
-      14,
-    ),
+    noteFontSize: 14,
     noteTexture: typeof raw.noteTexture === "boolean" ? raw.noteTexture : true,
     noteRules: typeof raw.noteRules === "boolean" ? raw.noteRules : true,
     notePin: typeof raw.notePin === "boolean" ? raw.notePin : true,
@@ -169,19 +146,10 @@ export function fontStackFor(font: NoteFontId): string {
  * 字号经 `--note-fs` 基准 token 缩放整套便签字号（widget.css 派生比值）；
  * 纸面细节开关以 `.note-no-*` 类表达（CSS 定义见 widget.css 末尾）；
  * `noteHideDone` 是行为过滤不是样式，由 WidgetApp 的条目派生消费（不在此处理）。
- *
- * `noteTheme: "auto"` 在这里解析成 classic/night：依据是本窗口 html 的
- * `data-theme`（applyThemePreference 维护），调用方须先设好它再调本函数。
  */
 export function applyWidgetAppearance(appearance: WidgetAppearance): void {
   const root = document.documentElement;
-  const dark = root.dataset.theme === "dark";
-  root.dataset.noteTheme =
-    appearance.noteTheme === "auto"
-      ? dark
-        ? "night"
-        : "classic"
-      : appearance.noteTheme;
+  root.dataset.noteTheme = appearance.noteTheme;
   root.style.setProperty("--note-opacity", String(appearance.noteOpacity));
   root.style.setProperty("--note-fs", `${appearance.noteFontSize}px`);
   root.style.setProperty("--font-note", fontStackFor(appearance.noteFont));
@@ -318,10 +286,10 @@ export function listenWidgetSettings(
   return () => channel.close();
 }
 
-/* === 应用主题广播（便签「跟随应用」主题的数据源） ===
-   theme.ts 的 applyThemePreference 每次应用暗/亮时广播 { dark }；
-   widget 窗口监听后更新自身 data-theme 并在 noteTheme === "auto" 时重解析纸色。
-   mock 用同名 BroadcastChannel 跨标签页送达。 */
+/* === 应用主题广播 ===
+   theme.ts 的 applyThemePreference 每次应用暗/亮时广播 { dark }；widget 窗口
+   监听后更新自身 data-theme。原「跟随应用」纸色（auto）已随主题收敛移除，
+   广播链保留：data-theme 仍影响 widget 窗口内的壳层样式，成本为零。 */
 
 export const APP_THEME_EVENT = "app-theme-changed";
 

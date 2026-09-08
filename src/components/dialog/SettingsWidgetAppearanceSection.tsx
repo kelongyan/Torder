@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { Moon, Sun } from "lucide-react";
 import {
   getWidgetSettings,
   patchWidgetSettings,
@@ -23,16 +22,14 @@ import { isMobile } from "../../utils/platform";
 
 /** 滑杆拖动期间只更新本地状态，停顿 300ms 才落库——避免每像素一次 IPC */
 const SLIDER_FLUSH_MS = 300;
-/** 字号滑杆区间（px），与 MIN/MAX_NOTE_FONT_SIZE 一致 */
-const FONT_SIZE_MIN = 12;
-const FONT_SIZE_MAX = 17;
+
 /** 自定义字体导入的对话框过滤与大小上限提示（Rust 侧权威校验） */
 const FONT_DIALOG_FILTERS = [
   { name: "字体文件", extensions: ["ttf", "otf", "woff", "woff2"] },
 ];
 const FONT_ACCEPT = ".ttf,.otf,.woff,.woff2";
 
-type SliderField = "noteOpacity" | "noteFontSize";
+type SliderField = "noteOpacity";
 
 /** mock 模式的字体文件选择（Tauri 走系统对话框）。返回 null = 用户取消。 */
 function pickBrowserFontFile(): Promise<File | null> {
@@ -47,11 +44,15 @@ function pickBrowserFontFile(): Promise<File | null> {
 }
 
 /**
- * 设置 → 外观 → 桌面便签个性化：三个组（纸色+不透明度 / 字体+字号 /
- * 纸面与显示）+ 沉底「恢复默认外观」；组间 hairline 分隔，布局规约见
+ * 设置 → 外观 → 桌面便签个性化：纸色（海蓝单卡，2026-09-08 老大定稿收敛）+
+ * 不透明度 / 字体 + 自定义字体导入；组间 hairline 分隔，布局规约见
  * docs/appearance-layout-optimization-plan.md §3。
  *
- * - 色卡固定五列（10 个选项恰好 5×2）；纸面效果以桌面小窗本体为预览（改动经广播实时生效，
+ * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组全部移除；
+ * 纸色只保留海蓝并作为默认。主题/字体点击立即落库；
+ * 不透明度滑杆本地即时、防抖 300ms 合并落库，卸载时 flush。
+ *
+ * - 纸面效果以桌面小窗本体为预览（改动经广播实时生效，
  *   不再设设置界面内的预览卡——2026-08-29 用户定稿移除）。
  * - 字体卡的字样直接用真实字体栈渲染：手写体字样会命中 Torder Note 的
  *   HTTP 缓存（widget 窗口每次启动都拉同一文件），仅外观页首次打开多一次缓存读；
@@ -59,9 +60,7 @@ function pickBrowserFontFile(): Promise<File | null> {
  * - 色卡/字体卡用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动。
  * - 写入走 `patchWidgetSettings`（扁平字段），主窗 → widget 窗经
  *   `widget-settings-changed` 广播实时同步；失败回滚到最近成功值并 toast——
- *   与 `SettingsDesktopSection` 的开关同一范式。主题/字体点击立即落库；
- *   两个滑杆本地即时、防抖 300ms 合并落库（pending 按字段合并，拖完 A 马上拖 B
- *   不会丢 A 的尾值），卸载时 flush。
+ *   与 `SettingsDesktopSection` 的开关同一范式。
  * - 移动端没有桌面小窗，不渲染；桌面浏览器 mock 照常可用（双模式一致性）。
  */
 export function SettingsWidgetAppearanceSection({
@@ -182,18 +181,8 @@ export function SettingsWidgetAppearanceSection({
     ).finally(() => setBusy(false));
   }
 
-  /** 纸面细节/显示开关：布尔字段通用处理 */
-  function handleToggleChange<
-    K extends
-      "noteTexture" | "noteRules" | "notePin" | "noteDots" | "noteHideDone",
-  >(field: K, value: WidgetAppearance[K]) {
-    if (!appearance) return;
-    const fallback = appearance[field];
-    setAppearance({ ...appearance, [field]: value });
-    void persistPatch({ [field]: value }, { [field]: fallback });
-  }
-
-  /** 恢复默认外观：只重置九个外观字段，几何/锚点/启用开关不碰 */
+  /** 恢复默认外观：重置外观字段（字号已锁死、开关组已无 UI，落库值由
+   *  normalizeAppearance 归一），几何/锚点/启用开关不碰 */
   function handleResetDefaults() {
     if (!appearance || busy) return;
     const previous = appearance;
@@ -210,13 +199,6 @@ export function SettingsWidgetAppearanceSection({
     if (value === appearance.noteOpacity) return;
     setAppearance({ ...appearance, noteOpacity: value });
     scheduleSliderPersist({ noteOpacity: value });
-  }
-
-  function handleFontSizeChange(value: number) {
-    if (!appearance) return;
-    if (value === appearance.noteFontSize) return;
-    setAppearance({ ...appearance, noteFontSize: value });
-    scheduleSliderPersist({ noteFontSize: value });
   }
 
   /**
@@ -329,19 +311,12 @@ export function SettingsWidgetAppearanceSection({
                   disabled={busy}
                   onChange={() => handleThemeChange(theme.id)}
                 />
-                {theme.id === "auto" ? (
-                  <span className="note-theme-swatch-paper is-auto">
-                    <Sun aria-hidden="true" />
-                    <Moon aria-hidden="true" />
-                  </span>
-                ) : (
-                  <span className="note-theme-swatch-paper">
-                    <span className="note-theme-swatch-line is-title" />
-                    <span className="note-theme-swatch-line" />
-                    <span className="note-theme-swatch-line is-short" />
-                    <span className="note-theme-swatch-line is-check" />
-                  </span>
-                )}
+                <span className="note-theme-swatch-paper">
+                  <span className="note-theme-swatch-line is-title" />
+                  <span className="note-theme-swatch-line" />
+                  <span className="note-theme-swatch-line is-short" />
+                  <span className="note-theme-swatch-line is-check" />
+                </span>
                 <span className="note-theme-swatch-name">{theme.name}</span>
               </label>
             );
@@ -455,86 +430,6 @@ export function SettingsWidgetAppearanceSection({
             </button>
           </div>
         )}
-        <div className="note-slider-row">
-          <span>字号</span>
-          <input
-            type="range"
-            min={FONT_SIZE_MIN}
-            max={FONT_SIZE_MAX}
-            step={1}
-            value={appearance.noteFontSize}
-            aria-label="便签字号"
-            onChange={(event) =>
-              handleFontSizeChange(Number(event.target.value))
-            }
-          />
-          <span className="note-slider-value">{appearance.noteFontSize}px</span>
-        </div>
-      </div>
-
-      <div className="appearance-group">
-        <h4 className="appearance-group-title">纸面与显示</h4>
-        <div
-          className="note-detail-toggles"
-          role="group"
-          aria-label="便签纸面与显示"
-        >
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteTexture}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteTexture", event.target.checked)
-              }
-            />
-            <span>纸张纹理</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteRules}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteRules", event.target.checked)
-              }
-            />
-            <span>行格线</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.notePin}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("notePin", event.target.checked)
-              }
-            />
-            <span>顶部图钉</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteDots}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteDots", event.target.checked)
-              }
-            />
-            <span>清单色点</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteHideDone}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteHideDone", event.target.checked)
-              }
-            />
-            <span>隐藏已完成条目</span>
-          </label>
-        </div>
       </div>
 
       <div className="note-reset-row">

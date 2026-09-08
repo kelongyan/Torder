@@ -24,8 +24,6 @@ import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
 import {
   applyAccentPreference,
-  applyDisplayDensity,
-  applyFontSizeScale,
   applyThemePreference,
 } from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
@@ -886,9 +884,6 @@ function App() {
   useEffect(() => applyThemePreference(settings.theme), [settings.theme]);
   // T-09：强调色与主题同一帧应用，保证切换时无中间态
   useEffect(() => applyAccentPreference(settings.accent), [settings.accent]);
-  // 阶段 D · T-10 乙组：显示偏好（密度/字号）→ html data 属性，档位覆写在 tokens.css
-  useEffect(() => applyDisplayDensity(settings.density), [settings.density]);
-  useEffect(() => applyFontSizeScale(settings.fontSize), [settings.fontSize]);
   // 专注免打扰开关注入 focusStore：状态切换由 store 写 focusDndUntil KV，
   // Rust notifier 轮询读取抑制；专注运行中切换开关立即生效/解除。
   useEffect(

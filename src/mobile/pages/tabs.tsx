@@ -26,7 +26,6 @@ import {
   Sun,
   Trash2,
   TrendingUp,
-  Type,
 } from "lucide-react";
 import { useTaskStore } from "../../stores/taskStore";
 import { viewScope } from "../../stores/taskStore";
@@ -35,12 +34,10 @@ import { buildCounts } from "../../utils/taskHelpers";
 import type { Task } from "../../types/database";
 import type {
   AccentPreference,
-  FontSizePreference,
   ThemePreference,
 } from "../../types/settings";
 import {
   applyAccentPreference,
-  applyFontSizeScale,
   applyThemePreference,
 } from "../../utils/theme";
 import { MobileCalendar } from "../parts/MobileCalendar";
@@ -470,12 +467,6 @@ const ACCENT_LABELS: Array<{
   { value: "rose", label: "玫粉", color: "#f0819e" },
 ];
 
-const FONT_LABELS: Array<{ value: FontSizePreference; label: string }> = [
-  { value: "small", label: "小" },
-  { value: "standard", label: "标准" },
-  { value: "large", label: "大" },
-];
-
 export function MeScreen(): JSX.Element {
   const { nav } = useMobilePage();
   const props = useMobileProps();
@@ -501,16 +492,6 @@ export function MeScreen(): JSX.Element {
           icon={<Palette aria-hidden="true" />}
           label="主题与强调色"
           badge={`${THEME_LABELS[props.settings.theme] ?? "深色"} · ${accentLabel}`}
-          onClick={() => setAppearanceOpen(true)}
-        />
-        <NavRow
-          tint="var(--accent)"
-          icon={<Type aria-hidden="true" />}
-          label="字号"
-          badge={
-            FONT_LABELS.find((f) => f.value === props.settings.fontSize)
-              ?.label ?? "标准"
-          }
           onClick={() => setAppearanceOpen(true)}
         />
       </div>
@@ -564,7 +545,7 @@ export function MeScreen(): JSX.Element {
   );
 }
 
-/** 外观直改 Sheet：主题三卡 + 强调色六色板 + 字号三档（真实生效并落盘） */
+/** 外观直改 Sheet：主题三卡 + 强调色六色板（真实生效并落盘）；字号项已移除 */
 function AppearanceSheet({ onClose }: { onClose: () => void }): JSX.Element {
   const props = useMobileProps();
   const themeCleanup = useRef<(() => void) | null>(null);
@@ -591,10 +572,6 @@ function AppearanceSheet({ onClose }: { onClose: () => void }): JSX.Element {
   function pickAccent(accent: AccentPreference) {
     applyAccentPreference(accent);
     void persist("accent", accent);
-  }
-  function pickFont(size: FontSizePreference) {
-    applyFontSizeScale(size);
-    void persist("fontSize", size);
   }
 
   return (
@@ -647,23 +624,6 @@ function AppearanceSheet({ onClose }: { onClose: () => void }): JSX.Element {
                   pickAccent(accent.value);
                 }}
               />
-            ))}
-          </div>
-
-          <div className="m-appearance-label">字号</div>
-          <div className="m-appearance-font-row">
-            {FONT_LABELS.map((font) => (
-              <button
-                key={font.value}
-                type="button"
-                className={`m-appearance-font-chip ${settings.fontSize === font.value ? "active" : ""}`}
-                onClick={() => {
-                  navigator.vibrate?.(8);
-                  pickFont(font.value);
-                }}
-              >
-                {font.label}
-              </button>
             ))}
           </div>
         </div>

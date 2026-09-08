@@ -187,18 +187,8 @@
 }
 
 /* 触摸尺寸：桌面这几个控件是 24–26px 的紧凑件，手指点不准。
-   加大到 ≥40px（色板用 32px 圆点 + padding 撑到 44px 命中区）。 */
-.settings-dialog-mobile .display-pref-chips {
-  gap: 8px;
-}
-
-.settings-dialog-mobile .display-pref-chip {
-  min-width: 56px;
-  height: 40px;
-  justify-content: center;
-  padding: 0 14px;
-  font-size: 13px;
-}
+   加大到 ≥40px（色板用 32px 圆点 + padding 撑到 44px 命中区）。
+   显示偏好（密度/字号）已于 2026-09-08 移除。 */
 
 .settings-dialog-mobile .accent-swatches {
   gap: 14px;

@@ -1368,13 +1368,14 @@
 }
 
 /* === 桌面便签个性化（设置 → 外观，方案 docs/widget-personalization-plan.md §4） ===
-   纸面 token 全部来自 widget.css 的 [data-note-theme] 主题块（含 :root 默认经典黄）。
+   纸面 token 全部来自 widget.css（2026-09-08 收敛：海蓝即 :root 默认，主题块已删）。
    2026-08-29 用户定稿：不设设置界面内预览卡——纸面/字体效果以桌面小窗本体为预览
    （改动经 widget-settings-changed 广播实时生效）。 */
 
 /* ===== 外观分区（docs/appearance-layout-optimization-plan.md §3）=====
-   三个组（纸色/字体/纸面与显示）+ 沉底恢复按钮；组间 hairline 分隔，
-   滑杆各回所属组。间距全落 4px 栅格（check:design 门禁把关）。 */
+   两个组（纸色+不透明度 / 字体）+ 沉底恢复按钮；组间 hairline 分隔，
+   滑杆各回所属组。间距全落 4px 栅格（check:design 门禁把关）。
+   2026-09-08 收敛：字号滑杆与纸面与显示开关组已移除。 */
 
 /* 组间分隔：不用盒子，跟随设置页其它分区的扁平语言 */
 .appearance-group + .appearance-group {
@@ -1601,26 +1602,6 @@
 }
 
 /* 「跟随应用」色卡：亮/暗拼色纸样（日/月各占一半） */
-.note-theme-swatch-paper.is-auto {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-around;
-  background: linear-gradient(90deg, #fef7c3 0% 50%, #2a2a30 50% 100%);
-}
-
-.note-theme-swatch-paper.is-auto svg {
-  width: 14px;
-  height: 14px;
-}
-
-.note-theme-swatch-paper.is-auto svg:first-child {
-  color: #a3762a; /* 暖金，黄半边可读 */
-}
-
-.note-theme-swatch-paper.is-auto svg:last-child {
-  color: #d9c89a; /* 浅金，暗半边可读 */
-}
-
 /* 「导入字体」卡（非 radio 的按钮卡）：虚线边示意空槽位 */
 .note-font-card.note-font-import {
   border-style: dashed;
@@ -1674,14 +1655,6 @@
 .note-font-link:disabled {
   cursor: default;
   opacity: 0.6;
-}
-
-/* 纸面与显示开关行（五个开关一组，flex-wrap 自然换行） */
-
-.note-detail-toggles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
 }
 
 /* 恢复默认外观：沉底右对齐，text 风格弱化（与「更换/移除」链接同语言） */
@@ -1831,50 +1804,12 @@
   padding: 0 2px 2px;
 }
 
-/* ---------- 阶段 D · T-10 乙组：显示偏好（真实控件，原灰显占位转正） ---------- */
-.display-pref-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 30px;
-}
+/* 显示偏好（密度/字号）已于 2026-09-08 移除，界面恒标准档 */
 
 /* 说明条删除后，外观分区以控件收尾，留出分隔线前的呼吸空隙 */
 .theme-cards:last-child,
-.accent-swatches:last-child,
-.display-pref-row:last-child {
+.accent-swatches:last-child {
   margin-bottom: 8px;
-}
-
-.display-pref-label {
-  color: var(--text-2);
-  font-size: 12.5px;
-}
-
-.display-pref-chips {
-  display: inline-flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.display-pref-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  border: 1px solid var(--stroke);
-  border-radius: 999px;
-  padding: 0 10px;
-  color: var(--text-3);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.display-pref-chip.is-on {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--accent);
 }
 
 .set-ph-picker {

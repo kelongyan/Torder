@@ -21,34 +21,36 @@
      以及可滚动状态的列表（否则抓细滚动条会拖窗口而不是滚动）。 */
 
 /* === 便签纸主题 token（不放入 tokens.css，独立作用域） ===
-   换主题 = 在下方以 [data-note-theme="<id>"] 重声明整套 token（Phase 1）；
-   --note-ink 是墨色 RGB 三元组，所有 rgba(107,74,30,α) 字面量统一从这里派生，
-   别再写裸 rgba(107,74,30,…)。--note-opacity / --font-note 运行时被
-   widgetAppearance 以 inline style 覆盖（0.3–1 / 按所选字体族）。 */
+   --note-ink 是墨色 RGB 三元组，所有 rgba(α) 字面量统一从这里派生，
+   别再写裸 rgba(43,58,77,…)。--note-opacity / --font-note 运行时被
+   widgetAppearance 以 inline style 覆盖（0.3–1 / 按所选字体族）。
+
+   2026-09-08 老大定稿：纸色只保留海蓝（sky）并作为默认，其余配色全部移除
+   ——海蓝 token 即下方 :root 默认值。 */
 
 :root,
 :root[data-theme="dark"],
 :root[data-theme="light"] {
-  --note-bg-start: #fef7c3;
-  --note-bg-mid: #fdf3b4;
-  --note-bg-end: #fceea8;
-  --note-text: #3d3023;
-  --note-title: #6b4a1e;
-  --note-muted: #6b4a1e;
-  --note-check: #2e8b3d;
-  --note-high: #a3341c;
-  --note-ink: 107, 74, 30;
+  --note-bg-start: #e8f1fa;
+  --note-bg-mid: #dce9f7;
+  --note-bg-end: #cfe0f2;
+  --note-text: #2b3a4d;
+  --note-title: #2f5d8a;
+  --note-muted: #5f7d99;
+  --note-check: #1f8a70;
+  --note-high: #c0392b;
+  --note-ink: 43, 58, 77;
   /* 确认按钮 hover 的实色（墨色加深一档） */
-  --note-strong: #563a17;
-  /* 纸面纹理与顶部高光：暗色纸主题需调低（夜墨）或改向冷白 */
-  --note-texture-1: rgba(255, 255, 255, 0.25);
-  --note-texture-2: rgba(255, 255, 255, 0.2);
-  --note-sheen: rgba(255, 255, 255, 0.4);
-  --note-rule: rgba(var(--note-ink), 0.09);
+  --note-strong: #234869;
+  /* 纸面纹理与顶部高光 */
+  --note-texture-1: rgba(255, 255, 255, 0.32);
+  --note-texture-2: rgba(255, 255, 255, 0.26);
+  --note-sheen: rgba(255, 255, 255, 0.45);
+  --note-rule: rgba(var(--note-ink), 0.1);
   /* 纸面不透明度：只作用于背景伪层（.widget-shell::before/::after），
      正文不参与淡出；默认 1 = 与迁移前逐像素一致 */
   --note-opacity: 1;
-  /* 字号基准：运行时被 widgetAppearance 以 inline style 覆盖（12–17px）。
+  /* 字号基准：设置面已移除，widgetAppearance 锁死 14px inline 注入（此处为同值兜底）。
      派生比值按 14px 基准的历史像素值折算（16/11/12/10 → 1.15/0.8/0.86/0.72），
      改历史字号先改这里的比值 */
   --note-fs: 14px;
@@ -67,196 +69,15 @@
   --note-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     inset 0 0 0 1px rgba(var(--note-ink), 0.08),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.18);
-}
-
-/* === 主题集（Phase 1，方案见 docs/widget-personalization-plan.md §6） ===
-   经典黄即上方 :root 默认值，未带 data-note-theme 属性时生效。
-   每套主题必须【完整声明】全部 --note-* token——漏一条就继承经典黄（部分回退）；
-   --note-fs* / --note-opacity / --font-note 不属于主题（运行时 inline 注入），勿在此声明。
-   双选择器是特异性地基，不是风格问题：widget 窗口把属性挂在 <html> 上，
-   经典默认块在该元素命中的是 :root[data-theme="dark"]（特异性 0,2,0），
-   裸属性选择器（0,1,0）无论源序多靠后都赢不了它；:root[data-note-theme=…]
-   打成 0,2,0 平局后靠源序获胜。裸 [data-note-theme=…] 那条服务设置界面
-   预览卡/色卡等元素级用法（元素自身声明对子树的胜利靠继承，无需更高特异性）。
-   定色原则：正文对纸底对比度 ≥ 7:1；--note-high（红笔）每张纸单独校准；
-   图钉保持橙色系不随主题变（品牌锚点，夜墨下对比也够）。 */
-
-[data-note-theme="cloud"],
-:root[data-note-theme="cloud"] {
-  --note-bg-start: #ffffff;
-  --note-bg-mid: #f6f8fb;
-  --note-bg-end: #eaeff5;
-  --note-text: #334155;
-  --note-title: #3f4c63;
-  --note-muted: #64748b;
-  --note-check: #16a34a;
-  --note-high: #dc2626;
-  --note-ink: 51, 65, 85;
-  --note-strong: #1e293b;
-  --note-texture-1: rgba(255, 255, 255, 0.35);
-  --note-texture-2: rgba(255, 255, 255, 0.3);
-  --note-sheen: rgba(255, 255, 255, 0.5);
-  --note-rule: rgba(var(--note-ink), 0.1);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.06),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
-}
-
-[data-note-theme="kraft"],
-:root[data-note-theme="kraft"] {
-  --note-bg-start: #e9d7b4;
-  --note-bg-mid: #e2cca3;
-  --note-bg-end: #d9bf8e;
-  --note-text: #4a3a28;
-  --note-title: #6b4a1e;
-  --note-muted: #7a6142;
-  --note-check: #2e7d32;
-  --note-high: #b23a20;
-  --note-ink: 90, 66, 40;
-  --note-strong: #5b4632;
-  --note-texture-1: rgba(255, 255, 255, 0.18);
-  --note-texture-2: rgba(255, 255, 255, 0.14);
-  --note-sheen: rgba(255, 255, 255, 0.25);
-  --note-rule: rgba(var(--note-ink), 0.12);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.1),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.16);
-}
-
-[data-note-theme="mint"],
-:root[data-note-theme="mint"] {
-  --note-bg-start: #e4f5eb;
-  --note-bg-mid: #d9efe1;
-  --note-bg-end: #cde8d6;
-  --note-text: #2f4838;
-  --note-title: #3a6b52;
-  --note-muted: #5f8a74;
-  --note-check: #1f8a4c;
-  --note-high: #c2453a;
-  --note-ink: 47, 90, 64;
-  --note-strong: #2c5940;
-  --note-texture-1: rgba(255, 255, 255, 0.28);
-  --note-texture-2: rgba(255, 255, 255, 0.22);
-  --note-sheen: rgba(255, 255, 255, 0.35);
-  --note-rule: rgba(var(--note-ink), 0.1);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
     inset 0 -18px 24px -18px rgba(var(--note-ink), 0.14);
 }
 
-[data-note-theme="sakura"],
-:root[data-note-theme="sakura"] {
-  --note-bg-start: #fdeff1;
-  --note-bg-mid: #fbdfe4;
-  --note-bg-end: #f7d2da;
-  --note-text: #6d3a44;
-  --note-title: #a05a68;
-  --note-muted: #b07a86;
-  --note-check: #2e8b57;
-  --note-high: #c0392b;
-  --note-ink: 150, 74, 90;
-  --note-strong: #8a4450;
-  --note-texture-1: rgba(255, 255, 255, 0.3);
-  --note-texture-2: rgba(255, 255, 255, 0.25);
-  --note-sheen: rgba(255, 255, 255, 0.4);
-  --note-rule: rgba(var(--note-ink), 0.1);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
-}
-
-[data-note-theme="night"],
-:root[data-note-theme="night"] {
-  --note-bg-start: #2a2a30;
-  --note-bg-mid: #252529;
-  --note-bg-end: #1f1f24;
-  --note-text: #e6e1d5;
-  --note-title: #d9c89a;
-  --note-muted: #a79d88;
-  --note-check: #7fd89b;
-  --note-high: #ff8f7d;
-  --note-ink: 230, 225, 213;
-  --note-strong: #c4b385;
-  --note-texture-1: rgba(255, 255, 255, 0.05);
-  --note-texture-2: rgba(255, 255, 255, 0.04);
-  --note-sheen: rgba(255, 255, 255, 0.06);
-  --note-rule: rgba(var(--note-ink), 0.14);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
-    inset 0 -18px 24px -18px rgba(0, 0, 0, 0.45);
-}
-
-[data-note-theme="sky"],
-:root[data-note-theme="sky"] {
-  --note-bg-start: #e8f1fa;
-  --note-bg-mid: #dce9f7;
-  --note-bg-end: #cfe0f2;
-  --note-text: #2b3a4d;
-  --note-title: #2f5d8a;
-  --note-muted: #5f7d99;
-  --note-check: #1f8a70;
-  --note-high: #c0392b;
-  --note-ink: 43, 58, 77;
-  --note-strong: #234869;
-  --note-texture-1: rgba(255, 255, 255, 0.32);
-  --note-texture-2: rgba(255, 255, 255, 0.26);
-  --note-sheen: rgba(255, 255, 255, 0.45);
-  --note-rule: rgba(var(--note-ink), 0.1);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.14);
-}
-
-[data-note-theme="lilac"],
-:root[data-note-theme="lilac"] {
-  --note-bg-start: #f0edfa;
-  --note-bg-mid: #e8e4f7;
-  --note-bg-end: #ded9f2;
-  --note-text: #453a63;
-  --note-title: #5f4f9e;
-  --note-muted: #8a80ab;
-  --note-check: #2e8b57;
-  --note-high: #c0392b;
-  --note-ink: 90, 80, 130;
-  --note-strong: #4f4380;
-  --note-texture-1: rgba(255, 255, 255, 0.3);
-  --note-texture-2: rgba(255, 255, 255, 0.24);
-  --note-sheen: rgba(255, 255, 255, 0.4);
-  --note-rule: rgba(var(--note-ink), 0.1);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.08),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
-}
-
-[data-note-theme="slate"],
-:root[data-note-theme="slate"] {
-  --note-bg-start: #f2f3f5;
-  --note-bg-mid: #eaecef;
-  --note-bg-end: #e0e3e8;
-  --note-text: #37414d;
-  --note-title: #4a5866;
-  --note-muted: #7d8b99;
-  --note-check: #16a34a;
-  --note-high: #dc2626;
-  --note-ink: 55, 65, 77;
-  --note-strong: #2f3b47;
-  --note-texture-1: rgba(255, 255, 255, 0.4);
-  --note-texture-2: rgba(255, 255, 255, 0.32);
-  --note-sheen: rgba(255, 255, 255, 0.5);
-  --note-rule: rgba(var(--note-ink), 0.1);
-  --note-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 0 0 1px rgba(var(--note-ink), 0.07),
-    inset 0 -18px 24px -18px rgba(var(--note-ink), 0.12);
-}
+/* === 主题说明（2026-09-08 收敛） ===
+   纸色只保留海蓝：token 全部在 :root 默认段，不再需要
+   [data-note-theme="<id>"] 主题块；运行时写入的 data-note-theme="sky"
+   属性保留（广播/缓存链路不变），无 CSS 块命中时自然落默认值。
+   定色原则：正文对纸底对比度 ≥ 7:1；--note-high（红笔）单独校准；
+   图钉保持橙色系不随主题变（品牌锚点）。 */
 
 /* === 透明窗（让桌面"墙"透过来，便签贴在墙上的视觉效果） === */
 

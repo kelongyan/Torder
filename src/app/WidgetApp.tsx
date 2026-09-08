@@ -41,7 +41,6 @@ import {
 import {
   applyWidgetAppearance,
   ensureCustomNoteFont,
-  listenAppTheme,
   listenWidgetSettings,
   type WidgetAppearance,
 } from "../services/widgetAppearance";
@@ -325,22 +324,6 @@ export function WidgetApp() {
       setHideDone(settings.noteHideDone);
     });
   }, []);
-
-  // 应用主题广播（「跟随应用」主题的数据源）：更新自身 data-theme 后，
-  // auto 主题重解析纸色（亮→经典黄 / 暗→夜墨）。
-  useEffect(
-    () =>
-      listenAppTheme((dark) => {
-        const root = document.documentElement;
-        root.classList.toggle("dark", dark);
-        root.dataset.theme = dark ? "dark" : "light";
-        const current = appearanceRef.current;
-        if (current?.noteTheme === "auto") {
-          applyWidgetAppearance(current);
-        }
-      }),
-    [],
-  );
 
   // 跟随今天模式下的跨午夜翻页：检查频率从 60s 提到 5min（跨日瞬间精度不重要），
   // 跨日后如果处于跟随模式则顺带刷新当日；锚定模式不刷。

@@ -4,8 +4,6 @@ import { saveAppSetting } from "../../services/settingsService";
 import type {
   AccentPreference,
   AppSettings,
-  DensityPreference,
-  FontSizePreference,
   ThemePreference,
 } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
@@ -14,8 +12,9 @@ import { SettingsWidgetAppearanceSection } from "./SettingsWidgetAppearanceSecti
 /**
  * 设置 → 外观分区的组合出口。
  * R7：新增「应用主题」三卡（真实生效，写 settings.theme）+
- * T-09 强调色六色板（真实生效，写 settings.accent → data-accent）+
- * 显示偏好灰显占位（T-10 乙组延后）；便签卡（v3 重排）保留在最后。
+ * T-09 强调色六色板（真实生效，写 settings.accent → data-accent）；便签卡
+ * （v3 重排）保留在最后。
+ * 2026-09-08 老大定稿：「显示偏好」（界面密度/字号）整段移除，界面恒标准档。
  */
 
 const THEME_CARDS: Array<{
@@ -35,19 +34,6 @@ const ACCENT_SWATCHES: Array<{ value: AccentPreference; color: string }> = [
   { value: "green", color: "#43c48d" },
   { value: "amber", color: "#e8b04b" },
   { value: "rose", color: "#f0819e" },
-];
-
-/** 阶段 D · T-10 乙组：显示偏好三档（档位覆写见 tokens.css 显示偏好段）。 */
-const DENSITY_OPTIONS: Array<{ value: DensityPreference; label: string }> = [
-  { value: "compact", label: "紧凑" },
-  { value: "standard", label: "标准" },
-  { value: "relaxed", label: "宽松" },
-];
-
-const FONT_SIZE_OPTIONS: Array<{ value: FontSizePreference; label: string }> = [
-  { value: "small", label: "小" },
-  { value: "standard", label: "标准" },
-  { value: "large", label: "大" },
 ];
 
 export function SettingsAppearanceSection({
@@ -91,20 +77,6 @@ export function SettingsAppearanceSection({
   function handleAccentChange(accent: AccentPreference) {
     if (accent === settings.accent) return;
     void savePreference("accent", accent, "已更新强调色");
-  }
-
-  function handleDensityChange(density: DensityPreference) {
-    const label = DENSITY_OPTIONS.find(
-      (option) => option.value === density,
-    )!.label;
-    void savePreference("density", density, `已切换到${label}密度`);
-  }
-
-  function handleFontSizeChange(fontSize: FontSizePreference) {
-    const label = FONT_SIZE_OPTIONS.find(
-      (option) => option.value === fontSize,
-    )!.label;
-    void savePreference("fontSize", fontSize, `已切换到${label}字号`);
   }
 
   return (
@@ -159,59 +131,6 @@ export function SettingsAppearanceSection({
               />
             );
           })}
-        </div>
-      </section>
-
-      {/* 阶段 D · T-10 乙组：显示偏好转正（三档 chips，即时生效） */}
-      <section className="settings-section">
-        <h3 className="settings-section-title">显示偏好</h3>
-        <div className="display-pref-row">
-          <span className="display-pref-label">界面密度</span>
-          <div
-            className="display-pref-chips"
-            role="radiogroup"
-            aria-label="界面密度"
-          >
-            {DENSITY_OPTIONS.map(({ value, label }) => {
-              const on = settings.density === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  className={`display-pref-chip ${on ? "is-on" : ""}`}
-                  onClick={() => handleDensityChange(value)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="display-pref-row">
-          <span className="display-pref-label">字号</span>
-          <div
-            className="display-pref-chips"
-            role="radiogroup"
-            aria-label="字号"
-          >
-            {FONT_SIZE_OPTIONS.map(({ value, label }) => {
-              const on = settings.fontSize === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  className={`display-pref-chip ${on ? "is-on" : ""}`}
-                  onClick={() => handleFontSizeChange(value)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
         </div>
       </section>
 

@@ -16,7 +16,7 @@ const isMiniEntry = window.location.hash === "#mini";
 
 // 首帧前同步应用外观缓存：权威设置要等 IPC 异步返回，期间会闪一帧默认纸色；
 // 缓存由 patchWidgetSettings 写通（两窗口共享 localStorage），只作启动提示不作数据源。
-// 应用主题缓存先于外观应用：noteTheme === "auto" 的暗/亮解析依赖 data-theme。
+// 应用主题缓存先于外观应用：widget 窗口首帧即持有正确的 data-theme（壳层样式依赖）。
 if (isWidgetEntry) {
   const cachedDark = readCachedAppTheme();
   if (cachedDark !== null) {
