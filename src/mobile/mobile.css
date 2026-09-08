@@ -392,7 +392,9 @@
   width: 32px;
   height: 26px;
   border-radius: 999px;
-  transition: background 180ms ease, color 180ms ease;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
 }
 .m-tab.active .m-tab-icon {
   background: var(--accent-soft);
@@ -419,10 +421,14 @@
   border-radius: 50%;
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 36%, transparent), var(--shadow-sm);
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--accent) 36%, transparent),
+    var(--shadow-sm);
   font-size: 26px;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 .m-tab-fab:active {
   transform: scale(0.92);
@@ -608,7 +614,11 @@
   margin-bottom: 4px;
   font-size: var(--text-sm);
   border-left: 3px solid var(--band-color, var(--amber));
-  background: color-mix(in srgb, var(--band-color, var(--amber)) 10%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--band-color, var(--amber)) 10%,
+    transparent
+  );
 }
 .m-event-icon {
   color: var(--band-color, var(--amber));
@@ -634,7 +644,8 @@
 .m-event-badge {
   font-size: var(--text-2xs);
   color: var(--band-color, var(--amber));
-  border: 1px solid color-mix(in srgb, var(--band-color, var(--amber)) 30%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--band-color, var(--amber)) 30%, transparent);
   border-radius: 4px;
   padding: 1px 5px;
   flex: none;

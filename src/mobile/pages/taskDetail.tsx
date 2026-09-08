@@ -362,8 +362,6 @@ function TaskDetailContent({ task }: { task: Task }): JSX.Element {
         )}
       </div>
 
-
-
       {/* 浮层 */}
       {sheet === "more" && (
         <ActionSheet

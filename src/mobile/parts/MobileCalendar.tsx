@@ -265,8 +265,7 @@ export function MobileCalendar({
 
         {/* 日历事件横条 */}
         {dayEvents.map((evt) => {
-          const meta =
-            EVENT_TYPE_META[evt.eventType] ?? EVENT_TYPE_META.other;
+          const meta = EVENT_TYPE_META[evt.eventType] ?? EVENT_TYPE_META.other;
           return (
             <div
               key={evt.id}
