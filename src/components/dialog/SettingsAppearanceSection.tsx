@@ -138,7 +138,6 @@ export function SettingsAppearanceSection({
             );
           })}
         </div>
-        <p className="settings-status-note">主题即时生效；深色为默认主题。</p>
       </section>
 
       {/* F2 · T-09：强调色六色板（真实生效） */}
@@ -161,9 +160,6 @@ export function SettingsAppearanceSection({
             );
           })}
         </div>
-        <p className="settings-status-note">
-          强调色即时生效；焦点环、选中态与主按钮一并跟随。
-        </p>
       </section>
 
       {/* 阶段 D · T-10 乙组：显示偏好转正（三档 chips，即时生效） */}
@@ -217,9 +213,6 @@ export function SettingsAppearanceSection({
             })}
           </div>
         </div>
-        <p className="settings-status-note">
-          即时生效；「标准」为默认档，密度调整行距与控件高度，字号整体缩放。
-        </p>
       </section>
 
       <SettingsWidgetAppearanceSection onToast={onToast} />

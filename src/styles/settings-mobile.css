@@ -140,14 +140,6 @@
   color: var(--danger);
 }
 
-.settings-m-note {
-  margin: 10px 0 0;
-  color: var(--text-3);
-  font-size: 12px;
-  line-height: 17px;
-  text-align: center;
-}
-
 /* ---- 二级：面板正文 ---- */
 .settings-m-panel-hint {
   margin: 0 0 12px;

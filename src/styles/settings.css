@@ -152,13 +152,6 @@
   letter-spacing: 0;
 }
 
-.settings-content-head p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-
 .settings-panel {
   display: grid;
   gap: 16px;
@@ -918,11 +911,6 @@
   .settings-content-head h3 {
     font-size: 16px;
     line-height: 23px;
-  }
-
-  .settings-content-head p {
-    font-size: 11px;
-    line-height: 16px;
   }
 
   .settings-panel {
@@ -1730,11 +1718,10 @@
    .settings-side-nav-item）：这些规则曾放在文件末尾，位置晚于
    @media (max-width: 720px)，在窄屏下反向覆盖了移动端的横向导航改写。 */
 
-/* 页脚：自动保存文案（设计稿 sheet__foot） */
-.settings-footer .settings-footer-note {
+/* 页脚：「恢复默认设置」次要动作靠左，主动作靠右（原自动保存文案已删，
+   margin-right: auto 职责转移给 reset 按钮） */
+.settings-footer .settings-reset-button {
   margin-right: auto;
-  color: var(--text-3);
-  font-size: 11.5px;
 }
 
 /* 应用主题三卡（设计稿 settings-theme.css .theme-card，缩略色为固定示意值） */
@@ -1851,6 +1838,13 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 30px;
+}
+
+/* 说明条删除后，外观分区以控件收尾，留出分隔线前的呼吸空隙 */
+.theme-cards:last-child,
+.accent-swatches:last-child,
+.display-pref-row:last-child {
+  margin-bottom: 8px;
 }
 
 .display-pref-label {

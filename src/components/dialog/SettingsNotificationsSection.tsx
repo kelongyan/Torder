@@ -130,7 +130,7 @@ export function SettingsNotificationsSection({
       </div>
       {settings.focusDndEnabled && (
         <p className="settings-section-hint">
-          开启后，专注计时期间暂停任务提醒，专注结束或暂停后自动补发。
+          专注期间暂停任务提醒，结束后自动补发。
         </p>
       )}
       <div className="settings-preference-grid">
@@ -165,9 +165,6 @@ export function SettingsNotificationsSection({
           />
         </label>
       </div>
-      <p className="settings-status-note">
-        关闭系统通知后，任务到点将不再弹出提醒；提前时间用于新建事项时的默认值。
-      </p>
     </section>
   );
 }

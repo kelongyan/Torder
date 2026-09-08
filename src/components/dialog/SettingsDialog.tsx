@@ -391,7 +391,6 @@ export function SettingsDialog({
           >
             <div className="settings-content-head">
               <h3>{effectiveMeta.title}</h3>
-              <p>{panelDescription(effectiveMeta, false)}</p>
             </div>
             {renderPanelBody(effectiveMeta)}
           </div>
@@ -406,7 +405,6 @@ export function SettingsDialog({
             <RotateCcw aria-hidden="true" className="icon-xs" />
             恢复默认设置
           </button>
-          <span className="settings-footer-note">所有更改已自动保存到本机</span>
           <button type="button" className="btn-secondary" onClick={onClose}>
             完成
           </button>
@@ -529,7 +527,6 @@ function MobileSettings({
             恢复默认设置
           </button>
         )}
-        <p className="settings-m-note">所有更改已自动保存到本机</p>
       </div>
     </DialogShell>
   );

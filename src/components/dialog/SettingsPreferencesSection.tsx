@@ -152,7 +152,7 @@ export function SettingsPreferencesSection({
         />
       </div>
       <p className="settings-section-hint">
-        开启后，每天首次打开应用时把昨日逾期的事项顺延到明天（与每日回顾的顺延规则一致）。
+        每天首次打开应用时，自动把昨日逾期事项顺延到明天。
       </p>
     </section>
   );
