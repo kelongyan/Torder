@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Torder 便签 UI v5 渲染稿 · 高级文具方案</title>
+  <link rel="stylesheet" href="./css/widget-v5.css" />
+</head>
+<body class="showcase-body">
+  <!-- 公共 SVG symbol：磁扣 / 图标 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="magnet" viewBox="0 0 30 30">
+        <ellipse cx="15" cy="16.5" rx="11" ry="10" fill="rgba(0,0,0,0.2)"/>
+        <circle cx="15" cy="15" r="11" fill="#c44a0e"/>
+        <circle cx="15" cy="13.5" r="11" fill="#f56b1f"/>
+        <path d="M7.5 10.5 a8.5 8.5 0 0 1 8 -4" fill="none" stroke="#ffd9ae" stroke-width="2.2" stroke-linecap="round" opacity="0.95"/>
+        <circle cx="15" cy="13.5" r="3.2" fill="#c44a0e" opacity="0.5"/>
+      </symbol>
+      <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="#2f7d46" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-check-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <main class="showcase-main">
+    <header class="showcase-head">
+      <h1>便签 UI v5 ·「高级文具」方案</h1>
+      <span class="sub">docx/widget-ui-redesign-plan-2026-09-08.md v1.1 · D-A 磁扣 / D-B 优先级色条 / D-C 奶油纸默认 · 渲染稿，未动项目代码</span>
+    </header>
+    <div class="showcase-controls">
+      <button id="btn-desktop" class="is-on" type="button">深色桌面</button>
+      <button id="btn-texture" class="is-on" type="button">纸纹（feTurbulence）</button>
+      <button id="btn-magnet" class="is-on" type="button">磁扣</button>
+    </div>
+
+    <!-- §A 新旧对比 -->
+    <section class="showcase-section">
+      <h2>新旧对比</h2>
+      <p>同一份内容。核心差异：荧光黄改奶油纸（-40% 饱和）、CSS 塑料图钉改扁平磁扣、日期标题 1.15× 升 1.6× 形成三级层级、虚线改细实线、复选框 17→16px 细描边、高优先级行加右缘色条、卷角阴影加重一档。</p>
+      <div class="note-grid">
+        <figure class="note-frame legacy-frame">
+          <div class="widget-stage">
+            <span class="legacy-pin"><span class="pin-head"></span><span class="pin-needle"></span></span>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row">
+                  <h3 class="widget-title">今天</h3>
+                  <span class="widget-titlebar-actions">
+                    <button class="widget-control" type="button"><svg><use href="#i-plus"/></svg></button>
+                    <button class="widget-close-btn" type="button"><svg><use href="#i-x"/></svg></button>
+                  </span>
+                </div>
+                <div class="widget-meta-row">
+                  <span class="widget-meta">周二 · 共 3 项 · 已完成 1</span>
+                  <button class="widget-date-today-btn" type="button">回到今天</button>
+                </div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high">
+                  <button class="widget-item-checkbox" type="button"></button>
+                  <span class="widget-item-title">Review PR #142 — 用户认证模块</span>
+                  <span class="widget-item-time">16:00</span>
+                </div>
+                <div class="widget-item">
+                  <button class="widget-item-checkbox" type="button"></button>
+                  <span class="widget-item-title">登录测试任务</span>
+                  <span class="widget-item-time">17:30</span>
+                </div>
+                <div class="widget-item is-done">
+                  <button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button>
+                  <span class="widget-item-title">配置 CI/CD 流水线</span>
+                  <span class="widget-item-time">15:00</span>
+                </div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>v4 现状（荧光黄 + CSS 塑料图钉）</figcaption>
+        </figure>
+
+        <figure class="note-frame">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row">
+                  <h3 class="widget-title">今天</h3>
+                  <span class="widget-titlebar-actions">
+                    <button class="widget-control" type="button"><svg><use href="#i-plus"/></svg></button>
+                    <button class="widget-close-btn" type="button"><svg><use href="#i-x"/></svg></button>
+                  </span>
+                </div>
+                <div class="widget-meta-row">
+                  <span class="widget-meta">周二 · 共 3 项 · 已完成 1</span>
+                  <button class="widget-date-today-btn" type="button">回到今天</button>
+                </div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high">
+                  <button class="widget-item-checkbox" type="button"></button>
+                  <span class="widget-item-title">Review PR #142 — 用户认证模块</span>
+                  <span class="widget-item-time">16:00</span>
+                  <span class="widget-item-priority"></span>
+                </div>
+                <div class="widget-item">
+                  <button class="widget-item-checkbox" type="button"></button>
+                  <span class="widget-item-title">登录测试任务</span>
+                  <span class="widget-item-time">17:30</span>
+                </div>
+                <div class="widget-item is-done">
+                  <button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button>
+                  <span class="widget-item-title">配置 CI/CD 流水线</span>
+                  <span class="widget-item-time">15:00</span>
+                </div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>v5 方案（奶油纸 + 磁扣 + 三级层级 + 色条）</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- §B 九主题宫格 -->
+    <section class="showcase-section">
+      <h2>九主题降饱和复审</h2>
+      <p>经典黄（无属性）即奶油纸新默认；cloud / slate 本身低饱和保持不动；kraft / mint / sakura / sky / lilac 各降 10–15% 饱和；night 暗色微调背景层次。色点为清单标记色，图钉橙红为品牌锚点不随主题变。</p>
+      <div class="note-grid">
+        <figure class="note-frame">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>奶油纸（新默认，原经典黄）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="cloud">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>云白 cloud（保持）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="kraft">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>牛皮纸 kraft（降饱和）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="mint">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>薄荷 mint（降饱和）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="sakura">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>樱粉 sakura（降饱和）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="sky">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>天青 sky（降饱和）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="lilac">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>丁香 lilac（降饱和）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="slate">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>岩灰 slate（保持）</figcaption>
+        </figure>
+
+        <figure class="note-frame" data-note-theme="night">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#7f9dd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d4a57f"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#8fbf9a"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>夜墨 night（暗色）</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- §C 状态细节 -->
+    <section class="showcase-section">
+      <h2>状态细节（奶油纸主题）</h2>
+      <p>左：QuickAdd 展开态——确认钮改描边式（hover 填充墨色），输入条下划线书写感。中：多行任务与跨天任务（「至 MM-DD」标识）。右：空态——手写风短句 + 虚线下划线。</p>
+      <div class="note-grid">
+        <figure class="note-frame">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row">
+                  <button class="widget-date-nav" type="button"><svg><use href="#i-chev-l"/></svg></button>
+                  <h3 class="widget-title is-date">9月8日 周二</h3>
+                  <button class="widget-date-nav" type="button"><svg><use href="#i-chev-r"/></svg></button>
+                  <span class="widget-titlebar-actions">
+                    <button class="widget-control" type="button"><svg><use href="#i-plus"/></svg></button>
+                    <button class="widget-close-btn" type="button"><svg><use href="#i-x"/></svg></button>
+                  </span>
+                </div>
+                <div class="widget-meta-row"><span class="widget-meta">共 3 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-quick-add">
+                <input class="widget-quick-add-input" type="text" placeholder="快速记一笔…" />
+                <span class="widget-quick-add-actions">
+                  <button class="widget-quick-add-confirm" type="button"><svg><use href="#i-check-sm" style="color:currentColor"/></svg></button>
+                  <button class="widget-quick-add-cancel" type="button"><svg><use href="#i-x"/></svg></button>
+                </span>
+              </div>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-time">17:30</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>QuickAdd 展开态（描边式确认钮）</figcaption>
+        </figure>
+
+        <figure class="note-frame">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row"><h3 class="widget-title">今天</h3></div>
+                <div class="widget-meta-row"><span class="widget-meta">周二 · 共 4 项 · 已完成 1</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <div class="widget-item is-high"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#5b7fd4"></span><span class="widget-item-title">Review PR #142 — 用户认证模块，补齐测试用例与回归清单</span><span class="widget-item-time">16:00</span><span class="widget-item-priority"></span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#d48b5b"></span><span class="widget-item-title">登录测试任务</span><span class="widget-item-until">至 09-10</span></div>
+                <div class="widget-item"><button class="widget-item-checkbox" type="button"></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">整理周会纪要并同步到群</span><span class="widget-item-time">20:00</span></div>
+                <div class="widget-item is-done"><button class="widget-item-checkbox" type="button"><svg><use href="#i-check"/></svg></button><span class="widget-item-dot" style="background:#7aa56b"></span><span class="widget-item-title">配置 CI/CD 流水线</span><span class="widget-item-time">15:00</span></div>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>多行标题 / 跨天任务「至 MM-DD」</figcaption>
+        </figure>
+
+        <figure class="note-frame">
+          <div class="widget-stage">
+            <svg class="widget-magnet"><use href="#magnet"/></svg>
+            <div class="widget-shell">
+              <header class="widget-titlebar">
+                <div class="widget-titlebar-row">
+                  <button class="widget-date-nav" type="button"><svg><use href="#i-chev-l"/></svg></button>
+                  <h3 class="widget-title is-date">9月14日 周一</h3>
+                  <button class="widget-date-nav" type="button"><svg><use href="#i-chev-r"/></svg></button>
+                  <span class="widget-titlebar-actions">
+                    <button class="widget-control" type="button"><svg><use href="#i-plus"/></svg></button>
+                    <button class="widget-close-btn" type="button"><svg><use href="#i-x"/></svg></button>
+                  </span>
+                </div>
+                <div class="widget-meta-row"><span class="widget-meta">还没有安排</span></div>
+              </header>
+              <div class="widget-list"><div class="widget-list-inner">
+                <p class="widget-empty">纸面留白<br /><em>点 + 记一笔今天的事</em></p>
+              </div></div>
+            </div>
+          </div>
+          <figcaption>空态（手写风短句）</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <script src="./js/main.js"></script>
+</body>
+</html>
