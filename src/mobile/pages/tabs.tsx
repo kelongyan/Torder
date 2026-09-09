@@ -32,14 +32,8 @@ import { viewScope } from "../../stores/taskStore";
 import { filterAndSortTasks, localDateKey } from "../../services/taskQuery";
 import { buildCounts } from "../../utils/taskHelpers";
 import type { Task } from "../../types/database";
-import type {
-  AccentPreference,
-  ThemePreference,
-} from "../../types/settings";
-import {
-  applyAccentPreference,
-  applyThemePreference,
-} from "../../utils/theme";
+import type { AccentPreference, ThemePreference } from "../../types/settings";
+import { applyAccentPreference, applyThemePreference } from "../../utils/theme";
 import { MobileCalendar } from "../parts/MobileCalendar";
 import { useMobilePage } from "../router";
 import { useMobileProps } from "../context";

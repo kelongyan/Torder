@@ -22,10 +22,7 @@ import { CommandPalette } from "../components/command/CommandPalette";
 import { toggleSidebarCollapsed } from "../hooks/useSidebarCollapsed";
 import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
-import {
-  applyAccentPreference,
-  applyThemePreference,
-} from "../utils/theme";
+import { applyAccentPreference, applyThemePreference } from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
 import { checkForUpdate } from "../services/appService";
 import { listScope, useTaskStore, viewScope } from "../stores/taskStore";

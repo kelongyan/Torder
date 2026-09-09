@@ -1,8 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type {
-  AccentPreference,
-  ThemePreference,
-} from "../types/settings";
+import type { AccentPreference, ThemePreference } from "../types/settings";
 import { broadcastAppTheme, cacheAppTheme } from "../services/widgetAppearance";
 
 /**
