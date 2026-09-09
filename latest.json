@@ -1,19 +1,19 @@
 {
   "version": "2.7.5",
   "notes": "Windows v2.7.5：应用内更新改用 GitHub Releases 直连，Rust 原生流式分块下载与实时进度，兼容系统代理。",
-  "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
   "sha256": "adcc488d66dd689512e0cfb0d1fab890977be47480129c470c352b79b10df5b7",
   "platforms": {
     "windows": {
       "version": "2.7.5",
       "notes": "Windows v2.7.5：应用内更新改用 GitHub Releases 直连，Rust 原生流式分块下载与实时进度，兼容系统代理。",
-      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
       "sha256": "adcc488d66dd689512e0cfb0d1fab890977be47480129c470c352b79b10df5b7"
     },
     "android": {
       "version": "2.7.1",
       "notes": "Android v2.7.1（universal 安装包）。",
-      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.7.1/torder-2.7.1-universal.apk",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.1/torder-2.7.1-universal.apk",
       "sha256": "8beb48fc818df3e66af934119ed69db47c029419e3ad0823655bd887f1055814"
     }
   }
