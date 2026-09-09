@@ -1,20 +1,20 @@
 {
-  "version": "2.7.5",
-  "notes": "Windows v2.7.5：应用内更新改用 GitHub Releases 直连，Rust 原生流式分块下载与实时进度，兼容系统代理。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
-  "sha256": "adcc488d66dd689512e0cfb0d1fab890977be47480129c470c352b79b10df5b7",
+  "version": "2.7.6",
+  "notes": "Windows v2.7.6：应用内更新切换 Gitee 国内直连，多路网络自动回退，随包 .sha256 完整性校验，安装包瘦身至 11.7MB。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.6/Torder_2.7.6_x64-setup.exe",
+  "sha256": "ea93d67be7fcbd09612c8d0a39fa8942301ea5608bea242a91f09ecf80460d79",
   "platforms": {
     "windows": {
-      "version": "2.7.5",
-      "notes": "Windows v2.7.5：应用内更新改用 GitHub Releases 直连，Rust 原生流式分块下载与实时进度，兼容系统代理。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
-      "sha256": "adcc488d66dd689512e0cfb0d1fab890977be47480129c470c352b79b10df5b7"
+      "version": "2.7.6",
+      "notes": "Windows v2.7.6：应用内更新切换 Gitee 国内直连，多路网络自动回退，随包 .sha256 完整性校验，安装包瘦身至 11.7MB。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.6/Torder_2.7.6_x64-setup.exe",
+      "sha256": "ea93d67be7fcbd09612c8d0a39fa8942301ea5608bea242a91f09ecf80460d79"
     },
     "android": {
-      "version": "2.7.1",
-      "notes": "Android v2.7.1（universal 安装包）。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.1/torder-2.7.1-universal.apk",
-      "sha256": "8beb48fc818df3e66af934119ed69db47c029419e3ad0823655bd887f1055814"
+      "version": "2.7.6",
+      "notes": "Android v2.7.6（universal 安装包）。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.6/Torder_2.7.6_universal.apk",
+      "sha256": "1549ead09e3abc79dd67c86843921accd03fe0e6a30dee7526459ba38f2fdfc1"
     }
   }
 }
