@@ -1,20 +1,20 @@
 {
-  "version": "2.4.2",
-  "notes": "Windows v2.4.2：修复 Android 设置页版本显示，精简搜索框提示并修复桌面顶部错位；新版本按平台选择更新包。",
-  "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_2.4.2_x64-setup.exe",
-  "sha256": "e0f916c1562544cc710cb0b334e43c8b0bf0c2ef9e25c35c4f48dbcb8c06360f",
+  "version": "2.7.5",
+  "notes": "Windows v2.7.5：应用内更新改用 GitHub Releases 直连，Rust 原生流式分块下载与实时进度，兼容系统代理。",
+  "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
+  "sha256": "adcc488d66dd689512e0cfb0d1fab890977be47480129c470c352b79b10df5b7",
   "platforms": {
     "windows": {
-      "version": "2.4.2",
-      "notes": "Windows v2.4.2：修复 Android 设置页版本显示，精简搜索框提示并修复桌面顶部错位。",
-      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_2.4.2_x64-setup.exe",
-      "sha256": "e0f916c1562544cc710cb0b334e43c8b0bf0c2ef9e25c35c4f48dbcb8c06360f"
+      "version": "2.7.5",
+      "notes": "Windows v2.7.5：应用内更新改用 GitHub Releases 直连，Rust 原生流式分块下载与实时进度，兼容系统代理。",
+      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.7.5/Torder_2.7.5_x64-setup.exe",
+      "sha256": "adcc488d66dd689512e0cfb0d1fab890977be47480129c470c352b79b10df5b7"
     },
     "android": {
-      "version": "1.0.1",
-      "notes": "Android v1.0.1：修复设置页误显示桌面版本号，改用正式签名包。",
-      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.4.2/Torder_Android_1.0.1_universal-release.apk",
-      "sha256": "e2fa0c06d7568363df3f81a37521ae70ef15fb40348774b786d6e52e275470ab"
+      "version": "2.7.1",
+      "notes": "Android v2.7.1（universal 安装包）。",
+      "downloadUrl": "https://github.com/kelongyan/Torder/releases/download/v2.7.1/torder-2.7.1-universal.apk",
+      "sha256": "8beb48fc818df3e66af934119ed69db47c029419e3ad0823655bd887f1055814"
     }
   }
 }
