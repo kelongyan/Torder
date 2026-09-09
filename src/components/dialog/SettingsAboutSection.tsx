@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, Info, RefreshCw } from "lucide-react";
+import { Info, RefreshCw, Sparkles } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
 import {
@@ -18,8 +18,10 @@ type UpdateState =
 
 export function SettingsAboutSection({
   onToast,
+  onOpenUpdateDialog,
 }: {
   onToast: (message: string, type: ToastKind) => void;
+  onOpenUpdateDialog?: (info: UpdateInfo) => void;
 }) {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [updateState, setUpdateState] = useState<UpdateState>({
@@ -47,12 +49,12 @@ export function SettingsAboutSection({
       setUpdateState(
         info.hasUpdate ? { state: "found", info } : { state: "none" },
       );
-      onToast(
-        info.hasUpdate
-          ? `发现新版本 v${info.latestVersion}`
-          : "当前已是最新版本",
-        info.hasUpdate ? "info" : "success",
-      );
+      if (info.hasUpdate) {
+        onToast(`发现新版本 v${info.latestVersion}`, "info");
+        onOpenUpdateDialog?.(info);
+      } else {
+        onToast("当前已是最新版本", "success");
+      }
     } catch (error) {
       setUpdateState({ state: "error", message: String(error) });
       onToast(`检查失败: ${String(error)}`, "error");
@@ -60,6 +62,10 @@ export function SettingsAboutSection({
   }
 
   async function handleOpenDownload(info: UpdateInfo) {
+    if (onOpenUpdateDialog) {
+      onOpenUpdateDialog(info);
+      return;
+    }
     try {
       await openDownloadPage(info.downloadUrl);
     } catch (error) {
@@ -110,8 +116,8 @@ export function SettingsAboutSection({
             className="btn-primary btn-sm"
             onClick={() => void handleOpenDownload(updateState.info)}
           >
-            <ExternalLink aria-hidden="true" className="icon-xs" />
-            打开下载页
+            <Sparkles aria-hidden="true" className="icon-xs" />
+            查看更新并安装
           </button>
         </div>
       )}

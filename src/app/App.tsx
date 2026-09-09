@@ -40,6 +40,7 @@ import {
   type AppSettings,
   type SavedTaskView,
   type ThemePreference,
+  type UpdateInfo,
 } from "../types/settings";
 import type { ConfirmState } from "../types/ui";
 import {
@@ -80,7 +81,6 @@ import { SearchResultView } from "../components/search/SearchResultView";
 import { searchAllTasks } from "../components/search/searchUtils";
 import { TagManagerDialog } from "../components/dialog/TagManagerDialog";
 import { notifyFocusFinished } from "../services/focusService";
-import { toggleMini } from "../services/miniService";
 import { sendNotice } from "../services/noticeService";
 import { localDateKey } from "../services/taskQuery";
 import { overdueShiftPatches } from "../utils/taskStats";
@@ -89,6 +89,8 @@ import { ShortcutsDialog } from "../components/dialog/ShortcutsDialog";
 import { ToastHost } from "../components/common/ToastHost";
 import { WindowTitleBar } from "../components/layout/WindowTitleBar";
 import { SavedViewDialog } from "../components/dialog/SavedViewDialog";
+import { UpdateDialog } from "../components/dialog/UpdateDialog";
+import packageJson from "../../package.json";
 
 import { useAppInit } from "../hooks/useAppInit";
 import { useAppDataLoaders } from "../hooks/useAppDataLoaders";
@@ -146,6 +148,10 @@ function App() {
   // 阶段 D-3：独立全库搜索结果页（T-08）。
   const [searchViewActive, setSearchViewActive] = useState(false);
   const [createTaskInitialTitle, setCreateTaskInitialTitle] = useState("");
+  // 阶段 E：原生现代更新弹窗
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const updatePresence = usePresence(updateDialogOpen, 280);
 
   const dialog = useDialogManager();
   const {
@@ -208,7 +214,7 @@ function App() {
     loadRecurringRules,
   } = useAppDataLoaders(handleDataLoadError);
 
-  const { toasts, pushToast } = useToast();
+  const { toasts, pushToast, dismissToast } = useToast();
   // 阶段 D · T-10 乙组：每日回顾提醒（到点发系统通知 + 本地 toast；
   // 未启动不补发——应用运行中每 30s 检查一次整分匹配，localStorage 节流当日一次）。
   useEffect(() => {
@@ -900,7 +906,13 @@ function App() {
           if (cancelled || !info.hasUpdate) return;
           if (localStorage.getItem(KEY) === info.latestVersion) return;
           localStorage.setItem(KEY, info.latestVersion);
-          pushToast(`发现新版本 v${info.latestVersion}`, "info");
+          pushToast(`发现新版本 v${info.latestVersion}`, "info", {
+            label: "查看更新",
+            onClick: () => {
+              setUpdateInfo(info);
+              setUpdateDialogOpen(true);
+            },
+          });
         })
         .catch(() => {
           // 启动静默检查失败不打扰用户，可到设置里手动检查。
@@ -1235,13 +1247,6 @@ function App() {
   // P1-05：循环任务动作已提取到 useRecurringActions（见下方调用点）。
   async function handleToggleTask(task: Task) {
     await toggleTask(task.id, task.status !== "done");
-    pushToast(task.status === "done" ? "任务已恢复" : "任务已完成", "success", {
-      label: "撤销",
-      onClick: async () => {
-        await toggleTask(task.id, task.status === "done");
-        pushToast("已撤销", "info");
-      },
-    });
   }
 
   async function handleSaveTask(input: UpdateTaskInput) {
@@ -1450,7 +1455,6 @@ function App() {
                 onOpenSettings={openSettingsDialog}
                 onOpenStats={openStatsDialog}
                 onOpenFocus={() => setFocusOpen(true)}
-                onToggleMini={() => void toggleMini()}
                 onOpenReview={() => setReviewOpen(true)}
                 onToggleBatchMode={toggleBatchMode}
                 syncStatus={syncStatus}
@@ -1749,6 +1753,10 @@ function App() {
           onSyncWifiOnlyChange={setSyncWifiOnly}
           onSyncStatusChange={setSyncStatus}
           onToast={pushToast}
+          onOpenUpdateDialog={(info) => {
+            setUpdateInfo(info);
+            setUpdateDialogOpen(true);
+          }}
           onImportComplete={async () => {
             setLists(await listLists());
             await Promise.all([
@@ -1771,7 +1779,6 @@ function App() {
 
       {focusPresence.rendered && (
         <FocusDialog
-          tasks={allTasks}
           presence={focusPresence.phase}
           onClose={() => setFocusOpen(false)}
           onFinished={handleFocusFinished}
@@ -1823,13 +1830,23 @@ function App() {
         />
       )}
 
+      {updatePresence.rendered && (
+        <UpdateDialog
+          updateInfo={updateInfo}
+          currentVersion={packageJson.version}
+          presence={updatePresence.phase}
+          onClose={() => setUpdateDialogOpen(false)}
+          onToast={pushToast}
+        />
+      )}
+
       <ConfirmDialog
         state={confirmPresence.value as ConfirmState | null}
         presence={confirmPresence.phase}
         onClose={() => setConfirmState(null)}
       />
 
-      <ToastHost toasts={toasts} />
+      <ToastHost toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

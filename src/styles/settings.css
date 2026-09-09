@@ -1441,13 +1441,13 @@
 
 .note-theme-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 560px) {
   .note-theme-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1465,45 +1465,45 @@
   }
 }
 
-/* 色卡与字体卡共用卡片基座（原生 radio 隐藏、状态类由 React 驱动） */
+/* 便签主题卡：横向微缩便签画布 + 标题/描述/单选指示器 */
 
-.note-theme-swatch,
-.note-font-card {
+.note-theme-card {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 8px 8px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  gap: 12px;
+  padding: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
   background: var(--bg-tertiary);
   cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
-.note-theme-swatch:hover,
-.note-font-card:hover {
+.note-theme-card:hover {
   border-color: var(--border-light);
   background: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.note-theme-swatch.is-active,
-.note-font-card.is-active {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
+.note-theme-card.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-tertiary));
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
-.note-theme-swatch:focus-within,
-.note-font-card:focus-within {
+.note-theme-card:focus-within {
   outline: none;
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-/* 覆盖 dialog.css `.form-field input` 的文本框化样式：radio 只做语义载体 */
-.note-theme-swatch input,
+/* 隐藏底层原生 radio */
+.note-theme-card input,
 .note-font-card input {
   position: absolute;
   width: 1px;
@@ -1517,150 +1517,203 @@
   pointer-events: none;
 }
 
-.note-theme-swatch-paper {
+/* 微缩便签展示盒 */
+.note-theme-card-preview {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 72px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  padding: 5px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.note-theme-mini-note {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 52px;
-  height: 66px;
-  padding: 12px 8px 0;
-  border-radius: 7px;
-  /* 与 .widget-shell::before 同款主渐变（token 随 label 的 data-note-theme 切换） */
-  background: linear-gradient(
-    180deg,
-    var(--note-bg-start) 0%,
-    var(--note-bg-mid) 55%,
-    var(--note-bg-end) 100%
-  );
-  box-shadow: inset 0 0 0 1px rgba(var(--note-ink), 0.14);
+  width: 100%;
+  height: 100%;
+  padding: 14px 6px 6px;
+  border-radius: 6px;
 }
 
-.note-theme-swatch-line {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--note-text);
-  opacity: 0.8;
+/* 海蓝微缩便签 */
+.note-theme-card[data-note-theme="sky"] .note-theme-mini-note {
+  background: linear-gradient(180deg, #e8f1fa 0%, #dce9f7 50%, #cfe0f2 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(43, 58, 77, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.note-theme-swatch-line.is-title {
-  width: 62%;
-  background: var(--note-title);
-  opacity: 1;
-}
-
-.note-theme-swatch-line.is-short {
-  width: 78%;
-}
-
-.note-theme-swatch-line.is-check {
-  width: 34%;
-  background: var(--note-check);
-  opacity: 1;
-}
-
-.note-theme-swatch-name {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--text-secondary);
-}
-
-.note-theme-swatch.is-active .note-theme-swatch-name {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* 卡片包裹层：磨砂卡的齿轮/透明度弹层挂在它上面（label 外，结构上
-   隔离 label 激活行为），本身作为网格子项并让卡片撑满 */
-
-.note-theme-card-wrap {
-  position: relative;
-  display: grid;
-}
-
-/* === 磨砂主题卡（2026-09-09 老大定稿） ===
-   纸样半透明模拟 Acrylic 观感（backdrop-filter 只用于主窗设置界面，
-   widget 透明窗内的禁用约定不受影响）；--note-glass-alpha 由组件 inline
-   注入并跟滑杆实时联动，拖动即可在色卡上预览透明度。 */
-
-.note-theme-swatch[data-note-theme="glass"] .note-theme-swatch-paper {
-  background: linear-gradient(
-    180deg,
-    rgba(232, 241, 250, var(--note-glass-alpha, 0.5)) 0%,
-    rgba(220, 233, 247, var(--note-glass-alpha, 0.5)) 55%,
-    rgba(207, 224, 242, var(--note-glass-alpha, 0.5)) 100%
-  );
-  backdrop-filter: blur(10px) saturate(1.15);
-  box-shadow: inset 0 0 0 1px rgba(var(--note-ink), 0.18);
-}
-
-/* 右上角齿轮：磨砂透明度设置入口（弹层挂在磨砂卡下缘，见下） */
-
-.note-theme-gear {
+.note-theme-mini-pin {
   position: absolute;
   top: 3px;
-  right: 3px;
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ff8a4c 0%, #f56b1f 60%, #c44a0e 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-.note-theme-gear:hover {
-  background: rgba(var(--note-ink), 0.12);
-  color: var(--text-primary);
+/* 磨砂微缩便签：深色透明毛玻璃 + 1px 晶莹高光边框 */
+.note-theme-card[data-note-theme="glass"] .note-theme-mini-note {
+  background: linear-gradient(
+    180deg,
+    rgba(24, 30, 42, 0.7) 0%,
+    rgba(14, 18, 28, 0.85) 100%
+  );
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.note-theme-gear:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
+/* 微缩线条 */
+.note-theme-mini-line {
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.75;
 }
 
-/* 磨砂透明度弹层：绝对定位于磨砂卡下缘，横置滑杆（30–100%） */
+.note-theme-card[data-note-theme="sky"] .note-theme-mini-line {
+  background: #2b3a4d;
+}
 
-.note-glass-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: -4px;
-  z-index: 30;
+.note-theme-card[data-note-theme="sky"] .note-theme-mini-line.is-title {
+  width: 65%;
+  background: #2f5d8a;
+  opacity: 1;
+}
+
+.note-theme-card[data-note-theme="sky"] .note-theme-mini-line.is-short {
+  width: 80%;
+}
+
+.note-theme-card[data-note-theme="sky"] .note-theme-mini-line.is-check {
+  width: 38%;
+  background: #1f8a70;
+  opacity: 1;
+}
+
+.note-theme-card[data-note-theme="glass"] .note-theme-mini-line {
+  background: rgba(240, 246, 252, 0.7);
+}
+
+.note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-title {
+  width: 65%;
+  background: #ffffff;
+  opacity: 1;
+}
+
+.note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-short {
+  width: 80%;
+}
+
+.note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-check {
+  width: 38%;
+  background: #3fb950;
+  opacity: 1;
+}
+
+/* 卡片文字区 */
+.note-theme-card-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 236px;
-  padding: 10px 12px 12px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-theme-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.note-theme-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 18px;
+}
+
+.note-theme-card-desc {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 15px;
+}
+
+.note-theme-card-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-light);
+  background: transparent;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.note-theme-card.is-active .note-theme-card-radio {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--bg-tertiary);
+}
+
+/* 磨砂透明度内联调节面板：选中磨砂时优雅自然展开，不再悬浮突兀齿轮 */
+.note-glass-inline-panel {
+  margin-top: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--bg-secondary);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.note-glass-popover-head {
+.note-glass-slider-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: var(--text-xs);
-  line-height: 16px;
-  color: var(--text-secondary);
 }
 
-.note-glass-popover-value {
-  color: var(--text-primary);
+.note-glass-slider-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.note-glass-slider-title {
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-primary);
+}
+
+.note-glass-slider-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.note-glass-slider-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
-/* 弹层滑杆：参考图样式——胶囊轨道（已选段主题色渐变、余段墨色淡轨）
-   + 白色大圆拇指。覆盖 dialog.css 对 range 的文本框化样式。 */
+.note-glass-slider-track-wrap {
+  display: flex;
+  align-items: center;
+}
 
-.note-glass-popover input[type="range"] {
+.note-glass-slider-track-wrap input[type="range"] {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
@@ -1673,13 +1726,13 @@
   cursor: pointer;
 }
 
-.note-glass-popover input[type="range"]:focus-visible {
+.note-glass-slider-track-wrap input[type="range"]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
   border-radius: 10px;
 }
 
-.note-glass-popover input[type="range"]::-webkit-slider-runnable-track {
+.note-glass-slider-track-wrap input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(
@@ -1691,7 +1744,7 @@
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.note-glass-popover input[type="range"]::-webkit-slider-thumb {
+.note-glass-slider-track-wrap input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -1704,40 +1757,148 @@
     0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-/* 字体卡：字样用真实字体栈渲染（手写体字样会命中 Torder Note 缓存，见组件注释）；
-   在共用基座上改为左对齐两行紧凑卡，长字体名/超宽字样由 CSS 省略号截断 */
+/* 字体卡共用卡片基座（原生 radio 隐藏、状态类由 React 驱动） */
 
 .note-font-card {
-  align-items: stretch;
-  gap: 2px;
-  padding: 8px 12px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
   text-align: left;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.note-font-card:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+}
+
+.note-font-card.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.note-font-card:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.note-font-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-font-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.note-font-card-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-light);
+  background: transparent;
+  flex-shrink: 0;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.note-font-card.is-active .note-font-card-radio {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--bg-tertiary);
 }
 
 .note-font-sample {
   overflow: hidden;
-  font-size: var(--text-md);
+  font-size: 16px;
   line-height: 24px;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-primary);
 }
 
-.note-font-name {
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.note-font-sample.is-placeholder {
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.note-font-card.is-active .note-font-name {
-  color: var(--text-primary);
-  font-weight: 600;
+.note-font-desc {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-tertiary);
 }
 
-/* 「跟随应用」色卡：亮/暗拼色纸样（日/月各占一半） */
+.note-font-custom-name {
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+}
+
+.note-font-custom-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-font-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-font-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 14px;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.note-font-action-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.note-font-action-btn.is-danger:hover:not(:disabled) {
+  border-color: rgba(255, 85, 85, 0.4);
+  color: var(--red);
+  background: rgba(255, 85, 85, 0.1);
+}
+
+.note-font-action-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 /* 「导入字体」卡（非 radio 的按钮卡）：虚线边示意空槽位 */
 .note-font-card.note-font-import {
   border-style: dashed;
@@ -1745,6 +1906,8 @@
 }
 
 .note-font-card.note-font-import:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -1753,44 +1916,13 @@
   opacity: 0.6;
 }
 
-/* 自定义字体的操作行：完整文件名 + 更换/移除 */
-.note-font-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+.note-font-import-icon {
+  color: var(--text-tertiary);
+  transition: color var(--motion-fast) var(--ease-standard);
 }
 
-.note-font-current {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.note-font-link {
-  flex-shrink: 0;
-  border: none;
-  background: none;
-  padding: 2px 4px;
+.note-font-card.note-font-import:hover:not(:disabled) .note-font-import-icon {
   color: var(--accent);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.note-font-link:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.note-font-link.is-danger {
-  color: var(--red);
-}
-
-.note-font-link:disabled {
-  cursor: default;
-  opacity: 0.6;
 }
 
 /* 恢复默认外观：沉底右对齐，text 风格弱化（与「更换/移除」链接同语言） */

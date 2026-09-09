@@ -26,6 +26,20 @@ if (isWidgetEntry) {
   applyWidgetAppearanceFromCache();
 }
 
+// 禁用默认浏览器右键菜单（刷新/另存为/打印等），保持原生桌面应用质感
+window.addEventListener("contextmenu", (event) => {
+  const target = event.target as HTMLElement | null;
+  const isEditable =
+    target &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable);
+
+  if (isWidgetEntry || !isEditable) {
+    event.preventDefault();
+  }
+});
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     {isWidgetEntry ? <WidgetApp /> : isMiniEntry ? <MiniApp /> : <App />}

@@ -19,7 +19,6 @@ import {
   Moon,
   Plus,
   RefreshCw,
-  Sparkles,
   Sun,
   TrendingUp,
 } from "lucide-react";
@@ -64,7 +63,6 @@ export function MainHeader({
   onClearFilter,
   onShowCompletedChange,
   onOpenFocus,
-  onToggleMini,
   onOpenReview,
   onOpenSettings,
   onOpenStats,
@@ -108,8 +106,6 @@ export function MainHeader({
   onOpenCommandPalette: () => void;
   /** 阶段 A · T-02：专注模式控制面板。 */
   onOpenFocus: () => void;
-  /** 阶段 B · T-03：迷你速记窗开关。 */
-  onToggleMini: () => void;
   /** 阶段 C · T-04：每日回顾面板。 */
   onOpenReview: () => void;
   onToggleBatchMode: () => void;
@@ -395,18 +391,7 @@ export function MainHeader({
           >
             <Flame aria-hidden="true" className="menu-icon" />
           </button>
-          {/* T-03 迷你窗：桌面置顶小窗 + 全局热键，移动端无多窗口语义 */}
-          {!isMobile() && (
-            <button
-              type="button"
-              className="icon-button"
-              onClick={onToggleMini}
-              aria-label="迷你窗"
-              title="迷你窗 (Ctrl Shift M)"
-            >
-              <Sparkles aria-hidden="true" className="menu-icon" />
-            </button>
-          )}
+
           {/* T-04 每日回顾：纯前端聚合，移动端保留 */}
           <button
             type="button"

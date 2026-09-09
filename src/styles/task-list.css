@@ -161,7 +161,7 @@ kbd {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
-.task-item:active {
+.batching .task-item:active {
   transform: scale(0.997);
 }
 
@@ -698,6 +698,11 @@ mark {
 .task-actions button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.task-actions button.task-action-edit.is-active,
+.task-item.selected .task-actions button.task-action-edit {
+  color: var(--accent);
 }
 
 .task-actions svg {

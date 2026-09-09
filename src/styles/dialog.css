@@ -1059,60 +1059,194 @@
   text-align: center;
 }
 
-/* 阶段 A：专注模式面板（2026-09-03，T-02 一期） */
-.focus-clock-row {
+/* 专注模式现代化仪表盘 UI */
+.focus-dialog-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0 12px;
+  gap: 16px;
+  padding: 4px 12px 12px;
 }
-.focus-clock {
-  font-size: var(--text-2xl);
-  font-weight: 500;
-  letter-spacing: 2px;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-}
-.focus-clock--dim {
-  color: var(--text-muted);
-}
-.focus-task-label {
-  margin: 0 0 12px;
-  text-align: center;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.focus-duration-row {
+
+.focus-dial-container {
+  position: relative;
+  width: 160px;
+  height: 160px;
   display: flex;
-  gap: 8px;
+  align-items: center;
   justify-content: center;
-  padding: 4px 0 12px;
+  margin: 4px auto;
 }
-.focus-duration-chip {
-  padding: 4px 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-base);
-  cursor: pointer;
-}
-.focus-duration-chip:hover {
-  border-color: var(--accent-line);
-}
-.focus-duration-chip.is-active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.focus-start {
+
+.focus-dial-svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
 }
-.focus-actions {
+
+.focus-dial-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--pop-line) 45%, transparent);
+  stroke-width: 5;
+}
+
+.focus-dial-indicator {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+.focus-dial-container.is-running .focus-dial-indicator {
+  stroke: var(--accent-hi);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+
+.focus-dial-container.is-paused .focus-dial-indicator {
+  stroke: var(--text-3);
+  filter: none;
+}
+
+.focus-clock-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.focus-clock-digits {
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.focus-dial-container.is-running .focus-clock-digits {
+  color: #fff;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.focus-status-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.focus-dial-container.is-running .focus-status-badge {
+  color: var(--accent-hi);
+}
+
+/* 时长分段药丸 */
+.focus-duration-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--pop) 65%, transparent);
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--pop-line);
+}
+
+.focus-pill-btn {
+  border: none;
+  background: transparent;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 180ms var(--ease-out);
+}
+
+.focus-pill-btn:hover {
+  color: var(--text-1);
+  background: var(--hover);
+}
+
+.focus-pill-btn.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* 操作区域 */
+.focus-action-area {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.focus-main-btn {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hi) 100%);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, transparent);
+  transition: all 180ms var(--ease-out);
+}
+
+.focus-main-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+.focus-main-btn:active {
+  transform: translateY(0);
+}
+
+.focus-running-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.focus-control-btn {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms var(--ease-out);
+}
+
+.focus-control-btn.btn-ghost {
+  border: 1px solid var(--pop-line);
+  background: transparent;
+  color: var(--text-2);
+}
+
+.focus-control-btn.btn-ghost:hover {
+  background: var(--hover);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 }
 
 /* 阶段 C：每日回顾（T-04 打样，2026-09-03） */
@@ -1297,3 +1431,170 @@
 .tag-manage-error {
   color: var(--danger);
 }
+
+/* ===== 软件更新对话框（UpdateDialog） ===== */
+
+.update-dialog-card {
+  max-width: 460px;
+  width: 100%;
+}
+
+.update-dialog-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.update-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+}
+
+.update-notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.update-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.update-notes-box {
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.update-notes-box p {
+  margin: 0;
+  word-break: break-word;
+}
+
+/* 下载进度卡片 */
+.update-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+
+.update-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.update-progress-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.update-progress-percent {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.update-progress-bar-wrap {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.update-progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hi));
+  transition: width 120ms ease-out;
+  position: relative;
+}
+
+.update-progress-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* 状态横幅 */
+.update-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.update-status-banner.success {
+  background: rgba(80, 250, 123, 0.12);
+  border: 1px solid rgba(80, 250, 123, 0.3);
+  color: var(--done);
+}
+
+.update-status-banner.danger {
+  background: rgba(255, 85, 85, 0.12);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+  color: var(--danger);
+}
+
+/* 底部操作区 */
+.update-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.update-footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.update-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.update-link-btn:hover {
+  color: var(--accent);
+}
+
+.update-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+

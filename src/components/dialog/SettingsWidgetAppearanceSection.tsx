@@ -15,10 +15,26 @@ import {
   noteThemeOptions,
   registerCustomNoteFont,
   unregisterCustomNoteFont,
+  type NoteThemeId,
   type WidgetAppearance,
 } from "../../services/widgetAppearance";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
+import { RefreshCw, Trash2, Upload } from "lucide-react";
+
+const NOTE_THEME_DETAILS: Record<
+  NoteThemeId,
+  { title: string; desc: string }
+> = {
+  sky: { title: "海蓝纸面", desc: "经典便签 · 温暖手写" },
+  glass: { title: "通透磨砂", desc: "深色亚克力 · 融入桌面" },
+};
+
+const FONT_DESCRIPTIONS: Record<string, string> = {
+  handwriting: "经典便签 · 灵动手写",
+  sans: "现代黑体 · 清晰利落",
+  system: "系统默认 · 规范统一",
+};
 
 /** 滑杆拖动期间只更新本地状态，停顿 300ms 才落库——避免每像素一次 IPC */
 const SLIDER_FLUSH_MS = 300;
@@ -76,8 +92,6 @@ export function SettingsWidgetAppearanceSection({
   const [busy, setBusy] = useState(false);
   /** 自定义字体导入中（对话框 + 复制 + FontFace 注册） */
   const [importingFont, setImportingFont] = useState(false);
-  /** 磨砂透明度弹层开合（磨砂卡右上角齿轮触发） */
-  const [glassPopoverOpen, setGlassPopoverOpen] = useState(false);
   /** 最近一次成功落库的外观；写失败时按字段回滚到它 */
   const persistedRef = useRef<WidgetAppearance | null>(null);
   const sliderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,9 +99,6 @@ export function SettingsWidgetAppearanceSection({
   const pendingSliderRef = useRef<Partial<
     Pick<WidgetAppearance, SliderField>
   > | null>(null);
-  /** 磨砂齿轮按钮与弹层：点击外部关闭用 */
-  const gearRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (isMobile()) return;
@@ -125,20 +136,7 @@ export function SettingsWidgetAppearanceSection({
     [],
   );
 
-  // 磨砂透明度弹层：点击齿轮/弹层以外任意处关闭（pointerdown 先于 click，
-  // 齿轮自身在豁免名单里，其 click 切换不受影响）
-  useEffect(() => {
-    if (!glassPopoverOpen) return;
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (popoverRef.current?.contains(target)) return;
-      if (gearRef.current?.contains(target)) return;
-      setGlassPopoverOpen(false);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [glassPopoverOpen]);
+
 
   if (isMobile() || !appearance) return null;
 
@@ -211,7 +209,6 @@ export function SettingsWidgetAppearanceSection({
     if (!appearance || busy) return;
     const previous = appearance;
     setAppearance({ ...appearance, ...defaultWidgetAppearance });
-    setGlassPopoverOpen(false);
     setBusy(true);
     void persistPatch(defaultWidgetAppearance, previous).finally(() =>
       setBusy(false),
@@ -321,115 +318,96 @@ export function SettingsWidgetAppearanceSection({
   return (
     <section className="settings-section">
       <div className="appearance-group">
-        <h4 className="appearance-group-title">纸色</h4>
+        <h4 className="appearance-group-title">便签主题</h4>
         <div
           className="note-theme-grid"
           role="radiogroup"
-          aria-label="便签纸色"
+          aria-label="便签主题"
         >
           {noteThemeOptions.map((theme) => {
             const active = appearance.noteTheme === theme.id;
             const isGlass = theme.id === "glass";
+            const detail = NOTE_THEME_DETAILS[theme.id];
             return (
-              <div
+              <label
                 key={theme.id}
-                className="note-theme-card-wrap"
-                style={
-                  isGlass
-                    ? ({
-                        "--note-glass-alpha": String(
-                          appearance.noteGlassOpacity,
-                        ),
-                      } as CSSProperties)
-                    : undefined
-                }
+                className={`note-theme-card ${active ? "is-active" : ""}`.trim()}
+                data-note-theme={theme.id}
               >
-                <label
-                  className={`note-theme-swatch ${active ? "is-active" : ""}`.trim()}
-                  data-note-theme={theme.id}
-                >
-                  <input
-                    type="radio"
-                    name="note-theme"
-                    value={theme.id}
-                    checked={active}
-                    disabled={busy}
-                    onChange={() => handleThemeChange(theme.id)}
-                  />
-                  <span className="note-theme-swatch-paper">
-                    <span className="note-theme-swatch-line is-title" />
-                    <span className="note-theme-swatch-line" />
-                    <span className="note-theme-swatch-line is-short" />
-                    <span className="note-theme-swatch-line is-check" />
-                  </span>
-                  <span className="note-theme-swatch-name">{theme.name}</span>
-                </label>
-                {/* 齿轮与弹层放在 label 外：真机验证 label 激活行为不被
-                    preventDefault 拦住（点齿轮会误选磨砂主题），结构上
-                    隔离才彻底；弹层/齿轮经由包裹层绝对定位。 */}
-                {isGlass && (
-                  <button
-                    ref={gearRef}
-                    type="button"
-                    className="note-theme-gear"
-                    aria-label="磨砂透明度设置"
-                    title="磨砂透明度设置"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setGlassPopoverOpen((open) => !open);
-                    }}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  </button>
-                )}
-                {isGlass && glassPopoverOpen && (
+                <input
+                  type="radio"
+                  name="note-theme"
+                  value={theme.id}
+                  checked={active}
+                  disabled={busy}
+                  onChange={() => handleThemeChange(theme.id)}
+                />
+                <div className="note-theme-card-preview">
                   <div
-                    ref={popoverRef}
-                    className="note-glass-popover"
-                    role="group"
-                    aria-label="磨砂透明度"
+                    className="note-theme-mini-note"
+                    style={
+                      isGlass
+                        ? ({
+                            "--note-glass-alpha": String(
+                              appearance.noteGlassOpacity,
+                            ),
+                          } as CSSProperties)
+                        : undefined
+                    }
                   >
-                    <div className="note-glass-popover-head">
-                      <span>磨砂透明度</span>
-                      <span className="note-glass-popover-value">
-                        {glassOpacityPercent}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={Math.round(MIN_NOTE_GLASS_OPACITY * 100)}
-                      max={100}
-                      step={5}
-                      value={glassOpacityPercent}
-                      aria-label="磨砂透明度"
-                      style={
-                        {
-                          "--glass-fill": `${glassFillPercent}%`,
-                        } as CSSProperties
-                      }
-                      onChange={(event) =>
-                        handleGlassOpacityChange(Number(event.target.value))
-                      }
-                    />
+                    {!isGlass && <div className="note-theme-mini-pin" />}
+                    <div className="note-theme-mini-line is-title" />
+                    <div className="note-theme-mini-line" />
+                    <div className="note-theme-mini-line is-short" />
+                    <div className="note-theme-mini-line is-check" />
                   </div>
-                )}
-              </div>
+                </div>
+                <div className="note-theme-card-body">
+                  <div className="note-theme-card-header">
+                    <span className="note-theme-card-title">{detail.title}</span>
+                    <span className="note-theme-card-radio" aria-hidden="true" />
+                  </div>
+                  <span className="note-theme-card-desc">{detail.desc}</span>
+                </div>
+              </label>
             );
           })}
         </div>
+
+        {/* 磨砂透明度内联调节：选中通透磨砂时直接在下方呈现，不再用蹩脚的小齿轮浮层 */}
+        {appearance.noteTheme === "glass" && (
+          <div className="note-glass-inline-panel">
+            <div className="note-glass-slider-head">
+              <div className="note-glass-slider-title-wrap">
+                <span className="note-glass-slider-title">磨砂透明度</span>
+                <span className="note-glass-slider-hint">
+                  （更通透 30% — 100% 更深邃）
+                </span>
+              </div>
+              <span className="note-glass-slider-value">
+                {glassOpacityPercent}%
+              </span>
+            </div>
+            <div className="note-glass-slider-track-wrap">
+              <input
+                type="range"
+                min={Math.round(MIN_NOTE_GLASS_OPACITY * 100)}
+                max={100}
+                step={5}
+                value={glassOpacityPercent}
+                aria-label="磨砂透明度"
+                style={
+                  {
+                    "--glass-fill": `${glassFillPercent}%`,
+                  } as CSSProperties
+                }
+                onChange={(event) =>
+                  handleGlassOpacityChange(Number(event.target.value))
+                }
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="appearance-group">
@@ -450,13 +428,19 @@ export function SettingsWidgetAppearanceSection({
                   disabled={busy}
                   onChange={() => handleFontChange(font.id)}
                 />
-                <span
+                <div className="note-font-card-header">
+                  <span className="note-font-name">{font.name}</span>
+                  <span className="note-font-card-radio" aria-hidden="true" />
+                </div>
+                <div
                   className="note-font-sample"
                   style={{ fontFamily: fontStackFor(font.id) }}
                 >
                   今天的事 09:30
-                </span>
-                <span className="note-font-name">{font.name}</span>
+                </div>
+                <div className="note-font-desc">
+                  {FONT_DESCRIPTIONS[font.id] ?? font.name}
+                </div>
               </label>
             );
           })}
@@ -473,15 +457,57 @@ export function SettingsWidgetAppearanceSection({
                 disabled={busy}
                 onChange={() => handleFontChange("custom")}
               />
-              <span
+              <div className="note-font-card-header">
+                <span className="note-font-name">自定义字体</span>
+                <div className="note-font-custom-header-right">
+                  <div className="note-font-inline-actions">
+                    <button
+                      type="button"
+                      className="note-font-action-btn"
+                      disabled={busy || importingFont}
+                      title="更换字体文件"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void handleImportFont();
+                      }}
+                    >
+                      <RefreshCw
+                        size={11}
+                        className={importingFont ? "is-spinning" : ""}
+                      />
+                      <span>更换</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="note-font-action-btn is-danger"
+                      disabled={busy || importingFont}
+                      title="移除自定义字体"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void handleRemoveCustomFont();
+                      }}
+                    >
+                      <Trash2 size={11} />
+                      <span>移除</span>
+                    </button>
+                  </div>
+                  <span className="note-font-card-radio" aria-hidden="true" />
+                </div>
+              </div>
+              <div
                 className="note-font-sample"
                 style={{ fontFamily: fontStackFor("custom") }}
               >
                 今天的事 09:30
-              </span>
-              <span className="note-font-name">
+              </div>
+              <div
+                className="note-font-desc note-font-custom-name"
+                title={appearance.noteCustomFontName}
+              >
                 {appearance.noteCustomFontName}
-              </span>
+              </div>
             </label>
           ) : (
             <button
@@ -490,39 +516,17 @@ export function SettingsWidgetAppearanceSection({
               disabled={busy || importingFont}
               onClick={() => void handleImportFont()}
             >
-              <span className="note-font-sample">＋</span>
-              <span className="note-font-name">
-                {importingFont ? "导入中…" : "导入字体"}
-              </span>
+              <div className="note-font-card-header">
+                <span className="note-font-name">自定义字体</span>
+                <Upload size={14} className="note-font-import-icon" />
+              </div>
+              <div className="note-font-sample is-placeholder">
+                {importingFont ? "正在读取文件…" : "＋ 导入本地字体"}
+              </div>
+              <div className="note-font-desc">支持 TTF / OTF / WOFF2</div>
             </button>
           )}
         </div>
-        {appearance.noteCustomFontName && (
-          <div className="note-font-actions">
-            <span
-              className="note-font-current"
-              title={appearance.noteCustomFontName}
-            >
-              {appearance.noteCustomFontName}
-            </span>
-            <button
-              type="button"
-              className="note-font-link"
-              disabled={busy || importingFont}
-              onClick={() => void handleImportFont()}
-            >
-              更换
-            </button>
-            <button
-              type="button"
-              className="note-font-link is-danger"
-              disabled={busy || importingFont}
-              onClick={() => void handleRemoveCustomFont()}
-            >
-              移除
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="note-reset-row">

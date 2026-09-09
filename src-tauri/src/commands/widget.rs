@@ -177,7 +177,7 @@ pub fn hide_widget_window(app: AppHandle) -> Result<(), String> {
 }
 
 /// 便签磨砂玻璃（Acrylic）。enabled=true 在 widget 窗口后面开启 SWCA Acrylic
-/// 模糊（tint 用海蓝纸色 RGB，alpha 即透明度旋钮 0–1 → 0–255，真生效）；
+/// 模糊（tint 用深色磨砂暗调 RGB(20, 24, 30)，alpha 即透明度旋钮 0–1 → 0–255，真生效）；
 /// false 清除材质恢复不透明纸面。走自实现 SWCA（`crate::acrylic`）而非
 /// window-vibrancy：后者在 Win11 22H2+ 走 SYSTEMBACKDROP 路线忽略 tint color，
 /// 导致旋钮失灵且背板不渲染（2026-09-09 真机实锤后替换）。仅 Windows 10
@@ -194,8 +194,10 @@ pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(),
         };
         let hwnd = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
         if enabled {
-            let tint_alpha = (alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
-            crate::acrylic::apply_acrylic(hwnd, (232, 241, 250, tint_alpha))?;
+            // SWCA Acrylic 的 tint_alpha 控制系统底板遮罩权重：全额 255 会糊成死黑实心板；
+            // 折算到 0–120 区间（默认 0.5 对应 60 遮罩），保留充足通透感同时激发 DWM 磨砂模糊
+            let tint_alpha = (alpha.clamp(0.0, 1.0) * 120.0).round() as u8;
+            crate::acrylic::apply_acrylic(hwnd, (18, 22, 28, tint_alpha))?;
         } else {
             crate::acrylic::clear_acrylic(hwnd)?;
         }

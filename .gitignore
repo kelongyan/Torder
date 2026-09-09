@@ -27,6 +27,7 @@ android-test-*.png
 .idea
 .workbuddy/
 .agents/
+.commandcode/
 .DS_Store
 *.suo
 *.ntvs*

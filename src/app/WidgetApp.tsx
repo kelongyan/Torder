@@ -33,7 +33,6 @@ import {
 import {
   getWidgetSettings,
   notifyTasksChanged,
-  openTaskInMainWindow,
   patchWidgetSettings,
   type TasksChangedPayload,
   type WidgetSettings,
@@ -127,6 +126,9 @@ export function WidgetApp() {
    */
   const [sizeMode, setSizeMode] = useState<WidgetSizeMode | null>(null);
   const sizeModeRef = useRef<WidgetSizeMode | null>(null);
+  /** 便签是否固定（锁定）位置与大小 */
+  const [locked, setLocked] = useState(false);
+  const lockedRef = useRef(false);
 
   // ==== 动效状态（方案书 docx/widget-ux-polish-plan-2026-09-08.md W1/W2） ====
   /** 日期切换方向（W1-3）：决定旧内容滑出 class 与新条目入场 keyframes */
@@ -217,6 +219,49 @@ export function WidgetApp() {
     setSizeMode("manual");
   }, []);
 
+  /**
+   * 固定便签：点击后锁定当前位置和大小，禁止拖拽移动和调整尺寸，
+   * 状态持久化存储至设置键。
+   */
+  const handleToggleLock = useCallback(async () => {
+    const nextLocked = !locked;
+    setLocked(nextLocked);
+    lockedRef.current = nextLocked;
+
+    let patch: Partial<WidgetSettings> = { locked: nextLocked };
+    if (nextLocked) {
+      if (sizeModeRef.current !== "manual") {
+        sizeModeRef.current = "manual";
+        setSizeMode("manual");
+      }
+      try {
+        if (isTauri()) {
+          const win = getCurrentWindow();
+          const scale = await win.scaleFactor();
+          const [innerSize, outerPos] = await Promise.all([
+            win.innerSize(),
+            win.outerPosition(),
+          ]);
+          const w = clampWidgetWidth(Math.round(innerSize.width / scale));
+          const h = clampWidgetHeight(Math.round(innerSize.height / scale));
+          const x = Math.round(outerPos.x / scale);
+          const y = Math.round(outerPos.y / scale);
+          patch = { ...patch, w, h, x, y };
+        }
+      } catch {
+        // 忽略几何读取异常
+      }
+    }
+    await patchWidgetSettings(patch);
+    if (isTauri()) {
+      try {
+        await getCurrentWindow().setResizable(!nextLocked);
+      } catch {
+        // 忽略
+      }
+    }
+  }, [locked]);
+
   // 初始化：主题、设置恢复、清单与当日任务加载
   useEffect(() => {
     let cancelled = false;
@@ -237,6 +282,12 @@ export function WidgetApp() {
       applyWidgetAppearance(widgetSettings);
       setHideDone(widgetSettings.noteHideDone);
       setAnchorDate(widgetSettings.anchorDate);
+      const isLocked = widgetSettings.locked === true;
+      setLocked(isLocked);
+      lockedRef.current = isLocked;
+      if (isTauri() && isLocked) {
+        void getCurrentWindow().setResizable(false);
+      }
       // 「有 h」即说明用户手动定过尺寸，据此派生模式，不另存字段
       const restoredMode: WidgetSizeMode =
         widgetSettings.h !== null ? "manual" : "auto";
@@ -322,6 +373,17 @@ export function WidgetApp() {
         applyWidgetAppearance(settings);
       })();
       setHideDone(settings.noteHideDone);
+      const anySettings = settings as Partial<WidgetSettings>;
+      if (
+        typeof anySettings.locked === "boolean" &&
+        anySettings.locked !== lockedRef.current
+      ) {
+        setLocked(anySettings.locked);
+        lockedRef.current = anySettings.locked;
+        if (isTauri()) {
+          void getCurrentWindow().setResizable(!anySettings.locked);
+        }
+      }
     });
   }, []);
 
@@ -508,7 +570,7 @@ export function WidgetApp() {
       cancelAnimationFrame(running.raf);
       running.raf = null;
     }
-    if (closing || naturalHeight === 0 || sizeMode !== "auto") return;
+    if (closing || naturalHeight === 0 || sizeMode !== "auto" || locked) return;
     const targetHeight = clampWidgetHeight(naturalHeight);
     void (async () => {
       try {
@@ -575,7 +637,7 @@ export function WidgetApp() {
         // 窗口尚未就绪 / IPC 失败时静默，下次 naturalHeight 变化重试
       }
     })();
-  }, [naturalHeight, closing, sizeMode]);
+  }, [naturalHeight, closing, sizeMode, locked]);
 
   /**
    * 隐藏：播淡出动效（opacity → 0 + 上移 + 缩放 0.95），
@@ -768,13 +830,15 @@ export function WidgetApp() {
         "widget-stage",
         closing ? "is-closing" : "",
         isDragging ? "is-dragging" : "",
+        locked ? "is-locked" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      data-tauri-drag-region="deep"
+      data-tauri-drag-region={locked ? "false" : "deep"}
+      onContextMenu={(event) => event.preventDefault()}
     >
       <WidgetPinTop />
-      <WidgetResizeHandles onResizeStart={handleResizeStart} />
+      {!locked && <WidgetResizeHandles onResizeStart={handleResizeStart} />}
       <div className="widget-shell" ref={shellRef}>
         <WidgetTitleBar
           onAdd={() => setAdding((value) => !value)}
@@ -787,6 +851,8 @@ export function WidgetApp() {
           onPrev={() => navigateBy(-1)}
           onNext={() => navigateBy(1)}
           onBackToToday={() => changeAnchorDate(null)}
+          locked={locked}
+          onToggleLock={handleToggleLock}
         />
         <WidgetQuickAdd
           open={adding}
@@ -798,7 +864,7 @@ export function WidgetApp() {
         />
         <div
           className={`widget-list ${scrollable ? "is-scrollable" : ""}`.trim()}
-          data-tauri-drag-region={scrollable ? "false" : undefined}
+          data-tauri-drag-region={scrollable || locked ? "false" : undefined}
           ref={listRef}
         >
           <div
@@ -808,13 +874,13 @@ export function WidgetApp() {
             ]
               .filter(Boolean)
               .join(" ")}
-            data-nav={navDirection ?? undefined}
             ref={listInnerRef}
+            data-nav={navDirection ?? undefined}
           >
             {failed ? (
               <button
                 type="button"
-                className="widget-empty widget-empty-retry"
+                className="widget-empty widget-retry"
                 onClick={() => void refreshDate(displayedDateKey)}
               >
                 加载失败，点击重试
@@ -835,7 +901,6 @@ export function WidgetApp() {
                   listColor={listColorById.get(task.listId) ?? null}
                   busy={busyTaskId === task.id}
                   onToggle={() => void handleToggle(task)}
-                  onOpen={() => openTaskInMainWindow(task.id)}
                 />
               ))
             )}

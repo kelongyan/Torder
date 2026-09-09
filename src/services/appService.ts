@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import packageJson from "../../package.json";
 import type { AppInfo, UpdateInfo } from "../types/settings";
@@ -32,34 +32,39 @@ interface UpdateTarget {
   sha256?: string | null;
 }
 
-// 检查更新走 webview 的 fetch（异步、不阻塞 UI 线程；失败只产生 JS 错误，
-// 不会像同步阻塞命令那样卡死或崩溃应用）。AbortController 兜底 10s 超时。
+// 检查更新：Tauri 桌面端走 Rust 原生网络请求（不受 WebView CSP 限制，继承系统代理），
+// 浏览器 mock 模式走前端 fetch。
 export async function checkForUpdate(): Promise<UpdateInfo> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 10_000);
-  try {
-    const response = await fetch(UPDATE_MANIFEST_URL, {
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error(`清单请求失败（HTTP ${response.status}）`);
+  let raw: unknown;
+  if (isTauri()) {
+    const text = await invoke<string>("fetch_update_manifest");
+    raw = JSON.parse(text);
+  } else {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch(UPDATE_MANIFEST_URL, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`清单请求失败（HTTP ${response.status}）`);
+      }
+      raw = await response.json();
+    } finally {
+      window.clearTimeout(timeout);
     }
-    // P0-03：清单 JSON 先经运行时 schema 校验，再做类型收窄；
-    // 非法清单、非法版本、非 https 下载地址、缺失平台目标均抛可诊断错误。
-    const raw: unknown = await response.json();
-    const appInfo = await getAppInfo();
-    const target = parseUpdateManifest(raw, appInfo.platform);
-    return {
-      hasUpdate: compareSemver(target.version, appInfo.version) > 0,
-      latestVersion: target.version,
-      notes: target.notes ?? null,
-      downloadUrl: target.downloadUrl,
-      sha256: target.sha256 ?? null,
-    };
-  } finally {
-    window.clearTimeout(timeout);
   }
+
+  const appInfo = await getAppInfo();
+  const target = parseUpdateManifest(raw, appInfo.platform);
+  return {
+    hasUpdate: compareSemver(target.version, appInfo.version) > 0,
+    latestVersion: target.version,
+    notes: target.notes ?? null,
+    downloadUrl: target.downloadUrl,
+    sha256: target.sha256 ?? null,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -177,3 +182,63 @@ function compareSemver(left: string, right: string): number {
   }
   return 0;
 }
+
+export interface DownloadProgress {
+  downloadedBytes: number;
+  totalBytes: number;
+  percentage: number;
+  speedBps: number;
+}
+
+/**
+ * 原生流式下载安装包并校验：Tauri 走 Rust 原生网络栈，
+ * 通过 Channel 实时向前端反馈下载进度；mock 模式模拟进度条。
+ */
+export async function downloadUpdate(
+  url: string,
+  expectedSha256: string | null,
+  onProgress: (progress: DownloadProgress) => void,
+): Promise<string> {
+  if (!HTTPS_URL_PATTERN.test(url)) {
+    throw new Error("下载地址必须为 https:// 链接");
+  }
+
+  if (!isTauri()) {
+    const total = 17.5 * 1024 * 1024;
+    for (let step = 1; step <= 20; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const downloaded = (total * step) / 20;
+      onProgress({
+        downloadedBytes: downloaded,
+        totalBytes: total,
+        percentage: step * 5,
+        speedBps: 2.8 * 1024 * 1024,
+      });
+    }
+    return "C:\\MockPath\\Torder_update_setup.exe";
+  }
+
+  const channel = new Channel<DownloadProgress>();
+  channel.onmessage = (progress) => {
+    onProgress(progress);
+  };
+
+  return invoke<string>("download_update_file", {
+    url,
+    expectedSha256: expectedSha256 ?? null,
+    onProgress: channel,
+  });
+}
+
+/**
+ * 启动已下载的安装程序并退出当前程序，完成自动升级
+ */
+export async function launchInstallerAndExit(
+  installerPath: string,
+): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  return invoke("launch_installer_and_exit", { installerPath });
+}
+

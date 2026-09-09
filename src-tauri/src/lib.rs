@@ -197,6 +197,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_info,
             commands::app::set_window_material_theme,
+            commands::app::fetch_update_manifest,
+            commands::app::download_update_file,
+            commands::app::launch_installer_and_exit,
             commands::database::get_database_status,
             commands::focus::notify_focus_finished,
             commands::backup::backup_database,

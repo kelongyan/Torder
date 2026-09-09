@@ -80,88 +80,170 @@
   animation: shimmer 1.5s infinite;
 }
 
-/* P5 对齐设计稿 toast：底部居中、入场从下方浮起（z 序沿用真项目结构） */
+/* 现代化桌面级水晶悬浮卡片 Toast */
 .toast-host {
   position: fixed;
   top: auto;
-  bottom: 18px;
+  bottom: 24px;
   left: 50%;
   right: auto;
   transform: translateX(-50%);
-  z-index: 70;
-  display: grid;
-  gap: 10px;
-  justify-items: center;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   pointer-events: none;
 }
 
 .toast {
   display: flex;
   min-width: 180px;
-  max-width: min(560px, calc(100vw - 36px));
+  max-width: min(520px, calc(100vw - 32px));
+  min-height: 36px;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid var(--pop-line);
-  border-radius: 999px;
-  background: var(--pop);
-  backdrop-filter: var(--blur-overlay);
-  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--pop) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  padding: 6px 10px 6px 8px;
   color: var(--text-1);
-  font-size: 12.5px;
-  line-height: 18px;
-  box-shadow: var(--shadow-pop);
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity var(--motion-soft) var(--ease-out),
-    transform var(--motion-soft) var(--ease-out);
-  will-change: opacity, transform;
-}
-
-/* 进入：用 @starting-style 替代 keyframes，从当前值平滑过渡、可被中断重定位 */
-@starting-style {
-  .toast {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-}
-
-.toast.is-leaving {
-  opacity: 0;
-  transform: translateY(12px);
-  pointer-events: none;
-}
-
-.toast.success svg {
-  color: var(--done);
-}
-
-.toast.error svg {
-  color: var(--danger);
-}
-
-.toast.info svg {
-  color: var(--accent-hover);
-}
-
-.toast-action {
-  min-height: 26px;
-  flex: 0 0 auto;
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-sm);
-  background: var(--accent-bg);
-  padding: 0 8px;
-  color: var(--accent-hover);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: toast-fly-in 240ms var(--ease-spring) both;
+  will-change: transform, opacity;
   pointer-events: auto;
 }
 
+.toast.is-pulsing {
+  animation: toast-pulse 200ms var(--ease-spring);
+}
+
+.toast.is-leaving {
+  animation: toast-fly-out 180ms var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+/* 状态徽章 */
+.toast-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--hover);
+  color: var(--text-2);
+}
+
+.toast.success .toast-icon-badge {
+  background: color-mix(in srgb, var(--done) 18%, transparent);
+  color: var(--done);
+}
+
+.toast.error .toast-icon-badge {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.toast.info .toast-icon-badge {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-hi);
+}
+
+.toast-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+  line-height: 18px;
+  word-break: break-word;
+}
+
+.toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+.toast-action {
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  padding: 0 10px;
+  color: var(--accent-hi);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  cursor: pointer;
+  transition: all 140ms var(--ease-out);
+  white-space: nowrap;
+}
+
 .toast-action:hover {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-3);
+  margin-left: 2px;
+  cursor: pointer;
+  transition: all 120ms var(--ease-out);
+  padding: 0;
+}
+
+.toast-close:hover {
+  background: var(--hover);
+  color: var(--text-1);
+}
+
+@keyframes toast-fly-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-fly-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@keyframes toast-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @keyframes shimmer {

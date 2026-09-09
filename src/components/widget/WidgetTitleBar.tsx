@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Plus, Unlock, X } from "lucide-react";
 import { parseDateKey as parseStrictDateKey } from "../../utils/taskDates";
 
 const weekdayNames = ["日", "一", "二", "三", "四", "五", "六"];
@@ -39,6 +39,8 @@ export function WidgetTitleBar({
   onPrev,
   onNext,
   onBackToToday,
+  locked,
+  onToggleLock,
 }: {
   /** 顶部 + 按钮：展开快速新增输入条 */
   onAdd: () => void;
@@ -57,6 +59,10 @@ export function WidgetTitleBar({
   onPrev: () => void;
   onNext: () => void;
   onBackToToday: () => void;
+  /** 便签是否固定（锁定）位置与大小 */
+  locked: boolean;
+  /** 切换固定状态 */
+  onToggleLock: () => void;
 }) {
   const meta = progressLabel
     ? `${formatWeekdayLabel(dateKey)} · ${progressLabel}`
@@ -87,6 +93,21 @@ export function WidgetTitleBar({
           <ChevronRight aria-hidden="true" />
         </button>
         <div className="widget-titlebar-actions">
+          <button
+            type="button"
+            className={`widget-control widget-control-lock ${locked ? "is-active" : ""}`.trim()}
+            aria-label={locked ? "解除固定便签" : "固定便签"}
+            title={locked ? "便签已固定位置与大小（点击解除固定）" : "固定便签位置与大小"}
+            aria-pressed={locked}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onToggleLock}
+          >
+            {locked ? (
+              <Lock aria-hidden="true" />
+            ) : (
+              <Unlock aria-hidden="true" />
+            )}
+          </button>
           <button
             type="button"
             className={`widget-control widget-control-add ${adding ? "is-active" : ""}`.trim()}

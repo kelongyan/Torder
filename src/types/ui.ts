@@ -11,6 +11,7 @@ export interface ToastMessage {
   message: string;
   actions: ToastAction[];
   leaving?: boolean;
+  pulseKey?: number;
 }
 
 export interface ConfirmState {
