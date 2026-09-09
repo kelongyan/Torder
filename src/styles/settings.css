@@ -1436,7 +1436,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 纸色色卡：固定 5 列（10 个选项恰好 5×2，「跟随应用」不再孤行）；窄面板折 3 列 */
+/* 纸色色卡：沿用 5 列网格保持卡片尺寸稳定（当前 2 选项：海蓝 + 磨砂）；
+   窄面板折 3 列 */
 
 .note-theme-grid {
   display: grid;
@@ -1566,6 +1567,141 @@
 .note-theme-swatch.is-active .note-theme-swatch-name {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+/* 卡片包裹层：磨砂卡的齿轮/透明度弹层挂在它上面（label 外，结构上
+   隔离 label 激活行为），本身作为网格子项并让卡片撑满 */
+
+.note-theme-card-wrap {
+  position: relative;
+  display: grid;
+}
+
+/* === 磨砂主题卡（2026-09-09 老大定稿） ===
+   纸样半透明模拟 Acrylic 观感（backdrop-filter 只用于主窗设置界面，
+   widget 透明窗内的禁用约定不受影响）；--note-glass-alpha 由组件 inline
+   注入并跟滑杆实时联动，拖动即可在色卡上预览透明度。 */
+
+.note-theme-swatch[data-note-theme="glass"] .note-theme-swatch-paper {
+  background: linear-gradient(
+    180deg,
+    rgba(232, 241, 250, var(--note-glass-alpha, 0.65)) 0%,
+    rgba(220, 233, 247, var(--note-glass-alpha, 0.65)) 55%,
+    rgba(207, 224, 242, var(--note-glass-alpha, 0.65)) 100%
+  );
+  backdrop-filter: blur(10px) saturate(1.15);
+  box-shadow: inset 0 0 0 1px rgba(var(--note-ink), 0.18);
+}
+
+/* 右上角齿轮：磨砂透明度设置入口（弹层挂在磨砂卡下缘，见下） */
+
+.note-theme-gear {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.note-theme-gear:hover {
+  background: rgba(var(--note-ink), 0.12);
+  color: var(--text-primary);
+}
+
+.note-theme-gear:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* 磨砂透明度弹层：绝对定位于磨砂卡下缘，横置滑杆（30–100%） */
+
+.note-glass-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 236px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.note-glass-popover-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+.note-glass-popover-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 弹层滑杆：参考图样式——胶囊轨道（已选段主题色渐变、余段墨色淡轨）
+   + 白色大圆拇指。覆盖 dialog.css 对 range 的文本框化样式。 */
+
+.note-glass-popover input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.note-glass-popover input[type="range"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+.note-glass-popover input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent) 62%, #fff) var(--glass-fill, 65%),
+    rgba(var(--note-ink), 0.14) var(--glass-fill, 65%)
+  );
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.note-glass-popover input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 /* 字体卡：字样用真实字体栈渲染（手写体字样会命中 Torder Note 缓存，见组件注释）；

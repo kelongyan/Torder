@@ -176,6 +176,34 @@ pub fn hide_widget_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 便签磨砂玻璃（Acrylic）。enabled=true 在 widget 窗口后面开启 DWM Acrylic
+/// 模糊（tint 用海蓝纸色 RGB，alpha 即透明度旋钮 0–1 → 0–255）；false 清除
+/// 材质恢复不透明纸面。仅 Windows 10 v1809+ 生效，其它平台与 widget 窗口
+/// 不存在时均为 no-op（前端按 noteTheme === "glass" 决定 enabled）。
+/// 已知退化：Win10 v1903+ 拖动/缩放窗口会卡顿（window-vibrancy 官方注明的
+/// 未公开 API 缺陷），见 docx/widget-glass-mode-plan-2026-09-09.md §4。
+#[tauri::command]
+pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let Some(window) = app.get_webview_window(widget::WIDGET_LABEL) else {
+            return Ok(());
+        };
+        if enabled {
+            let tint_alpha = (alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
+            window_vibrancy::apply_acrylic(&window, Some((232, 241, 250, tint_alpha)))
+                .map_err(|error| error.to_string())?;
+        } else {
+            window_vibrancy::clear_acrylic(&window).map_err(|error| error.to_string())?;
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    let _ = (app, enabled, alpha);
+
+    Ok(())
+}
+
 /// 原子 patch `widget` 设置键：读-改-写在 Rust 侧单条 IMMEDIATE 事务内完成，
 /// 修复跨窗口（主窗设置开关 ↔ widget 窗几何防抖写）各自 get→merge→upsert
 /// 互相吞字段的竞态；Rust `WidgetSettings` 未声明的前端字段（`anchorDate`）

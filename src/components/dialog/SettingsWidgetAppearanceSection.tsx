@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import {
@@ -10,7 +10,7 @@ import {
   ensureCustomNoteFont,
   fontStackFor,
   isCustomNoteFontRegistered,
-  MIN_NOTE_OPACITY,
+  MIN_NOTE_GLASS_OPACITY,
   noteFontOptions,
   noteThemeOptions,
   registerCustomNoteFont,
@@ -29,7 +29,7 @@ const FONT_DIALOG_FILTERS = [
 ];
 const FONT_ACCEPT = ".ttf,.otf,.woff,.woff2";
 
-type SliderField = "noteOpacity";
+type SliderField = "noteGlassOpacity";
 
 /** mock 模式的字体文件选择（Tauri 走系统对话框）。返回 null = 用户取消。 */
 function pickBrowserFontFile(): Promise<File | null> {
@@ -44,20 +44,24 @@ function pickBrowserFontFile(): Promise<File | null> {
 }
 
 /**
- * 设置 → 外观 → 桌面便签个性化：纸色（海蓝单卡，2026-09-08 老大定稿收敛）+
- * 不透明度 / 字体 + 自定义字体导入；组间 hairline 分隔，布局规约见
+ * 设置 → 外观 → 桌面便签个性化：纸色（海蓝 + 磨砂两卡，2026-09-09 老大定稿）+
+ * 字体 + 自定义字体导入；组间 hairline 分隔，布局规约见
  * docs/appearance-layout-optimization-plan.md §3。
  *
- * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组全部移除；
- * 纸色只保留海蓝并作为默认。主题/字体点击立即落库；
- * 不透明度滑杆本地即时、防抖 300ms 合并落库，卸载时 flush。
+ * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组、旧全局不透明度
+ * 滑杆全部移除。2026-09-09 老大定稿：新增磨砂（glass）主题卡，透明度归其
+ * 专属——磨砂卡右上角齿轮弹出横向滑杆（30–100%，参考图胶囊渐变轨道 +
+ * 白色大圆拇指），透明度实时预览到磨砂色卡并防抖 300ms 落库。
+ * 主题/字体点击立即落库；卸载时 flush 防抖尾值。
  *
  * - 纸面效果以桌面小窗本体为预览（改动经广播实时生效，
  *   不再设设置界面内的预览卡——2026-08-29 用户定稿移除）。
  * - 字体卡的字样直接用真实字体栈渲染：手写体字样会命中 Torder Note 的
  *   HTTP 缓存（widget 窗口每次启动都拉同一文件），仅外观页首次打开多一次缓存读；
  *   这是主窗唯一引用该字体的地方（AGENTS.md 的「仅 .widget-* 引用」约定以此为例外）。
- * - 色卡/字体卡用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动。
+ * - 色卡/字体卡用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动；
+ *   磨砂卡齿轮与透明度弹层渲染在 label 外的包裹层上（真机验证 label 的
+ *   激活行为不被 preventDefault 拦住，点齿轮会误选磨砂主题），结构隔离最彻底。
  * - 写入走 `patchWidgetSettings`（扁平字段），主窗 → widget 窗经
  *   `widget-settings-changed` 广播实时同步；失败回滚到最近成功值并 toast——
  *   与 `SettingsDesktopSection` 的开关同一范式。
@@ -72,6 +76,8 @@ export function SettingsWidgetAppearanceSection({
   const [busy, setBusy] = useState(false);
   /** 自定义字体导入中（对话框 + 复制 + FontFace 注册） */
   const [importingFont, setImportingFont] = useState(false);
+  /** 磨砂透明度弹层开合（磨砂卡右上角齿轮触发） */
+  const [glassPopoverOpen, setGlassPopoverOpen] = useState(false);
   /** 最近一次成功落库的外观；写失败时按字段回滚到它 */
   const persistedRef = useRef<WidgetAppearance | null>(null);
   const sliderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,6 +85,9 @@ export function SettingsWidgetAppearanceSection({
   const pendingSliderRef = useRef<Partial<
     Pick<WidgetAppearance, SliderField>
   > | null>(null);
+  /** 磨砂齿轮按钮与弹层：点击外部关闭用 */
+  const gearRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (isMobile()) return;
@@ -115,6 +124,21 @@ export function SettingsWidgetAppearanceSection({
     },
     [],
   );
+
+  // 磨砂透明度弹层：点击齿轮/弹层以外任意处关闭（pointerdown 先于 click，
+  // 齿轮自身在豁免名单里，其 click 切换不受影响）
+  useEffect(() => {
+    if (!glassPopoverOpen) return;
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (popoverRef.current?.contains(target)) return;
+      if (gearRef.current?.contains(target)) return;
+      setGlassPopoverOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [glassPopoverOpen]);
 
   if (isMobile() || !appearance) return null;
 
@@ -187,18 +211,20 @@ export function SettingsWidgetAppearanceSection({
     if (!appearance || busy) return;
     const previous = appearance;
     setAppearance({ ...appearance, ...defaultWidgetAppearance });
+    setGlassPopoverOpen(false);
     setBusy(true);
     void persistPatch(defaultWidgetAppearance, previous).finally(() =>
       setBusy(false),
     );
   }
 
-  function handleOpacityChange(percent: number) {
+  /** 磨砂透明度滑杆：本地即时预览（swatch 内联变量 + 广播实时生效），防抖落库 */
+  function handleGlassOpacityChange(percent: number) {
     if (!appearance) return;
     const value = percent / 100;
-    if (value === appearance.noteOpacity) return;
-    setAppearance({ ...appearance, noteOpacity: value });
-    scheduleSliderPersist({ noteOpacity: value });
+    if (value === appearance.noteGlassOpacity) return;
+    setAppearance({ ...appearance, noteGlassOpacity: value });
+    scheduleSliderPersist({ noteGlassOpacity: value });
   }
 
   /**
@@ -284,7 +310,13 @@ export function SettingsWidgetAppearanceSection({
     }
   }
 
-  const opacityPercent = Math.round(appearance.noteOpacity * 100);
+  const glassOpacityPercent = Math.round(appearance.noteGlassOpacity * 100);
+  // 渐变已选段比例按滑杆刻度折算（min 30 起步），与拇指位置逐像素一致
+  const glassFillPercent = Math.round(
+    ((glassOpacityPercent - MIN_NOTE_GLASS_OPACITY * 100) /
+      (100 - MIN_NOTE_GLASS_OPACITY * 100)) *
+      100,
+  );
 
   return (
     <section className="settings-section">
@@ -297,45 +329,106 @@ export function SettingsWidgetAppearanceSection({
         >
           {noteThemeOptions.map((theme) => {
             const active = appearance.noteTheme === theme.id;
+            const isGlass = theme.id === "glass";
             return (
-              <label
+              <div
                 key={theme.id}
-                className={`note-theme-swatch ${active ? "is-active" : ""}`.trim()}
-                data-note-theme={theme.id}
+                className="note-theme-card-wrap"
+                style={
+                  isGlass
+                    ? ({
+                        "--note-glass-alpha": String(
+                          appearance.noteGlassOpacity,
+                        ),
+                      } as CSSProperties)
+                    : undefined
+                }
               >
-                <input
-                  type="radio"
-                  name="note-theme"
-                  value={theme.id}
-                  checked={active}
-                  disabled={busy}
-                  onChange={() => handleThemeChange(theme.id)}
-                />
-                <span className="note-theme-swatch-paper">
-                  <span className="note-theme-swatch-line is-title" />
-                  <span className="note-theme-swatch-line" />
-                  <span className="note-theme-swatch-line is-short" />
-                  <span className="note-theme-swatch-line is-check" />
-                </span>
-                <span className="note-theme-swatch-name">{theme.name}</span>
-              </label>
+                <label
+                  className={`note-theme-swatch ${active ? "is-active" : ""}`.trim()}
+                  data-note-theme={theme.id}
+                >
+                  <input
+                    type="radio"
+                    name="note-theme"
+                    value={theme.id}
+                    checked={active}
+                    disabled={busy}
+                    onChange={() => handleThemeChange(theme.id)}
+                  />
+                  <span className="note-theme-swatch-paper">
+                    <span className="note-theme-swatch-line is-title" />
+                    <span className="note-theme-swatch-line" />
+                    <span className="note-theme-swatch-line is-short" />
+                    <span className="note-theme-swatch-line is-check" />
+                  </span>
+                  <span className="note-theme-swatch-name">{theme.name}</span>
+                </label>
+                {/* 齿轮与弹层放在 label 外：真机验证 label 激活行为不被
+                    preventDefault 拦住（点齿轮会误选磨砂主题），结构上
+                    隔离才彻底；弹层/齿轮经由包裹层绝对定位。 */}
+                {isGlass && (
+                  <button
+                    ref={gearRef}
+                    type="button"
+                    className="note-theme-gear"
+                    aria-label="磨砂透明度设置"
+                    title="磨砂透明度设置"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setGlassPopoverOpen((open) => !open);
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="13"
+                      height="13"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                )}
+                {isGlass && glassPopoverOpen && (
+                  <div
+                    ref={popoverRef}
+                    className="note-glass-popover"
+                    role="group"
+                    aria-label="磨砂透明度"
+                  >
+                    <div className="note-glass-popover-head">
+                      <span>磨砂透明度</span>
+                      <span className="note-glass-popover-value">
+                        {glassOpacityPercent}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={Math.round(MIN_NOTE_GLASS_OPACITY * 100)}
+                      max={100}
+                      step={5}
+                      value={glassOpacityPercent}
+                      aria-label="磨砂透明度"
+                      style={
+                        {
+                          "--glass-fill": `${glassFillPercent}%`,
+                        } as CSSProperties
+                      }
+                      onChange={(event) =>
+                        handleGlassOpacityChange(Number(event.target.value))
+                      }
+                    />
+                  </div>
+                )}
+              </div>
             );
           })}
-        </div>
-        <div className="note-slider-row">
-          <span>不透明度</span>
-          <input
-            type="range"
-            min={Math.round(MIN_NOTE_OPACITY * 100)}
-            max={100}
-            step={5}
-            value={opacityPercent}
-            aria-label="便签不透明度"
-            onChange={(event) =>
-              handleOpacityChange(Number(event.target.value))
-            }
-          />
-          <span className="note-slider-value">{opacityPercent}%</span>
         </div>
       </div>
 

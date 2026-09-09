@@ -77,7 +77,30 @@
    [data-note-theme="<id>"] 主题块；运行时写入的 data-note-theme="sky"
    属性保留（广播/缓存链路不变），无 CSS 块命中时自然落默认值。
    定色原则：正文对纸底对比度 ≥ 7:1；--note-high（红笔）单独校准；
-   图钉保持橙色系不随主题变（品牌锚点）。 */
+   图钉保持橙色系不随主题变（品牌锚点）。
+
+   2026-09-09 老大定稿：新增磨砂（glass）主题——见下方玻璃形态块。 */
+
+/* === 磨砂主题玻璃形态（2026-09-09 老大定稿） ===
+   DWM Acrylic 路线：Rust `set_widget_glass` 在 widget 窗口后面开 Acrylic
+   模糊（tint = 海蓝纸色 RGB，tint alpha = noteGlassOpacity），本块把纸色
+   渐变 token alpha 化让模糊背景透出——--note-glass-alpha 由
+   widgetAppearance.applyWidgetAppearance inline 注入（0.3–1）。
+   非 Windows / 浏览器 mock 没有 Acrylic，退化为半透明纸（无模糊），
+   透明度下限 30% 兜底可读性；Win10 拖动卡顿为已知退化
+   （docx/widget-glass-mode-plan-2026-09-09.md §4）。
+   注意：--note-bg-start 同时是快速添加确认按钮的字色来源，玻璃块内
+   对按钮字色显式回写不透明值，避免跟着纸面一起变透。 */
+:root[data-note-theme="glass"] {
+  --note-bg-start: rgba(232, 241, 250, var(--note-glass-alpha, 0.65));
+  --note-bg-mid: rgba(220, 233, 247, var(--note-glass-alpha, 0.65));
+  --note-bg-end: rgba(207, 224, 242, var(--note-glass-alpha, 0.65));
+}
+
+:root[data-note-theme="glass"] .widget-quick-add-confirm,
+:root[data-note-theme="glass"] .widget-quick-add-confirm:not(:disabled):hover {
+  color: #e8f1fa;
+}
 
 /* === 透明窗（让桌面"墙"透过来，便签贴在墙上的视觉效果） === */
 

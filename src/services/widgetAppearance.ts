@@ -14,16 +14,21 @@ import { emit, listen } from "@tauri-apps/api/event";
  *   缓存只读于首帧前（main.tsx），用于消灭「默认纸色闪一帧」，不作数据源。
  */
 
-export const noteThemeIds = ["sky"] as const;
+export const noteThemeIds = ["sky", "glass"] as const;
 export type NoteThemeId = (typeof noteThemeIds)[number];
 
 /** 主题展示名（设置界面色卡）。顺序即 UI 呈现顺序；id 须与 widget.css 主题块一一对应。
  *  2026-09-08 老大定稿：纸色只保留海蓝（sky）并作为默认，其余配色与「跟随应用」
- *  全部移除；normalizeAppearance 会把旧存档里的历史主题值归一到 sky。 */
+ *  全部移除；normalizeAppearance 会把旧存档里的历史主题值归一到 sky。
+ *  2026-09-09 老大定稿：新增磨砂（glass）主题——DWM Acrylic 模糊 + 海蓝纸色
+ *  alpha 化，透明度为该主题专属（色卡右上角齿轮设置，见 noteGlassOpacity）。 */
 export const noteThemeOptions: ReadonlyArray<{
   id: NoteThemeId;
   name: string;
-}> = [{ id: "sky", name: "海蓝" }];
+}> = [
+  { id: "sky", name: "海蓝" },
+  { id: "glass", name: "磨砂" },
+];
 
 export const noteFontIds = ["handwriting", "sans", "system", "custom"] as const;
 export type NoteFontId = (typeof noteFontIds)[number];
@@ -42,13 +47,22 @@ export const noteFontOptions: ReadonlyArray<{
 /** 自定义字体的固定 FontFace 家族名（字节经 IPC 注册，家族名跨启动稳定）。 */
 export const CUSTOM_NOTE_FONT_FAMILY = "Torder Note Custom";
 
-/** 透明度区间（UI 用百分数 30–100 展示）。下限 30% 给 Release 白合成坑留安全边际。 */
-export const MIN_NOTE_OPACITY = 0.3;
+/** 磨砂透明度区间（UI 用百分数 30–100 展示）。下限 30% 给 Release 白合成坑留安全边际。 */
+export const MIN_NOTE_GLASS_OPACITY = 0.3;
+
+/** 磨砂透明度默认值：中档起——既有可见的磨砂感，又不牺牲正文可读性。 */
+export const DEFAULT_NOTE_GLASS_OPACITY = 0.65;
 
 /** 便签外观字段的扁平集合；`widget` 设置键在此基础上再带几何/锚点字段。 */
 export interface WidgetAppearance {
   noteTheme: NoteThemeId;
+  /** 纸面不透明度（旧全局滑杆）。2026-09-09 起透明度归磨砂主题专属，
+   *  滑杆 UI 已移除，字段保留但归一恒为 1（历史存档值一并失效）。 */
   noteOpacity: number;
+  /** 磨砂主题专属透明度（0.3–1，UI 百分数展示）。仅 noteTheme === "glass"
+   *  时生效：驱动 Rust set_widget_glass 的 Acrylic tint alpha 与 CSS
+   *  --note-glass-alpha（纸面渐变 alpha 化）。 */
+  noteGlassOpacity: number;
   noteFont: NoteFontId;
   noteFontSize: number;
   /** 纸面白点纹理 */
@@ -102,6 +116,8 @@ function clampNumber(
  * - 字号设置面已移除，noteFontSize 锁死 14px（存档中的历史值一并忽略）；
  * - 纸面细节开关（纹理/格线/图钉/色点）的设置面已移除，字段与归一逻辑保留，
  *   历史存档值继续生效（无 UI 可再修改）。
+ * 2026-09-09 老大定稿：新增磨砂主题（glass），透明度归其专属——
+ * noteOpacity 锁死 1（旧全局滑杆移除），noteGlassOpacity 接管透明度语义。
  */
 export function normalizeAppearance(parsed: unknown): WidgetAppearance {
   const raw = (
@@ -109,7 +125,13 @@ export function normalizeAppearance(parsed: unknown): WidgetAppearance {
   ) as Partial<WidgetAppearance>;
   return {
     noteTheme: isNoteThemeId(raw.noteTheme) ? raw.noteTheme : "sky",
-    noteOpacity: clampNumber(raw.noteOpacity, MIN_NOTE_OPACITY, 1, 1),
+    noteOpacity: 1,
+    noteGlassOpacity: clampNumber(
+      raw.noteGlassOpacity,
+      MIN_NOTE_GLASS_OPACITY,
+      1,
+      DEFAULT_NOTE_GLASS_OPACITY,
+    ),
     noteFont: isNoteFontId(raw.noteFont) ? raw.noteFont : "handwriting",
     noteFontSize: 14,
     noteTexture: typeof raw.noteTexture === "boolean" ? raw.noteTexture : true,
@@ -146,17 +168,32 @@ export function fontStackFor(font: NoteFontId): string {
  * 字号经 `--note-fs` 基准 token 缩放整套便签字号（widget.css 派生比值）；
  * 纸面细节开关以 `.note-no-*` 类表达（CSS 定义见 widget.css 末尾）；
  * `noteHideDone` 是行为过滤不是样式，由 WidgetApp 的条目派生消费（不在此处理）。
+ *
+ * 磨砂玻璃（2026-09-09）：仅 widget 窗口上下文调用本函数（WidgetApp +
+ * main.tsx 缓存重放），故在此内聚 invoke `set_widget_glass`——切到 glass
+ * 开 Acrylic（tint alpha = noteGlassOpacity），切走即清除；非 Tauri（mock）
+ * 只落 CSS alpha，玻璃退化为半透明无模糊。非 Windows 平台 Rust 侧 no-op。
  */
 export function applyWidgetAppearance(appearance: WidgetAppearance): void {
   const root = document.documentElement;
   root.dataset.noteTheme = appearance.noteTheme;
   root.style.setProperty("--note-opacity", String(appearance.noteOpacity));
+  root.style.setProperty(
+    "--note-glass-alpha",
+    String(appearance.noteGlassOpacity),
+  );
   root.style.setProperty("--note-fs", `${appearance.noteFontSize}px`);
   root.style.setProperty("--font-note", fontStackFor(appearance.noteFont));
   root.classList.toggle("note-no-texture", !appearance.noteTexture);
   root.classList.toggle("note-no-rules", !appearance.noteRules);
   root.classList.toggle("note-no-pin", !appearance.notePin);
   root.classList.toggle("note-no-dots", !appearance.noteDots);
+  if (isTauri()) {
+    void invoke("set_widget_glass", {
+      enabled: appearance.noteTheme === "glass",
+      alpha: appearance.noteGlassOpacity,
+    }).catch(() => undefined);
+  }
 }
 
 /* === 自定义字体（FontFace 动态注册） ===
