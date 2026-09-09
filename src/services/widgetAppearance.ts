@@ -50,8 +50,10 @@ export const CUSTOM_NOTE_FONT_FAMILY = "Torder Note Custom";
 /** 磨砂透明度区间（UI 用百分数 30–100 展示）。下限 30% 给 Release 白合成坑留安全边际。 */
 export const MIN_NOTE_GLASS_OPACITY = 0.3;
 
-/** 磨砂透明度默认值：中档起——既有可见的磨砂感，又不牺牲正文可读性。 */
-export const DEFAULT_NOTE_GLASS_OPACITY = 0.65;
+/** 磨砂透明度默认值。同一数值同时驱动 Acrylic tint alpha 与 CSS 纸面 alpha，
+ *  有效覆盖率 = 1-(1-α)²（双层叠加），0.5 → 75% 模糊覆盖：磨砂感与可读性的
+ *  平衡点；0.65 时实际近乎实色（88%），是首版「看不出变化」的诱因之一。 */
+export const DEFAULT_NOTE_GLASS_OPACITY = 0.5;
 
 /** 便签外观字段的扁平集合；`widget` 设置键在此基础上再带几何/锚点字段。 */
 export interface WidgetAppearance {

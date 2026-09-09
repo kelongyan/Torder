@@ -176,12 +176,15 @@ pub fn hide_widget_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// 便签磨砂玻璃（Acrylic）。enabled=true 在 widget 窗口后面开启 DWM Acrylic
-/// 模糊（tint 用海蓝纸色 RGB，alpha 即透明度旋钮 0–1 → 0–255）；false 清除
-/// 材质恢复不透明纸面。仅 Windows 10 v1809+ 生效，其它平台与 widget 窗口
-/// 不存在时均为 no-op（前端按 noteTheme === "glass" 决定 enabled）。
-/// 已知退化：Win10 v1903+ 拖动/缩放窗口会卡顿（window-vibrancy 官方注明的
-/// 未公开 API 缺陷），见 docx/widget-glass-mode-plan-2026-09-09.md §4。
+/// 便签磨砂玻璃（Acrylic）。enabled=true 在 widget 窗口后面开启 SWCA Acrylic
+/// 模糊（tint 用海蓝纸色 RGB，alpha 即透明度旋钮 0–1 → 0–255，真生效）；
+/// false 清除材质恢复不透明纸面。走自实现 SWCA（`crate::acrylic`）而非
+/// window-vibrancy：后者在 Win11 22H2+ 走 SYSTEMBACKDROP 路线忽略 tint color，
+/// 导致旋钮失灵且背板不渲染（2026-09-09 真机实锤后替换）。仅 Windows 10
+/// v1809+ 生效，其它平台与 widget 窗口不存在时均为 no-op（前端按
+/// noteTheme === "glass" 决定 enabled）。
+/// 已知退化：Win10 v1903+/Win11 拖动窗口会卡顿（未公开 API 缺陷），
+/// 见 docx/widget-glass-mode-plan-2026-09-09.md §4。
 #[tauri::command]
 pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -189,12 +192,12 @@ pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(),
         let Some(window) = app.get_webview_window(widget::WIDGET_LABEL) else {
             return Ok(());
         };
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
         if enabled {
             let tint_alpha = (alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
-            window_vibrancy::apply_acrylic(&window, Some((232, 241, 250, tint_alpha)))
-                .map_err(|error| error.to_string())?;
+            crate::acrylic::apply_acrylic(hwnd, (232, 241, 250, tint_alpha))?;
         } else {
-            window_vibrancy::clear_acrylic(&window).map_err(|error| error.to_string())?;
+            crate::acrylic::clear_acrylic(hwnd)?;
         }
     }
 

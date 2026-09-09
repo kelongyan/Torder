@@ -92,9 +92,9 @@
    注意：--note-bg-start 同时是快速添加确认按钮的字色来源，玻璃块内
    对按钮字色显式回写不透明值，避免跟着纸面一起变透。 */
 :root[data-note-theme="glass"] {
-  --note-bg-start: rgba(232, 241, 250, var(--note-glass-alpha, 0.65));
-  --note-bg-mid: rgba(220, 233, 247, var(--note-glass-alpha, 0.65));
-  --note-bg-end: rgba(207, 224, 242, var(--note-glass-alpha, 0.65));
+  --note-bg-start: rgba(232, 241, 250, var(--note-glass-alpha, 0.5));
+  --note-bg-mid: rgba(220, 233, 247, var(--note-glass-alpha, 0.5));
+  --note-bg-end: rgba(207, 224, 242, var(--note-glass-alpha, 0.5));
 }
 
 :root[data-note-theme="glass"] .widget-quick-add-confirm,

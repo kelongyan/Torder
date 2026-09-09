@@ -1,3 +1,5 @@
+#[cfg(target_os = "windows")]
+mod acrylic;
 pub mod backup;
 pub mod commands;
 pub mod db;
