@@ -32,6 +32,13 @@ if (-not (Get-Command makensis.exe -ErrorAction SilentlyContinue)) {
 }
 
 # 3. 构建（tauri.conf.json 的 beforeBuildCommand 会自动跑 pnpm build，无需手动前置）
+# 清空 dist：vite.config 设 emptyOutDir=false（vite 自删触发注入 shim 超时），
+# 清理责任在本脚本——不清理则孤儿 bundle 累积、全部打进安装包。
+$distDir = Join-Path $root "dist"
+if (Test-Path $distDir) {
+  Remove-Item $distDir -Recurse -Force
+  Write-Host "[clean] 已清空 dist/" -ForegroundColor Yellow
+}
 Write-Host "[build] pnpm tauri build (CARGO_BUILD_JOBS=$env:CARGO_BUILD_JOBS)..." -ForegroundColor Cyan
 pnpm tauri build
 if ($LASTEXITCODE -ne 0) { throw "pnpm tauri build 失败 (exit $LASTEXITCODE)" }

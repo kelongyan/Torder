@@ -3,7 +3,19 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import packageJson from "../../package.json";
 import type { AppInfo, UpdateInfo } from "../types/settings";
 
-const UPDATE_MANIFEST_URL = "https://kelongyan.github.io/Torder/latest.json";
+// 更新源顺序：Gitee 国内直连稳定（服务器在国内，实测 0.2s 级响应），为主源；
+// GitHub 兜底——已发布的旧客户端只会查 GitHub，且 Gitee 故障时保持可用。
+// 响应结构与 GitHub Releases API 兼容（tag_name / assets[].browser_download_url），
+// 同一个解析器两个源通用。
+type UpdateSource = "gitee" | "github";
+
+const UPDATE_SOURCE_URLS: Record<UpdateSource, string> = {
+  // Gitee 必须用列表接口：它的 /releases/latest 按 release 创建时间取"最新"，
+  // 回填历史版本时会把旧版排在前面（v2.7.1 附件后补，创建时间晚于 v2.7.5）。
+  // 列表取回后由 pickLatestRelease 按 semver 挑最高的非预发布版本。
+  gitee: "https://gitee.com/api/v5/repos/yankelong/Torder/releases?per_page=100",
+  github: "https://api.github.com/repos/kelongyan/Torder/releases/latest",
+};
 
 // P0-03：更新清单与外部 URL 是远程信任根，格式异常时必须显式拒绝，
 // 不能把未经校验的字符串直接交给 openUrl（避免打开 file://、自定义
@@ -30,41 +42,129 @@ interface UpdateTarget {
   notes?: string | null;
   downloadUrl: string;
   sha256?: string | null;
+  /** 清单本身无哈希时（Gitee 不提供 digest），随包发布的 .sha256 校验文件地址。 */
+  sha256Url?: string | null;
 }
 
-// 检查更新：Tauri 桌面端走 Rust 原生网络请求（不受 WebView CSP 限制，继承系统代理），
-// 浏览器 mock 模式走前端 fetch。
+interface GitHubReleaseAsset {
+  name: string;
+  browser_download_url: string;
+  digest?: string | null;
+}
+
+// 检查更新：按源顺序尝试（Gitee 主 / GitHub 兜底），任一源成功即返回；
+// 全部失败时抛出最后一个源的原始错误。Tauri 端走 Rust 原生网络请求
+// （不受 WebView CSP 限制，双路网络回退），浏览器 mock 模式走前端 fetch。
 export async function checkForUpdate(): Promise<UpdateInfo> {
-  let raw: unknown;
-  if (isTauri()) {
-    const text = await invoke<string>("fetch_update_manifest");
-    raw = JSON.parse(text);
-  } else {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+  const appInfo = await getAppInfo();
+  const platform =
+    appInfo.platform === "browser-preview" ? "windows" : appInfo.platform;
+  let lastError: unknown = null;
+  for (const source of Object.keys(UPDATE_SOURCE_URLS) as UpdateSource[]) {
     try {
-      const response = await fetch(UPDATE_MANIFEST_URL, {
-        signal: controller.signal,
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        throw new Error(`清单请求失败（HTTP ${response.status}）`);
-      }
-      raw = await response.json();
-    } finally {
-      window.clearTimeout(timeout);
+      const raw = pickLatestRelease(await fetchUpdateSource(source));
+      const target = parseUpdateManifest(raw, platform);
+      const sha256 = await resolveSha256(target);
+      return {
+        hasUpdate: compareSemver(target.version, appInfo.version) > 0,
+        latestVersion: target.version,
+        notes: target.notes ?? null,
+        downloadUrl: target.downloadUrl,
+        sha256: sha256 ?? null,
+      };
+    } catch (error) {
+      lastError = error;
     }
   }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`检查更新失败：${String(lastError)}`);
+}
 
-  const appInfo = await getAppInfo();
-  const target = parseUpdateManifest(raw, appInfo.platform);
-  return {
-    hasUpdate: compareSemver(target.version, appInfo.version) > 0,
-    latestVersion: target.version,
-    notes: target.notes ?? null,
-    downloadUrl: target.downloadUrl,
-    sha256: target.sha256 ?? null,
-  };
+async function fetchUpdateSource(source: UpdateSource): Promise<unknown> {
+  if (isTauri()) {
+    const text = await invoke<string>("fetch_update_manifest", { source });
+    return JSON.parse(text);
+  }
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(UPDATE_SOURCE_URLS[source], {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`清单请求失败（HTTP ${response.status}）`);
+    }
+    return await response.json();
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+/**
+ * 列表型响应（Gitee /releases）归一化为单个 Release：过滤预发布后按
+ * semver 取最高版本。平台的 latest 语义不可靠（Gitee 按创建时间排序），
+ * 客户端自己挑版本才是稳定语义。单对象响应（GitHub /releases/latest）原样通过。
+ */
+export function pickLatestRelease(raw: unknown): unknown {
+  if (!Array.isArray(raw)) {
+    return raw;
+  }
+  const candidates = raw.filter(
+    (item) =>
+      isRecord(item) &&
+      item.prerelease !== true &&
+      typeof item.tag_name === "string",
+  );
+  if (candidates.length === 0) {
+    throw new Error("更新清单格式非法：Release 列表为空或全部为预发布");
+  }
+  const versionOf = (item: Record<string, unknown>) =>
+    String(item.tag_name).replace(/^v/i, "");
+  return candidates.reduce((best, item) =>
+    compareSemver(versionOf(item), versionOf(best)) > 0 ? item : best,
+  );
+}
+
+/**
+ * Gitee 不提供 GitHub 式的 digest 字段：完整性改为依赖随包发布的
+ * .sha256 附件（发布脚本生成上传）。清单已带哈希时直接用；否则取
+ * sidecar，取不到不阻断更新，只是跳过完整性校验。
+ */
+async function resolveSha256(target: UpdateTarget): Promise<string | null> {
+  if (target.sha256) return target.sha256;
+  if (!target.sha256Url) return null;
+  try {
+    const text = await fetchTextFile(target.sha256Url);
+    return text.match(/[0-9a-f]{64}/i)?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTextFile(url: string): Promise<string> {
+  if (!HTTPS_URL_PATTERN.test(url)) {
+    throw new Error("地址必须为 https:// 链接");
+  }
+  if (isTauri()) {
+    return invoke<string>("fetch_text", { url });
+  }
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error(`请求失败（HTTP ${response.status}）`);
+    }
+    return await response.text();
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -115,6 +215,9 @@ export function parseUpdateManifest(
   if (!isRecord(raw)) {
     throw new Error("更新清单格式非法：根节点不是对象");
   }
+  if (typeof raw.tag_name === "string" || Array.isArray(raw.assets)) {
+    return parseGitHubRelease(raw, platform);
+  }
   const platforms = raw.platforms;
   if (platforms !== undefined && platforms !== null) {
     if (!isRecord(platforms)) {
@@ -128,6 +231,80 @@ export function parseUpdateManifest(
     }
   }
   return parseUpdateTarget(raw, "清单顶层");
+}
+
+/** 从 GitHub / Gitee Releases API 的最新发布记录中提取当前平台安装包。 */
+function parseGitHubRelease(raw: Record<string, unknown>, platform: string): UpdateTarget {
+  const tagName = raw.tag_name;
+  if (typeof tagName !== "string") {
+    throw new Error("更新清单格式非法：缺少 tag_name");
+  }
+  const version = tagName.replace(/^v/i, "");
+  if (!SEMVER_PATTERN.test(version)) {
+    throw new Error(`更新清单格式非法：tag_name 无效（${tagName}）`);
+  }
+
+  if (!Array.isArray(raw.assets)) {
+    throw new Error("更新清单格式非法：assets 必须为数组");
+  }
+  const assets = raw.assets.filter(isRecord) as unknown as GitHubReleaseAsset[];
+  const asset = assets.find((candidate) =>
+    isReleaseAssetForPlatform(candidate, platform),
+  );
+  if (!asset) {
+    throw new Error(`更新清单格式非法：缺少当前平台（${platform}）的安装包`);
+  }
+  if (
+    typeof asset.name !== "string" ||
+    typeof asset.browser_download_url !== "string"
+  ) {
+    throw new Error("更新清单格式非法：安装包字段无效");
+  }
+
+  const digest =
+    typeof asset.digest === "string" && /^sha256:[0-9a-f]{64}$/i.test(asset.digest)
+      ? asset.digest.slice("sha256:".length)
+      : null;
+  // Gitee 无 digest 字段，完整性靠随包发布的 .sha256 sidecar 附件。
+  const sidecar = assets.find(
+    (candidate) =>
+      typeof candidate.name === "string" &&
+      candidate.name === `${asset.name}.sha256`,
+  );
+  const sha256Url =
+    sidecar && typeof sidecar.browser_download_url === "string"
+      ? sidecar.browser_download_url
+      : null;
+  const notes = typeof raw.body === "string" ? raw.body : null;
+  return {
+    version,
+    notes,
+    downloadUrl: asset.browser_download_url,
+    sha256: digest,
+    sha256Url,
+  };
+}
+
+function isReleaseAssetForPlatform(
+  asset: GitHubReleaseAsset,
+  platform: string,
+): boolean {
+  if (typeof asset.name !== "string" || typeof asset.browser_download_url !== "string") {
+    return false;
+  }
+  const name = asset.name.toLowerCase();
+  switch (platform) {
+    case "windows":
+      return name.endsWith(".exe");
+    case "android":
+      return name.endsWith(".apk");
+    case "macos":
+      return name.endsWith(".dmg") || name.endsWith(".app.tar.gz");
+    case "linux":
+      return name.endsWith(".appimage") || name.endsWith(".deb") || name.endsWith(".rpm");
+    default:
+      return false;
+  }
 }
 
 /**
@@ -163,7 +340,7 @@ export async function openExternalLink(url: string): Promise<void> {
 }
 
 /** 比较 "major.minor.patch" 三段数字；忽略预发布后缀（如 -beta.1）。 */
-function compareSemver(left: string, right: string): number {
+export function compareSemver(left: string, right: string): number {
   const parts = (version: string) =>
     version
       .split(/[-+]/)[0]
@@ -241,4 +418,3 @@ export async function launchInstallerAndExit(
   }
   return invoke("launch_installer_and_exit", { installerPath });
 }
-

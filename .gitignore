@@ -60,3 +60,6 @@ docx/
 
 # 浏览器截图验证暂存（agent-browser 产物，本地临时）
 .browser-check/
+
+# Gitee 个人访问令牌（本地明文，绝不提交公开仓库）
+.gitee-token
