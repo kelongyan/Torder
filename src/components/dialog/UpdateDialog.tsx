@@ -148,7 +148,7 @@ export function UpdateDialog({
         </header>
 
         <div className="dialog-body update-dialog-body">
-          {updateInfo.notes && (
+          {step === "ready" && updateInfo.notes && (
             <div className="update-notes-section">
               <span className="update-section-label">更新内容：</span>
               <div className="update-notes-box">
@@ -172,13 +172,16 @@ export function UpdateDialog({
               <div className="update-progress-bar-wrap">
                 <div
                   className="update-progress-bar-fill"
-                  style={{ width: `${Math.min(100, Math.max(0, progress.percentage))}%` }}
+                  style={{
+                    width: `${Math.min(100, Math.max(0, progress.percentage))}%`,
+                  }}
                 />
               </div>
               <div className="update-progress-foot">
                 <span>
                   {formatBytes(progress.downloadedBytes)}
-                  {progress.totalBytes > 0 && ` / ${formatBytes(progress.totalBytes)}`}
+                  {progress.totalBytes > 0 &&
+                    ` / ${formatBytes(progress.totalBytes)}`}
                 </span>
                 <span>{formatSpeed(progress.speedBps)}</span>
               </div>
@@ -188,13 +191,17 @@ export function UpdateDialog({
           {step === "ready_to_install" && (
             <div className="update-status-banner success">
               <CheckCircle2 size={16} />
-              <span>安装包下载完毕并通过完整性校验，点击下方按钮立即安装并重启。</span>
+              <span>
+                安装包下载完毕并通过完整性校验，点击下方按钮立即安装并重启。
+              </span>
             </div>
           )}
 
           {step === "error" && (
             <div className="update-status-banner danger">
-              <span>{errorMsg || "下载过程中遇到网络问题，请重试或通过浏览器下载。"}</span>
+              <span>
+                {errorMsg || "下载过程中遇到网络问题，请重试或通过浏览器下载。"}
+              </span>
             </div>
           )}
         </div>
@@ -241,11 +248,7 @@ export function UpdateDialog({
                 >
                   取消
                 </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled
-                >
+                <button type="button" className="btn-primary" disabled>
                   <RefreshCw size={14} className="is-spinning" />
                   <span>下载中…</span>
                 </button>

@@ -13,7 +13,8 @@ const UPDATE_SOURCE_URLS: Record<UpdateSource, string> = {
   // Gitee 必须用列表接口：它的 /releases/latest 按 release 创建时间取"最新"，
   // 回填历史版本时会把旧版排在前面（v2.7.1 附件后补，创建时间晚于 v2.7.5）。
   // 列表取回后由 pickLatestRelease 按 semver 挑最高的非预发布版本。
-  gitee: "https://gitee.com/api/v5/repos/yankelong/Torder/releases?per_page=100",
+  gitee:
+    "https://gitee.com/api/v5/repos/yankelong/Torder/releases?per_page=100",
   github: "https://api.github.com/repos/kelongyan/Torder/releases/latest",
 };
 
@@ -171,6 +172,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * 净化更新说明文本：
+ * 移除 GitHub / Gitee Release 页面末尾附带的裸露安装包表格与 SHA256 校验码区块
+ * （应用内更新自带流式校验，无需向终端用户展示原始 Markdown 表格语法）。
+ */
+export function sanitizeReleaseNotes(notes: string): string {
+  const cutIndex = notes.search(
+    /(?:^|\n)\s*#{1,4}\s*(?:📦\s*)?安装包与校验信息/i,
+  );
+  const trimmed = cutIndex !== -1 ? notes.slice(0, cutIndex) : notes;
+  return trimmed.replace(/(?:\r?\n\s*---\s*)*\s*$/, "").trim();
+}
+
 /** 校验并提取单个平台目标；字段缺失/类型错误时抛出可诊断错误。 */
 function parseUpdateTarget(raw: unknown, source: string): UpdateTarget {
   if (!isRecord(raw)) {
@@ -195,7 +209,7 @@ function parseUpdateTarget(raw: unknown, source: string): UpdateTarget {
   }
   return {
     version,
-    notes,
+    notes: typeof notes === "string" ? sanitizeReleaseNotes(notes) : notes,
     downloadUrl,
     sha256,
   };
@@ -234,7 +248,10 @@ export function parseUpdateManifest(
 }
 
 /** 从 GitHub / Gitee Releases API 的最新发布记录中提取当前平台安装包。 */
-function parseGitHubRelease(raw: Record<string, unknown>, platform: string): UpdateTarget {
+function parseGitHubRelease(
+  raw: Record<string, unknown>,
+  platform: string,
+): UpdateTarget {
   const tagName = raw.tag_name;
   if (typeof tagName !== "string") {
     throw new Error("更新清单格式非法：缺少 tag_name");
@@ -262,7 +279,8 @@ function parseGitHubRelease(raw: Record<string, unknown>, platform: string): Upd
   }
 
   const digest =
-    typeof asset.digest === "string" && /^sha256:[0-9a-f]{64}$/i.test(asset.digest)
+    typeof asset.digest === "string" &&
+    /^sha256:[0-9a-f]{64}$/i.test(asset.digest)
       ? asset.digest.slice("sha256:".length)
       : null;
   // Gitee 无 digest 字段，完整性靠随包发布的 .sha256 sidecar 附件。
@@ -275,7 +293,8 @@ function parseGitHubRelease(raw: Record<string, unknown>, platform: string): Upd
     sidecar && typeof sidecar.browser_download_url === "string"
       ? sidecar.browser_download_url
       : null;
-  const notes = typeof raw.body === "string" ? raw.body : null;
+  const notes =
+    typeof raw.body === "string" ? sanitizeReleaseNotes(raw.body) : null;
   return {
     version,
     notes,
@@ -289,7 +308,10 @@ function isReleaseAssetForPlatform(
   asset: GitHubReleaseAsset,
   platform: string,
 ): boolean {
-  if (typeof asset.name !== "string" || typeof asset.browser_download_url !== "string") {
+  if (
+    typeof asset.name !== "string" ||
+    typeof asset.browser_download_url !== "string"
+  ) {
     return false;
   }
   const name = asset.name.toLowerCase();
@@ -301,7 +323,11 @@ function isReleaseAssetForPlatform(
     case "macos":
       return name.endsWith(".dmg") || name.endsWith(".app.tar.gz");
     case "linux":
-      return name.endsWith(".appimage") || name.endsWith(".deb") || name.endsWith(".rpm");
+      return (
+        name.endsWith(".appimage") ||
+        name.endsWith(".deb") ||
+        name.endsWith(".rpm")
+      );
     default:
       return false;
   }
