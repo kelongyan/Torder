@@ -5,6 +5,8 @@ pub mod commands;
 pub mod db;
 pub mod error;
 #[cfg(desktop)]
+mod clock;
+#[cfg(desktop)]
 mod mini;
 pub mod models;
 mod recurrence;
@@ -176,9 +178,14 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 widget::setup(app)?;
+                clock::setup(app)?;
                 tray::set_widget_menu_checked(
                     app.handle(),
                     widget::is_widget_visible(app.handle()),
+                );
+                tray::set_clock_menu_checked(
+                    app.handle(),
+                    clock::is_clock_visible(app.handle()),
                 );
                 // 开机自启动以 --silent 拉起：静默驻留托盘，不弹主窗口
                 if std::env::args().any(|arg| arg == "--silent") {
@@ -288,6 +295,14 @@ pub fn run() {
             commands::notice::send_notice,
             #[cfg(desktop)]
             commands::widget::remove_note_font,
+            #[cfg(desktop)]
+            commands::clock::toggle_clock,
+            #[cfg(desktop)]
+            commands::clock::set_clock_enabled,
+            #[cfg(desktop)]
+            commands::clock::patch_clock_settings,
+            #[cfg(desktop)]
+            commands::clock::get_clock_settings,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Torder");

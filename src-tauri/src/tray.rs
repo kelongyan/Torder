@@ -2,6 +2,7 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{App, AppHandle, Emitter, Manager, WindowEvent};
 
+use crate::clock;
 use crate::widget;
 
 pub fn setup(app: &mut App) -> tauri::Result<()> {
@@ -15,10 +16,21 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
         widget::is_widget_visible(app.handle()),
         None::<&str>,
     )?;
+    let clock_toggle = CheckMenuItem::with_id(
+        app,
+        "clock",
+        "桌面时钟",
+        true,
+        clock::is_clock_visible(app.handle()),
+        None::<&str>,
+    )?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quick_add, &widget_toggle, &separator, &quit])?;
-    // 托管一份 Menu 句柄，供 set_widget_menu_checked 同步勾选态
+    let menu = Menu::with_items(
+        app,
+        &[&open, &quick_add, &widget_toggle, &clock_toggle, &separator, &quit],
+    )?;
+    // 托管一份 Menu 句柄，供 set_widget_menu_checked / set_clock_menu_checked 同步勾选态
     app.manage(menu.clone());
 
     let mut builder = TrayIconBuilder::with_id("main-tray")
@@ -35,6 +47,11 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
                 match widget::toggle_widget_window(app) {
                     Ok(visible) => set_widget_menu_checked(app, visible),
                     Err(error) => eprintln!("widget toggle failed: {error}"),
+                }
+            } else if event.id() == "clock" {
+                match clock::toggle_clock_window(app) {
+                    Ok(visible) => set_clock_menu_checked(app, visible),
+                    Err(error) => eprintln!("clock toggle failed: {error}"),
                 }
             } else if event.id() == "quit" {
                 app.exit(0);
@@ -86,6 +103,18 @@ pub fn set_widget_menu_checked(app: &AppHandle, checked: bool) {
         return;
     };
     if let Some(MenuItemKind::Check(item)) = menu.get("widget") {
+        let _ = item.set_checked(checked);
+    }
+}
+
+/// 同步托盘"桌面时钟"菜单项的勾选态（托盘点击、设置面板开关、启动时都会调用）。
+pub fn set_clock_menu_checked(app: &AppHandle, checked: bool) {
+    use tauri::menu::MenuItemKind;
+
+    let Some(menu) = app.try_state::<tauri::menu::Menu<tauri::Wry>>() else {
+        return;
+    };
+    if let Some(MenuItemKind::Check(item)) = menu.get("clock") {
         let _ = item.set_checked(checked);
     }
 }

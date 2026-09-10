@@ -1,0 +1,344 @@
+/* ===== 桌面时钟挂件（Clock Widget）样式 =====
+ *
+ * 视觉：TimeSpot 式极简 —— 超大几何数字当主角，其余元素退成灰阶配角。
+ * 材质：复刻便签的「磨砂透明玻璃」（widget.css 的 glass 主题 + 便签磨砂卡），
+ *      由两层合成，缺一不可：
+ *        1) 窗口层 —— Rust `set_clock_glass` 走 SWCA Acrylic，在窗口背后做模糊
+ *           （tint 深色 18/22/28 / 浅色 246/248/252，alpha ×120）。
+ *        2) CSS 层 —— 本文件提供半透明 tint + inset 微光描边 + 文字投影。
+ *      这里刻意不用 `backdrop-filter`：透明 WebView 窗口在 hidden→show 切换时
+ *      合成会出问题（便签当初踩过，见 widget.css 顶部注释）。
+ *
+ * 尺寸自适应：窗口可鼠标拉伸（200x120 ~ 720x480，区间与 src-tauri/src/clock.rs
+ * 一致），排版尺寸全部用 vw/vh 随窗口缩放，不写死绝对值；仅工具按钮保持固定像素。
+ */
+
+/* --- 窗口壳层重置：消除外部壁纸、容器留白与默认尺寸约束 --- */
+html:has(.clock-stage),
+body:has(.clock-stage),
+#root:has(.clock-stage),
+html.clock-entry,
+html.clock-entry body,
+html.clock-entry #root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+html:has(.clock-stage) body,
+html.clock-entry body {
+  transition: none !important;
+}
+
+/* --- 主题变量：默认（深色主题）走墨玻璃，浅色主题走白雾玻璃 ---
+ *
+ * --clock-glass-alpha 由 ClockApp 在主题切换时写入。
+ * CSS tint 是玻璃的唯一遮罩层（2026-09-10 起不再叠加 SWCA 磨砂——磨砂
+ * 按窗口矩形绘制、无法随 20px 圆角裁形，会把挂件包进方角容器）。乘数
+ * 0.75 / 0.8 按原先「磨砂(23.5%) + CSS(17.6%/21%)」叠加的等效遮罩率
+ * 折算：无模糊打底的前提下保住文字对比度。
+ */
+:root {
+  --clock-font:
+    "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui,
+    -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --clock-glass-alpha: 0.5;
+}
+
+/* 浅色玻璃：未显式声明 dark 时即生效（浏览器 mock、首次启动都落在这里），
+   让深色文字压在雾白玻璃上仍然清晰；深色块在下方按同特异性后置覆盖。 */
+:root:not([data-theme="dark"]) {
+  --clock-tint: calc(var(--clock-glass-alpha) * 0.8);
+  --clock-paper: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, var(--clock-tint)) 0%,
+    rgba(240, 244, 250, var(--clock-tint)) 55%,
+    rgba(232, 238, 246, var(--clock-tint)) 100%
+  );
+  --clock-edge: rgba(255, 255, 255, 0.55);
+  --clock-ink: #10151c;
+  --clock-ink-inverse: #ffffff;
+  --clock-ink-soft: rgba(16, 21, 28, 0.6);
+  --clock-control-bg: rgba(255, 255, 255, 0.45);
+  --clock-control-bg-hover: rgba(255, 255, 255, 0.78);
+  --clock-accent: #d95f18;
+  --clock-sheen:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  --clock-text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* 深色主题覆盖（放在浅色块之后，保证 [data-theme="dark"] 优先） */
+:root[data-theme="dark"] {
+  --clock-tint: calc(var(--clock-glass-alpha) * 0.75);
+  --clock-paper: linear-gradient(
+    160deg,
+    rgba(26, 30, 38, var(--clock-tint)) 0%,
+    rgba(15, 19, 27, var(--clock-tint)) 55%,
+    rgba(10, 13, 19, var(--clock-tint)) 100%
+  );
+  --clock-edge: rgba(255, 255, 255, 0.16);
+  --clock-ink: #f2f6fb;
+  --clock-ink-inverse: #0d1117;
+  --clock-ink-soft: rgba(240, 246, 252, 0.72);
+  --clock-control-bg: rgba(255, 255, 255, 0.1);
+  --clock-control-bg-hover: rgba(255, 255, 255, 0.2);
+  --clock-accent: #ff8a4c;
+  --clock-sheen:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  --clock-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* --- 舞台：全透明，严防双层半透明叠加把透明度吃光（便签同款纪律） --- */
+.clock-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  box-sizing: border-box;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* --- 玻璃卡片：单层半透明 tint 铺满窗口，圆角裁切 --- */
+.clock-shell {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: clamp(8px, 6vh, 20px) clamp(12px, 5vw, 30px);
+  border-radius: 20px;
+  border: 1px solid var(--clock-edge);
+  background: var(--clock-paper);
+  box-shadow: var(--clock-sheen);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+/* --- 悬停浮动工具条：绝对定位、零占位，鼠标移开即隐去 --- */
+.clock-toolbar {
+  position: absolute;
+  top: clamp(4px, 2vh, 10px);
+  left: clamp(6px, 2.5vw, 14px);
+  right: clamp(6px, 2.5vw, 14px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.clock-shell:hover .clock-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.clock-toolbar-slot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clock-tool {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--clock-ink-soft);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.clock-tool:hover {
+  background: var(--clock-control-bg-hover);
+  color: var(--clock-ink);
+}
+
+.clock-tool.is-on {
+  color: var(--clock-accent);
+  background: color-mix(in srgb, var(--clock-accent) 22%, transparent);
+}
+
+.clock-tool.is-close:hover {
+  background: rgba(229, 72, 77, 0.3);
+  color: #ff9a9e;
+}
+
+/* --- 读数区：超大时间 + 次要说明 --- */
+.clock-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.clock-time {
+  font-family: var(--clock-font);
+  /* 8 字符（HH:MM:SS）约占 3.86em，取 27vw 让它在常见比例下铺到 ~85% 宽 */
+  font-size: min(27vw, 42vh);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--clock-ink);
+  text-shadow: var(--clock-text-shadow);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+  cursor: default;
+  transition:
+    color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.clock-time:active {
+  transform: scale(0.99);
+}
+
+.clock-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: clamp(2px, 2.4vh, 10px);
+  font-family: var(--clock-font);
+  font-size: clamp(9px, min(4.4vw, 6.5vh), 18px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--clock-ink-soft);
+  text-shadow: var(--clock-text-shadow);
+  white-space: nowrap;
+}
+
+.clock-note-flame {
+  color: var(--clock-accent);
+  flex: none;
+}
+
+/* --- 专注进度：贴着卡片底边的一根细线（替代原先的表盘圆环） --- */
+.clock-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  z-index: 2;
+  background: var(--clock-control-bg);
+}
+
+.clock-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--clock-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--clock-accent) 70%, transparent);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- 底部动作区：常态悬停浮现预设，专注态常驻控制 --- */
+.clock-actions {
+  position: absolute;
+  bottom: clamp(4px, 2.4vh, 12px);
+  left: clamp(6px, 2.5vw, 14px);
+  right: clamp(6px, 2.5vw, 14px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(3px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.clock-shell:hover .clock-actions,
+.clock-stage.is-focus .clock-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.clock-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--clock-edge);
+  border-radius: 999px;
+  background: var(--clock-control-bg);
+  color: var(--clock-ink);
+  font-family: var(--clock-font);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: var(--clock-text-shadow);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.clock-action:hover {
+  background: var(--clock-control-bg-hover);
+}
+
+/* 主行动（暂停/继续）用反色实心：玻璃上最稳的视觉锚点 */
+.clock-action.is-primary {
+  background: var(--clock-ink);
+  border-color: transparent;
+  color: var(--clock-ink-inverse);
+  text-shadow: none;
+}
+
+.clock-action.is-primary:hover {
+  background: color-mix(in srgb, var(--clock-ink) 82%, transparent);
+}
+
+/* --- 专注态：倒计时上色，字号再放大（MM:SS 仅 5 字符） --- */
+.clock-stage.is-focus .clock-time {
+  font-size: min(46vw, 64vh);
+  color: var(--clock-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-time,
+  .clock-note,
+  .clock-toolbar,
+  .clock-actions,
+  .clock-progress-fill {
+    transition: none;
+  }
+}

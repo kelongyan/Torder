@@ -32,7 +32,7 @@ const stylesDir = join(
   "src",
   "styles",
 );
-const EXCLUDE = new Set(["widget.css"]);
+const EXCLUDE = new Set(["widget.css", "clock.css"]);
 
 /** 设计稿字号阶梯（设计稿/styles/tokens/type.css，16 档） */
 const DESIGN_TIERS = new Set([

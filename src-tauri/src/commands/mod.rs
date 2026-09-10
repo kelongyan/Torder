@@ -14,6 +14,8 @@ pub mod task;
 pub mod task_link;
 
 #[cfg(desktop)]
+pub mod clock;
+#[cfg(desktop)]
 pub mod mini;
 #[cfg(desktop)]
 pub mod widget;
