@@ -4,7 +4,7 @@ This file provides guidance to CodeBuddy Code when working with code in this rep
 
 ## Project Overview
 
-Torder (今序) is a local-first desktop to-do workbench built with Tauri 2 + React 19 + TypeScript + Zustand + Tailwind 4 (frontend) and Rust + SQLite/rusqlite (backend). Features WebDAV sync, recurring tasks, backups, system tray, and a desktop sticky-note widget. Versions are kept in sync between `package.json` and `src-tauri/tauri.conf.json` (currently 2.6.x).
+Torder (今序) is a local-first desktop to-do workbench built with Tauri 2 + React 19 + TypeScript + Zustand + Tailwind 4 (frontend) and Rust + SQLite/rusqlite (backend). Features WebDAV sync, recurring tasks, backups, system tray, and a desktop sticky-note widget. Versions are kept in sync between `package.json` and `src-tauri/tauri.conf.json` (currently 2.7.6).
 
 ## Commands
 
@@ -32,7 +32,9 @@ Packaging:
 
 ```bash
 pnpm tauri build                  # Windows NSIS installer (README suggests $env:CARGO_BUILD_JOBS = "4")
-pnpm tauri android build --apk    # Android APK
+$env:NDK_HOME='E:	order-android-envndroid-sdk
+dk.3.11579264'  # required every time (not set globally)
+$env:CARGO_BUILD_JOBS='2'; pnpm tauri android build --apk    # Android APK (~10 min)
 # or use scripts/build-windows.ps1 for one-shot Windows build with pinned CARGO_HOME
 ```
 

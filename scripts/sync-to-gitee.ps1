@@ -31,6 +31,11 @@ $token = (Get-Content $tokenPath -Raw).Trim()
 $api = "https://gitee.com/api/v5/repos/yankelong/Torder"
 $pushUrl = "https://oauth2:$token@gitee.com/yankelong/Torder.git"
 
+# pwsh -File 传参不解析数组语法：`-Assets "a","b"` 会绑成单个字符串 "a,b"，这里拆开
+if ($Assets.Count -eq 1 -and $Assets[0] -match ',') {
+  $Assets = $Assets[0] -split ',' | ForEach-Object { $_.Trim().Trim('"') }
+}
+
 # 1. 代码与 tags 同步（gh-pages 是 GitHub Pages 专用分支，Gitee Pages 已停服，不同步）
 Write-Host "[sync] 推送 main/dev/v3 + 全部 tags ..." -ForegroundColor Cyan
 git push $pushUrl refs/heads/main:refs/heads/main refs/heads/dev:refs/heads/dev refs/heads/v3:refs/heads/v3 --tags
