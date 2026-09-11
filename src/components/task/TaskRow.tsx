@@ -88,7 +88,6 @@ export function TaskRow({
 
   function handleRowClick() {
     if (batchMode) onToggleBatchSelected(task.id);
-    else if (!deleted) onOpen(task);
   }
 
   return (
@@ -233,11 +232,13 @@ export function TaskRow({
               </button>
               <button
                 type="button"
+                className={`task-action-edit ${selected ? "is-active" : ""}`.trim()}
                 onClick={(event) => {
                   event.stopPropagation();
                   onOpen(task);
                 }}
                 aria-label="编辑任务"
+                title="编辑任务"
               >
                 <Pencil aria-hidden="true" />
               </button>

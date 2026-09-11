@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { Moon, Sun } from "lucide-react";
 import {
   getWidgetSettings,
   patchWidgetSettings,
@@ -11,28 +10,42 @@ import {
   ensureCustomNoteFont,
   fontStackFor,
   isCustomNoteFontRegistered,
-  MIN_NOTE_OPACITY,
+  MIN_NOTE_GLASS_OPACITY,
   noteFontOptions,
   noteThemeOptions,
   registerCustomNoteFont,
   unregisterCustomNoteFont,
+  type NoteThemeId,
   type WidgetAppearance,
 } from "../../services/widgetAppearance";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
+import { RefreshCw, Trash2, Upload } from "lucide-react";
+
+const NOTE_THEME_DETAILS: Record<
+  NoteThemeId,
+  { title: string; desc: string }
+> = {
+  sky: { title: "海蓝纸面", desc: "经典便签 · 温暖手写" },
+  glass: { title: "通透磨砂", desc: "深色亚克力 · 融入桌面" },
+};
+
+const FONT_DESCRIPTIONS: Record<string, string> = {
+  handwriting: "经典便签 · 灵动手写",
+  sans: "现代黑体 · 清晰利落",
+  system: "系统默认 · 规范统一",
+};
 
 /** 滑杆拖动期间只更新本地状态，停顿 300ms 才落库——避免每像素一次 IPC */
 const SLIDER_FLUSH_MS = 300;
-/** 字号滑杆区间（px），与 MIN/MAX_NOTE_FONT_SIZE 一致 */
-const FONT_SIZE_MIN = 12;
-const FONT_SIZE_MAX = 17;
+
 /** 自定义字体导入的对话框过滤与大小上限提示（Rust 侧权威校验） */
 const FONT_DIALOG_FILTERS = [
   { name: "字体文件", extensions: ["ttf", "otf", "woff", "woff2"] },
 ];
 const FONT_ACCEPT = ".ttf,.otf,.woff,.woff2";
 
-type SliderField = "noteOpacity" | "noteFontSize";
+type SliderField = "noteGlassOpacity";
 
 /** mock 模式的字体文件选择（Tauri 走系统对话框）。返回 null = 用户取消。 */
 function pickBrowserFontFile(): Promise<File | null> {
@@ -47,21 +60,27 @@ function pickBrowserFontFile(): Promise<File | null> {
 }
 
 /**
- * 设置 → 外观 → 桌面便签个性化：三个组（纸色+不透明度 / 字体+字号 /
- * 纸面与显示）+ 沉底「恢复默认外观」；组间 hairline 分隔，布局规约见
+ * 设置 → 外观 → 桌面便签个性化：纸色（海蓝 + 磨砂两卡，2026-09-09 老大定稿）+
+ * 字体 + 自定义字体导入；组间 hairline 分隔，布局规约见
  * docs/appearance-layout-optimization-plan.md §3。
  *
- * - 色卡固定五列（10 个选项恰好 5×2）；纸面效果以桌面小窗本体为预览（改动经广播实时生效，
+ * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组、旧全局不透明度
+ * 滑杆全部移除。2026-09-09 老大定稿：新增磨砂（glass）主题卡，透明度归其
+ * 专属——磨砂卡右上角齿轮弹出横向滑杆（30–100%，参考图胶囊渐变轨道 +
+ * 白色大圆拇指），透明度实时预览到磨砂色卡并防抖 300ms 落库。
+ * 主题/字体点击立即落库；卸载时 flush 防抖尾值。
+ *
+ * - 纸面效果以桌面小窗本体为预览（改动经广播实时生效，
  *   不再设设置界面内的预览卡——2026-08-29 用户定稿移除）。
  * - 字体卡的字样直接用真实字体栈渲染：手写体字样会命中 Torder Note 的
  *   HTTP 缓存（widget 窗口每次启动都拉同一文件），仅外观页首次打开多一次缓存读；
  *   这是主窗唯一引用该字体的地方（AGENTS.md 的「仅 .widget-* 引用」约定以此为例外）。
- * - 色卡/字体卡用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动。
+ * - 色卡/字体卡用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动；
+ *   磨砂卡齿轮与透明度弹层渲染在 label 外的包裹层上（真机验证 label 的
+ *   激活行为不被 preventDefault 拦住，点齿轮会误选磨砂主题），结构隔离最彻底。
  * - 写入走 `patchWidgetSettings`（扁平字段），主窗 → widget 窗经
  *   `widget-settings-changed` 广播实时同步；失败回滚到最近成功值并 toast——
- *   与 `SettingsDesktopSection` 的开关同一范式。主题/字体点击立即落库；
- *   两个滑杆本地即时、防抖 300ms 合并落库（pending 按字段合并，拖完 A 马上拖 B
- *   不会丢 A 的尾值），卸载时 flush。
+ *   与 `SettingsDesktopSection` 的开关同一范式。
  * - 移动端没有桌面小窗，不渲染；桌面浏览器 mock 照常可用（双模式一致性）。
  */
 export function SettingsWidgetAppearanceSection({
@@ -116,6 +135,8 @@ export function SettingsWidgetAppearanceSection({
     },
     [],
   );
+
+
 
   if (isMobile() || !appearance) return null;
 
@@ -182,18 +203,8 @@ export function SettingsWidgetAppearanceSection({
     ).finally(() => setBusy(false));
   }
 
-  /** 纸面细节/显示开关：布尔字段通用处理 */
-  function handleToggleChange<
-    K extends
-      "noteTexture" | "noteRules" | "notePin" | "noteDots" | "noteHideDone",
-  >(field: K, value: WidgetAppearance[K]) {
-    if (!appearance) return;
-    const fallback = appearance[field];
-    setAppearance({ ...appearance, [field]: value });
-    void persistPatch({ [field]: value }, { [field]: fallback });
-  }
-
-  /** 恢复默认外观：只重置九个外观字段，几何/锚点/启用开关不碰 */
+  /** 恢复默认外观：重置外观字段（字号已锁死、开关组已无 UI，落库值由
+   *  normalizeAppearance 归一），几何/锚点/启用开关不碰 */
   function handleResetDefaults() {
     if (!appearance || busy) return;
     const previous = appearance;
@@ -204,19 +215,13 @@ export function SettingsWidgetAppearanceSection({
     );
   }
 
-  function handleOpacityChange(percent: number) {
+  /** 磨砂透明度滑杆：本地即时预览（swatch 内联变量 + 广播实时生效），防抖落库 */
+  function handleGlassOpacityChange(percent: number) {
     if (!appearance) return;
     const value = percent / 100;
-    if (value === appearance.noteOpacity) return;
-    setAppearance({ ...appearance, noteOpacity: value });
-    scheduleSliderPersist({ noteOpacity: value });
-  }
-
-  function handleFontSizeChange(value: number) {
-    if (!appearance) return;
-    if (value === appearance.noteFontSize) return;
-    setAppearance({ ...appearance, noteFontSize: value });
-    scheduleSliderPersist({ noteFontSize: value });
+    if (value === appearance.noteGlassOpacity) return;
+    setAppearance({ ...appearance, noteGlassOpacity: value });
+    scheduleSliderPersist({ noteGlassOpacity: value });
   }
 
   /**
@@ -302,23 +307,31 @@ export function SettingsWidgetAppearanceSection({
     }
   }
 
-  const opacityPercent = Math.round(appearance.noteOpacity * 100);
+  const glassOpacityPercent = Math.round(appearance.noteGlassOpacity * 100);
+  // 渐变已选段比例按滑杆刻度折算（min 30 起步），与拇指位置逐像素一致
+  const glassFillPercent = Math.round(
+    ((glassOpacityPercent - MIN_NOTE_GLASS_OPACITY * 100) /
+      (100 - MIN_NOTE_GLASS_OPACITY * 100)) *
+      100,
+  );
 
   return (
     <section className="settings-section">
       <div className="appearance-group">
-        <h4 className="appearance-group-title">纸色</h4>
+        <h4 className="appearance-group-title">便签主题</h4>
         <div
           className="note-theme-grid"
           role="radiogroup"
-          aria-label="便签纸色"
+          aria-label="便签主题"
         >
           {noteThemeOptions.map((theme) => {
             const active = appearance.noteTheme === theme.id;
+            const isGlass = theme.id === "glass";
+            const detail = NOTE_THEME_DETAILS[theme.id];
             return (
               <label
                 key={theme.id}
-                className={`note-theme-swatch ${active ? "is-active" : ""}`.trim()}
+                className={`note-theme-card ${active ? "is-active" : ""}`.trim()}
                 data-note-theme={theme.id}
               >
                 <input
@@ -329,39 +342,72 @@ export function SettingsWidgetAppearanceSection({
                   disabled={busy}
                   onChange={() => handleThemeChange(theme.id)}
                 />
-                {theme.id === "auto" ? (
-                  <span className="note-theme-swatch-paper is-auto">
-                    <Sun aria-hidden="true" />
-                    <Moon aria-hidden="true" />
-                  </span>
-                ) : (
-                  <span className="note-theme-swatch-paper">
-                    <span className="note-theme-swatch-line is-title" />
-                    <span className="note-theme-swatch-line" />
-                    <span className="note-theme-swatch-line is-short" />
-                    <span className="note-theme-swatch-line is-check" />
-                  </span>
-                )}
-                <span className="note-theme-swatch-name">{theme.name}</span>
+                <div className="note-theme-card-preview">
+                  <div
+                    className="note-theme-mini-note"
+                    style={
+                      isGlass
+                        ? ({
+                            "--note-glass-alpha": String(
+                              appearance.noteGlassOpacity,
+                            ),
+                          } as CSSProperties)
+                        : undefined
+                    }
+                  >
+                    {!isGlass && <div className="note-theme-mini-pin" />}
+                    <div className="note-theme-mini-line is-title" />
+                    <div className="note-theme-mini-line" />
+                    <div className="note-theme-mini-line is-short" />
+                    <div className="note-theme-mini-line is-check" />
+                  </div>
+                </div>
+                <div className="note-theme-card-body">
+                  <div className="note-theme-card-header">
+                    <span className="note-theme-card-title">{detail.title}</span>
+                    <span className="note-theme-card-radio" aria-hidden="true" />
+                  </div>
+                  <span className="note-theme-card-desc">{detail.desc}</span>
+                </div>
               </label>
             );
           })}
         </div>
-        <div className="note-slider-row">
-          <span>不透明度</span>
-          <input
-            type="range"
-            min={Math.round(MIN_NOTE_OPACITY * 100)}
-            max={100}
-            step={5}
-            value={opacityPercent}
-            aria-label="便签不透明度"
-            onChange={(event) =>
-              handleOpacityChange(Number(event.target.value))
-            }
-          />
-          <span className="note-slider-value">{opacityPercent}%</span>
-        </div>
+
+        {/* 磨砂透明度内联调节：选中通透磨砂时直接在下方呈现，不再用蹩脚的小齿轮浮层 */}
+        {appearance.noteTheme === "glass" && (
+          <div className="note-glass-inline-panel">
+            <div className="note-glass-slider-head">
+              <div className="note-glass-slider-title-wrap">
+                <span className="note-glass-slider-title">磨砂透明度</span>
+                <span className="note-glass-slider-hint">
+                  （更通透 30% — 100% 更深邃）
+                </span>
+              </div>
+              <span className="note-glass-slider-value">
+                {glassOpacityPercent}%
+              </span>
+            </div>
+            <div className="note-glass-slider-track-wrap">
+              <input
+                type="range"
+                min={Math.round(MIN_NOTE_GLASS_OPACITY * 100)}
+                max={100}
+                step={5}
+                value={glassOpacityPercent}
+                aria-label="磨砂透明度"
+                style={
+                  {
+                    "--glass-fill": `${glassFillPercent}%`,
+                  } as CSSProperties
+                }
+                onChange={(event) =>
+                  handleGlassOpacityChange(Number(event.target.value))
+                }
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="appearance-group">
@@ -382,13 +428,19 @@ export function SettingsWidgetAppearanceSection({
                   disabled={busy}
                   onChange={() => handleFontChange(font.id)}
                 />
-                <span
+                <div className="note-font-card-header">
+                  <span className="note-font-name">{font.name}</span>
+                  <span className="note-font-card-radio" aria-hidden="true" />
+                </div>
+                <div
                   className="note-font-sample"
                   style={{ fontFamily: fontStackFor(font.id) }}
                 >
                   今天的事 09:30
-                </span>
-                <span className="note-font-name">{font.name}</span>
+                </div>
+                <div className="note-font-desc">
+                  {FONT_DESCRIPTIONS[font.id] ?? font.name}
+                </div>
               </label>
             );
           })}
@@ -405,15 +457,57 @@ export function SettingsWidgetAppearanceSection({
                 disabled={busy}
                 onChange={() => handleFontChange("custom")}
               />
-              <span
+              <div className="note-font-card-header">
+                <span className="note-font-name">自定义字体</span>
+                <div className="note-font-custom-header-right">
+                  <div className="note-font-inline-actions">
+                    <button
+                      type="button"
+                      className="note-font-action-btn"
+                      disabled={busy || importingFont}
+                      title="更换字体文件"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void handleImportFont();
+                      }}
+                    >
+                      <RefreshCw
+                        size={11}
+                        className={importingFont ? "is-spinning" : ""}
+                      />
+                      <span>更换</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="note-font-action-btn is-danger"
+                      disabled={busy || importingFont}
+                      title="移除自定义字体"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void handleRemoveCustomFont();
+                      }}
+                    >
+                      <Trash2 size={11} />
+                      <span>移除</span>
+                    </button>
+                  </div>
+                  <span className="note-font-card-radio" aria-hidden="true" />
+                </div>
+              </div>
+              <div
                 className="note-font-sample"
                 style={{ fontFamily: fontStackFor("custom") }}
               >
                 今天的事 09:30
-              </span>
-              <span className="note-font-name">
+              </div>
+              <div
+                className="note-font-desc note-font-custom-name"
+                title={appearance.noteCustomFontName}
+              >
                 {appearance.noteCustomFontName}
-              </span>
+              </div>
             </label>
           ) : (
             <button
@@ -422,118 +516,16 @@ export function SettingsWidgetAppearanceSection({
               disabled={busy || importingFont}
               onClick={() => void handleImportFont()}
             >
-              <span className="note-font-sample">＋</span>
-              <span className="note-font-name">
-                {importingFont ? "导入中…" : "导入字体"}
-              </span>
+              <div className="note-font-card-header">
+                <span className="note-font-name">自定义字体</span>
+                <Upload size={14} className="note-font-import-icon" />
+              </div>
+              <div className="note-font-sample is-placeholder">
+                {importingFont ? "正在读取文件…" : "＋ 导入本地字体"}
+              </div>
+              <div className="note-font-desc">支持 TTF / OTF / WOFF2</div>
             </button>
           )}
-        </div>
-        {appearance.noteCustomFontName && (
-          <div className="note-font-actions">
-            <span
-              className="note-font-current"
-              title={appearance.noteCustomFontName}
-            >
-              {appearance.noteCustomFontName}
-            </span>
-            <button
-              type="button"
-              className="note-font-link"
-              disabled={busy || importingFont}
-              onClick={() => void handleImportFont()}
-            >
-              更换
-            </button>
-            <button
-              type="button"
-              className="note-font-link is-danger"
-              disabled={busy || importingFont}
-              onClick={() => void handleRemoveCustomFont()}
-            >
-              移除
-            </button>
-          </div>
-        )}
-        <div className="note-slider-row">
-          <span>字号</span>
-          <input
-            type="range"
-            min={FONT_SIZE_MIN}
-            max={FONT_SIZE_MAX}
-            step={1}
-            value={appearance.noteFontSize}
-            aria-label="便签字号"
-            onChange={(event) =>
-              handleFontSizeChange(Number(event.target.value))
-            }
-          />
-          <span className="note-slider-value">{appearance.noteFontSize}px</span>
-        </div>
-      </div>
-
-      <div className="appearance-group">
-        <h4 className="appearance-group-title">纸面与显示</h4>
-        <div
-          className="note-detail-toggles"
-          role="group"
-          aria-label="便签纸面与显示"
-        >
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteTexture}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteTexture", event.target.checked)
-              }
-            />
-            <span>纸张纹理</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteRules}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteRules", event.target.checked)
-              }
-            />
-            <span>行格线</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.notePin}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("notePin", event.target.checked)
-              }
-            />
-            <span>顶部图钉</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteDots}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteDots", event.target.checked)
-              }
-            />
-            <span>清单色点</span>
-          </label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={appearance.noteHideDone}
-              disabled={busy}
-              onChange={(event) =>
-                handleToggleChange("noteHideDone", event.target.checked)
-              }
-            />
-            <span>隐藏已完成条目</span>
-          </label>
         </div>
       </div>
 

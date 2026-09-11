@@ -36,6 +36,8 @@ export interface WidgetSettings extends WidgetAppearance {
   h: number | null;
   /** null = 跟随今天；"YYYY-MM-DD" = 锚定日期 */
   anchorDate: string | null;
+  /** 是否固定（锁定）便签位置与大小，不许拖拽移动和拉伸 */
+  locked: boolean;
 }
 
 const WIDGET_SETTING_KEY = "widget";
@@ -55,6 +57,7 @@ const defaultWidgetSettings: WidgetSettings = {
   w: null,
   h: null,
   anchorDate: null,
+  locked: false,
 };
 
 export async function getWidgetSettings(): Promise<WidgetSettings> {
@@ -99,6 +102,7 @@ function normalizeWidgetSettings(
     h: typeof parsed.h === "number" ? parsed.h : null,
     anchorDate:
       typeof parsed.anchorDate === "string" ? parsed.anchorDate : null,
+    locked: parsed.locked === true,
     // 外观字段（noteTheme/noteOpacity/noteFont/...）的守卫与默认值单点在
     // widgetAppearance.normalizeAppearance，非法值一律回默认
     ...normalizeAppearance(parsed),

@@ -3,14 +3,6 @@ import { Coffee, Flame, Pause, Play, RotateCcw } from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import type { PresencePhase } from "../../hooks/usePresence";
 import { useFocusStore } from "../../stores/focusStore";
-import type { Task } from "../../types/database";
-
-/**
- * 专注模式控制面板（阶段 A / T-02 一期）。
- * 计时状态在 focusStore（真实时间戳现算，后台/切标签不漂移）；
- * 本组件以 1s tick 推进渲染，并在本轮自然结束时回调 onFinished
- * （由 App 弹 toast 并触发 Rust 系统通知）。
- */
 
 const QUICK_MINUTES = [25, 45, 60];
 
@@ -21,13 +13,10 @@ function formatClock(totalSeconds: number): string {
 }
 
 export function FocusDialog({
-  tasks,
   presence,
   onClose,
   onFinished,
 }: {
-  /** 可选专注任务的候选列表（传入当前视图任务或全部任务）。 */
-  tasks: Task[];
   presence: PresencePhase;
   onClose: () => void;
   /** 一轮专注自然结束（tick 幂等完成）时回调一次。 */
@@ -35,8 +24,6 @@ export function FocusDialog({
 }) {
   const mode = useFocusStore((state) => state.mode);
   const durationMin = useFocusStore((state) => state.durationMin);
-  const focusTaskId = useFocusStore((state) => state.focusTaskId);
-  const startedAt = useFocusStore((state) => state.startedAt);
   const lastCompletedAt = useFocusStore((state) => state.lastCompletedAt);
   const [clock, setClock] = useState(0);
   const reportedRef = useRef<number | null>(null);
@@ -63,118 +50,126 @@ export function FocusDialog({
   const idle = mode === "idle";
   const running = mode === "running";
   const paused = mode === "paused";
-  const focusTask = tasks.find((task) => task.id === focusTaskId);
+
+  // 计算圆环进度
+  const totalSeconds = durationMin * 60;
+  const currentSeconds = idle ? totalSeconds : clock;
+  const progress = Math.max(0, Math.min(1, currentSeconds / totalSeconds));
+
+  const circleRadius = 66;
+  const circumference = 2 * Math.PI * circleRadius;
+  const strokeDashoffset = circumference * (1 - progress);
 
   return (
     <DialogShell
-      title={running || paused ? "专注进行中" : "专注模式"}
-      icon={running || paused ? Flame : Coffee}
-      width="380px"
+      title={running ? "专注进行中" : paused ? "专注已暂停" : "专注模式"}
+      icon={running ? Flame : Coffee}
+      width="360px"
       presence={presence}
       onClose={onClose}
     >
-      <div className="dialog-form">
-        <div className="focus-clock-row" data-testid="focus-clock">
-          {running || paused ? (
-            <span className="focus-clock">{formatClock(clock)}</span>
-          ) : (
-            <span className="focus-clock focus-clock--dim">
-              {String(durationMin).padStart(2, "0")}:00
+      <div className="focus-dialog-body">
+        {/* 核心环形时钟仪表盘 */}
+        <div
+          className={`focus-dial-container ${running ? "is-running" : ""} ${paused ? "is-paused" : ""}`}
+        >
+          <svg
+            className="focus-dial-svg"
+            viewBox="0 0 160 160"
+            aria-hidden="true"
+          >
+            <circle
+              className="focus-dial-track"
+              cx="80"
+              cy="80"
+              r={circleRadius}
+            />
+            <circle
+              className="focus-dial-indicator"
+              cx="80"
+              cy="80"
+              r={circleRadius}
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+            />
+          </svg>
+
+          <div className="focus-clock-center">
+            <span
+              className="focus-clock-digits"
+              style={{ fontSize: "34px", lineHeight: 1 }}
+            >
+              {idle
+                ? `${String(durationMin).padStart(2, "0")}:00`
+                : formatClock(clock)}
             </span>
-          )}
-          <span className="settings-section-hint">
-            {running
-              ? `始于 ${startedAt ? new Date(startedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "现在"}`
-              : paused
-                ? "已暂停"
-                : "选择时长开始一轮专注"}
-          </span>
+            <span className="focus-status-badge">
+              {running ? "专注中" : paused ? "已暂停" : "深呼吸"}
+            </span>
+          </div>
         </div>
 
+        {/* 时长分段药丸（仅在空闲状态可见） */}
         {idle && (
-          <>
-            <label className="form-field">
-              <span>绑定任务（可选，用于行高亮）</span>
-              <select
-                value={focusTaskId ?? ""}
-                disabled={!idle}
-                onChange={(event) =>
-                  useFocusStore
-                    .getState()
-                    .setFocusTask(event.target.value || null)
-                }
+          <div className="focus-duration-pills">
+            {QUICK_MINUTES.map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                className={`focus-pill-btn ${
+                  durationMin === minutes ? "is-active" : ""
+                }`}
+                onClick={() => useFocusStore.getState().setDuration(minutes)}
               >
-                <option value="">不绑定</option>
-                {tasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="focus-duration-row">
-              {QUICK_MINUTES.map((minutes) => (
-                <button
-                  key={minutes}
-                  type="button"
-                  className={`focus-duration-chip ${
-                    durationMin === minutes ? "is-active" : ""
-                  }`}
-                  onClick={() => useFocusStore.getState().setDuration(minutes)}
-                >
-                  {minutes}
-                </button>
-              ))}
-            </div>
+                {minutes} 分钟
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 操作区 */}
+        <div className="focus-action-area">
+          {idle ? (
             <button
               type="button"
-              className="btn-primary focus-start"
+              className="focus-main-btn"
               onClick={() => useFocusStore.getState().start()}
             >
               <Flame aria-hidden="true" className="icon-sm" />
-              开始专注
+              <span>开始专注</span>
             </button>
-          </>
-        )}
-
-        {!idle && (
-          <>
-            {focusTask && (
-              <div className="focus-task-label">
-                正在专注：{focusTask.title}
-              </div>
-            )}
-            <div className="settings-row focus-actions">
+          ) : (
+            <div className="focus-running-actions">
               {running ? (
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="focus-control-btn btn-secondary"
                   onClick={() => useFocusStore.getState().pause()}
                 >
                   <Pause aria-hidden="true" className="icon-sm" />
-                  暂停
+                  <span>暂停</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="focus-control-btn btn-primary"
                   onClick={() => useFocusStore.getState().resume()}
                 >
                   <Play aria-hidden="true" className="icon-sm" />
-                  继续
+                  <span>继续</span>
                 </button>
               )}
               <button
                 type="button"
-                className="btn-secondary"
+                className="focus-control-btn btn-ghost"
                 onClick={() => useFocusStore.getState().reset()}
               >
                 <RotateCcw aria-hidden="true" className="icon-sm" />
-                重置
+                <span>放弃</span>
               </button>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </DialogShell>
   );

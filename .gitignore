@@ -27,6 +27,7 @@ android-test-*.png
 .idea
 .workbuddy/
 .agents/
+.commandcode/
 .DS_Store
 *.suo
 *.ntvs*
@@ -56,3 +57,9 @@ vite.config.js
 
 # 开发规划（私有，仅本地，不提交远端）
 docx/
+
+# 浏览器截图验证暂存（agent-browser 产物，本地临时）
+.browser-check/
+
+# Gitee 个人访问令牌（本地明文，绝不提交公开仓库）
+.gitee-token

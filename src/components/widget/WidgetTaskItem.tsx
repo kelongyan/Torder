@@ -20,13 +20,11 @@ export function WidgetTaskItem({
   listColor,
   busy,
   onToggle,
-  onOpen,
 }: {
   task: Task;
   listColor: string | null;
   busy: boolean;
   onToggle: () => void;
-  onOpen: () => void;
 }) {
   const completed = task.status === "done";
   const time = formatTime(task.dueAt);
@@ -47,7 +45,6 @@ export function WidgetTaskItem({
       className={className}
       data-task-id={task.id}
       data-tauri-drag-region="false"
-      onClick={onOpen}
     >
       <button
         type="button"
@@ -61,17 +58,9 @@ export function WidgetTaskItem({
       >
         {completed && <Check aria-hidden="true" />}
       </button>
-      <button
-        type="button"
-        className="widget-item-title"
-        title={task.title}
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpen();
-        }}
-      >
+      <span className="widget-item-title" title={task.title}>
         {task.title}
-      </button>
+      </span>
       {listColor && (
         <span className="widget-item-dot" style={{ background: listColor }} />
       )}

@@ -1,7 +1,11 @@
+#[cfg(target_os = "windows")]
+mod acrylic;
 pub mod backup;
 pub mod commands;
 pub mod db;
 pub mod error;
+#[cfg(desktop)]
+mod clock;
 #[cfg(desktop)]
 mod mini;
 pub mod models;
@@ -174,9 +178,14 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 widget::setup(app)?;
+                clock::setup(app)?;
                 tray::set_widget_menu_checked(
                     app.handle(),
                     widget::is_widget_visible(app.handle()),
+                );
+                tray::set_clock_menu_checked(
+                    app.handle(),
+                    clock::is_clock_visible(app.handle()),
                 );
                 // 开机自启动以 --silent 拉起：静默驻留托盘，不弹主窗口
                 if std::env::args().any(|arg| arg == "--silent") {
@@ -195,6 +204,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app::get_app_info,
             commands::app::set_window_material_theme,
+            commands::app::fetch_update_manifest,
+            commands::app::fetch_text,
+            commands::app::download_update_file,
+            commands::app::launch_installer_and_exit,
             commands::database::get_database_status,
             commands::focus::notify_focus_finished,
             commands::backup::backup_database,
@@ -269,6 +282,8 @@ pub fn run() {
             #[cfg(desktop)]
             commands::widget::hide_widget_window,
             #[cfg(desktop)]
+            commands::widget::set_widget_glass,
+            #[cfg(desktop)]
             commands::widget::patch_widget_settings,
             #[cfg(desktop)]
             commands::widget::import_note_font,
@@ -280,6 +295,14 @@ pub fn run() {
             commands::notice::send_notice,
             #[cfg(desktop)]
             commands::widget::remove_note_font,
+            #[cfg(desktop)]
+            commands::clock::toggle_clock,
+            #[cfg(desktop)]
+            commands::clock::set_clock_enabled,
+            #[cfg(desktop)]
+            commands::clock::patch_clock_settings,
+            #[cfg(desktop)]
+            commands::clock::get_clock_settings,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Torder");

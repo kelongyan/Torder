@@ -35,7 +35,7 @@ import { SettingsDefaultsSection } from "./SettingsDefaultsSection";
 import { SettingsNotificationsSection } from "./SettingsNotificationsSection";
 import { SettingsShortcutsSection } from "./SettingsShortcutsSection";
 import { SettingsAboutExtras } from "./SettingsAboutExtras";
-import type { AppSettings, SettingsPanelId } from "../../types/settings";
+import type { AppSettings, SettingsPanelId, UpdateInfo } from "../../types/settings";
 import type { TaskList } from "../../types/database";
 
 type SettingsPanel = SettingsPanelId;
@@ -145,6 +145,7 @@ export function SettingsDialog({
   onSyncStatusChange,
   onToast,
   onImportComplete,
+  onOpenUpdateDialog,
 }: {
   autoBackup: boolean;
   settings: AppSettings;
@@ -167,6 +168,7 @@ export function SettingsDialog({
   onSyncStatusChange: (status: SyncStatus) => void;
   onToast: (message: string, type: ToastKind) => void;
   onImportComplete: () => Promise<void>;
+  onOpenUpdateDialog?: (info: UpdateInfo) => void;
 }) {
   const mobile = isMobile();
   const visiblePanels = settingsPanels.filter(
@@ -290,7 +292,10 @@ export function SettingsDialog({
 
         {meta.id === "about" && (
           <>
-            <SettingsAboutSection onToast={onToast} />
+            <SettingsAboutSection
+              onToast={onToast}
+              onOpenUpdateDialog={onOpenUpdateDialog}
+            />
             {/* F2 · T-11：更新日志 / 开源许可转正 */}
             <SettingsAboutExtras />
           </>

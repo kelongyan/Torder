@@ -23,8 +23,10 @@ Set-Location $root
 $env:CARGO_HOME = "D:\cargo"
 $env:RUSTUP_HOME = "D:\rustup"
 $env:PATH = "D:\cargo\bin;C:\Program Files (x86)\NSIS;$env:PATH"
-# 并行编译任务数：跟随 CPU 逻辑核数（默认 28 核全开；内存不足时可手动改小，如 "4"）
-$env:CARGO_BUILD_JOBS = "$env:NUMBER_OF_PROCESSORS"
+# 并行编译任务数：本机是 16GB / 12 核低内存机，按 RULE.md §4 固定压到 4，
+# 不要把 12 核跑满（编译期峰值内存会 OOM）。需要临时调整时用
+# TORDER_CARGO_JOBS 覆盖（如更吃紧的 8GB 机器设为 2）。
+$env:CARGO_BUILD_JOBS = if ($env:TORDER_CARGO_JOBS) { $env:TORDER_CARGO_JOBS } else { "4" }
 
 # 2. 前置检查
 if (-not (Get-Command makensis.exe -ErrorAction SilentlyContinue)) {
@@ -32,6 +34,13 @@ if (-not (Get-Command makensis.exe -ErrorAction SilentlyContinue)) {
 }
 
 # 3. 构建（tauri.conf.json 的 beforeBuildCommand 会自动跑 pnpm build，无需手动前置）
+# 清空 dist：vite.config 设 emptyOutDir=false（vite 自删触发注入 shim 超时），
+# 清理责任在本脚本——不清理则孤儿 bundle 累积、全部打进安装包。
+$distDir = Join-Path $root "dist"
+if (Test-Path $distDir) {
+  Remove-Item $distDir -Recurse -Force
+  Write-Host "[clean] 已清空 dist/" -ForegroundColor Yellow
+}
 Write-Host "[build] pnpm tauri build (CARGO_BUILD_JOBS=$env:CARGO_BUILD_JOBS)..." -ForegroundColor Cyan
 pnpm tauri build
 if ($LASTEXITCODE -ne 0) { throw "pnpm tauri build 失败 (exit $LASTEXITCODE)" }
