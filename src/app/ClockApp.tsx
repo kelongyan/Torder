@@ -108,34 +108,46 @@ export function ClockApp() {
   /** 小时段上限 2（= 120 分钟）；键入满两位或首位 ≥1 时自动跳到分钟段。 */
   function handleHourChange(raw: string) {
     const digits = digitsOf(raw);
-    const val = Math.min(digits === "" ? 0 : parseInt(digits, 10), 2);
-    setHourText(digits === "" ? "" : pad(val));
-    if (digits.length === 2 || val >= 1) {
+    if (digits === "") {
+      setHourText("");
+      return;
+    }
+    const val = Math.min(parseInt(digits, 10), 2);
+    if (digits.length === 2 || parseInt(digits, 10) >= 1) {
+      // 段位已敲定：规整回两位形态再跳段
+      setHourText(pad(val));
       minRef.current?.focus();
       minRef.current?.select();
+    } else {
+      // 中间态保持未满位（"0"）：立即补成 "00" 的话，下一次键入会被
+      // digitsOf 截成前两位，新键入的数字被吞掉（无法输两位数的根因）。
+      setHourText(digits);
     }
   }
 
   function handleMinChange(raw: string) {
-    const digits = digitsOf(raw);
-    let val = digits === "" ? 0 : parseInt(digits, 10);
-    // 实时钳住总量上限：2 小时 = 120 分钟时分钟段只能为 0。
-    val = Math.min(val, 59, Math.max(0, FOCUS_MAX_MINUTES - hourNum * 60));
-    setMinText(digits === "" ? "" : pad(val));
+    // 中间态只保留原始数字、不补零不钳制——补零同上会吞掉下一位键入；
+    // 钳制与两位规整统一由 handleMinBlur / totalFromDraft 兜底。
+    setMinText(digitsOf(raw));
   }
 
-  /** 离开段位时把草稿规整回两位形态（下限 5 分钟在 Enter 时统一兜底）。 */
+  /** 离开段位时把草稿规整回两位形态（下限 5 分钟在 Enter 时统一兜底）。
+   *  必须用函数式更新：跳段引发的 blur 与 onChange 同步触发，此刻闭包里的
+   *  草稿还是旧值，直接读会把刚键入的段位覆盖回上一个值（小时键入 "1"
+   *  落库变 "00" 的根因）。 */
   function handleHourBlur() {
-    setHourText(pad(Math.min(parseInt(hourText, 10) || 0, 2)));
+    setHourText((prev) => pad(Math.min(parseInt(prev, 10) || 0, 2)));
   }
 
   function handleMinBlur() {
-    let val = parseInt(minText, 10) || 0;
-    val = Math.min(val, 59, Math.max(0, FOCUS_MAX_MINUTES - hourNum * 60));
-    if (hourNum === 0 && val > 0 && val < FOCUS_MIN_MINUTES) {
-      val = FOCUS_MIN_MINUTES;
-    }
-    setMinText(pad(val));
+    setMinText((prev) => {
+      let val = parseInt(prev, 10) || 0;
+      val = Math.min(val, 59, Math.max(0, FOCUS_MAX_MINUTES - hourNum * 60));
+      if (hourNum === 0 && val > 0 && val < FOCUS_MIN_MINUTES) {
+        val = FOCUS_MIN_MINUTES;
+      }
+      return pad(val);
+    });
   }
 
   function totalFromDraft(): number {
@@ -409,6 +421,12 @@ export function ClockApp() {
             className="clock-edit-btn"
             data-tauri-drag-region="false"
             title={editing ? "完成编辑" : "编辑专注时长"}
+            onMouseDown={(event) => {
+              // 编辑态再点铅笔 = 退出编辑。不拦 mousedown 默认聚焦的话，
+              // 输入区会先 blur→exitEdit，随后的 click 看到 editing 已为
+              // false 又重新 enterEdit——表现为铅笔永远退不出编辑态。
+              if (editing) event.preventDefault();
+            }}
             onClick={() => (editing ? exitEdit() : enterEdit())}
           >
             <Pencil size={12} />
