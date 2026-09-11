@@ -207,14 +207,21 @@ describe("计时状态机", () => {
     expect(useFocusStore.getState().lastCompletedAt).not.toBeNull();
   });
 
-  it("reset 清空回 idle 并移除持久化", () => {
+  it("reset 归 idle 但保留用户设置的时长（不整条清除持久化）", () => {
+    useFocusStore.getState().setDuration(40);
     useFocusStore.getState().start();
     useFocusStore.getState().reset();
     const state = useFocusStore.getState();
     expect(state.mode).toBe("idle");
     expect(state.endAt).toBeNull();
     expect(state.focusTaskId).toBeNull();
-    expect(localStorage.getItem("torder-focus")).toBeNull();
+    // durationMin 是用户偏好：reset 后持久化里必须还在，下次默认 40 而非 25
+    expect(state.durationMin).toBe(40);
+    const saved = JSON.parse(
+      localStorage.getItem("torder-focus") ?? "{}",
+    ) as PersistedFocus;
+    expect(saved.mode).toBe("idle");
+    expect(saved.durationMin).toBe(40);
   });
 
   it("运行中 setDuration / setFocusTask 不生效（仅对下一轮）", () => {
@@ -242,7 +249,7 @@ describe("计时状态机", () => {
 });
 
 describe("持久化写入", () => {
-  it("start 时写入 localStorage；tick 完成后清除", () => {
+  it("start 时写入 localStorage；tick 完成后归 idle 且保留时长", () => {
     useFocusStore.getState().start("task-2");
     const saved = JSON.parse(
       localStorage.getItem("torder-focus") ?? "{}",
@@ -252,7 +259,14 @@ describe("持久化写入", () => {
 
     advance(25 * 60_000);
     useFocusStore.getState().tick();
-    expect(localStorage.getItem("torder-focus")).toBeNull();
+    // 到期归 idle 后记录保留（durationMin 是偏好，不清），供下次默认
+    const after = JSON.parse(
+      localStorage.getItem("torder-focus") ?? "{}",
+    ) as PersistedFocus;
+    expect(after.mode).toBe("idle");
+    expect(after.durationMin).toBe(25);
+    expect(useFocusStore.getState().mode).toBe("idle");
+    expect(useFocusStore.getState().lastCompletedAt).not.toBeNull();
   });
 });
 

@@ -1,16 +1,20 @@
 /* ===== 桌面时钟挂件（Clock Widget）样式 =====
  *
+ * 设计主轴：**零控件**。卡片表面不出现任何按钮——操作对象是时间数字本身。
+ * （2026-09-10 起：顶部工具条与底部预设坞已整体移除。悬停浮层会让挂件从
+ * 「物件」降级成「应用窗口」，那份"静静待在那儿"的价值会立刻消失。）
+ *
  * 视觉：TimeSpot 式极简 —— 超大几何数字当主角，其余元素退成灰阶配角。
- * 材质：复刻便签的「磨砂透明玻璃」（widget.css 的 glass 主题 + 便签磨砂卡），
- *      由两层合成，缺一不可：
- *        1) 窗口层 —— Rust `set_clock_glass` 走 SWCA Acrylic，在窗口背后做模糊
- *           （tint 深色 18/22/28 / 浅色 246/248/252，alpha ×120）。
- *        2) CSS 层 —— 本文件提供半透明 tint + inset 微光描边 + 文字投影。
- *      这里刻意不用 `backdrop-filter`：透明 WebView 窗口在 hidden→show 切换时
- *      合成会出问题（便签当初踩过，见 widget.css 顶部注释）。
+ *      读数分三级：主时间 / 弱化秒 / 状态行，比例约 7.8 : 3.1 : 1。
+ *
+ * 材质：单层 CSS tint（不再叠加 SWCA 磨砂——磨砂按窗口矩形绘制、无法随纸面
+ *      20px 圆角裁形，会把挂件包进方角容器）。玻璃感由三件套承担：顶部镜面
+ *      高光（::after）+ 边缘双向描边 + 数字竖向渐变。刻意不用 `backdrop-filter`：
+ *      透明 WebView 窗口在 hidden→show 切换时合成会出问题（便签踩过）。
  *
  * 尺寸自适应：窗口可鼠标拉伸（200x120 ~ 720x480，区间与 src-tauri/src/clock.rs
- * 一致），排版尺寸全部用 vw/vh 随窗口缩放，不写死绝对值；仅工具按钮保持固定像素。
+ * 一致），排版尺寸全部用 vw/vh 随窗口缩放，不写死绝对值。
+ * 本文件在 check-design-tokens.mjs 的 EXCLUDE 名单内，不受 4px 栅格约束。
  */
 
 /* --- 窗口壳层重置：消除外部壁纸、容器留白与默认尺寸约束 --- */
@@ -40,14 +44,10 @@ html.clock-entry body {
   transition: none !important;
 }
 
-/* --- 主题变量：默认（深色主题）走墨玻璃，浅色主题走白雾玻璃 ---
- *
+/* --- 主题变量：默认（深色）走墨玻璃，浅色走白雾玻璃 ---
  * --clock-glass-alpha 由 ClockApp 在主题切换时写入。
- * CSS tint 是玻璃的唯一遮罩层（2026-09-10 起不再叠加 SWCA 磨砂——磨砂
- * 按窗口矩形绘制、无法随 20px 圆角裁形，会把挂件包进方角容器）。乘数
- * 0.75 / 0.8 按原先「磨砂(23.5%) + CSS(17.6%/21%)」叠加的等效遮罩率
- * 折算：无模糊打底的前提下保住文字对比度。
- */
+ * CSS tint 是玻璃的唯一遮罩层，乘数 0.75 / 0.8 按原「磨砂 + CSS」叠加的
+ * 等效遮罩率折算：无模糊打底的前提下保住文字对比度。 */
 :root {
   --clock-font:
     "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui,
@@ -55,49 +55,60 @@ html.clock-entry body {
   --clock-glass-alpha: 0.5;
 }
 
-/* 浅色玻璃：未显式声明 dark 时即生效（浏览器 mock、首次启动都落在这里），
-   让深色文字压在雾白玻璃上仍然清晰；深色块在下方按同特异性后置覆盖。 */
+/* 浅色玻璃：未显式声明 dark 时即生效（浏览器 mock、首次启动都落在这里） */
 :root:not([data-theme="dark"]) {
-  --clock-tint: calc(var(--clock-glass-alpha) * 0.8);
+  /* 遮罩浓度：单层 tint 撑不起"厚玻璃"，只能靠降低浓度让壁纸透出来，
+     再用边缘光/镜面光补质感——浓 tint + 无模糊 = 一块牛奶板。 */
+  --clock-tint: calc(var(--clock-glass-alpha) * 0.68);
   --clock-paper: linear-gradient(
     160deg,
     rgba(255, 255, 255, var(--clock-tint)) 0%,
     rgba(240, 244, 250, var(--clock-tint)) 55%,
     rgba(232, 238, 246, var(--clock-tint)) 100%
   );
-  --clock-edge: rgba(255, 255, 255, 0.55);
+  --clock-edge: rgba(255, 255, 255, 0.62);
   --clock-ink: #10151c;
-  --clock-ink-inverse: #ffffff;
+  --clock-ink-hi: #3a4452;
   --clock-ink-soft: rgba(16, 21, 28, 0.6);
-  --clock-control-bg: rgba(255, 255, 255, 0.45);
-  --clock-control-bg-hover: rgba(255, 255, 255, 0.78);
-  --clock-accent: #d95f18;
+  --clock-control-bg: rgba(16, 21, 28, 0.08);
+  --clock-accent: #c9551a;
+  /* 编辑态专用青蓝：刻意避开专注态的橙，否则"在调时间"和"正在专注"
+     会看不出区别。 */
+  --clock-edit: #0f7a8c;
+  --clock-edit-hi: #1d94a8;
+  --clock-sheen-top: rgba(255, 255, 255, 0.5);
+  --clock-sheen-diag: rgba(255, 255, 255, 0.2);
+  --clock-text-shadow-color: rgba(255, 255, 255, 0.5);
   --clock-sheen:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
-  --clock-text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.05);
 }
 
 /* 深色主题覆盖（放在浅色块之后，保证 [data-theme="dark"] 优先） */
 :root[data-theme="dark"] {
-  --clock-tint: calc(var(--clock-glass-alpha) * 0.75);
+  --clock-tint: calc(var(--clock-glass-alpha) * 0.62);
   --clock-paper: linear-gradient(
     160deg,
     rgba(26, 30, 38, var(--clock-tint)) 0%,
     rgba(15, 19, 27, var(--clock-tint)) 55%,
     rgba(10, 13, 19, var(--clock-tint)) 100%
   );
-  --clock-edge: rgba(255, 255, 255, 0.16);
+  --clock-edge: rgba(255, 255, 255, 0.2);
   --clock-ink: #f2f6fb;
-  --clock-ink-inverse: #0d1117;
+  --clock-ink-hi: #ffffff;
   --clock-ink-soft: rgba(240, 246, 252, 0.72);
-  --clock-control-bg: rgba(255, 255, 255, 0.1);
-  --clock-control-bg-hover: rgba(255, 255, 255, 0.2);
-  --clock-accent: #ff8a4c;
+  --clock-control-bg: rgba(255, 255, 255, 0.14);
+  --clock-accent: #e8722f;
+  --clock-edit: #4fc2d8;
+  --clock-edit-hi: #8ae2f5;
+  --clock-sheen-top: rgba(255, 255, 255, 0.16);
+  --clock-sheen-diag: rgba(255, 255, 255, 0.05);
+  --clock-text-shadow-color: rgba(0, 0, 0, 0.55);
   --clock-sheen:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
-  --clock-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.2);
 }
 
 /* --- 舞台：全透明，严防双层半透明叠加把透明度吃光（便签同款纪律） --- */
@@ -114,16 +125,14 @@ html.clock-entry body {
   -webkit-user-select: none;
 }
 
-/* --- 玻璃卡片：单层半透明 tint 铺满窗口，圆角裁切 --- */
+/* --- 玻璃卡片：单层半透明 tint 铺满窗口，圆角裁切 ---
+ * 这里刻意**不用 flex 居中读数**：读数区与状态行是两件不同重量级的东西，
+ * 让它们作为整体居中会把数字顶到偏上（下方那行小字占了配额）。改为读数区
+ * 自身绝对居中、状态行挂在它下面——数字落在几何中心，才是视线落点。 */
 .clock-shell {
   position: relative;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   box-sizing: border-box;
-  padding: clamp(8px, 6vh, 20px) clamp(12px, 5vw, 30px);
   border-radius: 20px;
   border: 1px solid var(--clock-edge);
   background: var(--clock-paper);
@@ -132,110 +141,118 @@ html.clock-entry body {
   transition: border-color 0.2s ease;
 }
 
-/* --- 悬停浮动工具条：绝对定位、零占位，鼠标移开即隐去 --- */
-.clock-toolbar {
+/* 镜面与外缘光：两束有方向的光。
+ * 单层平涂 tint 只能算"色块"，有方向的光才是"玻璃"——顶部弧形镜面反光
+ * 交代了光源在上方，斜向掠光交代了卡片是一块斜置的平面。
+ * z-index: 0 落在 shell 背景之上、读数之下（读数 z-index: 1）。 */
+.clock-shell::after {
+  content: "";
   position: absolute;
-  top: clamp(4px, 2vh, 10px);
-  left: clamp(6px, 2.5vw, 14px);
-  right: clamp(6px, 2.5vw, 14px);
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  opacity: 0;
-  transform: translateY(-3px);
+  inset: 0;
+  border-radius: inherit;
   pointer-events: none;
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
+  z-index: 0;
+  background:
+    radial-gradient(
+      130% 74% at 50% -20%,
+      var(--clock-sheen-top),
+      transparent 62%
+    ),
+    linear-gradient(118deg, var(--clock-sheen-diag), transparent 38%);
 }
 
-.clock-shell:hover .clock-toolbar {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.clock-toolbar-slot {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.clock-tool {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--clock-ink-soft);
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.clock-tool:hover {
-  background: var(--clock-control-bg-hover);
-  color: var(--clock-ink);
-}
-
-.clock-tool.is-on {
-  color: var(--clock-accent);
-  background: color-mix(in srgb, var(--clock-accent) 22%, transparent);
-}
-
-.clock-tool.is-close:hover {
-  background: rgba(229, 72, 77, 0.3);
-  color: #ff9a9e;
-}
-
-/* --- 读数区：超大时间 + 次要说明 --- */
+/* --- 读数区：整个巨大的数字区就是唯一交互对象。
+ * 绝对居中 + 光学补偿（方向：**向上**）。
+ * 数字没有下伸部，但字体的 descent 照样占位——实测 Segoe UI 在
+ * font-size 75.6px 下 fontBox ascent/descent = 82/19，而数字实际 ascent
+ * 只有 55，于是字面在 line box 内偏下约 4px（≈0.05em）。line box 几何居中
+ * 时字面中心就落在卡片中心下方 4px，这里往上推回来。
+ * 用 vw/vh 而非 em：em 会随字号跳档让补偿量跟着变，vw/vh 只跟窗口尺寸走。 --- */
 .clock-readout {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - min(1.3vw, 2.2vh));
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-width: 0;
+  max-width: 100%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
 }
 
+/* 编辑态光标换成上下箭头。这是全挂件唯一一处"可发现性提示"——光标不属于
+   界面内容，不破坏零提示的纯粹性，但足以说明这里能上下调。 */
+.clock-stage.is-editing .clock-readout {
+  cursor: ns-resize;
+}
+
+/* --- 主时间 + 弱化秒：字号在这里定档，子元素用 em 派生 ---
+ * 主字号 min(25vw, 42vh)：字符从 8 个减到 5 个（秒独立出去），主时间因此
+ * 比旧版能放大；但 25vw 这个值是按"留出呼吸位"定的——320×180 下实得
+ * 75.6px，整组（含秒）约占 71% 宽，左右各余约 46px。 */
 .clock-time {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1em;
+  font-size: min(25vw, 42vh);
   font-family: var(--clock-font);
-  /* 8 字符（HH:MM:SS）约占 3.86em，取 27vw 让它在常见比例下铺到 ~85% 宽 */
-  font-size: min(27vw, 42vh);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: -0.035em;
-  color: var(--clock-ink);
-  text-shadow: var(--clock-text-shadow);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   white-space: nowrap;
-  cursor: default;
-  transition:
-    color 0.2s ease,
-    transform 0.1s ease;
 }
 
-.clock-time:active {
-  transform: scale(0.99);
+/* 竖向渐变当"受光"：上亮下暗。
+ * 坑：background-clip: text + color: transparent 时 text-shadow 仍按字形绘制，
+ * 会在渐变字后面留一层实色重影——必须改用 filter: drop-shadow()。 */
+.clock-time-main {
+  background-image: linear-gradient(
+    180deg,
+    var(--clock-ink-hi),
+    var(--clock-ink)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 1px var(--clock-text-shadow-color));
 }
 
+/* 上标式落位：与主数字的字面顶部大致齐平。margin-top 相对自身字号，
+ * em 基准是 0.4 × 主字号，起始值按截图实测校准。 */
+.clock-time-sec {
+  align-self: flex-start;
+  margin-top: 0.35em;
+  font-size: 0.36em;
+  letter-spacing: 0;
+  color: color-mix(in srgb, var(--clock-ink) 62%, transparent);
+  filter: drop-shadow(0 1px 1px var(--clock-text-shadow-color));
+}
+
+/* --- 状态行：兼任日期 / 悬停提示 / 设定提示 / 专注剩余。
+ * 它始终占用同一行、同一位置——所以任何时候都不会出现浮层压字。
+ * 绝对定位挂在读数区正下方（top: 100% 相对读数区高度 = 数字高度），
+ * 不参与读数区的居中计算——数字才能真正落在卡片中心。 */
 .clock-note {
+  position: absolute;
+  top: 100%;
+  left: 50%;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: clamp(2px, 2.4vh, 10px);
+  gap: 0.4em;
+  max-width: 92%;
+  margin-top: min(1.2vw, 2vh);
+  overflow: hidden;
+  transform: translateX(-50%);
   font-family: var(--clock-font);
-  font-size: clamp(9px, min(4.4vw, 6.5vh), 18px);
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-size: clamp(10px, min(4vw, 6.5vh), 16px);
+  font-weight: 400;
+  letter-spacing: 0.04em;
   color: var(--clock-ink-soft);
-  text-shadow: var(--clock-text-shadow);
+  filter: drop-shadow(0 1px 1px var(--clock-text-shadow-color));
   white-space: nowrap;
 }
 
@@ -244,13 +261,14 @@ html.clock-entry body {
   flex: none;
 }
 
-/* --- 专注进度：贴着卡片底边的一根细线（替代原先的表盘圆环） --- */
+/* --- 专注进度：贴着卡片底边的一根细线。
+ * 去掉原先 8px 发光 + 右侧渐隐：从"霓虹条"变回"仪表刻度"。 --- */
 .clock-progress {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 3px;
+  height: 2px;
   z-index: 2;
   background: var(--clock-control-bg);
 }
@@ -258,87 +276,143 @@ html.clock-entry body {
 .clock-progress-fill {
   display: block;
   height: 100%;
-  background: var(--clock-accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--clock-accent) 70%, transparent);
+  background: linear-gradient(
+    90deg,
+    var(--clock-accent),
+    color-mix(in srgb, var(--clock-accent) 55%, transparent)
+  );
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* --- 底部动作区：常态悬停浮现预设，专注态常驻控制 --- */
-.clock-actions {
+/* --- 编辑态：同一个数字就地变成时长并换色，状态行整行退场。
+ * 模式信号靠"数字变色 + 界面净化"，而不是加提示文字——加字就是加噪音。
+ * 实现上只重定义墨色 token：数字的渐变、秒、状态行全部吃这两个变量，
+ * 编辑态下后两者本来就 display:none，所以重定义是安全的。 --- */
+.clock-stage.is-editing {
+  --clock-ink: var(--clock-edit);
+  --clock-ink-hi: var(--clock-edit-hi);
+}
+
+.clock-stage.is-editing .clock-note {
+  display: none;
+}
+
+/* --- 专注态：倒计时染色。不再二次放大字号——MM:SS 本就比 HH:MM 少一位，
+ * 天然更轻，再放大反而会顶到状态行。颜色过渡放慢到 0.4s：进入专注应该是
+ * "染色"，不是"闪一下"。 --- */
+.clock-stage.is-focus .clock-time-main {
+  background-image: none;
+  color: var(--clock-accent);
+  transition: color 0.4s ease;
+}
+
+/* --- 编辑入口按钮：常态 25% 对比几乎隐形，悬浮浮出底色变明显。
+ * 常驻可见解决可发现性，低对比保住"物件感"——这是三代隐藏式入口
+ * （右键双击/滚轮/长按）实测被否之后，唯一站得住的平衡点。 --- */
+.clock-edit-btn {
   position: absolute;
-  bottom: clamp(4px, 2.4vh, 12px);
-  left: clamp(6px, 2.5vw, 14px);
-  right: clamp(6px, 2.5vw, 14px);
+  top: 10px;
+  right: 12px;
   z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  opacity: 0;
-  transform: translateY(3px);
-  pointer-events: none;
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
-}
-
-.clock-shell:hover .clock-actions,
-.clock-stage.is-focus .clock-actions {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.clock-action {
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 10px;
-  border: 1px solid var(--clock-edge);
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--clock-control-bg);
+  background: transparent;
   color: var(--clock-ink);
-  font-family: var(--clock-font);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-shadow: var(--clock-text-shadow);
+  opacity: 0.25;
   cursor: pointer;
   transition:
+    opacity 0.15s ease,
     background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
+    border-color 0.15s ease;
 }
 
-.clock-action:hover {
-  background: var(--clock-control-bg-hover);
+.clock-edit-btn:hover {
+  opacity: 1;
+  background: var(--color-background-primary);
+  border-color: var(--clock-edge);
+  /* 图标色必须随底色切到深色：常态的 --clock-ink 在暗色主题下是白的，
+     配白底就是白图标画在白圆上——隐形。用编辑态青蓝，语义也顺。 */
+  color: var(--clock-edit);
 }
 
-/* 主行动（暂停/继续）用反色实心：玻璃上最稳的视觉锚点 */
-.clock-action.is-primary {
-  background: var(--clock-ink);
-  border-color: transparent;
-  color: var(--clock-ink-inverse);
-  text-shadow: none;
+.clock-stage.is-focus .clock-edit-btn {
+  display: none;
 }
 
-.clock-action.is-primary:hover {
-  background: color-mix(in srgb, var(--clock-ink) 82%, transparent);
+/* --- 编辑态：小时/分钟两段就地输入。
+ * 与常态数字同字体同字号（位置零跳动），只有一条下划线交代可编辑；
+ * 焦点段下划线更实。小时段为 00 时淡化——眼睛只落在有意义的段上。 --- */
+.clock-seg {
+  width: 1.6em;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--clock-edit) 45%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--clock-edit);
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: inherit;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--clock-edit);
+  outline: none;
 }
 
-/* --- 专注态：倒计时上色，字号再放大（MM:SS 仅 5 字符） --- */
-.clock-stage.is-focus .clock-time {
-  font-size: min(46vw, 64vh);
-  color: var(--clock-accent);
+.clock-seg:focus {
+  border-bottom-color: var(--clock-edit);
+  box-shadow: 0 1px 0 0 var(--clock-edit);
+}
+
+/* 进编辑态会对分钟段 select() 全选——浏览器默认的蓝色选区高亮在深色玻璃上
+   非常扎眼，压成青蓝半透明。 */
+.clock-seg::selection {
+  background: color-mix(in srgb, var(--clock-edit) 32%, transparent);
+  color: inherit;
+}
+
+.clock-seg.is-zero:not(:focus) {
+  opacity: 0.35;
+}
+
+.clock-sep {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.14em;
+  margin: 0 0.1em;
+  align-self: center;
+}
+
+.clock-sep i {
+  width: 0.09em;
+  height: 0.09em;
+  border-radius: 50%;
+  background: var(--clock-edit);
+  opacity: 0.55;
+}
+
+/* --- 紧凑档：最小窗（200x120）下让位给数字本身 --- */
+@media (max-width: 260px), (max-height: 150px) {
+  .clock-time-sec,
+  .clock-note {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .clock-time,
-  .clock-note,
-  .clock-toolbar,
-  .clock-actions,
+  .clock-readout,
+  .clock-time-main,
   .clock-progress-fill {
     transition: none;
+    animation: none;
   }
 }

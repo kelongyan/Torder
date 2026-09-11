@@ -55,8 +55,13 @@ const DEFAULT_MINUTES = 25;
 const MIN_MINUTES = 5;
 const MAX_MINUTES = 120;
 
+/** 专注时长边界——导出给 UI 复用，避免挂件侧再硬编码一份。 */
+export const FOCUS_MIN_MINUTES = MIN_MINUTES;
+export const FOCUS_MAX_MINUTES = MAX_MINUTES;
+
 interface PersistedFocus {
-  mode: "running" | "paused";
+  /** 含 idle：空闲态也要能落盘 durationMin 这类跨重启偏好。 */
+  mode: FocusMode;
   endAt: number | null;
   remainingSec: number;
   durationMin: number;
@@ -180,7 +185,9 @@ export function hydrateFocus(
       startedAt: saved.startedAt ?? null,
     };
   }
-  return {};
+  // idle（或记录缺失）：计时状态归零，但 durationMin 是用户偏好，
+  // 照常恢复——"下次默认上次设置的时长"。
+  return saved.durationMin ? { durationMin: saved.durationMin } : {};
 }
 
 function hydrate(): Partial<FocusState> {
@@ -202,8 +209,12 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
   setDuration: (minutes) => {
     const durationMin = clampMinutes(minutes);
     const state = get();
-    if (state.mode === "idle") set({ durationMin });
+    if (state.mode !== "idle") return;
     // running/paused 中不改本轮时长：写入仅对下一轮生效（UI 已置灰）。
+    set({ durationMin });
+    // 时长是跨重启的偏好，必须落盘——否则设置页/时钟挂件改完时长，一重启就丢。
+    // persist 内部会广播，跨窗口（主窗 ↔ 时钟挂件）因此自动同步。
+    persist({ ...state, durationMin });
   },
 
   setFocusTask: (taskId) => {
@@ -276,20 +287,20 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
   },
 
   reset: () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // 忽略
-    }
-    broadcastFocusChange();
-    set({
-      mode: "idle",
+    // 刻意**不**清空整条持久化：durationMin 是用户的偏好设置（"下次默认
+    // 上次设置的时长，而不是剩余时间"），跟着 removeItem 一起删掉的话，
+    // 用户调过一次 40 分钟，结束本轮就又回到 25。这里只归 idle，保留时长。
+    const next = {
+      mode: "idle" as const,
       endAt: null,
       remainingSec: 0,
+      durationMin: get().durationMin,
       focusTaskId: null,
       startedAt: null,
       now: Date.now(),
-    });
+    };
+    persist(next);
+    set(next);
     syncDnd("idle", null);
   },
 
@@ -310,20 +321,19 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
       state.endAt <= now
     ) {
       // 到期：幂等完成本轮（tick 每秒一次，仅首次命中完成）。
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // 忽略
-      }
-      broadcastFocusChange();
-      set({
-        mode: "idle",
+      // 同 reset：不清整条持久化，用户设置的 durationMin 要留到下一轮。
+      const next = {
+        mode: "idle" as const,
         endAt: null,
         remainingSec: 0,
+        durationMin: state.durationMin,
+        focusTaskId: null,
         startedAt: null,
         lastCompletedAt: now,
         now,
-      });
+      };
+      persist(next);
+      set(next);
       syncDnd("idle", null);
       return;
     }

@@ -1,47 +1,95 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  FocusEvent as ReactFocusEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import {
-  Flame,
-  Lock,
-  Pause,
-  Pin,
-  Play,
-  RotateCcw,
-  Unlock,
-  X,
-} from "lucide-react";
+import { Flame, Pencil } from "lucide-react";
 import {
   getClockSettings,
+  listenClockSettings,
   patchClockSettings,
   CLOCK_GLASS_ALPHA,
 } from "../services/clockService";
-import { useFocusStore } from "../stores/focusStore";
+import {
+  FOCUS_MAX_MINUTES,
+  FOCUS_MIN_MINUTES,
+  useFocusStore,
+} from "../stores/focusStore";
 import "../styles/clock.css";
+
+/* ===== 桌面时钟挂件（Clock Widget）=====
+ *
+ * 交互形态（2026-09-11 定稿）：一枚几乎隐形的编辑按钮 + 就地分段输入。
+ *
+ *   常态     显示当前时间。右上角铅笔按钮常态只有 25% 对比（几乎隐形），
+ *            悬浮时浮出底色变明显。单击数字 = 用记忆时长直接开始专注。
+ *   编辑态   点击铅笔进入：时长按「小时 : 分钟」两段就地键入，同字体字号，
+ *            各带下划线（焦点段更实），中间淡化冒号隔开。小时段为 00 时
+ *            淡化显示。键入满两位自动跳下一段，←→ 或点击切换。
+ *            Enter = 确认并开始计时；Esc / 停手超时 / 点击按钮 = 保留时长退出。
+ *   专注中   倒计时。空格 = 暂停 ⇄ 继续，Esc = 结束本轮。
+ *
+ * 设计取舍记录：右键双击、滚轮、长按三代手势方案均被实测否决——隐藏式入口
+ * 在挂件上可发现性太差、滚轮手感受设备差异不可控。可见但极克制的按钮 +
+ * 原生 input 键入，是"可发现"与"物件感"之间能站住的平衡点。
+ */
 
 const FLUSH_DELAY_MS = 300;
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-const PRESET_MINUTES = [25, 45, 60];
+
+/** 编辑态停手超时：键入场景的思考间隙比滚动场景长，放宽到 8 秒。 */
+const EDIT_IDLE_MS = 8000;
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
+/** 总时长钳制沿用 focusStore 的边界（5–120 分钟），避免两处硬编码分叉。 */
+function clampMinutes(value: number): number {
+  return Math.max(
+    FOCUS_MIN_MINUTES,
+    Math.min(FOCUS_MAX_MINUTES, Math.round(value)),
+  );
+}
+
 /** 专注倒计时 MM:SS（不足一小时不补小时位，字号因此可以放得更大）。 */
 function formatCountdown(totalSeconds: number): string {
-  return `${pad(Math.floor(totalSeconds / 60))}:${pad(totalSeconds % 60)}`;
+  const safe = Math.max(0, totalSeconds);
+  return `${pad(Math.floor(safe / 60))}:${pad(safe % 60)}`;
+}
+
+function formatRemaining(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds);
+  if (safe < 60) return `${safe} 秒`;
+  return `${Math.ceil(safe / 60)} 分钟`;
+}
+
+/** 只保留数字并截断到两位（分段输入的原始过滤）。 */
+function digitsOf(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 2);
 }
 
 export function ClockApp() {
   const [now, setNow] = useState(() => Date.now());
-  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [editing, setEditing] = useState(false);
+  /** 分段输入的草稿：字符串形态（允许空串 = 输入中间态）。 */
+  const [hourText, setHourText] = useState("00");
+  const [minText, setMinText] = useState("25");
+
+  const stageRef = useRef<HTMLElement | null>(null);
+  const hourRef = useRef<HTMLInputElement | null>(null);
+  const minRef = useRef<HTMLInputElement | null>(null);
+  const editBoxRef = useRef<HTMLDivElement | null>(null);
   const flushTimerRef = useRef<number | null>(null);
 
   // 专注状态机绑定
   const mode = useFocusStore((state) => state.mode);
   const durationMin = useFocusStore((state) => state.durationMin);
+  const setDuration = useFocusStore((state) => state.setDuration);
   const startFocus = useFocusStore((state) => state.start);
   const pauseFocus = useFocusStore((state) => state.pause);
   const resumeFocus = useFocusStore((state) => state.resume);
@@ -52,7 +100,155 @@ export function ClockApp() {
   const isFocus = mode === "running" || mode === "paused";
   const isRunning = mode === "running";
 
-  // 每秒跳动：推进一次 store.tick() 并刷新时间戳。
+  /* ===== 分段值的解析与钳制 ===== */
+
+  const hourNum = parseInt(hourText, 10) || 0;
+  const minNum = parseInt(minText, 10) || 0;
+
+  /** 小时段上限 2（= 120 分钟）；键入满两位或首位 ≥1 时自动跳到分钟段。 */
+  function handleHourChange(raw: string) {
+    const digits = digitsOf(raw);
+    const val = Math.min(digits === "" ? 0 : parseInt(digits, 10), 2);
+    setHourText(digits === "" ? "" : pad(val));
+    if (digits.length === 2 || val >= 1) {
+      minRef.current?.focus();
+      minRef.current?.select();
+    }
+  }
+
+  function handleMinChange(raw: string) {
+    const digits = digitsOf(raw);
+    let val = digits === "" ? 0 : parseInt(digits, 10);
+    // 实时钳住总量上限：2 小时 = 120 分钟时分钟段只能为 0。
+    val = Math.min(val, 59, Math.max(0, FOCUS_MAX_MINUTES - hourNum * 60));
+    setMinText(digits === "" ? "" : pad(val));
+  }
+
+  /** 离开段位时把草稿规整回两位形态（下限 5 分钟在 Enter 时统一兜底）。 */
+  function handleHourBlur() {
+    setHourText(pad(Math.min(parseInt(hourText, 10) || 0, 2)));
+  }
+
+  function handleMinBlur() {
+    let val = parseInt(minText, 10) || 0;
+    val = Math.min(val, 59, Math.max(0, FOCUS_MAX_MINUTES - hourNum * 60));
+    if (hourNum === 0 && val > 0 && val < FOCUS_MIN_MINUTES) {
+      val = FOCUS_MIN_MINUTES;
+    }
+    setMinText(pad(val));
+  }
+
+  function totalFromDraft(): number {
+    return clampMinutes(hourNum * 60 + minNum);
+  }
+
+  /* ===== 编辑态进出 ===== */
+
+  const enterEdit = useCallback(() => {
+    setHourText(pad(Math.floor(durationMin / 60)));
+    setMinText(pad(durationMin % 60));
+    setEditing(true);
+  }, [durationMin]);
+
+  /** Esc / 超时 / 再点铅笔：**保留**调好的时长（用户确实设过），不开始计时。 */
+  const exitEdit = useCallback(() => {
+    setDuration(totalFromDraft());
+    setEditing(false);
+    // hourText/minText 参与时长计算但语义上是"当前草稿"而非依赖——
+    // 该回调只在退出那一刻取一次值。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hourText, minText, setDuration]);
+
+  /** Enter：落盘时长并立刻开始计时。 */
+  const commitEdit = useCallback(() => {
+    setDuration(totalFromDraft());
+    setEditing(false);
+    startFocus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hourText, minText, setDuration, startFocus]);
+
+  // 进入编辑态后焦点默认落在分钟段（最常调的就是它），并全选便于直接覆盖。
+  useEffect(() => {
+    if (!editing) return;
+    minRef.current?.focus();
+    minRef.current?.select();
+  }, [editing]);
+
+  // 停手超时兜底：挂件的本职是显示时间，不能一直停在编辑态。
+  // 每次键入都会重置（hourText/minText 在依赖里）。
+  useEffect(() => {
+    if (!editing) return;
+    const timer = window.setTimeout(exitEdit, EDIT_IDLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [editing, hourText, minText, exitEdit]);
+
+  // 两段间焦点都离开输入区（点到卡片空白等）时视为确认退出。
+  // relatedTarget 还在编辑区内（自动跳段触发的那次 blur）则不退出。
+  function handleEditBlur(event: ReactFocusEvent<HTMLDivElement>) {
+    if (!editing) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && editBoxRef.current?.contains(next)) return;
+    exitEdit();
+  }
+
+  // 键盘：编辑态 Enter/Esc/←→ 切段；专注态 空格/Esc。
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (editing) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          exitEdit();
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commitEdit();
+          return;
+        }
+        if (
+          event.key === "ArrowRight" &&
+          document.activeElement === hourRef.current
+        ) {
+          event.preventDefault();
+          minRef.current?.focus();
+          minRef.current?.select();
+        } else if (
+          event.key === "ArrowLeft" &&
+          document.activeElement === minRef.current
+        ) {
+          event.preventDefault();
+          hourRef.current?.focus();
+          hourRef.current?.select();
+        }
+        return;
+      }
+      if (isFocus) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          resetFocus();
+          return;
+        }
+        if (event.code === "Space") {
+          event.preventDefault();
+          if (isRunning) pauseFocus();
+          else resumeFocus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    editing,
+    isFocus,
+    isRunning,
+    exitEdit,
+    commitEdit,
+    resetFocus,
+    pauseFocus,
+    resumeFocus,
+  ]);
+
+  /* ===== 每秒跳动 ===== */
   // 剩余秒数刻意不做成 state —— 它在渲染期由 getRemaining() 现算：该值与
   // store 里记的 endAt 真实时间戳同源，后台节流 / 窗口隐藏都不会漂移，
   // 同时也避开了「在 effect 里同步 setState」这条 lint 规则。
@@ -64,20 +260,36 @@ export function ClockApp() {
     return () => window.clearInterval(timer);
   }, [tickFocus]);
 
-  // 读取时钟设置，并确保根节点挂载 clock-entry
+  /* ===== 设置读取与跨窗口同步 ===== */
   useEffect(() => {
     document.documentElement.classList.add("clock-entry");
-    void getClockSettings().then((s) => {
-      setAlwaysOnTop(Boolean(s.alwaysOnTop));
-      setLocked(Boolean(s.locked));
-    });
+
+    const adopt = (settings: {
+      alwaysOnTop?: boolean | null;
+      locked?: boolean | null;
+    }) => {
+      if (settings.alwaysOnTop !== undefined) {
+        // 窗口行为的落地点在挂件这侧：设置页只写设置键 + 广播，
+        // 真正的 setAlwaysOnTop 必须由本窗口执行（单一数据源，避免两处都写）。
+        if (isTauri()) {
+          void getCurrentWindow()
+            .setAlwaysOnTop(Boolean(settings.alwaysOnTop))
+            .catch(() => undefined);
+        }
+      }
+      if (settings.locked !== undefined) {
+        setLocked(Boolean(settings.locked));
+      }
+    };
+
+    void getClockSettings().then(adopt).catch(() => undefined);
+    return listenClockSettings(adopt);
   }, []);
 
   // 主题绑定：深浅切换时同步根节点属性与 CSS 玻璃浓度。
   // 不再调 set_clock_glass 开 SWCA 磨砂：SWCA 按窗口矩形绘制、无法随纸面
-  // 20px 圆角裁形，磨砂会把挂件包进一个方角磨砂容器（2026-09-10 实机验证，
-  // 窗口区域裁剪与 Win11 系统背景两条裁形路线对它都不生效）。CSS tint 是
-  // 唯一玻璃层，clock.css 已按单层口径加深。
+  // 20px 圆角裁形，磨砂会把挂件包进一个方角磨砂容器（2026-09-10 实机验证）。
+  // CSS tint 是唯一玻璃层，clock.css 已按单层口径加深。
   useEffect(() => {
     const applyTheme = (dark: boolean) => {
       document.documentElement.classList.toggle("dark", dark);
@@ -132,7 +344,10 @@ export function ClockApp() {
       .onResized(({ payload: size }) => {
         flushLater(async () => {
           const scale = await appWindow.scaleFactor();
-          await patchClockSettings({ w: size.width / scale, h: size.height / scale });
+          await patchClockSettings({
+            w: size.width / scale,
+            h: size.height / scale,
+          });
         });
       })
       .then((fn) => unlisteners.push(fn));
@@ -143,41 +358,17 @@ export function ClockApp() {
     };
   }, []);
 
-  // 切换置顶
-  async function handleToggleAlwaysOnTop() {
-    const next = !alwaysOnTop;
-    setAlwaysOnTop(next);
-    if (isTauri()) {
-      try {
-        await getCurrentWindow().setAlwaysOnTop(next);
-      } catch (err) {
-        console.error("Failed to set always on top:", err);
-      }
-    }
-    await patchClockSettings({ alwaysOnTop: next });
-  }
+  /* ===== 指针 ===== */
 
-  // 切换锁定位置
-  async function handleToggleLock() {
-    const next = !locked;
-    setLocked(next);
-    await patchClockSettings({ locked: next });
-  }
-
-  // 关闭（隐藏）窗口
-  async function handleClose() {
-    if (isTauri()) {
-      await getCurrentWindow().close();
-    }
-  }
-
-  // 快速开启专注
-  function handleStartFocus(minutes: number) {
-    useFocusStore.getState().setDuration(minutes);
+  // 单击数字 = 用记忆时长直接开始专注（最常用的动作）。
+  // 编辑态与专注态都不响应单击——编辑态的点击属于 input 与按钮。
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || editing || isFocus) return;
     startFocus();
   }
 
-  // 读数来源：时间戳派生 Date，剩余秒数从 store 现算（不走 state）
+  /* ===== 渲染 ===== */
+
   const time = new Date(now);
   const focusRemaining = getRemaining();
 
@@ -192,69 +383,89 @@ export function ClockApp() {
       ? Math.max(0, Math.min(1, focusRemaining / totalSeconds))
       : 0;
 
+  // 秒只在"看时钟"的时候在场：编辑态看的是时长，专注态看的是倒计时。
+  const showsSeconds = !editing && !isFocus;
+  const timeText = isFocus
+    ? formatCountdown(focusRemaining)
+    : `${hours}:${minutes}`;
+
+  // 状态行：正常态是日期，专注态是剩余时间；编辑态整行退场——
+  // 只留分段输入，模式信号靠"界面净化"而不是靠加提示。
+  const noteText = isFocus
+    ? `${isRunning ? "专注" : "已暂停"} · 剩 ${formatRemaining(focusRemaining)}`
+    : dateLabel;
+
   return (
     <main
-      className={`clock-stage ${isFocus ? "is-focus" : ""}`}
+      ref={stageRef}
+      className={`clock-stage ${isFocus ? "is-focus" : ""} ${editing ? "is-editing" : ""}`}
       data-tauri-drag-region={locked ? "false" : "deep"}
     >
       <div className="clock-shell">
-        {/* 悬停浮动工具条：绝对定位、零占位，移开鼠标即隐去 */}
-        <div className="clock-toolbar" data-tauri-drag-region="false">
-          <div className="clock-toolbar-slot">
-            <button
-              type="button"
-              className={`clock-tool ${alwaysOnTop ? "is-on" : ""}`}
-              onClick={() => void handleToggleAlwaysOnTop()}
-              title={alwaysOnTop ? "取消置顶" : "置顶显示"}
-            >
-              <Pin size={12} />
-            </button>
-            <button
-              type="button"
-              className={`clock-tool ${locked ? "is-on" : ""}`}
-              onClick={() => void handleToggleLock()}
-              title={locked ? "解锁位置" : "锁定位置"}
-            >
-              {locked ? <Lock size={12} /> : <Unlock size={12} />}
-            </button>
-          </div>
-          <div className="clock-toolbar-slot">
-            <button
-              type="button"
-              className="clock-tool is-close"
-              onClick={() => void handleClose()}
-              title="收起时钟"
-            >
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-
-        {/* 读数区：超大时间 + 次要说明，随窗口尺寸整体缩放 */}
-        <div className="clock-readout">
-          <div
-            className="clock-time"
+        {/* 编辑入口：常态 25% 对比几乎隐形，悬浮浮出底色。专注态不显示。 */}
+        {!isFocus && (
+          <button
+            type="button"
+            className="clock-edit-btn"
             data-tauri-drag-region="false"
-            onClick={() => {
-              if (!isFocus) handleStartFocus(25);
-            }}
-            title={isFocus ? undefined : "点击开始 25 分钟专注"}
+            title={editing ? "完成编辑" : "编辑专注时长"}
+            onClick={() => (editing ? exitEdit() : enterEdit())}
           >
-            {isFocus ? formatCountdown(focusRemaining) : `${hours}:${minutes}:${seconds}`}
-          </div>
+            <Pencil size={12} />
+          </button>
+        )}
+
+        <div
+          ref={editBoxRef}
+          className="clock-readout"
+          data-tauri-drag-region="false"
+          onPointerDown={handlePointerDown}
+          onBlur={handleEditBlur}
+        >
+          {editing ? (
+            <div className="clock-time clock-time-edit">
+              <input
+                ref={hourRef}
+                className={`clock-seg ${hourNum === 0 ? "is-zero" : ""}`}
+                value={hourText}
+                onChange={(event) => handleHourChange(event.target.value)}
+                onBlur={handleHourBlur}
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="专注小时"
+              />
+              <span className="clock-sep" aria-hidden="true">
+                <i />
+                <i />
+              </span>
+              <input
+                ref={minRef}
+                className="clock-seg"
+                value={minText}
+                onChange={(event) => handleMinChange(event.target.value)}
+                onBlur={handleMinBlur}
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="专注分钟"
+              />
+            </div>
+          ) : (
+            <div className="clock-time">
+              <span className="clock-time-main">{timeText}</span>
+              {showsSeconds && (
+                <span className="clock-time-sec">{seconds}</span>
+              )}
+            </div>
+          )}
           <div className="clock-note">
-            {isFocus ? (
-              <>
-                <Flame size={11} className="clock-note-flame" />
-                <span>{isRunning ? "专注中" : "已暂停"}</span>
-              </>
-            ) : (
-              <span>{dateLabel}</span>
-            )}
+            {isFocus && <Flame size={11} className="clock-note-flame" />}
+            <span>{noteText}</span>
           </div>
         </div>
 
-        {/* 专注进度：贴着卡片底边的一根细线，替代原先的表盘圆环 */}
+        {/* 专注进度：贴着卡片底边的一根细线 */}
         {isFocus && (
           <div className="clock-progress" aria-hidden="true">
             <i
@@ -263,56 +474,6 @@ export function ClockApp() {
             />
           </div>
         )}
-
-        {/* 底部动作区：常态悬停浮现预设，专注态常驻控制按钮 */}
-        <div className="clock-actions" data-tauri-drag-region="false">
-          {isFocus ? (
-            <>
-              {isRunning ? (
-                <button
-                  type="button"
-                  className="clock-action is-primary"
-                  onClick={pauseFocus}
-                  title="暂停"
-                >
-                  <Pause size={11} />
-                  <span>暂停</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="clock-action is-primary"
-                  onClick={resumeFocus}
-                  title="继续"
-                >
-                  <Play size={11} />
-                  <span>继续</span>
-                </button>
-              )}
-              <button
-                type="button"
-                className="clock-action"
-                onClick={resetFocus}
-                title="结束本轮"
-              >
-                <RotateCcw size={11} />
-                <span>结束</span>
-              </button>
-            </>
-          ) : (
-            PRESET_MINUTES.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                className="clock-action"
-                onClick={() => handleStartFocus(preset)}
-                title={`${preset} 分钟专注`}
-              >
-                {preset}m
-              </button>
-            ))
-          )}
-        </div>
       </div>
     </main>
   );
