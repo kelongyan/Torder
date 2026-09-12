@@ -49,9 +49,13 @@ html.clock-entry body {
  * CSS tint 是玻璃的唯一遮罩层，乘数 0.75 / 0.8 按原「磨砂 + CSS」叠加的
  * 等效遮罩率折算：无模糊打底的前提下保住文字对比度。 */
 :root {
+  /* 数字体 = Space Grotesk（OFL latin 子集，见 LICENSE-SpaceGrotesk.txt）。
+   * 2026-09-12 老大拍板候选画廊 A1（设计稿/clock-font-gallery.html），
+   * 是 D7/D8「字体保持现状」锁定在时钟挂件内的点名解锁点。
+   * 中文等未覆盖字符按序回退到原系统栈，状态行视觉不受影响。 */
   --clock-font:
-    "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui,
-    -apple-system, "Helvetica Neue", Arial, sans-serif;
+    "Space Grotesk", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif,
+    system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --clock-glass-alpha: 0.5;
 }
 
