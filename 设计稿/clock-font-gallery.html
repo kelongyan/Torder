@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>时钟数字艺术字候选画廊</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Playfair+Display:wght@500;600&family=Bebas+Neue&family=Michroma&family=Fraunces:opsz,wght@9..144,550&display=swap');
+      @font-face {
+        font-family: 'DSEG7 Classic';
+        src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2') format('woff2');
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #151c26; font-family: 'Segoe UI Variable Text', 'Segoe UI', sans-serif; padding: 20px 0 36px; color: #dfe6ef; }
+      h1 { font-size: 15px; font-weight: 600; padding: 0 26px 2px; }
+      .sub { font-size: 11px; color: #8fa0b5; padding: 0 26px 14px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; padding: 0 26px; }
+      .wall { position: relative; overflow: hidden; border-radius: 18px; }
+      .wall::before { content: ''; position: absolute; inset: 0; background:
+        radial-gradient(120% 90% at 20% 10%, #3d6aa8 0%, transparent 55%),
+        radial-gradient(110% 80% at 85% 90%, #7a4a8f 0%, transparent 50%),
+        linear-gradient(160deg, #25384f 0%, #1c2733 60%, #2b2f3d 100%); }
+      .card { position: relative; border-radius: 16px; padding: 16px 22px 12px;
+        background: linear-gradient(160deg, rgba(28,36,48,.78) 0%, rgba(20,27,37,.72) 55%, rgba(30,36,48,.76) 100%);
+        border: 1px solid rgba(255,255,255,.14);
+        box-shadow: 0 1px 0 rgba(255,255,255,.16) inset, 0 14px 30px rgba(0,0,0,.4);
+        display: flex; align-items: baseline; gap: 10px; justify-content: center; }
+      .time { font-size: 54px; font-weight: 500; line-height: 1.05; color: #e8edf4; font-variant-numeric: tabular-nums; }
+      .sec { font-size: 0.36em; color: #9fb0c4; font-weight: 500; }
+      .note { display: block; text-align: center; font-size: 11px; color: #93a3b6; padding-top: 1px; }
+      .tag { display: flex; align-items: baseline; gap: 8px; padding: 0 4px 6px; }
+      .tag b { font-size: 12px; color: #fff; }
+      .tag span { font-size: 10px; color: #8fa0b5; }
+      .f-sg { font-family: 'Space Grotesk', sans-serif; }
+      .f-pf { font-family: 'Playfair Display', serif; }
+      .f-bb { font-family: 'Bebas Neue', sans-serif; letter-spacing: .04em; font-size: 60px; }
+      .f-mi { font-family: 'Michroma', sans-serif; font-size: 42px; }
+      .f-fr { font-family: 'Fraunces', serif; font-variation-settings: 'opsz' 144; }
+      .f-ds { font-family: 'DSEG7 Classic', monospace; font-size: 44px; color: #bfd8ff; text-shadow: 0 0 12px rgba(120,170,255,.55); }
+      .f-css { font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif; font-weight: 650;
+        background: linear-gradient(180deg, #f4f8ff 8%, #c3d3e6 55%, #8fa5c0 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        filter: drop-shadow(0 0 9px rgba(150,190,255,.22)); }
+      /* 亮色玻璃组（复评用）：白雾玻璃 + 墨色字 */
+      .light .card { background: linear-gradient(160deg, rgba(255,255,255,.82) 0%, rgba(240,244,250,.76) 55%, rgba(232,238,246,.8) 100%);
+        border: 1px solid rgba(255,255,255,.7); box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 14px 30px rgba(20,30,45,.18); }
+      .light .time { color: #10151c; }
+      .light .sec { color: #5a6a7e; }
+      .light .note { color: #5f7085; }
+      .light.f-css-d { font-weight: 650;
+        background: linear-gradient(180deg, #3a4a63 0%, #16202e 60%, #0c1420 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        filter: drop-shadow(0 1px 0 rgba(255,255,255,.65)); }
+      .light .f-ds { color: #1c3a68; text-shadow: 0 0 10px rgba(60,110,200,.35); }
+    </style>
+  </head>
+  <body>
+    <h1>时钟数字 · 艺术字候选画廊</h1>
+    <div class="sub">统一时刻 06:12:34 · 与 #clock 真实卡片同构 · 上排深色玻璃（默认主题）/ 下排亮色玻璃（复评）</div>
+    <div class="grid">
+
+      <div><div class="tag"><b>0 · 现状基线</b><span>Segoe UI Display w500（线上现状）</span></div>
+      <div class="wall"><div class="card"><span class="time">06:12</span><span class="sec">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time">06:12</span><span class="sec">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>A1 · Space Grotesk</b><span>科技 grotesque · OFL · 自带 tnum</span></div>
+      <div class="wall"><div class="card"><span class="time f-sg">06:12</span><span class="sec f-sg">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-sg">06:12</span><span class="sec f-sg">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>A2 · Playfair Display</b><span>杂志 didone 衬线 · OFL</span></div>
+      <div class="wall"><div class="card"><span class="time f-pf">06:12</span><span class="sec f-pf">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-pf">06:12</span><span class="sec f-pf">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>A3 · Bebas Neue</b><span>海报压缩体 · OFL · 影院钟质感</span></div>
+      <div class="wall"><div class="card"><span class="time f-bb">06:12</span><span class="sec f-bb">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-bb">06:12</span><span class="sec f-bb">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>A4 · Michroma</b><span>仪表盘宽体 · OFL · 精密仪器感</span></div>
+      <div class="wall"><div class="card"><span class="time f-mi">06:12</span><span class="sec f-mi">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-mi">06:12</span><span class="sec f-mi">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>A5 · Fraunces</b><span>软奢衬线可变体 · OFL · 文房暖调</span></div>
+      <div class="wall"><div class="card"><span class="time f-fr">06:12</span><span class="sec f-fr">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-fr">06:12</span><span class="sec f-fr">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>B1 · DSEG7 Classic</b><span>LED 数码管 · OFL · 复古电子钟 + 辉光</span></div>
+      <div class="wall"><div class="card"><span class="time f-ds">06:12</span><span class="sec f-ds">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-ds light f-ds-l">06:12</span><span class="sec f-ds light">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+      <div><div class="tag"><b>C1 · CSS 高级化</b><span>零新资产：金属渐变字 + 微辉光（深）/ 墨面浮雕（浅）</span></div>
+      <div class="wall"><div class="card"><span class="time f-css">06:12</span><span class="sec f-css">34</span></div><div class="note">9月12日 周六</div></div>
+      <div class="wall light"><div class="card"><span class="time f-css light f-css-d">06:12</span><span class="sec f-css light f-css-d">34</span></div><div class="note">9月12日 周六</div></div></div>
+
+    </div>
+  </body>
+</html>
