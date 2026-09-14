@@ -24,6 +24,7 @@ import {
   createTask,
   queryTasksForDate,
   setTaskCompleted,
+  updateTask,
 } from "../services/taskService";
 import {
   localDateKey,
@@ -90,8 +91,10 @@ export function WidgetApp() {
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
   const [closing, setClosing] = useState(false);
-  /** 隐藏已完成条目（noteHideDone）；外观广播同步，唯一的行为型外观字段 */
+  /** 隐藏已完成条目（noteHideDone）；外观广播同步，行为型外观字段 */
   const [hideDone, setHideDone] = useState(false);
+  /** 双击条目就地编辑（noteDblEdit）；与 hideDone 同为行为型 note 字段 */
+  const [dblEdit, setDblEdit] = useState(true);
   /** 最新外观快照：应用主题广播（跟随应用）重解析纸色时读取 */
   const appearanceRef = useRef<WidgetAppearance | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -281,6 +284,7 @@ export function WidgetApp() {
       appearanceRef.current = widgetSettings;
       applyWidgetAppearance(widgetSettings);
       setHideDone(widgetSettings.noteHideDone);
+      setDblEdit(widgetSettings.noteDblEdit);
       setAnchorDate(widgetSettings.anchorDate);
       const isLocked = widgetSettings.locked === true;
       setLocked(isLocked);
@@ -373,6 +377,7 @@ export function WidgetApp() {
         applyWidgetAppearance(settings);
       })();
       setHideDone(settings.noteHideDone);
+      setDblEdit(settings.noteDblEdit);
       const anySettings = settings as Partial<WidgetSettings>;
       if (
         typeof anySettings.locked === "boolean" &&
@@ -800,6 +805,43 @@ export function WidgetApp() {
     }
   }
 
+  /**
+   * 就地改标题（双击编辑的落笔路径）：与 handleToggle 同款最小乐观——
+   * 先本地替换标题，updateTask 返回行整行替换，失败重拉当日兜底。
+   * updateTask 语义保留 completedAt，改标题不会把完成态抹掉。
+   */
+  async function handleRename(task: Task, title: string) {
+    setBusyTaskId(task.id);
+    setTasks((previous) =>
+      previous.map((row) => (row.id === task.id ? { ...row, title } : row)),
+    );
+    try {
+      const updated = await updateTask({
+        id: task.id,
+        title,
+        note: task.note,
+        status: task.status,
+        priority: task.priority,
+        listId: task.listId,
+        scheduledDate: task.scheduledDate,
+        dueAt: task.dueAt,
+        sortOrder: task.sortOrder,
+        remindBefore: task.remindBefore,
+        repeatRule: task.repeatRule,
+        subtasks: task.subtasks,
+        tags: task.tags,
+      });
+      setTasks((previous) =>
+        previous.map((row) => (row.id === updated.id ? updated : row)),
+      );
+      notifyTasksChanged("widget");
+    } catch {
+      await refreshDate(displayedDateKeyRef.current);
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
   async function handleCreate(input: CreateTaskInput) {
     const created = await createTask(input);
     // 快速添加支持"明天/周X"，新任务可能落在别的日期：
@@ -900,7 +942,9 @@ export function WidgetApp() {
                   task={task}
                   listColor={listColorById.get(task.listId) ?? null}
                   busy={busyTaskId === task.id}
+                  editable={dblEdit}
                   onToggle={() => void handleToggle(task)}
+                  onRename={(title) => void handleRename(task, title)}
                 />
               ))
             )}

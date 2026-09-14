@@ -32,6 +32,7 @@ export function SettingsDesktopSection({
 }) {
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
   const [widgetEnabled, setWidgetEnabled] = useState(false);
+  const [widgetDblEdit, setWidgetDblEdit] = useState(true);
   const [clockEnabled, setClockEnabled] = useState(false);
   const [clockAlwaysOnTop, setClockAlwaysOnTop] = useState(false);
   const [clockLocked, setClockLocked] = useState(false);
@@ -59,6 +60,7 @@ export function SettingsDesktopSection({
       if (cancelled) return;
       setLaunchAtStartup(startupSetting?.value === "true");
       setWidgetEnabled(widgetSettings.enabled);
+      setWidgetDblEdit(widgetSettings.noteDblEdit);
       setClockEnabled(clockSettings.enabled);
       setClockAlwaysOnTop(Boolean(clockSettings.alwaysOnTop));
       setClockLocked(Boolean(clockSettings.locked));
@@ -93,11 +95,26 @@ export function SettingsDesktopSection({
       setWidgetEnabled(enabled);
       onToast(enabled ? "桌面小窗已显示" : "桌面小窗已隐藏", "success");
     } catch (error) {
-      // 窗口操作失败时回滚设置键，保持开关与实际一致
+      // 窗口操作失败回滚设置键，保持开关与实际一致
       await patchWidgetSettings({ enabled: widgetEnabled }).catch(
         () => undefined,
       );
       onToast(`桌面小窗设置失败: ${String(error)}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** 便签双击编辑开关：patch 成功即广播 widget-settings-changed，便签窗口即时生效 */
+  async function handleWidgetDblEditToggle(enabled: boolean) {
+    if (busy) return;
+    setBusy(true);
+    setWidgetDblEdit(enabled);
+    try {
+      await patchWidgetSettings({ noteDblEdit: enabled });
+    } catch (error) {
+      setWidgetDblEdit(!enabled);
+      onToast(`便签设置失败: ${String(error)}`, "error");
     } finally {
       setBusy(false);
     }
@@ -198,6 +215,21 @@ export function SettingsDesktopSection({
           />
           <span>桌面小窗（常驻桌面的日期便签）</span>
         </label>
+        <label className="settings-toggle form-grid-full">
+          <input
+            type="checkbox"
+            checked={widgetDblEdit}
+            disabled={busy}
+            onChange={(event) =>
+              void handleWidgetDblEditToggle(event.target.checked)
+            }
+          />
+          <span>便签双击编辑（双击条目，就地在纸面上改标题）</span>
+        </label>
+        <p className="settings-section-hint form-grid-full">
+          便签交互：双击条目就地修改标题，Enter 落笔、Esc 作废、点击别处
+          落笔；勾选方框完成/取消完成。
+        </p>
         <label className="settings-toggle form-grid-full">
           <input
             type="checkbox"
