@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Droplet, Monitor, Moon, Palette, Sun } from "lucide-react";
 import { saveAppSetting } from "../../services/settingsService";
 import type {
   AccentPreference,
@@ -82,7 +82,10 @@ export function SettingsAppearanceSection({
   return (
     <>
       <section className="settings-section">
-        <h3 className="settings-section-title">应用主题</h3>
+        <h3 className="settings-section-title">
+          <Palette aria-hidden="true" className="icon-sm" />
+          应用主题
+        </h3>
         <div className="theme-cards">
           {THEME_CARDS.map(({ value, label, icon: Icon }) => {
             const on = settings.theme === value;
@@ -114,7 +117,10 @@ export function SettingsAppearanceSection({
 
       {/* F2 · T-09：强调色六色板（真实生效） */}
       <section className="settings-section">
-        <h3 className="settings-section-title">强调色</h3>
+        <h3 className="settings-section-title">
+          <Droplet aria-hidden="true" className="icon-sm" />
+          强调色
+        </h3>
         <div className="accent-swatches" role="radiogroup" aria-label="强调色">
           {ACCENT_SWATCHES.map(({ value, color }) => {
             const on = settings.accent === value;

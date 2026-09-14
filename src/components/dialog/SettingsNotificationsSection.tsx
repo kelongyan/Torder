@@ -1,4 +1,3 @@
-import { Bell } from "lucide-react";
 import { reminderOptions } from "../../constants/reminderConfig";
 import { saveAppSetting } from "../../services/settingsService";
 import type { AppSettings, NotificationSound } from "../../types/settings";
@@ -54,12 +53,9 @@ export function SettingsNotificationsSection({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Bell aria-hidden="true" className="icon-sm" />
-        通知
-      </h3>
+      {/* 单节面板：标题与面板大标题「提醒与通知」语义重复，省略区块标题行 */}
       {isMobile() && (
-        <p className="settings-section-note">
+        <p className="settings-section-hint">
           移动端提醒在应用打开时补发，不做后台常驻。
         </p>
       )}

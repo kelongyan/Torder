@@ -1,6 +1,5 @@
 /**
- * F2 · T-10：设置开关（真实控件）。视觉沿用设计稿 34×20 胶囊规格
- * （样式见 settings.css 的 .set-ph-switch / .switch-toggle 共用块）。
+ * F2 · T-10：设置开关（真实控件），34×20 胶囊规格（.switch-toggle）。
  * 2026-09-14 起为设置内唯一开关实现——原 .settings-toggle checkbox
  * 胶囊（34×19）已全部迁移到本组件，两套视觉并存问题消除。
  */

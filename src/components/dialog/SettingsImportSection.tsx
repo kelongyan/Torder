@@ -247,18 +247,21 @@ export function SettingsImportSection({
             if (file) void handleFile(file);
           }}
         />
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-        >
-          <FileUp aria-hidden="true" className="icon-sm" />
-          选择文件
-        </button>
+        <div className="settings-import-file-head">
+          <span>文件导入</span>
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+          >
+            <FileUp aria-hidden="true" className="icon-sm" />
+            选择文件
+          </button>
+        </div>
         <div className="settings-import-backup">
           <div className="settings-import-backup-head">
-            <span>旧备份</span>
+            <span>备份恢复</span>
             <button
               type="button"
               className="btn-secondary btn-sm"

@@ -744,24 +744,7 @@ export function SettingsSyncSection({
                 <>
                   <button
                     type="button"
-                    className="btn-secondary"
-                    disabled={syncBusy !== null}
-                    onClick={() => void handleTestSync()}
-                  >
-                    <Cloud aria-hidden="true" className="icon-sm" />
-                    {syncBusy === "test" ? "测试中…" : "测试连接"}
-                  </button>
-                  <button
-                    type="button"
                     className="btn-primary"
-                    disabled={syncBusy !== null}
-                    onClick={() => void handleSaveSync()}
-                  >
-                    {syncBusy === "save" ? "保存中…" : "保存"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-secondary"
                     disabled={syncBusy !== null}
                     onClick={() => void handleRunSync()}
                   >
@@ -772,6 +755,23 @@ export function SettingsSyncSection({
                       }`}
                     />
                     {syncBusy === "run" ? "同步中…" : "立即同步"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={syncBusy !== null}
+                    onClick={() => void handleTestSync()}
+                  >
+                    <Cloud aria-hidden="true" className="icon-sm" />
+                    {syncBusy === "test" ? "测试中…" : "测试连接"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={syncBusy !== null}
+                    onClick={() => void handleSaveSync()}
+                  >
+                    {syncBusy === "save" ? "保存中…" : "保存"}
                   </button>
                   <button
                     type="button"

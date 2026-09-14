@@ -20,7 +20,7 @@ import {
 } from "../../services/widgetAppearance";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
-import { RefreshCw, Trash2, Upload } from "lucide-react";
+import { RefreshCw, StickyNote, Trash2, Type, Upload } from "lucide-react";
 
 const NOTE_THEME_DETAILS: Record<
   NoteThemeId,
@@ -61,7 +61,8 @@ function pickBrowserFontFile(): Promise<File | null> {
 
 /**
  * 设置 → 外观 → 桌面便签个性化：纸色（海蓝 + 磨砂两卡，2026-09-09 老大定稿）+
- * 字体 + 自定义字体导入；组间 hairline 分隔，布局规约见
+ * 字体 + 自定义字体导入；2026-09-15 起两组升格为标准 settings-section
+ * （带图标标题，与「应用主题/强调色」同语言），布局规约见
  * docs/appearance-layout-optimization-plan.md §3。
  *
  * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组、旧全局不透明度
@@ -316,9 +317,12 @@ export function SettingsWidgetAppearanceSection({
   );
 
   return (
-    <section className="settings-section">
-      <div className="appearance-group">
-        <h4 className="appearance-group-title">便签主题</h4>
+    <>
+      <section className="settings-section">
+        <h3 className="settings-section-title">
+          <StickyNote aria-hidden="true" className="icon-sm" />
+          便签主题
+        </h3>
         <div
           className="note-theme-grid"
           role="radiogroup"
@@ -407,10 +411,13 @@ export function SettingsWidgetAppearanceSection({
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="appearance-group">
-        <h4 className="appearance-group-title">字体</h4>
+      <section className="settings-section">
+        <h3 className="settings-section-title">
+          <Type aria-hidden="true" className="icon-sm" />
+          便签字体
+        </h3>
         <div className="note-font-grid" role="radiogroup" aria-label="便签字体">
           {noteFontOptions.map((font) => {
             const active = appearance.noteFont === font.id;
@@ -526,7 +533,7 @@ export function SettingsWidgetAppearanceSection({
             </button>
           )}
         </div>
-      </div>
+      </section>
 
       <div className="note-reset-row">
         <button
@@ -538,6 +545,6 @@ export function SettingsWidgetAppearanceSection({
           恢复默认外观
         </button>
       </div>
-    </section>
+    </>
   );
 }

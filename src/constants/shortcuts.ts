@@ -22,13 +22,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     entries: [
       { label: "命令面板", keys: "Ctrl K" },
       { label: "快速新建（速记）", keys: "Ctrl Shift T" },
+      { label: "新建事项", keys: "Ctrl N" },
       { label: "折叠 / 展开侧栏", keys: "Ctrl B" },
       { label: "聚焦搜索", keys: "Ctrl F" },
     ],
-  },
-  {
-    title: "事项",
-    entries: [{ label: "新建事项", keys: "Ctrl N" }],
   },
   {
     title: "视图",
