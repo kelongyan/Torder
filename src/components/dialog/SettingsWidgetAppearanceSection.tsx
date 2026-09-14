@@ -378,12 +378,7 @@ export function SettingsWidgetAppearanceSection({
         {appearance.noteTheme === "glass" && (
           <div className="note-glass-inline-panel">
             <div className="note-glass-slider-head">
-              <div className="note-glass-slider-title-wrap">
-                <span className="note-glass-slider-title">磨砂透明度</span>
-                <span className="note-glass-slider-hint">
-                  （更通透 30% — 100% 更深邃）
-                </span>
-              </div>
+              <span className="note-glass-slider-title">磨砂浓度</span>
               <span className="note-glass-slider-value">
                 {glassOpacityPercent}%
               </span>
@@ -395,7 +390,7 @@ export function SettingsWidgetAppearanceSection({
                 max={100}
                 step={5}
                 value={glassOpacityPercent}
-                aria-label="磨砂透明度"
+                aria-label="磨砂浓度"
                 style={
                   {
                     "--glass-fill": `${glassFillPercent}%`,
@@ -405,6 +400,10 @@ export function SettingsWidgetAppearanceSection({
                   handleGlassOpacityChange(Number(event.target.value))
                 }
               />
+            </div>
+            <div className="note-glass-slider-ends" aria-hidden="true">
+              <span>通透</span>
+              <span>深邃</span>
             </div>
           </div>
         )}

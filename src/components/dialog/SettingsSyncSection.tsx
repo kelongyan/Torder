@@ -27,6 +27,7 @@ import type {
 import { isMobile } from "../../utils/platform";
 import { isTauri } from "@tauri-apps/api/core";
 import { mergedConflictPayload } from "../../utils/syncConflict";
+import { ToggleSwitch } from "../common/ToggleSwitch";
 import { SyncConflictPanel } from "./SyncConflictPanel";
 import { SyncDevicesPanel } from "./SyncDevicesPanel";
 import { SyncEncryptionCard } from "./SyncEncryptionCard";
@@ -836,28 +837,26 @@ export function SettingsSyncSection({
               )}
             </div>
             {syncStatus?.configured && (
-              <label className="settings-toggle form-grid-full">
-                <input
-                  type="checkbox"
+              <div className="settings-toggle-row form-grid-full">
+                <span className="settings-toggle-label">自动同步</span>
+                <ToggleSwitch
                   checked={syncAutoEnabled}
-                  onChange={(event) =>
-                    void handleSyncAutoToggle(event.target.checked)
-                  }
+                  label="自动同步"
+                  disabled={syncBusy !== null}
+                  onChange={(next) => void handleSyncAutoToggle(next)}
                 />
-                <span>自动同步</span>
-              </label>
+              </div>
             )}
             {syncStatus?.configured && mobile && (
-              <label className="settings-toggle form-grid-full">
-                <input
-                  type="checkbox"
+              <div className="settings-toggle-row form-grid-full">
+                <span className="settings-toggle-label">仅 Wi-Fi 自动同步</span>
+                <ToggleSwitch
                   checked={syncWifiOnly}
-                  onChange={(event) =>
-                    void handleSyncWifiOnlyToggle(event.target.checked)
-                  }
+                  label="仅 Wi-Fi 自动同步"
+                  disabled={syncBusy !== null}
+                  onChange={(next) => void handleSyncWifiOnlyToggle(next)}
                 />
-                <span>仅 Wi-Fi 自动同步</span>
-              </label>
+              </div>
             )}
             <SyncDevicesPanel
               devices={syncDevices}

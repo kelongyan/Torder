@@ -328,7 +328,7 @@ export function SettingsImportSection({
               }
             >
               <RefreshCw aria-hidden="true" className="icon-sm" />
-              导入选中
+              导入
             </button>
           </div>
         )}
@@ -375,7 +375,7 @@ export function SettingsImportSection({
               }
             >
               <RefreshCw aria-hidden="true" className="icon-sm" />
-              导入选中
+              导入
             </button>
           </div>
         )}

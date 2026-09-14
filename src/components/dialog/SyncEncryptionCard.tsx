@@ -1,4 +1,5 @@
 import { ShieldCheck } from "lucide-react";
+import { ToggleSwitch } from "../common/ToggleSwitch";
 
 /**
  * P1-05c：端到端加密配置卡（开关 + 双密码输入），从 SettingsSyncSection 抽出。
@@ -42,18 +43,15 @@ export function SyncEncryptionCard({
           <span>
             {remoteEnabled === true
               ? "远端已启用，需使用加密密码"
-              : "开启后同步数据会加密保存"}
+              : "同步内容加密后再上传"}
           </span>
         </span>
-        <label className="settings-toggle sync-encryption-toggle">
-          <input
-            type="checkbox"
-            aria-label="端到端加密"
-            checked={turnedOn}
-            disabled={configured || remoteEnabled === true}
-            onChange={(event) => onEnabledChange(event.target.checked)}
-          />
-        </label>
+        <ToggleSwitch
+          checked={turnedOn}
+          label="端到端加密"
+          disabled={configured || remoteEnabled === true}
+          onChange={onEnabledChange}
+        />
       </div>
       {turnedOn && (
         <div className="sync-encryption-fields">

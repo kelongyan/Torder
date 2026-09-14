@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DatabaseBackup, HardDrive, RefreshCw } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { usePresence } from "../../hooks/usePresence";
+import { ToggleSwitch } from "../common/ToggleSwitch";
 import {
   backupDatabase,
   listBackups,
@@ -102,16 +103,15 @@ export function SettingsBackupSection({
             <HardDrive aria-hidden="true" className="icon-sm" />
             立即备份
           </button>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={autoBackup}
-              onChange={(event) =>
-                void handleAutoBackupToggle(event.target.checked)
-              }
-            />
-            <span>启动时自动备份</span>
-          </label>
+        </div>
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-label">启动时自动备份</span>
+          <ToggleSwitch
+            checked={autoBackup}
+            label="启动时自动备份"
+            disabled={busy}
+            onChange={(next) => void handleAutoBackupToggle(next)}
+          />
         </div>
         {backups.length > 0 && (
           <div className="settings-backup-list">

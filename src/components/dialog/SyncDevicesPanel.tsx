@@ -85,7 +85,7 @@ export function SyncDevicesPanel({
                 ? status.encryptionKeyAvailable
                   ? "密钥 " + (status.encryptionKeyId ?? "可用")
                   : "缺少密钥，需输入密码"
-                : "创建加密快照"}
+                : "未启用"}
               {status.pendingChanges > 0
                 ? " · 待上传 " + status.pendingChanges + " 项"
                 : ""}

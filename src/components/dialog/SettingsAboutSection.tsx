@@ -117,7 +117,7 @@ export function SettingsAboutSection({
             onClick={() => void handleOpenDownload(updateState.info)}
           >
             <Sparkles aria-hidden="true" className="icon-xs" />
-            查看更新并安装
+            查看并安装
           </button>
         </div>
       )}

@@ -47,7 +47,7 @@ const settingsPanels = [
     description: "启动视图、备份与回收站、桌面行为",
     descriptionMobile: "启动视图、回收站清理与逾期顺延",
     icon: Settings2,
-    keywords: "启动视图 备份 回收站 清理 开机 桌面",
+    keywords: "启动视图 备份 回收站 清理 开机 桌面 便签 时钟",
   },
   {
     id: "appearance",
@@ -208,7 +208,7 @@ export function SettingsDialog({
         resetConfirm.rendered
           ? {
               title: "恢复默认设置？",
-              body: "主题、强调色与各默认值将回到初始状态；任务、清单与同步配置不受影响。",
+              body: "主题、强调色与默认值恢复初始；任务与同步配置不受影响。",
               confirmText: "恢复默认",
               onConfirm: handleResetConfirm,
             }

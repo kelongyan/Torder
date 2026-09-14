@@ -43,7 +43,7 @@ export function SettingsExportSection({
         导出
       </h3>
       <div className="settings-export-panel">
-        <span className="settings-export-label">导出格式</span>
+        <span className="settings-export-label">格式</span>
         <div className="settings-export-control">
           <Select<ExportFormat>
             value={exportFormat}
