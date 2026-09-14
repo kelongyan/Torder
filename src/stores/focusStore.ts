@@ -12,6 +12,10 @@ import { upsertSetting } from "../services/settingsService";
  * 或应用重启后按时间差续算；running 且已过期 → 归 idle（一期不跨进程
  * 补发系统通知，见实现方案书 §3）。
  *
+ * 时长粒度为**秒**（2026-09-14 时钟挂件三段编辑起）：durationSec 是唯一
+ * 真源，分钟只是 UI 展示单位（设置页滑杆 / 预设药丸按分钟换算写入）。
+ * 旧持久化的 durationMin（分钟）在 readPersisted 读入时迁移 ×60。
+ *
  * 专注免打扰（阶段 D · T-10 乙组）：开关开启时，状态切换把本轮结束时刻
  * 写入 settings KV `focusDndUntil`（RFC3339），Rust notifier 轮询读取并在
  * 窗口内抑制任务提醒（暂停语义：不标记 reminded_at，结束后下轮补发）。
@@ -21,8 +25,8 @@ export type FocusMode = "idle" | "running" | "paused";
 
 export interface FocusState {
   mode: FocusMode;
-  /** 一轮专注总时长（分钟），运行中修改仅对下一轮生效。 */
-  durationMin: number;
+  /** 一轮专注总时长（秒），运行中修改仅对下一轮生效。 */
+  durationSec: number;
   /** running 时的目标结束时刻（epoch ms）；paused/idle 为 null。 */
   endAt: number | null;
   /** paused 时冻结的剩余秒数；running 时由 endAt 现算。 */
@@ -36,7 +40,7 @@ export interface FocusState {
   /** 当前时间戳——由 UI 层以 1s 间隔调用 tick() 推进，驱动倒计时渲染。 */
   now: number;
 
-  setDuration: (minutes: number) => void;
+  setDuration: (seconds: number) => void;
   setFocusTask: (taskId: string | null) => void;
   start: (taskId?: string | null) => void;
   pause: () => void;
@@ -51,36 +55,52 @@ export interface FocusState {
 }
 
 const STORAGE_KEY = "torder-focus";
-const DEFAULT_MINUTES = 25;
-const MIN_MINUTES = 5;
-const MAX_MINUTES = 120;
+const DEFAULT_SEC = 25 * 60;
+const MIN_SEC = 5 * 60;
+const MAX_SEC = 120 * 60;
 
-/** 专注时长边界——导出给 UI 复用，避免挂件侧再硬编码一份。 */
-export const FOCUS_MIN_MINUTES = MIN_MINUTES;
-export const FOCUS_MAX_MINUTES = MAX_MINUTES;
+/** 专注时长边界（秒）——导出给 UI 复用，避免挂件侧再硬编码一份。 */
+export const FOCUS_MIN_SEC = MIN_SEC;
+export const FOCUS_MAX_SEC = MAX_SEC;
+/** 显示用分钟边界（设置页文案/滑杆）：由秒边界派生，不另立第二份真源。 */
+export const FOCUS_MIN_MINUTES = MIN_SEC / 60;
+export const FOCUS_MAX_MINUTES = MAX_SEC / 60;
 
 interface PersistedFocus {
-  /** 含 idle：空闲态也要能落盘 durationMin 这类跨重启偏好。 */
+  /** 含 idle：空闲态也要能落盘 durationSec 这类跨重启偏好。 */
   mode: FocusMode;
   endAt: number | null;
   remainingSec: number;
-  durationMin: number;
+  durationSec: number;
   focusTaskId: string | null;
   startedAt: number | null;
 }
 
 export type { PersistedFocus };
 
+/** 旧版（2026-09-14 前）持久化形态：时长以分钟存储。 */
+interface LegacyPersistedFocus {
+  durationMin?: number;
+}
+
 function readPersisted(): Partial<PersistedFocus> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as PersistedFocus;
+    const parsed = JSON.parse(
+      raw,
+    ) as PersistedFocus & LegacyPersistedFocus;
     return {
       mode: parsed.mode,
       endAt: parsed.endAt,
       remainingSec: parsed.remainingSec,
-      durationMin: parsed.durationMin,
+      // durationMin → durationSec 一次性迁移：两个窗口共用同一份
+      // localStorage，升级后首次读取即完成，无需独立迁移步骤。
+      durationSec:
+        parsed.durationSec ??
+        (typeof parsed.durationMin === "number"
+          ? parsed.durationMin * 60
+          : undefined),
       focusTaskId: parsed.focusTaskId,
       startedAt: parsed.startedAt,
     };
@@ -111,7 +131,7 @@ function persist(state: PersistedFocus) {
         mode: state.mode,
         endAt: state.endAt,
         remainingSec: state.remainingSec,
-        durationMin: state.durationMin,
+        durationSec: state.durationSec,
         focusTaskId: state.focusTaskId,
         startedAt: state.startedAt,
       } satisfies PersistedFocus),
@@ -122,8 +142,8 @@ function persist(state: PersistedFocus) {
   broadcastFocusChange();
 }
 
-function clampMinutes(minutes: number): number {
-  return Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, Math.round(minutes)));
+function clampSeconds(seconds: number): number {
+  return Math.min(MAX_SEC, Math.max(MIN_SEC, Math.round(seconds)));
 }
 
 /** 免打扰用户开关（App 按设置注入）；默认关闭时不写任何 KV。 */
@@ -171,7 +191,7 @@ export function hydrateFocus(
     return {
       mode: "running",
       endAt: saved.endAt,
-      durationMin: saved.durationMin ?? DEFAULT_MINUTES,
+      durationSec: saved.durationSec ?? DEFAULT_SEC,
       focusTaskId: saved.focusTaskId ?? null,
       startedAt: saved.startedAt ?? null,
     };
@@ -180,14 +200,14 @@ export function hydrateFocus(
     return {
       mode: "paused",
       remainingSec: Math.max(0, Math.round(saved.remainingSec)),
-      durationMin: saved.durationMin ?? DEFAULT_MINUTES,
+      durationSec: saved.durationSec ?? DEFAULT_SEC,
       focusTaskId: saved.focusTaskId ?? null,
       startedAt: saved.startedAt ?? null,
     };
   }
-  // idle（或记录缺失）：计时状态归零，但 durationMin 是用户偏好，
+  // idle（或记录缺失）：计时状态归零，但 durationSec 是用户偏好，
   // 照常恢复——"下次默认上次设置的时长"。
-  return saved.durationMin ? { durationMin: saved.durationMin } : {};
+  return saved.durationSec ? { durationSec: saved.durationSec } : {};
 }
 
 function hydrate(): Partial<FocusState> {
@@ -196,7 +216,7 @@ function hydrate(): Partial<FocusState> {
 
 export const useFocusStore = create<FocusState>()((set, get) => ({
   mode: "idle",
-  durationMin: DEFAULT_MINUTES,
+  durationSec: DEFAULT_SEC,
   endAt: null,
   remainingSec: 0,
   focusTaskId: null,
@@ -206,15 +226,15 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
 
   ...hydrate(),
 
-  setDuration: (minutes) => {
-    const durationMin = clampMinutes(minutes);
+  setDuration: (seconds) => {
+    const durationSec = clampSeconds(seconds);
     const state = get();
     if (state.mode !== "idle") return;
     // running/paused 中不改本轮时长：写入仅对下一轮生效（UI 已置灰）。
-    set({ durationMin });
+    set({ durationSec });
     // 时长是跨重启的偏好，必须落盘——否则设置页/时钟挂件改完时长，一重启就丢。
     // persist 内部会广播，跨窗口（主窗 ↔ 时钟挂件）因此自动同步。
-    persist({ ...state, durationMin });
+    persist({ ...state, durationSec });
   },
 
   setFocusTask: (taskId) => {
@@ -224,13 +244,13 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
 
   start: (taskId) => {
     const state = get();
-    const durationMin = clampMinutes(state.durationMin || DEFAULT_MINUTES);
+    const durationSec = clampSeconds(state.durationSec || DEFAULT_SEC);
     const now = Date.now();
     set((current) => {
       const next = {
         mode: "running" as const,
-        durationMin,
-        endAt: now + durationMin * 60_000,
+        durationSec,
+        endAt: now + durationSec * 1000,
         remainingSec: 0,
         focusTaskId: taskId === undefined ? current.focusTaskId : taskId,
         startedAt: now,
@@ -255,7 +275,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
         mode: "paused" as const,
         endAt: null,
         remainingSec,
-        durationMin: current.durationMin,
+        durationSec: current.durationSec,
         focusTaskId: current.focusTaskId,
         startedAt: current.startedAt,
         now: current.now,
@@ -275,7 +295,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
         mode: "running" as const,
         endAt: now + current.remainingSec * 1000,
         remainingSec: 0,
-        durationMin: current.durationMin,
+        durationSec: current.durationSec,
         focusTaskId: current.focusTaskId,
         startedAt: current.startedAt,
         now,
@@ -287,14 +307,14 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
   },
 
   reset: () => {
-    // 刻意**不**清空整条持久化：durationMin 是用户的偏好设置（"下次默认
+    // 刻意**不**清空整条持久化：durationSec 是用户的偏好设置（"下次默认
     // 上次设置的时长，而不是剩余时间"），跟着 removeItem 一起删掉的话，
     // 用户调过一次 40 分钟，结束本轮就又回到 25。这里只归 idle，保留时长。
     const next = {
       mode: "idle" as const,
       endAt: null,
       remainingSec: 0,
-      durationMin: get().durationMin,
+      durationSec: get().durationSec,
       focusTaskId: null,
       startedAt: null,
       now: Date.now(),
@@ -321,12 +341,12 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
       state.endAt <= now
     ) {
       // 到期：幂等完成本轮（tick 每秒一次，仅首次命中完成）。
-      // 同 reset：不清整条持久化，用户设置的 durationMin 要留到下一轮。
+      // 同 reset：不清整条持久化，用户设置的 durationSec 要留到下一轮。
       const next = {
         mode: "idle" as const,
         endAt: null,
         remainingSec: 0,
-        durationMin: state.durationMin,
+        durationSec: state.durationSec,
         focusTaskId: null,
         startedAt: null,
         lastCompletedAt: now,
@@ -347,7 +367,7 @@ export const useFocusStore = create<FocusState>()((set, get) => ({
       mode: hydrated.mode ?? "idle",
       endAt: hydrated.endAt ?? null,
       remainingSec: hydrated.remainingSec ?? 0,
-      durationMin: hydrated.durationMin ?? current.durationMin,
+      durationSec: hydrated.durationSec ?? current.durationSec,
       focusTaskId: hydrated.focusTaskId ?? null,
       startedAt: hydrated.startedAt ?? null,
       now: Date.now(),

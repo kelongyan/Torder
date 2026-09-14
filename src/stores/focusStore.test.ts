@@ -58,12 +58,13 @@ function createStorageStub(): Storage {
 }
 
 beforeAll(() => {
-  if (typeof globalThis.localStorage === "undefined") {
-    Object.defineProperty(globalThis, "localStorage", {
-      value: createStorageStub(),
-      configurable: true,
-    });
-  }
+  // Node ≥25 自带实验性 localStorage，且本机因 --localstorage-file 无效路径
+  // 得到一个连 clear 都没有的残缺对象——测试一律用内存 stub 无条件覆盖，
+  // 不依赖宿主实现是否可用。
+  Object.defineProperty(globalThis, "localStorage", {
+    value: createStorageStub(),
+    configurable: true,
+  });
 });
 
 /** 相对当前 fake 时间前进（多次调用累加，避免绝对时间回退）。 */
@@ -74,7 +75,7 @@ function advance(ms: number) {
 function freshStore() {
   useFocusStore.setState({
     mode: "idle",
-    durationMin: 25,
+    durationSec: 25 * 60,
     endAt: null,
     remainingSec: 0,
     focusTaskId: null,
@@ -101,7 +102,7 @@ describe("hydrateFocus 续时", () => {
       mode: "running",
       endAt: NOW + 10 * 60_000,
       remainingSec: 0,
-      durationMin: 25,
+      durationSec: 25 * 60,
       focusTaskId: "task-1",
       startedAt: NOW - 15 * 60_000,
     };
@@ -116,7 +117,7 @@ describe("hydrateFocus 续时", () => {
       mode: "running",
       endAt: NOW - 1,
       remainingSec: 0,
-      durationMin: 25,
+      durationSec: 25 * 60,
       focusTaskId: null,
       startedAt: null,
     };
@@ -131,7 +132,7 @@ describe("hydrateFocus 续时", () => {
       mode: "paused",
       endAt: null,
       remainingSec: 42,
-      durationMin: 25,
+      durationSec: 25 * 60,
       focusTaskId: "task-9",
       startedAt: null,
     };
@@ -208,43 +209,43 @@ describe("计时状态机", () => {
   });
 
   it("reset 归 idle 但保留用户设置的时长（不整条清除持久化）", () => {
-    useFocusStore.getState().setDuration(40);
+    useFocusStore.getState().setDuration(40 * 60);
     useFocusStore.getState().start();
     useFocusStore.getState().reset();
     const state = useFocusStore.getState();
     expect(state.mode).toBe("idle");
     expect(state.endAt).toBeNull();
     expect(state.focusTaskId).toBeNull();
-    // durationMin 是用户偏好：reset 后持久化里必须还在，下次默认 40 而非 25
-    expect(state.durationMin).toBe(40);
+    // durationSec 是用户偏好：reset 后持久化里必须还在，下次默认 40 而非 25
+    expect(state.durationSec).toBe(40 * 60);
     const saved = JSON.parse(
       localStorage.getItem("torder-focus") ?? "{}",
     ) as PersistedFocus;
     expect(saved.mode).toBe("idle");
-    expect(saved.durationMin).toBe(40);
+    expect(saved.durationSec).toBe(40 * 60);
   });
 
   it("运行中 setDuration / setFocusTask 不生效（仅对下一轮）", () => {
     useFocusStore.getState().start();
-    useFocusStore.getState().setDuration(50);
+    useFocusStore.getState().setDuration(50 * 60);
     useFocusStore.getState().setFocusTask("task-x");
     const state = useFocusStore.getState();
-    expect(state.durationMin).toBe(25);
+    expect(state.durationSec).toBe(25 * 60);
     expect(state.focusTaskId).toBeNull();
 
     useFocusStore.getState().pause();
-    useFocusStore.getState().setDuration(50);
-    expect(useFocusStore.getState().durationMin).toBe(25);
+    useFocusStore.getState().setDuration(50 * 60);
+    expect(useFocusStore.getState().durationSec).toBe(25 * 60);
   });
 
-  it("时长边界夹取（5–120 分钟）", () => {
+  it("时长边界夹取（5–120 分钟 = 300–7200 秒）", () => {
     freshStore();
-    useFocusStore.getState().setDuration(999);
-    expect(useFocusStore.getState().durationMin).toBe(120);
+    useFocusStore.getState().setDuration(999 * 60);
+    expect(useFocusStore.getState().durationSec).toBe(120 * 60);
     useFocusStore.getState().setDuration(1);
-    expect(useFocusStore.getState().durationMin).toBe(5);
-    useFocusStore.getState().setDuration(30.4);
-    expect(useFocusStore.getState().durationMin).toBe(30);
+    expect(useFocusStore.getState().durationSec).toBe(5 * 60);
+    useFocusStore.getState().setDuration(30.4 * 60);
+    expect(useFocusStore.getState().durationSec).toBe(30 * 60 + 24);
   });
 });
 
@@ -264,9 +265,25 @@ describe("持久化写入", () => {
       localStorage.getItem("torder-focus") ?? "{}",
     ) as PersistedFocus;
     expect(after.mode).toBe("idle");
-    expect(after.durationMin).toBe(25);
+    expect(after.durationSec).toBe(25 * 60);
     expect(useFocusStore.getState().mode).toBe("idle");
     expect(useFocusStore.getState().lastCompletedAt).not.toBeNull();
+  });
+
+  it("旧版 durationMin（分钟）读入即迁移为 durationSec", () => {
+    localStorage.setItem(
+      "torder-focus",
+      JSON.stringify({ mode: "idle", durationMin: 40 }),
+    );
+    useFocusStore.getState().syncFromStorage();
+    expect(useFocusStore.getState().durationSec).toBe(40 * 60);
+    // 下一次写回即为新形态，不再携带 durationMin
+    useFocusStore.getState().setDuration(41 * 60);
+    const saved = JSON.parse(
+      localStorage.getItem("torder-focus") ?? "{}",
+    ) as PersistedFocus;
+    expect(saved.durationSec).toBe(41 * 60);
+    expect((saved as { durationMin?: number }).durationMin).toBeUndefined();
   });
 });
 

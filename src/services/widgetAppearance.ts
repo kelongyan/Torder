@@ -75,8 +75,10 @@ export interface WidgetAppearance {
   notePin: boolean;
   /** 清单色点 */
   noteDots: boolean;
-  /** 隐藏已完成条目（唯一影响行为的字段） */
+  /** 隐藏已完成条目（行为字段：列表派生过滤，非样式） */
   noteHideDone: boolean;
+  /** 双击条目就地编辑标题（行为字段：交互开关，防误触可在设置关闭） */
+  noteDblEdit: boolean;
   /** 已导入自定义字体的显示名（源文件名去扩展名）；null = 未导入 */
   noteCustomFontName: string | null;
 }
@@ -142,6 +144,8 @@ export function normalizeAppearance(parsed: unknown): WidgetAppearance {
     noteDots: typeof raw.noteDots === "boolean" ? raw.noteDots : true,
     noteHideDone:
       typeof raw.noteHideDone === "boolean" ? raw.noteHideDone : false,
+    noteDblEdit:
+      typeof raw.noteDblEdit === "boolean" ? raw.noteDblEdit : true,
     noteCustomFontName:
       typeof raw.noteCustomFontName === "string" &&
       raw.noteCustomFontName.trim()

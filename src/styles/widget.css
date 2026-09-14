@@ -142,7 +142,8 @@
 
 /* 文字与标题阴影增强，防桌面壁纸亮色干扰 */
 :root[data-note-theme="glass"] .widget-title,
-:root[data-note-theme="glass"] .widget-item-title {
+:root[data-note-theme="glass"] .widget-item-title,
+:root[data-note-theme="glass"] .widget-item-edit-input {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 
@@ -1002,6 +1003,62 @@ html.widget-entry body {
    反馈由 .widget-item:hover 的透明度承担，不再变色。 */
 .widget-item.is-high .widget-item-title {
   color: var(--note-high);
+}
+
+/* --- 双击就地编辑（2026-09-14）：标题原位变自动增高的 textarea。
+ * 纸面隐喻「同一行上擦掉重写」：字体字号行高墨色全部继承展示态，
+ * 编辑态的额外视觉只有一条虚线下划线 + 与 hover 同色的行底描边。 --- */
+.widget-item.is-editing {
+  cursor: text;
+  /* 行级 user-select:none 会连带输入框，显式放开才能选中草稿 */
+  user-select: text;
+  background: rgba(var(--note-ink), 0.05);
+  opacity: 1;
+}
+
+/* 编辑中不吃行级 hover/按压反馈：草稿区是稳定的书写面 */
+.widget-item.is-editing:hover,
+.widget-item.is-editing:active {
+  background: rgba(var(--note-ink), 0.05);
+  opacity: 1;
+}
+
+.widget-item-edit-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  resize: none;
+  overflow-y: auto; /* 超过 2 行（展示态的钳制高度）后内部滚动 */
+  max-height: calc(var(--note-lh-item) * 2);
+  border: none;
+  border-bottom: 1.5px dashed rgba(var(--note-ink), 0.38);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 1px;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: var(--note-lh-item);
+  color: var(--note-text);
+  caret-color: rgba(var(--note-ink), 0.9);
+  text-align: left;
+  overflow-wrap: break-word;
+  outline: none;
+}
+
+.widget-item-edit-input:focus {
+  border-bottom-color: rgba(var(--note-ink), 0.66);
+}
+
+/* 高优先级的红笔色在编辑态延续（与 .widget-item-title 同规则） */
+.widget-item.is-high .widget-item-edit-input {
+  color: var(--note-high);
+}
+
+/* 默认蓝底选区在纸面上刺眼，压成墨色半透明 */
+.widget-item-edit-input::selection {
+  background: rgba(var(--note-ink), 0.22);
 }
 
 .widget-item.is-done .widget-item-title {

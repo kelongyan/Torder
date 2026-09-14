@@ -49,7 +49,7 @@ export function FocusScreen(): JSX.Element {
   );
 
   const mode = useFocusStore((s) => s.mode);
-  const durationMin = useFocusStore((s) => s.durationMin);
+  const durationSec = useFocusStore((s) => s.durationSec);
   const focusTaskId = useFocusStore((s) => s.focusTaskId);
   const startedAt = useFocusStore((s) => s.startedAt);
   const lastCompletedAt = useFocusStore((s) => s.lastCompletedAt);
@@ -88,7 +88,7 @@ export function FocusScreen(): JSX.Element {
         <div className="m-focus-clock-wrap">
           <span className={`m-focus-clock ${idle ? "dim" : ""}`}>
             {idle
-              ? `${String(durationMin).padStart(2, "0")}:00`
+              ? `${String(Math.floor(durationSec / 60)).padStart(2, "0")}:${String(durationSec % 60).padStart(2, "0")}`
               : formatClock(clock)}
           </span>
           <span className="m-focus-hint">
@@ -132,9 +132,11 @@ export function FocusScreen(): JSX.Element {
                   key={minutes}
                   type="button"
                   className={`m-focus-chip ${
-                    durationMin === minutes ? "active" : ""
+                    durationSec === minutes * 60 ? "active" : ""
                   }`}
-                  onClick={() => useFocusStore.getState().setDuration(minutes)}
+                  onClick={() =>
+                    useFocusStore.getState().setDuration(minutes * 60)
+                  }
                 >
                   {minutes} 分
                 </button>
