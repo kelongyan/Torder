@@ -1,20 +1,20 @@
 {
-  "version": "2.7.6",
-  "notes": "Windows v2.7.6：应用内更新切换 Gitee 国内直连，多路网络自动回退，随包 .sha256 完整性校验，安装包瘦身至 11.7MB。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.6/Torder_2.7.6_x64-setup.exe",
-  "sha256": "ea93d67be7fcbd09612c8d0a39fa8942301ea5608bea242a91f09ecf80460d79",
+  "version": "2.8.0",
+  "notes": "v2.8.0：桌面时钟零控件重设计（时:分:秒三段编辑、Space Grotesk 数字体）；便签条目双击就地编辑标题（可开关）。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.0/Torder_2.8.0_x64-setup.exe",
+  "sha256": "bbb64d46b0f5ca69dbfe1e6bda5151201c5c8f89fd8e2ab52494c9b340e08a84",
   "platforms": {
     "windows": {
-      "version": "2.7.6",
-      "notes": "Windows v2.7.6：应用内更新切换 Gitee 国内直连，多路网络自动回退，随包 .sha256 完整性校验，安装包瘦身至 11.7MB。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.6/Torder_2.7.6_x64-setup.exe",
-      "sha256": "ea93d67be7fcbd09612c8d0a39fa8942301ea5608bea242a91f09ecf80460d79"
+      "version": "2.8.0",
+      "notes": "Windows v2.8.0：桌面时钟零控件重设计（时:分:秒三段编辑、Space Grotesk 数字体）；便签条目双击就地编辑标题（设置 → 常规 → 桌面与启动 可开关）。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.0/Torder_2.8.0_x64-setup.exe",
+      "sha256": "bbb64d46b0f5ca69dbfe1e6bda5151201c5c8f89fd8e2ab52494c9b340e08a84"
     },
     "android": {
-      "version": "2.7.6",
-      "notes": "Android v2.7.6（universal 安装包）。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.7.6/Torder_2.7.6_universal.apk",
-      "sha256": "1549ead09e3abc79dd67c86843921accd03fe0e6a30dee7526459ba38f2fdfc1"
+      "version": "2.8.0",
+      "notes": "Android v2.8.0（universal 安装包）：桌面时钟三段编辑与便签双击编辑同步到位。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.0/Torder_2.8.0_universal.apk",
+      "sha256": "fc41c6998e09ed93d1ffba51d99e56a81eecb12444e24d9be161d7d8597da415"
     }
   }
 }
