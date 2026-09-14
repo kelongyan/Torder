@@ -105,22 +105,24 @@ export function ClockApp() {
   const hourNum = parseInt(hourText, 10) || 0;
   const minNum = parseInt(minText, 10) || 0;
 
-  /** 小时段上限 2（= 120 分钟）；键入满两位或首位 ≥1 时自动跳到分钟段。 */
+  /** 小时段上限 2（= 120 分钟）；满两位才钳制、规整并跳段。
+   *  不能「首位 ≥1 就敲定」：清空后想输两位（如 25）时，首键即被补零成
+   *  "02" 并跳去分钟段，第二位数字落进分钟段污染草稿。中间态一律保持
+   *  未满位，钳制由 blur / 提交统一兜底。 */
   function handleHourChange(raw: string) {
     const digits = digitsOf(raw);
     if (digits === "") {
       setHourText("");
       return;
     }
-    const val = Math.min(parseInt(digits, 10), 2);
-    if (digits.length === 2 || parseInt(digits, 10) >= 1) {
-      // 段位已敲定：规整回两位形态再跳段
-      setHourText(pad(val));
+    if (digits.length === 2) {
+      // 满两位：钳到小时上限，规整回两位形态再跳段
+      setHourText(pad(Math.min(parseInt(digits, 10), 2)));
       minRef.current?.focus();
       minRef.current?.select();
     } else {
-      // 中间态保持未满位（"0"）：立即补成 "00" 的话，下一次键入会被
-      // digitsOf 截成前两位，新键入的数字被吞掉（无法输两位数的根因）。
+      // 中间态保持未满位：立即补成两位的话，下一次键入会被 digitsOf
+      // 截成前两位，新键入的数字被吞掉（无法输两位数的根因）。
       setHourText(digits);
     }
   }
