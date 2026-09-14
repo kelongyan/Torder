@@ -37,7 +37,7 @@ export function SettingsDesktopSection({
   const [clockLocked, setClockLocked] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const durationMin = useFocusStore((state) => state.durationMin);
+  const durationSec = useFocusStore((state) => state.durationSec);
   const setDuration = useFocusStore((state) => state.setDuration);
   const focusMode = useFocusStore((state) => state.mode);
   /** 编辑中的草稿；null = 未在编辑，直接显示权威值。
@@ -160,13 +160,16 @@ export function SettingsDesktopSection({
       return;
     }
     const parsed = Number(durationDraft);
+    // 输入以分钟为单位（粗调入口）；时钟挂件的三段编辑才是秒级细调。
+    // 未动过的草稿不会被提交（durationDraft === null 早退），秒级精度
+    // 只在用户真的在这里输入时才会被取整覆盖。
     const next = Number.isFinite(parsed)
       ? Math.max(
           FOCUS_MIN_MINUTES,
           Math.min(FOCUS_MAX_MINUTES, Math.round(parsed)),
         )
-      : durationMin;
-    setDuration(next);
+      : Math.round(durationSec / 60);
+    setDuration(next * 60);
     setDurationDraft(null);
   }
 
@@ -239,7 +242,7 @@ export function SettingsDesktopSection({
             min={FOCUS_MIN_MINUTES}
             max={FOCUS_MAX_MINUTES}
             step={5}
-            value={durationDraft ?? String(durationMin)}
+            value={durationDraft ?? String(Math.round(durationSec / 60))}
             onChange={(event) => setDurationDraft(event.target.value)}
             onBlur={commitDuration}
             onKeyDown={(event) => {

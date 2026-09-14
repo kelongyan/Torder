@@ -23,7 +23,7 @@ export function FocusDialog({
   onFinished: () => void;
 }) {
   const mode = useFocusStore((state) => state.mode);
-  const durationMin = useFocusStore((state) => state.durationMin);
+  const durationSec = useFocusStore((state) => state.durationSec);
   const lastCompletedAt = useFocusStore((state) => state.lastCompletedAt);
   const [clock, setClock] = useState(0);
   const reportedRef = useRef<number | null>(null);
@@ -52,7 +52,7 @@ export function FocusDialog({
   const paused = mode === "paused";
 
   // 计算圆环进度
-  const totalSeconds = durationMin * 60;
+  const totalSeconds = durationSec;
   const currentSeconds = idle ? totalSeconds : clock;
   const progress = Math.max(0, Math.min(1, currentSeconds / totalSeconds));
 
@@ -100,7 +100,7 @@ export function FocusDialog({
               style={{ fontSize: "34px", lineHeight: 1 }}
             >
               {idle
-                ? `${String(durationMin).padStart(2, "0")}:00`
+                ? `${String(Math.floor(durationSec / 60)).padStart(2, "0")}:${String(durationSec % 60).padStart(2, "0")}`
                 : formatClock(clock)}
             </span>
             <span className="focus-status-badge">
@@ -117,9 +117,11 @@ export function FocusDialog({
                 key={minutes}
                 type="button"
                 className={`focus-pill-btn ${
-                  durationMin === minutes ? "is-active" : ""
+                  durationSec === minutes * 60 ? "is-active" : ""
                 }`}
-                onClick={() => useFocusStore.getState().setDuration(minutes)}
+                onClick={() =>
+                  useFocusStore.getState().setDuration(minutes * 60)
+                }
               >
                 {minutes} 分钟
               </button>
