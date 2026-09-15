@@ -29,6 +29,7 @@ import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
 import { setFocusDndEnabled } from "../stores/focusStore";
 import type {
   CreateTaskInput,
+  RecurringRule,
   Task,
   TaskList,
   TaskScope,
@@ -767,6 +768,15 @@ function App() {
     });
     return () => unlisten?.();
   }, []);
+  /**
+   * 便签右键入口用的最新回调引用。`openTaskRecurring` 由 useRecurringActions
+   * 提供、闭包捕获 `recurringRules`，而下面的事件监听 effect 依赖数组为空
+   * （注册一次，避免重订阅打断监听时序）——直接引用会锁死在首帧闭包上。
+   * 故用 ref 转一手，同步点见 `openRecurringRef` 的赋值 effect。
+   */
+  const openRecurringRef = useRef<
+    ((task: Task, rules?: RecurringRule[]) => void) | null
+  >(null);
   useEffect(() => {
     if (!isTauri()) return;
     let cancelled = false;
@@ -783,6 +793,26 @@ function App() {
           await store.loadTasks();
           store.selectTask(event.payload.taskId);
         }),
+        // 便签右键「设为循环任务…／编辑循环规则…」：与上面同构，落到循环弹窗。
+        // ⚠️ 闭包陷阱：本 effect 依赖数组为空，直接引用 `openTaskRecurring` 会
+        // 锁死在**首帧闭包**——那时 `recurringRules` 还是空数组（规则在另一个
+        // effect 里异步加载），`find` 恒为 null，「编辑既有规则」会静默退化成
+        // 「新建规则」。故用 ref 取最新回调；规则本身则直接用重拉的返回值，
+        // 不依赖 setState 是否已重渲染。
+        listen<{ taskId: string }>("widget-open-recurring", async (event) => {
+          const taskId = event.payload.taskId;
+          const store = useTaskStore.getState();
+          const [, rules] = await Promise.all([
+            store.loadTasks(),
+            loadRecurringRules(),
+          ]);
+          const task = useTaskStore
+            .getState()
+            .allTasks.find((row) => row.id === taskId);
+          // 任务可能已被删除/被同步移除：静默收手，不弹空弹窗
+          if (!task) return;
+          openRecurringRef.current?.(task, rules);
+        }),
       ]);
       if (cancelled) {
         nextUnlisteners.forEach((dispose) => dispose());
@@ -794,7 +824,9 @@ function App() {
       cancelled = true;
       unlisteners.forEach((dispose) => dispose());
     };
-  }, []);
+    // loadRecurringRules 是 useCallback([]) 的稳定引用——列进依赖不会导致重订阅
+    // （重订阅会打断监听时序），但能让 lint 的闭包检查满意。
+  }, [loadRecurringRules]);
   useEffect(() => {
     // 今天/逾期视图的派生依赖 new Date()，窗口重新可见时重算以修复跨午夜过期
     const rederive = () => useTaskStore.getState().rederive();
@@ -1274,6 +1306,11 @@ function App() {
     setConfirmState,
     pushToast,
   });
+
+  // 把最新回调灌进 ref（便签事件监听 effect 依赖数组为空，靠 ref 取最新闭包）
+  useEffect(() => {
+    openRecurringRef.current = openTaskRecurring;
+  }, [openTaskRecurring]);
 
   // P1-05：日历事件动作已提取到 useCalendarEventActions。
   const { handleSaveCalendarEvent, requestDeleteCalendarEvent } =

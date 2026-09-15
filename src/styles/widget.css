@@ -17,8 +17,9 @@
    - 拖拽：region 挂在最外层 .widget-stage 且值为 "deep"（Tauri 2.11 起裸属性
      只对「元素本身被直接点中」生效，而 .widget-shell 是全窗口覆盖，stage 永远
      拿不到 mousedown）。"deep" = 子树任意处按下都能拖，BUTTON/INPUT 等可交互
-     元素自动排除；两处显式 "false" 例外：任务条目行（行尾空白的职责是点开主窗）、
-     以及可滚动状态的列表（否则抓细滚动条会拖窗口而不是滚动）。 */
+     元素自动排除；三处显式 "false" 例外：任务条目行（行尾空白的职责是双击改标题
+     / 右键出菜单，不是拖窗口）、可滚动状态的列表（否则抓细滚动条会拖窗口而不是
+     滚动）、以及条目右键菜单容器（见文件末尾 .widget-menu）。 */
 
 /* === 便签纸主题 token（不放入 tokens.css，独立作用域） ===
    --note-ink 是墨色 RGB 三元组，所有 rgba(α) 字面量统一从这里派生，
@@ -66,6 +67,12 @@
   --note-pin-1: #ff8a4c;
   --note-pin-2: #f56b1f;
   --note-pin-3: #c44a0e;
+  /* 条目右键菜单（2026-09-15）：浮在纸面上方，用比纸底更亮的一档表达"浮起"，
+     与纸面同族但不共用渐变（渐变半透明无法承载菜单文字的可读性） */
+  --note-menu-bg: #eef5fc;
+  --note-menu-shadow:
+    0 8px 20px rgba(var(--note-ink), 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.6);
   --note-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     inset 0 0 0 1px rgba(var(--note-ink), 0.08),
@@ -120,6 +127,12 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.16),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
     0 12px 40px rgba(0, 0, 0, 0.38);
+  /* 菜单底：玻璃主题是深色卡片，浮层再用浅底会像贴了张白纸——
+     改为比卡片更亮一档的深色，边框靠 --note-ink 的浅色派生 */
+  --note-menu-bg: rgba(30, 38, 50, 0.96);
+  --note-menu-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 /* 消除 stage 双层半透明叠加，全权由 shell::before 承载单层玻璃背景 */
@@ -1275,6 +1288,73 @@ html.widget-entry body {
 
 .widget-stage.is-dragging .widget-pin-top {
   transform: translateX(-50%) scale(1.12);
+}
+
+/* === 条目右键菜单（2026-09-15）
+   定位不是"把详情搬到便签上"，而是两个跳主窗的导航入口（详见
+   docs/widget-item-context-menu-plan-2026-09-15.md）。
+   自绘而非系统原生：与纸面同源（墨色/纸色/同一支笔），且免开 core:menu ACL。
+
+   坐标：position:fixed + contextmenu 的 clientX/Y（同一坐标系）。
+   .widget-stage 与祖先链上没有任何 transform/filter/will-change/contain，
+   故 fixed 的包含块就是视口，不会被纸面的定位带偏——**给祖先加这些属性会静默
+   破坏菜单位置**（比如给 .widget-stage 加缩放动效时要回来改这里）。
+
+   墨色一律 rgba(var(--note-ink), α)，与纸面同一套 token；字色与字号跟随
+   --note-fs/--font-note，菜单和条目正文是同一支笔。 */
+.widget-menu {
+  position: fixed;
+  z-index: 30; /* 高于拉伸热区(20)，低于无——菜单必须盖住一切纸面元素 */
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--note-menu-bg);
+  box-shadow: var(--note-menu-shadow);
+  font-family: var(--font-note);
+  /* 菜单是"浮在纸上的另一张纸"：焦点环由下面 .is-active 承担，不要浏览器默认描边 */
+  outline: none;
+  /* 出现动画：从落点轻微放大，0.12s 够快不拖沓 */
+  animation: note-menu-in 0.12s var(--ease-out);
+}
+
+@keyframes note-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.widget-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(var(--note-ink), 0.88);
+  font-family: inherit;
+  font-size: var(--note-fs);
+  line-height: 1.4;
+  text-align: left;
+  /* 不换行：菜单宽度由内容决定，保证 useLayoutEffect 量到的尺寸与最终一致 */
+  white-space: nowrap;
+  cursor: default; /* 菜单项不是链接，箭头光标更像桌面软件 */
+  transition: background-color 0.1s var(--ease-standard);
+}
+
+.widget-menu-item.is-active {
+  background: rgba(var(--note-ink), 0.1);
+}
+
+/* 触屏/无 hover 环境也会因 mouseenter 高亮；按下时给一档更实的反馈 */
+.widget-menu-item:active {
+  background: rgba(var(--note-ink), 0.16);
 }
 
 /* === 动效降级（方案书 D-7）：系统开启「减少动态效果」时全部动画/过渡

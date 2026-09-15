@@ -220,7 +220,7 @@ export function SettingsDesktopSection({
           <span className="settings-toggle-copy">
             <span className="settings-toggle-label">便签双击编辑</span>
             <span className="settings-toggle-desc">
-              双击条目改标题：Enter 保存，Esc 取消。
+              双击条目改标题：Enter 保存，Esc 取消；右键条目可转到主窗改详细内容。
             </span>
           </span>
           <ToggleSwitch
