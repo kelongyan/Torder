@@ -1,20 +1,20 @@
 {
-  "version": "2.8.0",
-  "notes": "v2.8.0：桌面时钟零控件重设计（时:分:秒三段编辑、Space Grotesk 数字体）；便签条目双击就地编辑标题（可开关）。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.0/Torder_2.8.0_x64-setup.exe",
-  "sha256": "bbb64d46b0f5ca69dbfe1e6bda5151201c5c8f89fd8e2ab52494c9b340e08a84",
+  "version": "2.8.1",
+  "notes": "v2.8.1：便签条目右键菜单——右键任意备忘可直接跳主窗改详细内容或循环规则；设置界面微调（开关统一、文案精简、间距归位 4px 栅格）。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.1/Torder_2.8.1_x64-setup.exe",
+  "sha256": "894fe172b35c3a254c17b85ff4abc3f12372a78ea2e00b342b32fef44241ad47",
   "platforms": {
     "windows": {
-      "version": "2.8.0",
-      "notes": "Windows v2.8.0：桌面时钟零控件重设计（时:分:秒三段编辑、Space Grotesk 数字体）；便签条目双击就地编辑标题（设置 → 常规 → 桌面与启动 可开关）。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.0/Torder_2.8.0_x64-setup.exe",
-      "sha256": "bbb64d46b0f5ca69dbfe1e6bda5151201c5c8f89fd8e2ab52494c9b340e08a84"
+      "version": "2.8.1",
+      "notes": "Windows v2.8.1：便签条目右键菜单——「修改详细内容…」跳主窗详情抽屉，「编辑循环规则…／设为循环任务…」跳循环规则弹窗；设置界面开关统一、文案精简、间距归位 4px 栅格。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.1/Torder_2.8.1_x64-setup.exe",
+      "sha256": "894fe172b35c3a254c17b85ff4abc3f12372a78ea2e00b342b32fef44241ad47"
     },
     "android": {
-      "version": "2.8.0",
-      "notes": "Android v2.8.0（universal 安装包）：桌面时钟三段编辑与便签双击编辑同步到位。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.0/Torder_2.8.0_universal.apk",
-      "sha256": "fc41c6998e09ed93d1ffba51d99e56a81eecb12444e24d9be161d7d8597da415"
+      "version": "2.8.1",
+      "notes": "Android v2.8.1（universal 安装包）：设置界面微调同步到位；便签右键菜单为桌面端专有。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.1/Torder_2.8.1_universal.apk",
+      "sha256": "58cef13a9b72fd8a9a10dde5e450562069b5d837fc6332ea4c70ae70f6c0ae2f"
     }
   }
 }
