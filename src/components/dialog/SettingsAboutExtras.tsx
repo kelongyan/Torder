@@ -84,7 +84,7 @@ export function SettingsAboutExtras() {
         >
           <div className="license-list">
             <p className="license-note">
-              本应用基于以下开源项目构建，感谢这些项目的作者与社区。许可证全文以各项目官方仓库为准。
+              基于以下开源项目构建，许可全文以各官方仓库为准。
             </p>
             {LICENSES.map((item) => (
               <div key={item.name} className="license-row">

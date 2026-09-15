@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Info, RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
 import {
@@ -75,10 +75,7 @@ export function SettingsAboutSection({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Info aria-hidden="true" className="icon-sm" />
-        关于
-      </h3>
+      {/* 单节面板：标题与面板大标题「关于」同名，按 P4 方案省略区块标题行 */}
       <div className="settings-row settings-action-row">
         <span className="settings-version">
           {appInfo ? `当前版本 v${appInfo.version}` : ""}
@@ -117,7 +114,7 @@ export function SettingsAboutSection({
             onClick={() => void handleOpenDownload(updateState.info)}
           >
             <Sparkles aria-hidden="true" className="icon-xs" />
-            查看更新并安装
+            查看并安装
           </button>
         </div>
       )}

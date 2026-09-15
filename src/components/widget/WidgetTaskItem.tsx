@@ -22,6 +22,10 @@ function formatTime(iso: string | null): string | null {
  * 视觉只有一条虚线下划线（widget.css `.widget-item-edit-input`）。
  * Enter 落笔、Esc 作废、失焦落笔；空标题视为作废。编辑期间行尾元信息
  * （时间/色点/跨天标识）退场，输入框占满整行。
+ *
+ * 右键菜单（2026-09-15）：article 上 `onContextMenu` 交给父组件记录落点并打开
+ * 导航菜单。**编辑态放行**——textarea 里右键应保留系统文本菜单（复制/粘贴/全选），
+ * 把系统菜单换成导航菜单是帮倒忙。
  */
 export function WidgetTaskItem({
   task,
@@ -30,6 +34,7 @@ export function WidgetTaskItem({
   editable,
   onToggle,
   onRename,
+  onContextMenu,
 }: {
   task: Task;
   listColor: string | null;
@@ -38,6 +43,8 @@ export function WidgetTaskItem({
   editable: boolean;
   onToggle: () => void;
   onRename: (title: string) => void;
+  /** 右键条目：父组件记录落点后打开导航菜单（编辑态不触发） */
+  onContextMenu: (event: React.MouseEvent<HTMLElement>) => void;
 }) {
   const completed = task.status === "done";
   const [editing, setEditing] = useState(false);
@@ -111,6 +118,14 @@ export function WidgetTaskItem({
         // 双击选词是浏览器默认行为，编辑态本身就是选词的目的地，拦掉
         event.preventDefault();
         enterEdit();
+      }}
+      onContextMenu={(event) => {
+        // 编辑态：放行给系统文本菜单（复制/粘贴/全选是编辑时的真实需求）。
+        // 注意这里是按「本条目是否在编辑」判断，不是按事件目标——
+        // 编辑态下目标必然是 textarea。
+        if (editing) return;
+        event.preventDefault();
+        onContextMenu(event);
       }}
     >
       <button

@@ -185,7 +185,7 @@
 
 .settings-section + .settings-section {
   border-top: 1px solid var(--border);
-  padding-top: 14px;
+  padding-top: 16px;
 }
 
 .settings-section-title {
@@ -224,33 +224,29 @@
   gap: 10px 12px;
 }
 
-.settings-action-row .settings-toggle {
-  margin-left: auto;
-}
-
+/* 状态提示：信息/成功态为纯文字（与 section-hint 同语言）；
+   仅 danger 保留左边条卡片，错误才值得占据视觉重量 */
 .settings-status-note {
-  display: flex;
-  min-height: 30px;
-  align-items: center;
-  margin: 0 0 2px;
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--accent-border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
-  padding: 6px 8px;
-  color: var(--text-secondary);
+  margin: 0 0 8px;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 18px;
 }
 
 .settings-status-note.success {
-  border-left-color: var(--green);
-  background: color-mix(in srgb, var(--success-bg) 72%, var(--bg-secondary));
+  color: var(--green);
 }
 
 .settings-status-note.danger {
-  border-left-color: var(--red);
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  margin: 0 0 2px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--red);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--danger-bg) 72%, var(--bg-secondary));
+  padding: 6px 8px;
   color: var(--red);
 }
 
@@ -269,11 +265,6 @@
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
-}
-
-.settings-section-hint .icon-xs {
-  margin-right: 4px;
-  vertical-align: -2px;
 }
 
 .settings-export-panel {
@@ -307,6 +298,8 @@
   padding-top: 8px;
 }
 
+/* 「文件导入」与「备份恢复」两行同构：label 左、动作按钮右 */
+.settings-import-file-head,
 .settings-import-backup-head {
   display: flex;
   align-items: center;
@@ -517,10 +510,6 @@
   line-height: 16px;
 }
 
-.sync-encryption-toggle {
-  justify-self: end;
-}
-
 .sync-encryption-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -630,13 +619,19 @@
 }
 
 .sync-actions {
-  margin-top: 1px;
+  margin-top: 8px;
+}
+
+/* 已配置态的「移除」是破坏性次要动作：推到行尾与主操作群分离 */
+.sync-actions .btn-danger-solid {
+  margin-left: auto;
 }
 
 .sync-inspection {
   display: grid;
   gap: 8px;
   border-left: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--accent-bg) 45%, var(--bg-tertiary));
   padding: 8px 10px;
 }
@@ -934,10 +929,6 @@
     grid-template-columns: 1fr;
   }
 
-  .settings-action-row .settings-toggle {
-    margin-left: 0;
-  }
-
   .settings-dialog .dialog-footer .btn-secondary {
     width: auto;
     min-width: 92px;
@@ -989,7 +980,7 @@
 .sync-device-list {
   display: grid;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 12px;
 }
 
 .sync-device-item {
@@ -1026,76 +1017,9 @@
   line-height: 15px;
 }
 
-/* 开关（switch）样式：隐藏原生 checkbox，绘制胶囊轨道 + 滑块 */
-.settings-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.settings-toggle input {
-  position: relative;
-  flex-shrink: 0;
-  width: 34px;
-  min-height: 19px;
-  height: 19px;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--bg-hover);
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard);
-}
-
-.settings-toggle input::after {
-  content: "";
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  transition:
-    transform var(--motion-fast) var(--ease-spring),
-    background-color var(--motion-fast) var(--ease-standard);
-}
-
-.settings-toggle input:hover:not(:disabled) {
-  border-color: var(--border-light);
-}
-
-.settings-toggle input:checked {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-
-.settings-toggle input:checked::after {
-  transform: translateX(15px);
-  background: var(--on-accent);
-  box-shadow: none;
-}
-
-.settings-toggle input:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-.settings-toggle input:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+/* 开关（switch）：2026-09-14 起唯一实现是 ToggleSwitch 组件（.switch-toggle，
+   34×20 胶囊）。原 .settings-toggle checkbox 版（34×19）已随 10 处调用点
+   全部迁移退役，两套视觉并存的问题消除。 */
 
 .btn-sm {
   min-height: 30px;
@@ -1104,7 +1028,7 @@
 }
 
 .settings-list-label {
-  margin-top: 10px;
+  margin-top: 0;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 700;
@@ -1115,7 +1039,7 @@
 .settings-backup-list {
   display: grid;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 12px;
 }
 
 .settings-backup-item {
@@ -1161,7 +1085,6 @@
 }
 
 .settings-update-card .settings-list-label {
-  margin-top: 0;
   color: var(--accent-hover);
 }
 
@@ -1373,68 +1296,12 @@
    （改动经 widget-settings-changed 广播实时生效）。 */
 
 /* ===== 外观分区（docs/appearance-layout-optimization-plan.md §3）=====
-   两个组（纸色+不透明度 / 字体）+ 沉底恢复按钮；组间 hairline 分隔，
-   滑杆各回所属组。间距全落 4px 栅格（check:design 门禁把关）。
-   2026-09-08 收敛：字号滑杆与纸面与显示开关组已移除。 */
+   2026-09-15：便签主题/字体两组升格为标准 settings-section（带图标标题，
+   分隔节奏并入 .settings-section + .settings-section），appearance-group
+   分组壳退役。间距全落 4px 栅格（check:design 门禁把关）。 */
 
-/* 组间分隔：不用盒子，跟随设置页其它分区的扁平语言 */
-.appearance-group + .appearance-group {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-}
-
-.appearance-group-title {
-  margin: 0 0 12px;
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  font-weight: 600;
-  line-height: 18px;
-}
-
-/* 滑杆行（label 72px + range + 数值 48px）：覆盖 dialog.css `.form-field input`
-   的文本框化样式（min-height/边框/底色），range 只要原生轨道，accent 跟主题色 */
-.note-slider-row {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 48px;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.note-slider-row > span {
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.note-slider-row input[type="range"] {
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.note-slider-row input[type="range"]:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.note-slider-row input[type="range"]:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.note-slider-value {
-  text-align: right;
-  color: var(--text-primary);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
+/* note-slider-row 已删（2026-09-15）：字号滑杆 2026-09-08 移除后无引用的遗留；
+   磨砂浓度的滑杆样式在下方 note-glass-slider-* 块。 */
 
 /* 纸色色卡：沿用 5 列网格保持卡片尺寸稳定（当前 2 选项：海蓝 + 磨砂）；
    窄面板折 3 列 */
@@ -1684,21 +1551,19 @@
   justify-content: space-between;
 }
 
-.note-glass-slider-title-wrap {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
 .note-glass-slider-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.note-glass-slider-hint {
-  font-size: 11px;
+/* 滑杆两端方向小字：左端最淡（通透）、右端最浓（深邃） */
+.note-glass-slider-ends {
+  display: flex;
+  justify-content: space-between;
   color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 15px;
 }
 
 .note-glass-slider-value {
@@ -1930,7 +1795,7 @@
 .note-reset-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
@@ -2080,104 +1945,13 @@
   margin-bottom: 8px;
 }
 
-.set-ph-picker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-  border-radius: 8px;
-  background: var(--sunken);
-  padding: 4px 10px;
-  color: var(--text-2);
-  font-size: 12px;
-}
-
-.set-ph-picker i {
-  color: var(--text-3);
-  font-style: normal;
-  font-size: 10px;
-}
-
-.set-ph-switch {
-  display: inline-flex;
-  width: 34px;
-  height: 20px;
-  align-items: center;
-  border-radius: 999px;
-  background: var(--stroke-mid);
-  padding: 2px;
-  transition: background-color var(--motion-fast) var(--ease-standard);
-}
-
-.set-ph-switch i {
-  display: block;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform var(--motion-fast) var(--ease-spring);
-}
-
-.set-ph-switch.is-on {
-  background: var(--accent);
-}
-
-.set-ph-switch.is-on i {
-  transform: translateX(14px);
-}
-
-.set-ph-kbd-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 30px;
-}
-
-.set-ph-kbd-label {
-  color: var(--text-2);
-  font-size: 12.5px;
-}
-
-.set-ph-kbd-row kbd {
-  border: 1px solid var(--stroke-mid);
-  border-radius: 4px;
-  background: var(--hover);
-  padding: 1px 6px;
-  color: var(--text-3);
-  font-family: inherit;
-  font-size: 10.5px;
-  letter-spacing: 0.3px;
-}
-
-.set-ph-swatches {
-  display: flex;
-  gap: 10px;
-}
-
-.set-ph-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--swatch);
-}
-
-.set-ph-swatch.is-on {
-  box-shadow:
-    0 0 0 2px var(--mica),
-    0 0 0 4px var(--swatch);
-}
-
+/* set-ph-picker/-switch/-kbd-row/-swatches 等设计稿占位类已删（2026-09-15，
+   无任何引用；真实控件为 Select/ToggleSwitch/accent-swatch）。
+   set-ph-note 保留：快捷键面板的「自定义暂未开放」占位行在用。 */
 .set-ph-note {
   margin: 2px 0 0;
   color: var(--text-3);
-  font-size: 11.5px;
-}
-
-.set-ph-link {
-  color: var(--text-3);
-  font-size: 12px;
-  text-decoration: underline;
+  font-size: 11px;
 }
 
 /* F2 · T-09：强调色六色板（真实生效，is-on 双环高亮沿用设计稿色板语言） */
@@ -2243,13 +2017,36 @@
   outline-offset: 2px;
 }
 
+.switch-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .settings-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-height: 34px;
-  margin-top: 10px;
+  margin-top: 8px;
+}
+
+/* 开关说明副行：主行 13px + 灰色 11px，说明紧贴所属开关不再游离 */
+.settings-toggle-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-toggle-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 从属开关（时钟置顶/锁定 从属于「桌面时钟」）：缩进表达层级 */
+.settings-toggle-row.is-sub {
+  padding-left: 12px;
 }
 
 .settings-toggle-label {
@@ -2264,7 +2061,7 @@
 .shortcut-group-title {
   margin: 0 0 6px;
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -2279,7 +2076,7 @@
 
 .shortcut-label {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .shortcut-keys {
@@ -2317,7 +2114,7 @@
   background: transparent;
   color: var(--text-1);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   outline: none;
 }
 
@@ -2340,7 +2137,7 @@
   border-radius: 8px;
   padding: 6px 10px;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
   transition:
     color var(--motion-fast) var(--ease-standard),
@@ -2389,7 +2186,7 @@
   display: grid;
   gap: 5px;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -2411,7 +2208,7 @@
   gap: 12px;
   min-height: 34px;
   border-bottom: 1px solid var(--stroke);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .license-row:last-child {

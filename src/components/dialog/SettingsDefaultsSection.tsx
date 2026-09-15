@@ -119,8 +119,8 @@ export function SettingsDefaultsSection({
             }
           />
         </div>
-        <p className="settings-status-note">
-          「明天 15:00 交周报 #工作 !高」会自动解析出日期、清单与优先级。
+        <p className="settings-section-hint">
+          如「明天 15:00 交周报 #工作 !高」，自动解析日期、清单与优先级。
         </p>
       </section>
       <section className="settings-section">

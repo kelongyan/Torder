@@ -18,6 +18,7 @@ import {
 } from "../../stores/focusStore";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
+import { ToggleSwitch } from "../common/ToggleSwitch";
 
 /** 桌面专属（浏览器模式/移动端不渲染）：开机自启动 + 桌面小窗 + 桌面时钟。
  *
@@ -93,13 +94,13 @@ export function SettingsDesktopSection({
       await patchWidgetSettings({ enabled });
       await invoke("set_widget_enabled", { enabled });
       setWidgetEnabled(enabled);
-      onToast(enabled ? "桌面小窗已显示" : "桌面小窗已隐藏", "success");
+      onToast(enabled ? "桌面便签已显示" : "桌面便签已隐藏", "success");
     } catch (error) {
       // 窗口操作失败回滚设置键，保持开关与实际一致
       await patchWidgetSettings({ enabled: widgetEnabled }).catch(
         () => undefined,
       );
-      onToast(`桌面小窗设置失败: ${String(error)}`, "error");
+      onToast(`桌面便签设置失败: ${String(error)}`, "error");
     } finally {
       setBusy(false);
     }
@@ -196,76 +197,73 @@ export function SettingsDesktopSection({
         <Monitor aria-hidden="true" className="icon-sm" />
         桌面与启动
       </h3>
-      <div className="settings-preference-grid">
-        <label className="settings-toggle form-grid-full">
-          <input
-            type="checkbox"
+      <div className="settings-toggle-list">
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-label">开机自启动</span>
+          <ToggleSwitch
             checked={launchAtStartup}
+            label="开机自启动"
             disabled={busy}
-            onChange={(event) => void handleLaunchToggle(event.target.checked)}
+            onChange={(next) => void handleLaunchToggle(next)}
           />
-          <span>开机自启动（静默驻留托盘）</span>
-        </label>
-        <label className="settings-toggle form-grid-full">
-          <input
-            type="checkbox"
+        </div>
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-label">桌面便签</span>
+          <ToggleSwitch
             checked={widgetEnabled}
+            label="桌面便签"
             disabled={busy}
-            onChange={(event) => void handleWidgetToggle(event.target.checked)}
+            onChange={(next) => void handleWidgetToggle(next)}
           />
-          <span>桌面小窗（常驻桌面的日期便签）</span>
-        </label>
-        <label className="settings-toggle form-grid-full">
-          <input
-            type="checkbox"
+        </div>
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-copy">
+            <span className="settings-toggle-label">便签双击编辑</span>
+            <span className="settings-toggle-desc">
+              双击条目改标题：Enter 保存，Esc 取消；右键条目可转到主窗改详细内容。
+            </span>
+          </span>
+          <ToggleSwitch
             checked={widgetDblEdit}
+            label="便签双击编辑"
             disabled={busy}
-            onChange={(event) =>
-              void handleWidgetDblEditToggle(event.target.checked)
-            }
+            onChange={(next) => void handleWidgetDblEditToggle(next)}
           />
-          <span>便签双击编辑（双击条目，就地在纸面上改标题）</span>
-        </label>
-        <p className="settings-section-hint form-grid-full">
-          便签交互：双击条目就地修改标题，Enter 落笔、Esc 作废、点击别处
-          落笔；勾选方框完成/取消完成。
-        </p>
-        <label className="settings-toggle form-grid-full">
-          <input
-            type="checkbox"
+        </div>
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-copy">
+            <span className="settings-toggle-label">桌面时钟</span>
+            <span className="settings-toggle-desc">
+              单击数字开始专注；点悬浮铅笔改时长；专注中空格暂停、Esc 结束。
+            </span>
+          </span>
+          <ToggleSwitch
             checked={clockEnabled}
+            label="桌面时钟"
             disabled={busy}
-            onChange={(event) => void handleClockToggle(event.target.checked)}
+            onChange={(next) => void handleClockToggle(next)}
           />
-          <span>桌面时钟（常驻桌面的时间与专注挂件）</span>
-        </label>
-        <p className="settings-section-hint form-grid-full">
-          挂件零按钮：单击数字开始专注；右键双击进入时长编辑，滚轮或 ↑↓
-          调节（Shift 精调、Ctrl 粗调），Enter 开始、Esc 退出；专注中空格
-          暂停/继续、Esc 结束。
-        </p>
-        <label className="settings-toggle form-grid-full">
-          <input
-            type="checkbox"
+        </div>
+        <div className="settings-toggle-row is-sub">
+          <span className="settings-toggle-label">时钟置顶显示</span>
+          <ToggleSwitch
             checked={clockAlwaysOnTop}
+            label="时钟置顶显示"
             disabled={busy}
-            onChange={(event) =>
-              void handleClockAlwaysOnTopToggle(event.target.checked)
-            }
+            onChange={(next) => void handleClockAlwaysOnTopToggle(next)}
           />
-          <span>时钟置顶显示</span>
-        </label>
-        <label className="settings-toggle form-grid-full">
-          <input
-            type="checkbox"
+        </div>
+        <div className="settings-toggle-row is-sub">
+          <span className="settings-toggle-label">锁定时钟位置</span>
+          <ToggleSwitch
             checked={clockLocked}
+            label="锁定时钟位置"
             disabled={busy}
-            onChange={(event) =>
-              void handleClockLockToggle(event.target.checked)
-            }
+            onChange={(next) => void handleClockLockToggle(next)}
           />
-          <span>时钟锁定位置（不可拖动）</span>
-        </label>
+        </div>
+      </div>
+      <div className="settings-preference-grid">
         <label className="form-field form-grid-full">
           <span>专注时长（{FOCUS_MIN_MINUTES}–{FOCUS_MAX_MINUTES} 分钟）</span>
           <input

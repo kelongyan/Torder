@@ -1,4 +1,3 @@
-import { Keyboard } from "lucide-react";
 import { SHORTCUT_GROUPS } from "../../constants/shortcuts";
 
 /**
@@ -15,10 +14,7 @@ import { SHORTCUT_GROUPS } from "../../constants/shortcuts";
 export function SettingsShortcutsSection() {
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Keyboard aria-hidden="true" className="icon-sm" />
-        快捷键
-      </h3>
+      {/* 单节面板：标题与面板大标题「快捷键」同名，省略区块标题行 */}
       {SHORTCUT_GROUPS.map((group) => (
         <div key={group.title} className="shortcut-group">
           <h4 className="shortcut-group-title">{group.title}</h4>

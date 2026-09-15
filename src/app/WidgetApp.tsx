@@ -17,6 +17,10 @@ import { WidgetPinTop } from "../components/widget/WidgetPin";
 import { WidgetQuickAdd } from "../components/widget/WidgetQuickAdd";
 import { WidgetResizeHandles } from "../components/widget/WidgetResizeHandles";
 import { WidgetTaskItem } from "../components/widget/WidgetTaskItem";
+import {
+  WidgetItemMenu,
+  type WidgetItemMenuAction,
+} from "../components/widget/WidgetItemMenu";
 import { WidgetTitleBar } from "../components/widget/WidgetTitleBar";
 import { listLists } from "../services/listService";
 import { loadAppSettings } from "../services/settingsService";
@@ -34,6 +38,8 @@ import {
 import {
   getWidgetSettings,
   notifyTasksChanged,
+  openTaskInMainWindow,
+  openTaskRecurringInMainWindow,
   patchWidgetSettings,
   type TasksChangedPayload,
   type WidgetSettings,
@@ -132,6 +138,17 @@ export function WidgetApp() {
   /** 便签是否固定（锁定）位置与大小 */
   const [locked, setLocked] = useState(false);
   const lockedRef = useRef(false);
+  /**
+   * 条目右键菜单：记录目标任务与落点（client 坐标）。
+   * null = 未打开。菜单单例渲染在 `.widget-stage` 末尾，避免每条挂一份 DOM。
+   * 只存 taskId，任务内容渲染时从 `tasks` 现取——菜单打开期间重拉导致列表变化时
+   * 自然失效（任务不在列表里则不渲染，见渲染处）。
+   */
+  const [itemMenu, setItemMenu] = useState<{
+    taskId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // ==== 动效状态（方案书 docx/widget-ux-polish-plan-2026-09-08.md W1/W2） ====
   /** 日期切换方向（W1-3）：决定旧内容滑出 class 与新条目入场 keyframes */
@@ -865,6 +882,42 @@ export function WidgetApp() {
     notifyTasksChanged("widget");
   }
 
+  /**
+   * 右键条目 → 记录落点并打开菜单。落点用 client 坐标（与 position:fixed 同系）。
+   * 先关掉可能开着的 QuickAdd：菜单与添加框同时出现会显得便签"被激活了"。
+   */
+  function handleItemContextMenu(
+    task: Task,
+    event: React.MouseEvent<HTMLElement>,
+  ) {
+    setAdding(false);
+    setItemMenu({
+      taskId: task.id,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  /** 菜单两项：都只是导航，真正落在主窗（详情抽屉 / 循环弹窗）。 */
+  function handleItemMenuAction(action: WidgetItemMenuAction) {
+    const taskId = itemMenu?.taskId;
+    setItemMenu(null);
+    if (!taskId) return;
+    if (action === "detail") {
+      openTaskInMainWindow(taskId);
+    } else {
+      openTaskRecurringInMainWindow(taskId);
+    }
+  }
+
+  /** 菜单打开时窗口失焦即收起（点击桌面别处，便签不该留着悬空菜单）。 */
+  useEffect(() => {
+    if (!itemMenu) return;
+    const close = () => setItemMenu(null);
+    window.addEventListener("blur", close);
+    return () => window.removeEventListener("blur", close);
+  }, [itemMenu]);
+
   return (
     <div
       ref={stageRef}
@@ -945,12 +998,34 @@ export function WidgetApp() {
                   editable={dblEdit}
                   onToggle={() => void handleToggle(task)}
                   onRename={(title) => void handleRename(task, title)}
+                  onContextMenu={(event) =>
+                    handleItemContextMenu(task, event)
+                  }
                 />
               ))
             )}
           </div>
         </div>
       </div>
+      {/* 条目右键菜单：单例挂在 stage 层（position: fixed 与 client 坐标同系）。
+          只存 taskId，任务从当前列表现取——菜单打开期间重拉导致条目消失时
+          （比如别处把它删了）自然不再渲染。 */}
+      {itemMenu &&
+        (() => {
+          const target = displayedTasks.find(
+            (task) => task.id === itemMenu.taskId,
+          );
+          if (!target) return null;
+          return (
+            <WidgetItemMenu
+              x={itemMenu.x}
+              y={itemMenu.y}
+              hasRecurringRule={target.recurringRuleId !== null}
+              onAction={handleItemMenuAction}
+              onClose={() => setItemMenu(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

@@ -24,7 +24,8 @@ import { useTaskStore } from "../stores/taskStore";
  */
 export interface RecurringActionsDeps {
   recurringRules: RecurringRule[];
-  loadRecurringRules: () => Promise<void>;
+  /** 重拉循环规则；返回本次加载到的规则（见 useAppDataLoaders 的接口注释） */
+  loadRecurringRules: () => Promise<RecurringRule[]>;
   selectTask: (taskId: string | null) => void;
   setCreateOpen: (open: boolean) => void;
   setRecurringDialogOpen: (open: boolean) => void;
@@ -86,14 +87,23 @@ export function useRecurringActions({
     [pushToast, reloadRulesAndTasks, setRecurringDialogOpen],
   );
 
+  /**
+   * 打开某任务的循环弹窗：有 `recurringRuleId` 则载入既有规则来编辑，否则作为
+   * 新建的来源任务。
+   *
+   * `latestRules` 供「刚重拉完规则、立刻要打开弹窗」的调用方（便签右键入口）传入
+   * ——那种场景下 state 里的 `recurringRules` 可能还没随 setState 重渲染到最新，
+   * 直接用它会把「有规则」误判成「无规则」而弹成新建。不传则退回 state（常规 UI
+   * 路径，点击时 state 已是最新）。
+   */
   const openTaskRecurring = useCallback(
-    (task: Task) => {
+    (task: Task, latestRules?: RecurringRule[]) => {
+      const rules = latestRules ?? recurringRules;
       selectTask(null);
       setRecurringSourceTask(task.recurringRuleId ? null : task);
       setEditingRecurringRule(
         task.recurringRuleId
-          ? (recurringRules.find((rule) => rule.id === task.recurringRuleId) ??
-              null)
+          ? (rules.find((rule) => rule.id === task.recurringRuleId) ?? null)
           : null,
       );
       setRecurringDialogOpen(true);

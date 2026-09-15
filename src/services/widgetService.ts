@@ -244,3 +244,15 @@ export function openTaskInMainWindow(taskId: string): void {
   void emit("widget-open-task", { taskId }).catch(() => undefined);
   void invoke("show_main_window").catch(() => undefined);
 }
+
+/**
+ * 小窗右键菜单的循环入口：主窗监听 `widget-open-recurring` 后打开循环规则弹窗
+ * （有规则则编辑既有规则、无则新建），这里同样把主窗拉到前台。
+ * 与 `openTaskInMainWindow` 同构——两条通路各自一个事件，主窗侧分别落到
+ * 详情抽屉与循环弹窗，互不干扰。
+ */
+export function openTaskRecurringInMainWindow(taskId: string): void {
+  if (!isTauri()) return;
+  void emit("widget-open-recurring", { taskId }).catch(() => undefined);
+  void invoke("show_main_window").catch(() => undefined);
+}

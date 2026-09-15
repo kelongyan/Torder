@@ -16,6 +16,7 @@ import type {
 import type { SavedTaskView, SavedViewIcon } from "../../types/settings";
 import type { PresencePhase } from "../../hooks/usePresence";
 import { Select, type SelectOption } from "../common/Select";
+import { ToggleSwitch } from "../common/ToggleSwitch";
 import { DialogFooter } from "./DialogFooter";
 import { DialogShell } from "./DialogShell";
 
@@ -168,14 +169,14 @@ export function SavedViewDialog({
               ariaLabel="保存视图布局"
             />
           </div>
-          <label className="settings-toggle form-grid-full">
-            <span>显示已完成</span>
-            <input
-              type="checkbox"
+          <div className="settings-toggle-row form-grid-full">
+            <span className="settings-toggle-label">显示已完成</span>
+            <ToggleSwitch
               checked={showCompleted}
-              onChange={(event) => setShowCompleted(event.target.checked)}
+              label="显示已完成"
+              onChange={setShowCompleted}
             />
-          </label>
+          </div>
         </div>
 
         <DialogFooter
