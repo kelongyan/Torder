@@ -6,12 +6,17 @@
 
   用法:
     pwsh scripts/sync-to-gitee.ps1 -CodeOnly
-      # 只推送 main/dev/v3 + 全部 tags（日常代码同步）
+      # 只推送 main/dev + 全部 tags（日常代码同步）
     pwsh scripts/sync-to-gitee.ps1 -Tag v2.7.6 -Assets "src-tauri\target\release\bundle\nsis\Torder_2.7.6_x64-setup.exe","torder-2.7.6-universal.apk" -NotesFile notes.md
       # 推代码 + 创建/复用 Gitee Release + 上传附件（自动生成同名 .sha256 sidecar）
 
   令牌: 明文存放于仓库根 `.gitee-token`（已在 .gitignore，绝不提交公开仓库）。
   规则来源: RULE.md §10/§11
+
+  分支范围（2026-09-15 收窄）: 只同步 main / dev。历史上的 v3 分支已废弃并删除——
+  它的全部提交都已逐个移植进 dev（patch-id 逐一核对过），且本脚本曾因仍推
+  refs/heads/v3 而把已删除的远端分支重新创建出来。今后**新增分支不要加回这里**，
+  除非确实需要双端保留；同理，删分支要连同远端一起删，本脚本不做删除。
 #>
 [CmdletBinding()]
 param(
@@ -36,9 +41,10 @@ if ($Assets.Count -eq 1 -and $Assets[0] -match ',') {
   $Assets = $Assets[0] -split ',' | ForEach-Object { $_.Trim().Trim('"') }
 }
 
-# 1. 代码与 tags 同步（gh-pages 是 GitHub Pages 专用分支，Gitee Pages 已停服，不同步）
-Write-Host "[sync] 推送 main/dev/v3 + 全部 tags ..." -ForegroundColor Cyan
-git push $pushUrl refs/heads/main:refs/heads/main refs/heads/dev:refs/heads/dev refs/heads/v3:refs/heads/v3 --tags
+# 1. 代码与 tags 同步（gh-pages 是 GitHub Pages 专用分支，Gitee Pages 已停服，不同步；
+#    v3 已废弃——见文件头「分支范围」）
+Write-Host "[sync] 推送 main/dev + 全部 tags ..." -ForegroundColor Cyan
+git push $pushUrl refs/heads/main:refs/heads/main refs/heads/dev:refs/heads/dev --tags
 if ($LASTEXITCODE -ne 0) { throw "git push 失败 (exit $LASTEXITCODE)" }
 Write-Host "[ok] 代码与 tags 已同步" -ForegroundColor Green
 if ($CodeOnly) { exit 0 }
