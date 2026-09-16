@@ -25,6 +25,7 @@ export default tseslint.config(
       // 应单独配置浏览器环境与独立命令，见优化方案 P1-01）。
       ".workbuddy/**",
       "tmp/**",
+      ".tmp/**",
       "设计稿/**",
       "docx/**",
     ],

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   compareSemver,
+  dismissUpdatePrompt,
   parseUpdateManifest,
   pickLatestRelease,
   sanitizeReleaseNotes,
+  shouldShowUpdatePrompt,
 } from "./appService";
 
 /**
@@ -240,3 +242,49 @@ describe("sanitizeReleaseNotes", () => {
     expect(sanitizeReleaseNotes(raw)).toBe("修复若干问题并优化体验");
   });
 });
+
+describe("shouldShowUpdatePrompt / dismissUpdatePrompt (方案 A：自然日免打扰)", () => {
+  function createTestStorage(): Storage {
+    const store = new Map<string, string>();
+    return {
+      get length() {
+        return store.size;
+      },
+      clear: () => store.clear(),
+      getItem: (key: string) => store.get(key) ?? null,
+      key: (index: number) => Array.from(store.keys())[index] ?? null,
+      removeItem: (key: string) => void store.delete(key),
+      setItem: (key: string, value: string) => void store.set(key, value),
+    };
+  }
+
+  it("无记录时允许弹窗", () => {
+    const storage = createTestStorage();
+    expect(shouldShowUpdatePrompt("2.8.2", "2026-09-16", storage)).toBe(true);
+  });
+
+  it("记录与当前版本和日期一致时拒绝弹窗（当天免打扰生效）", () => {
+    const storage = createTestStorage();
+    dismissUpdatePrompt("2.8.2", "2026-09-16", storage);
+    expect(shouldShowUpdatePrompt("2.8.2", "2026-09-16", storage)).toBe(false);
+  });
+
+  it("到了次日重新允许弹窗", () => {
+    const storage = createTestStorage();
+    dismissUpdatePrompt("2.8.2", "2026-09-16", storage);
+    expect(shouldShowUpdatePrompt("2.8.2", "2026-09-17", storage)).toBe(true);
+  });
+
+  it("同一天内发布了更高版本重新允许弹窗", () => {
+    const storage = createTestStorage();
+    dismissUpdatePrompt("2.8.2", "2026-09-16", storage);
+    expect(shouldShowUpdatePrompt("2.8.3", "2026-09-16", storage)).toBe(true);
+  });
+
+  it("存储内容损坏时降级为允许弹窗且不抛错", () => {
+    const storage = createTestStorage();
+    storage.setItem("torder-update-dismissed", "invalid-json{");
+    expect(shouldShowUpdatePrompt("2.8.2", "2026-09-16", storage)).toBe(true);
+  });
+});
+

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowUpCircle,
   CheckCircle2,
@@ -58,7 +58,9 @@ export function UpdateDialog({
   const cancelRef = useRef(false);
 
   // 当外部换了更新信息，重置内部状态
-  useEffect(() => {
+  const [prevVersion, setPrevVersion] = useState(updateInfo?.latestVersion);
+  if (updateInfo?.latestVersion !== prevVersion) {
+    setPrevVersion(updateInfo?.latestVersion);
     setStep("ready");
     setProgress({
       downloadedBytes: 0,
@@ -68,8 +70,7 @@ export function UpdateDialog({
     });
     setInstallerPath(null);
     setErrorMsg(null);
-    cancelRef.current = false;
-  }, [updateInfo?.latestVersion]);
+  }
 
   if (!updateInfo) return null;
 

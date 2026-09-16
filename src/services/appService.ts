@@ -2,6 +2,7 @@ import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import packageJson from "../../package.json";
 import type { AppInfo, UpdateInfo } from "../types/settings";
+import { toDateKey } from "../utils/taskDates";
 
 // 更新源顺序：Gitee 国内直连稳定（服务器在国内，实测 0.2s 级响应），为主源；
 // GitHub 兜底——已发布的旧客户端只会查 GitHub，且 Gitee 故障时保持可用。
@@ -444,3 +445,56 @@ export async function launchInstallerAndExit(
   }
   return invoke("launch_installer_and_exit", { installerPath });
 }
+
+export const UPDATE_DISMISSED_KEY = "torder-update-dismissed";
+
+export interface UpdateDismissedRecord {
+  version: string;
+  date: string;
+}
+
+/**
+ * 判断是否应向用户弹出新版本提示弹窗（方案 A：自然日免打扰）。
+ * 如果该版本今天已经被用户关闭或推迟提醒过，则当天启动不再弹窗；
+ * 次日或有更新的版本时，将重新恢复弹窗。
+ */
+export function shouldShowUpdatePrompt(
+  latestVersion: string,
+  todayKey: string = toDateKey(new Date()),
+  storage?: Storage,
+): boolean {
+  try {
+    const s =
+      storage ?? (typeof localStorage !== "undefined" ? localStorage : null);
+    if (!s) return true;
+    const raw = s.getItem(UPDATE_DISMISSED_KEY);
+    if (!raw) return true;
+    const record = JSON.parse(raw) as Partial<UpdateDismissedRecord>;
+    if (record?.version === latestVersion && record?.date === todayKey) {
+      return false;
+    }
+  } catch {
+    // 解析或读取异常时降级为允许提醒
+  }
+  return true;
+}
+
+/**
+ * 记录用户关闭或推迟更新提醒：记录版本与当前日期（当天免打扰）。
+ */
+export function dismissUpdatePrompt(
+  version: string,
+  todayKey: string = toDateKey(new Date()),
+  storage?: Storage,
+): void {
+  try {
+    const s =
+      storage ?? (typeof localStorage !== "undefined" ? localStorage : null);
+    if (!s) return;
+    const record: UpdateDismissedRecord = { version, date: todayKey };
+    s.setItem(UPDATE_DISMISSED_KEY, JSON.stringify(record));
+  } catch {
+    // 忽略写入异常（如隐私模式或存储配额受限）
+  }
+}
+
