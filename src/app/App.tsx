@@ -24,7 +24,11 @@ import { listen } from "@tauri-apps/api/event";
 import { isTauri } from "@tauri-apps/api/core";
 import { applyAccentPreference, applyThemePreference } from "../utils/theme";
 import { saveAppSetting } from "../services/settingsService";
-import { checkForUpdate } from "../services/appService";
+import {
+  checkForUpdate,
+  dismissUpdatePrompt,
+  shouldShowUpdatePrompt,
+} from "../services/appService";
 import { listScope, useTaskStore, viewScope } from "../stores/taskStore";
 import { setFocusDndEnabled } from "../stores/focusStore";
 import type {
@@ -932,19 +936,12 @@ function App() {
     let cancelled = false;
     // 启动后延迟 3s 再检查：让首屏渲染和任务加载先完成，检查失败也完全静默。
     const timer = window.setTimeout(() => {
-      const KEY = "torder-update-notified";
       void checkForUpdate()
         .then((info) => {
           if (cancelled || !info.hasUpdate) return;
-          if (localStorage.getItem(KEY) === info.latestVersion) return;
-          localStorage.setItem(KEY, info.latestVersion);
-          pushToast(`发现新版本 v${info.latestVersion}`, "info", {
-            label: "查看更新",
-            onClick: () => {
-              setUpdateInfo(info);
-              setUpdateDialogOpen(true);
-            },
-          });
+          if (!shouldShowUpdatePrompt(info.latestVersion)) return;
+          setUpdateInfo(info);
+          setUpdateDialogOpen(true);
         })
         .catch(() => {
           // 启动静默检查失败不打扰用户，可到设置里手动检查。
@@ -954,7 +951,7 @@ function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [pushToast]);
+  }, []);
 
   async function handleSaveList(data: {
     id?: string;
@@ -1872,7 +1869,12 @@ function App() {
           updateInfo={updateInfo}
           currentVersion={packageJson.version}
           presence={updatePresence.phase}
-          onClose={() => setUpdateDialogOpen(false)}
+          onClose={() => {
+            if (updateInfo?.latestVersion) {
+              dismissUpdatePrompt(updateInfo.latestVersion);
+            }
+            setUpdateDialogOpen(false);
+          }}
           onToast={pushToast}
         />
       )}
