@@ -106,6 +106,7 @@ import { usePresence } from "../hooks/usePresence";
 import { useSyncLifecycle } from "../hooks/useSyncLifecycle";
 import { useToast } from "../hooks/useToast";
 import { useTrayQuickAdd } from "../hooks/useTrayQuickAdd";
+import { useTrayNavigation } from "../hooks/useTrayNavigation";
 import { useSavedViewActions } from "../hooks/useSavedViewActions";
 import { useCalendarEventActions } from "../hooks/useCalendarEventActions";
 import { useRecurringActions } from "../hooks/useRecurringActions";
@@ -854,7 +855,19 @@ function App() {
     () => setShortcutsOpen(true),
     [setShortcutsOpen],
   );
+  // 托盘「检查更新」：显式用户动作，与设置→关于的手动检查同语义——
+  // 不走启动静默检查那套「自然日免打扰」（用户主动点了就要看到结果）。
+  const handleFoundUpdate = useCallback((info: UpdateInfo) => {
+    setUpdateInfo(info);
+    setUpdateDialogOpen(true);
+  }, []);
   useTrayQuickAdd(openTaskCreateDialog, setAppError);
+  useTrayNavigation({
+    openSettingsDialog,
+    checkUpdate: checkForUpdate,
+    onFoundUpdate: handleFoundUpdate,
+    onToast: pushToast,
+  });
   useSyncLifecycle({
     setLists,
     setRecurringRules,

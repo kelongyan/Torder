@@ -303,6 +303,8 @@ pub fn run() {
             commands::clock::patch_clock_settings,
             #[cfg(desktop)]
             commands::clock::get_clock_settings,
+            #[cfg(desktop)]
+            tray::take_tray_intent,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Torder");
