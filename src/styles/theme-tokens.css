@@ -85,6 +85,7 @@
   --danger-bg: color-mix(in srgb, var(--danger) 16%, transparent);
   --danger-border: color-mix(in srgb, var(--danger) 44%, transparent);
   --success-bg: color-mix(in srgb, var(--done) 16%, transparent);
+  --success-border: color-mix(in srgb, var(--done) 44%, transparent);
   --highlight-bg: color-mix(in srgb, #f1fa8c 22%, transparent);
   --overlay-bg: var(--scrim);
   --scrollbar-thumb: var(--stroke-mid);
@@ -169,6 +170,7 @@
   --danger-bg: color-mix(in srgb, var(--danger) 10%, transparent);
   --danger-border: color-mix(in srgb, var(--danger) 30%, transparent);
   --success-bg: color-mix(in srgb, var(--done) 10%, transparent);
+  --success-border: color-mix(in srgb, var(--done) 30%, transparent);
   --highlight-bg: color-mix(in srgb, var(--warn) 18%, transparent);
   --overlay-bg: var(--scrim);
   --scrollbar-thumb: var(--stroke-mid);

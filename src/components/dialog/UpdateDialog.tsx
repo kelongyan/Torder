@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import {
+  ArrowRight,
   ArrowUpCircle,
   CheckCircle2,
   Download,
@@ -9,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import type { PresencePhase } from "../../hooks/usePresence";
+import { ReleaseNotes } from "../common/ReleaseNotes";
 import {
   downloadUpdate,
   launchInstallerAndExit,
@@ -134,8 +136,17 @@ export function UpdateDialog({
             <Sparkles aria-hidden="true" />
           </span>
           <div>
-            <h2>发现新版本 v{updateInfo.latestVersion}</h2>
-            <p>当前版本 v{currentVersion}</p>
+            <h2>发现新版本</h2>
+            <div className="update-version-hero">
+              <span className="update-version-chip is-current">
+                v{currentVersion}
+              </span>
+              <ArrowRight size={12} aria-hidden="true" className="update-version-arrow" />
+              <span className="update-version-chip is-latest">
+                v{updateInfo.latestVersion}
+              </span>
+              <span className="update-version-badge">最新版</span>
+            </div>
           </div>
           <button
             type="button"
@@ -151,12 +162,8 @@ export function UpdateDialog({
         <div className="dialog-body update-dialog-body">
           {step === "ready" && updateInfo.notes && (
             <div className="update-notes-section">
-              <span className="update-section-label">更新内容：</span>
-              <div className="update-notes-box">
-                {updateInfo.notes.split("\n").map((line, idx) => (
-                  <p key={idx}>{line}</p>
-                ))}
-              </div>
+              <span className="update-section-label">更新内容</span>
+              <ReleaseNotes markdown={updateInfo.notes} />
             </div>
           )}
 

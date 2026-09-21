@@ -229,12 +229,27 @@ describe("sanitizeReleaseNotes", () => {
 | Torder_2.7.5_x64-setup.exe | Windows x64 | ~18 MB | abcdef123456 |
 `;
     const cleaned = sanitizeReleaseNotes(raw);
-    expect(cleaned).toBe(`# Torder（今序）v2.7.5 发布说明
----
-### 🚀 现代化应用内流式更新
+    // 首行 H1 标题与弹窗/设置卡片的版本标题重复，一并剥离
+    expect(cleaned).toBe(`### 🚀 现代化应用内流式更新
 - 全新更新弹窗`);
     expect(cleaned).not.toContain("安装包与校验信息");
     expect(cleaned).not.toContain("abcdef123456");
+  });
+
+  it("剥离首行 H1 后不带悬空分割线", () => {
+    const cleaned = sanitizeReleaseNotes(`# Torder（今序）v2.8.2 发布说明
+---
+修复若干问题并优化体验`);
+    expect(cleaned).toBe("修复若干问题并优化体验");
+  });
+
+  it("正文中的标题不受 H1 剥离影响", () => {
+    const cleaned = sanitizeReleaseNotes(`无标题开头
+### 免打扰策略
+- **当天**不再弹出`);
+    expect(cleaned).toBe(`无标题开头
+### 免打扰策略
+- **当天**不再弹出`);
   });
 
   it("无安装包校验表格时原样保留主要说明", () => {

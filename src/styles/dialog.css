@@ -1451,6 +1451,55 @@
   padding: 16px 20px;
 }
 
+/* 版本升级 hero：当前版本 → 目标版本，视觉重心落在「升到哪一版」 */
+.update-version-hero {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.update-version-chip {
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  /* 版本号是数字串，等宽避免不同版本间宽度跳动 */
+  font-variant-numeric: tabular-nums;
+}
+
+.update-version-chip.is-current {
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  /* 旧版本划掉：一眼看出是「将离开」的版本 */
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.update-version-chip.is-latest {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.update-version-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.update-version-badge {
+  border-radius: 999px;
+  background: var(--accent);
+  padding: 1px 7px;
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+}
+
 .update-notes-section {
   display: flex;
   flex-direction: column;
@@ -1463,24 +1512,108 @@
   color: var(--text-secondary);
 }
 
-.update-notes-box {
-  max-height: 140px;
+/* ===== Release notes 渲染（更新弹窗 / 设置→关于 共用） =====
+    Release body 是原始 Markdown，经 utils/releaseNotes.ts 解析为
+    React 元素后由这里定样式。两处消费方共用同一套 class，避免此前
+    .update-notes-box 与 .settings-update-notes 的样式分裂。 */
+
+.release-notes {
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 8px;
   overflow-y: auto;
-  padding: 10px 12px;
+  /* 滚动条出现时不抖动 */
+  scrollbar-gutter: stable;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
+  padding: 12px 14px;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 20px;
+}
+
+.release-notes > :first-child {
+  margin-top: 0;
+}
+
+.release-notes > :last-child {
+  margin-bottom: 0;
+}
+
+.release-notes-h,
+.release-notes-p,
+.release-notes-list,
+.release-notes-divider {
+  margin: 0;
+}
+
+.release-notes-h {
   color: var(--text-primary);
+  line-height: 22px;
+}
+
+.release-notes-h.level-1 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.release-notes-h.level-2 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.release-notes-h.level-3 {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.release-notes-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-left: 18px;
+  list-style: disc;
 }
 
-.update-notes-box p {
-  margin: 0;
+.release-notes-list li::marker {
+  color: var(--text-muted);
+}
+
+.release-notes-p {
+  /* 段落内的软换行保持原样 */
+  white-space: pre-wrap;
   word-break: break-word;
+}
+
+.release-notes-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.release-notes strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.release-notes code {
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  padding: 1px 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.release-notes a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.release-notes a:hover {
+  color: var(--accent-hover);
 }
 
 /* 下载进度卡片 */
@@ -1517,7 +1650,8 @@
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  /* 原为 rgba(255,255,255,.12)——浅色主题下白轨白底不可见 */
+  background: var(--border-light);
   overflow: hidden;
 }
 
@@ -1525,7 +1659,7 @@
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--accent), var(--accent-hi));
-  transition: width 120ms ease-out;
+  transition: width var(--motion-fast) var(--ease-out);
   position: relative;
 }
 
@@ -1535,6 +1669,8 @@
   justify-content: space-between;
   font-size: 11px;
   color: var(--text-secondary);
+  /* 字节数/速度持续变化，等宽数字避免抖动 */
+  font-variant-numeric: tabular-nums;
 }
 
 /* 状态横幅 */
@@ -1542,22 +1678,32 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  border: 1px solid transparent;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   line-height: 18px;
 }
 
+.update-status-banner > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.update-status-banner > svg {
+  flex-shrink: 0;
+}
+
 .update-status-banner.success {
-  background: rgba(80, 250, 123, 0.12);
-  border: 1px solid rgba(80, 250, 123, 0.3);
+  background: var(--success-bg);
+  border-color: var(--success-border);
   color: var(--done);
 }
 
 .update-status-banner.danger {
-  background: rgba(255, 85, 85, 0.12);
-  border: 1px solid rgba(255, 85, 85, 0.3);
-  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--red);
 }
 
 /* 底部操作区 */
@@ -1581,7 +1727,7 @@
   padding: 4px 6px;
   border: none;
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   font-size: 11px;
   cursor: pointer;
   border-radius: 4px;

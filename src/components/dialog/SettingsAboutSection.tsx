@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Sparkles } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
+import { ReleaseNotes } from "../common/ReleaseNotes";
 import {
   checkForUpdate,
   getAppInfo,
@@ -106,7 +107,7 @@ export function SettingsAboutSection({
             发现新版本 v{updateState.info.latestVersion}
           </div>
           {updateState.info.notes && (
-            <p className="settings-update-notes">{updateState.info.notes}</p>
+            <ReleaseNotes markdown={updateState.info.notes} />
           )}
           <button
             type="button"

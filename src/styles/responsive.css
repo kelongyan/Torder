@@ -1441,6 +1441,18 @@
     font-size: 12px;
     line-height: 18px;
   }
+
+  /* 更新弹窗的 footer 是「浏览器下载 + 操作组」两个非对称子元素，
+     套两列等宽 grid 会把操作组挤扁；这里保持 flex 换行。
+     负 margin 也按它自己的 20px 内边距重算，避免贴底栏错位。 */
+  .update-dialog-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 2px -20px 0;
+    padding: 8px 20px 16px;
+    justify-content: space-between;
+  }
 }
 
 /* ===== §3.6 粗指针触摸保底（UI 精修 P6）=====
