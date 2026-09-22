@@ -3,9 +3,18 @@
  * 语义对齐 `设计稿/phone/js/core/sheet.js`：
  *  - ActionSheet：操作菜单（items: label/icon/danger/onSelect）
  *  - ConfirmSheet：居中确认（Promise<bool>）
- * 结构复用 openSheet 的 scrim + 底部 Sheet 骨架；下拉关闭手柄后续批次补。
+ *  - BottomSheet：通用带进退场过渡的底部抽屉外壳
+ * 进退场生命周期闭环：入场平滑上升，退场优雅滑落后卸载。
  */
-import { useEffect, type JSX, type ReactNode } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type JSX,
+  type ReactNode,
+} from "react";
 import { X } from "lucide-react";
 
 export interface SheetActionItem {
@@ -26,6 +35,65 @@ function useLockScroll(open: boolean) {
   }, [open]);
 }
 
+/** 拦截关闭以执行退场动画的 hook */
+export function useSheetTransition(onClose: () => void, duration = 240) {
+  const [exiting, setExiting] = useState(false);
+  const closingRef = useRef(false);
+
+  const requestClose = useCallback(
+    (afterClose?: () => void) => {
+      if (closingRef.current) return;
+      closingRef.current = true;
+      setExiting(true);
+      window.setTimeout(() => {
+        onClose();
+        afterClose?.();
+      }, duration);
+    },
+    [onClose, duration],
+  );
+
+  return { exiting, requestClose };
+}
+
+/** 通用底部抽屉外壳（带遮罩与滑入滑出动画闭环） */
+export function BottomSheet({
+  title,
+  children,
+  cancelText = "取消",
+  onClose,
+}: {
+  title?: ReactNode;
+  children: ReactNode;
+  cancelText?: string;
+  onClose: () => void;
+}): JSX.Element {
+  useLockScroll(true);
+  const { exiting, requestClose } = useSheetTransition(onClose);
+
+  return (
+    <div
+      className={`m-scrim ${exiting ? "is-exiting" : ""}`}
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) requestClose();
+      }}
+    >
+      <div className="m-sheet" role="dialog" aria-modal="true">
+        {title ? <div className="m-sheet-title">{title}</div> : null}
+        <div className="m-sheet-body">{children}</div>
+        <button
+          type="button"
+          className="m-sheet-cancel"
+          onClick={() => requestClose()}
+        >
+          {cancelText}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ActionSheet({
   title,
   items,
@@ -36,16 +104,18 @@ export function ActionSheet({
   onClose: () => void;
 }): JSX.Element | null {
   useLockScroll(true);
+  const { exiting, requestClose } = useSheetTransition(onClose);
+
   const pick = (item: SheetActionItem) => {
-    onClose();
-    item.onSelect();
+    requestClose(() => item.onSelect());
   };
+
   return (
     <div
-      className="m-scrim m-scrim-open"
+      className={`m-scrim ${exiting ? "is-exiting" : ""}`}
       role="presentation"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div className="m-sheet" role="dialog" aria-modal="true">
@@ -65,7 +135,11 @@ export function ActionSheet({
             </button>
           ))}
         </div>
-        <button type="button" className="m-sheet-cancel" onClick={onClose}>
+        <button
+          type="button"
+          className="m-sheet-cancel"
+          onClick={() => requestClose()}
+        >
           取消
         </button>
       </div>
@@ -91,25 +165,35 @@ export function ConfirmSheet({
   onCancel: () => void;
 }): JSX.Element {
   useLockScroll(true);
+  const { exiting, requestClose } = useSheetTransition(onCancel, 200);
+
+  const handleConfirm = () => {
+    requestClose(() => onConfirm());
+  };
+
   return (
     <div
-      className="m-scrim m-scrim-open"
+      className={`m-scrim ${exiting ? "is-exiting" : ""}`}
       role="presentation"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div className="m-modal" role="alertdialog" aria-modal="true">
         <div className="m-modal-title">{title}</div>
         {body ? <div className="m-modal-body">{body}</div> : null}
         <div className="m-modal-actions">
-          <button type="button" className="m-modal-btn" onClick={onCancel}>
+          <button
+            type="button"
+            className="m-modal-btn"
+            onClick={() => requestClose()}
+          >
             {cancelText}
           </button>
           <button
             type="button"
             className={`m-modal-btn primary ${danger ? "danger" : ""}`}
-            onClick={onConfirm}
+            onClick={handleConfirm}
           >
             {confirmText}
           </button>
@@ -118,7 +202,7 @@ export function ConfirmSheet({
           type="button"
           className="m-modal-close"
           aria-label="关闭"
-          onClick={onCancel}
+          onClick={() => requestClose()}
         >
           <X aria-hidden="true" />
         </button>

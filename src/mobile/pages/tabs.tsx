@@ -40,6 +40,7 @@ import { useMobileProps } from "../context";
 import { useTaskMore } from "../parts/TaskMoreMenu";
 import { EmptyView, NavRow, ScreenShell, SectionTitle, TopBar } from "../ui";
 import { MobileTaskRows } from "../parts/MobileTaskRows";
+import { BottomSheet } from "../parts/sheets";
 
 /* ================= 公共派生 ================= */
 
@@ -569,16 +570,8 @@ function AppearanceSheet({ onClose }: { onClose: () => void }): JSX.Element {
   }
 
   return (
-    <div
-      className="m-scrim m-scrim-open"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="m-sheet" role="dialog" aria-modal="true">
-        <div className="m-sheet-title">外观</div>
-        <div className="m-sheet-body m-appearance-body">
+    <BottomSheet title="外观" cancelText="完成" onClose={onClose}>
+      <div className="m-appearance-body">
           <div className="m-appearance-label">主题</div>
           <div className="m-appearance-theme-grid">
             {(["light", "dark", "system"] as ThemePreference[]).map((theme) => (
@@ -621,10 +614,6 @@ function AppearanceSheet({ onClose }: { onClose: () => void }): JSX.Element {
             ))}
           </div>
         </div>
-        <button type="button" className="m-sheet-cancel" onClick={onClose}>
-          完成
-        </button>
-      </div>
-    </div>
+      </BottomSheet>
   );
 }

@@ -7,14 +7,20 @@
  *  - 渲染底部导航 4 Tab + 中央 FAB；次级页隐藏（tab=null）
  *  - 转场：push 右入 / back 左入 / tab 淡入（M-A 进场动画；退出动画 M-B 精修）
  */
-import { type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Calendar, CalendarRange, Layers, Plus, Settings } from "lucide-react";
 import { useMobileRouter, MobilePageProvider } from "./router";
-import type { MobileTab, MobilePageContext } from "./router";
+import type { MobileTab, MobilePageContext, MobileEntry } from "./router";
 import { mobileRoutes } from "./routes";
 import { MobilePropsProvider } from "./context";
 import type { MobileShellProps } from "./types";
 import "./mobile.css";
+
+interface RenderStackState {
+  current: MobileEntry;
+  previous: MobileEntry | null;
+  kind: "push" | "back" | "tab";
+}
 
 export function MobileShell(props: MobileShellProps): JSX.Element {
   const { entries, api, navKind } = useMobileRouter(mobileRoutes, "/today");
@@ -26,40 +32,101 @@ export function MobileShell(props: MobileShellProps): JSX.Element {
   const showTabBar = top.route.tab !== null;
   const activeTab: MobileTab | null = top.route.tab;
 
+  const [stack, setStack] = useState<RenderStackState>(() => ({
+    current: top,
+    previous: null,
+    kind: "tab",
+  }));
+  const [prevTopKey, setPrevTopKey] = useState(top.key);
+
+  if (top.key !== prevTopKey) {
+    setPrevTopKey(top.key);
+    setStack((prev) => ({
+      current: top,
+      previous: prev.current,
+      kind: navKind,
+    }));
+  }
+
+  useEffect(() => {
+    if (!stack.previous) return;
+    const timer = window.setTimeout(() => {
+      setStack((prev) => (prev.previous ? { ...prev, previous: null } : prev));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [stack.previous]);
+
+  const renderScreen = (
+    entry: MobileEntry,
+    animClass: string,
+    isExiting = false,
+  ) => {
+    const isTab = entry.route.tab !== null;
+    return (
+      <div
+        key={entry.key}
+        className={`m-screen ${isTab ? "m-screen-has-tabbar" : ""} ${animClass}`.trim()}
+        style={isExiting ? { pointerEvents: "none" } : undefined}
+        aria-hidden={isExiting ? "true" : undefined}
+      >
+        <MobilePageProvider ctx={pageCtx}>
+          <MobilePropsProvider value={props}>
+            {entry.route.render(pageCtx, entry.params, entry.query)}
+          </MobilePropsProvider>
+        </MobilePageProvider>
+        <div className="m-screen-scrim" aria-hidden="true" />
+      </div>
+    );
+  };
+
+  let screenElements: JSX.Element[];
+  if (!stack.previous) {
+    screenElements = [renderScreen(stack.current, "")];
+  } else if (stack.kind === "push") {
+    screenElements = [
+      renderScreen(stack.previous, "m-screen-push-exit", true),
+      renderScreen(stack.current, "m-screen-push-enter", false),
+    ];
+  } else if (stack.kind === "back") {
+    screenElements = [
+      renderScreen(stack.current, "m-screen-back-enter", false),
+      renderScreen(stack.previous, "m-screen-back-exit", true),
+    ];
+  } else {
+    // tab 切换
+    screenElements = [
+      renderScreen(stack.previous, "m-screen-tab-exit", true),
+      renderScreen(stack.current, "m-screen-tab-enter", false),
+    ];
+  }
+
   return (
     <div className="m-app">
-      <div className="m-screen-host">
-        <div key={top.key} className={`m-screen m-anim-${navKind}`}>
-          <MobilePageProvider ctx={pageCtx}>
-            <MobilePropsProvider value={props}>
-              {top.route.render(pageCtx, top.params, top.query)}
-            </MobilePropsProvider>
-          </MobilePageProvider>
-        </div>
-      </div>
+      <div className="m-screen-host">{screenElements}</div>
 
-      {showTabBar && (
-        <MobileTabBar
-          active={activeTab}
-          onCreate={() => {
-            navigator.vibrate?.(8);
-            api.push("/new");
-          }}
-          onTab={(key) => {
-            api.tab(key);
-          }}
-        />
-      )}
+      <MobileTabBar
+        active={activeTab}
+        visible={showTabBar}
+        onCreate={() => {
+          navigator.vibrate?.(8);
+          api.push("/new");
+        }}
+        onTab={(key) => {
+          api.tab(key);
+        }}
+      />
     </div>
   );
 }
 
 function MobileTabBar({
   active,
+  visible,
   onCreate,
   onTab,
 }: {
   active: MobileTab | null;
+  visible: boolean;
   onCreate: () => void;
   onTab: (key: MobileTab) => void;
 }): JSX.Element {
@@ -96,7 +163,11 @@ function MobileTabBar({
   ];
 
   return (
-    <nav className="m-tabbar" aria-label="主导航">
+    <nav
+      className={`m-tabbar ${visible ? "is-visible" : "is-hidden"}`}
+      aria-label="主导航"
+      aria-hidden={!visible ? "true" : undefined}
+    >
       {slots.map((slot, index) => {
         if (slot.kind === "fab") {
           return (

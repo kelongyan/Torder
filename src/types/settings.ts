@@ -24,6 +24,32 @@ export type SettingsPanelId =
   | "shortcuts"
   | "about";
 
+/**
+ * `SettingsPanelId` 的运行期白名单。
+ *
+ * 面板 id 会从进程外传进来（托盘菜单 `settings:<id>`），Rust 侧只做前缀切分、
+ * 不校验合法性，所以这里是唯一权威校验点：不认识的 id 一律拒绝，
+ * 避免脏值流进 `settingsPanel` state（表现为「点了没反应」或退化成默认面板）。
+ * 新增面板时两处一起加——`satisfies` 会让漏改在这里报编译错误。
+ */
+export const SETTINGS_PANEL_IDS = [
+  "general",
+  "appearance",
+  "defaults",
+  "notifications",
+  "sync",
+  "data",
+  "shortcuts",
+  "about",
+] as const satisfies readonly SettingsPanelId[];
+
+export function isSettingsPanelId(value: unknown): value is SettingsPanelId {
+  return (
+    typeof value === "string" &&
+    (SETTINGS_PANEL_IDS as readonly string[]).includes(value)
+  );
+}
+
 export interface SavedTaskView {
   id: string;
   name: string;

@@ -45,7 +45,7 @@ export interface MobileRoute {
   ) => ReactNode;
 }
 
-interface MobileEntry {
+export interface MobileEntry {
   key: string;
   path: string;
   route: MobileRoute;

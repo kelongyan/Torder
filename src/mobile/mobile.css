@@ -5,20 +5,35 @@
  * 引用 token 以 .window-frame.mobile 作用域为准（--safe-*、--touch-* 等）。
  * ============================================================ */
 
-/* ---- 应用骨架：整窗纵向流 ---- */
+/* ---- 移动端动效与物理缓动 Token ---- */
+:root {
+  --m-ease-enter: cubic-bezier(0.08, 0.88, 0.18, 1);
+  --m-ease-exit: cubic-bezier(0.32, 0.0, 0.82, 0.18);
+  --m-ease-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+  /* 与 tokens.css 的 --ease-spring 同一曲线（回弹手感）。
+     必须显式定义：var() 未定义会让整条 transition/animation 声明失效，
+     导致 .m-tab-icon / .m-tab-fab / .m-mrow-check 的过渡被一并打掉。 */
+  --m-ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --m-duration-page: 280ms;
+  --m-duration-tab: 200ms;
+  --m-duration-sheet: 260ms;
+  --m-duration-modal: 240ms;
+}
+
+/* ---- 应用骨架：全屏绝对定位无抖动布局 ---- */
 .m-app {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  width: 100%;
   height: 100%;
+  overflow: hidden;
   background: var(--mica);
   color: var(--text-1);
   -webkit-tap-highlight-color: transparent;
 }
 
 .m-screen-host {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
 }
 
@@ -31,44 +46,124 @@
   background: var(--mica);
 }
 
-/* 进场动画：push 右入 / back 左入 / tab 淡入（280ms 强调缓动，与设计稿一致）
-   fill-mode 不留持，结束后 transform 归 none，避免给 fixed 浮层制造包含块 */
-.m-anim-push {
-  animation: m-in-right 280ms var(--ease-out);
-}
-.m-anim-back {
-  animation: m-in-left 280ms var(--ease-out);
-}
-.m-anim-tab {
-  animation: m-in-fade 200ms var(--ease-out);
+/* 视差遮罩：为底层页面在 Push / Back 期间提供深度暗化 */
+.m-screen-scrim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
 }
 
-@keyframes m-in-right {
+/* 主 Tab 页面内容底部避让 TabBar */
+.m-screen-has-tabbar .m-page-body {
+  padding-bottom: calc(76px + var(--safe-bottom, 0px));
+}
+
+/* ---- 路由转场体系：双页面协同动画 ---- */
+/* Push：新页 100% 右侧滑入（带景深阴影），旧页 -25% 视差后退并暗化 */
+.m-screen-push-enter {
+  z-index: 2;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.22);
+  animation: m-anim-push-enter var(--m-duration-page) var(--m-ease-enter) forwards;
+}
+.m-screen-push-exit {
+  z-index: 1;
+  animation: m-anim-push-exit var(--m-duration-page) var(--m-ease-enter) forwards;
+}
+.m-screen-push-exit .m-screen-scrim {
+  animation: m-anim-scrim-in var(--m-duration-page) var(--m-ease-enter) forwards;
+}
+
+/* Back：当前页 100% 向右滑出，底层页从 -25% 视差复位并褪去暗化 */
+.m-screen-back-enter {
+  z-index: 1;
+  animation: m-anim-back-enter var(--m-duration-page) var(--m-ease-enter) forwards;
+}
+.m-screen-back-enter .m-screen-scrim {
+  animation: m-anim-scrim-out var(--m-duration-page) var(--m-ease-enter) forwards;
+}
+.m-screen-back-exit {
+  z-index: 2;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.22);
+  animation: m-anim-back-exit var(--m-duration-page) var(--m-ease-exit) forwards;
+}
+
+/* Tab：相邻主屏微缩放 Cross-fade，避免闪白或黑屏撕裂 */
+.m-screen-tab-enter {
+  z-index: 2;
+  animation: m-anim-tab-enter var(--m-duration-tab) var(--m-ease-enter) forwards;
+}
+.m-screen-tab-exit {
+  z-index: 1;
+  animation: m-anim-tab-exit calc(var(--m-duration-tab) * 0.75) ease forwards;
+}
+
+@keyframes m-anim-push-enter {
   from {
-    transform: translateX(9%);
-    opacity: 0.6;
+    transform: translate3d(100%, 0, 0);
   }
   to {
-    transform: translateX(0);
-    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
-@keyframes m-in-left {
+@keyframes m-anim-push-exit {
   from {
-    transform: translateX(-6%);
-    opacity: 0.7;
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateX(0);
-    opacity: 1;
+    transform: translate3d(-25%, 0, 0);
   }
 }
-@keyframes m-in-fade {
+@keyframes m-anim-back-enter {
+  from {
+    transform: translate3d(-25%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes m-anim-back-exit {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+@keyframes m-anim-scrim-in {
   from {
     opacity: 0;
   }
   to {
+    opacity: 0.16;
+  }
+}
+@keyframes m-anim-scrim-out {
+  from {
+    opacity: 0.16;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes m-anim-tab-enter {
+  from {
+    opacity: 0;
+    transform: scale3d(0.98, 0.98, 1);
+  }
+  to {
     opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+@keyframes m-anim-tab-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
@@ -356,7 +451,11 @@
 
 /* ---- 底部导航：4 Tab + 中央 FAB（56dp） ---- */
 .m-tabbar {
-  flex: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   display: grid;
   grid-template-columns: 1fr 1fr 88px 1fr 1fr;
   align-items: stretch;
@@ -365,6 +464,15 @@
   background: color-mix(in srgb, var(--mica) 96%, transparent);
   backdrop-filter: var(--blur-panel, blur(16px));
   border-top: 1px solid var(--stroke);
+  transition:
+    transform 260ms var(--m-ease-standard),
+    opacity 200ms ease;
+  will-change: transform, opacity;
+}
+.m-tabbar.is-hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
 }
 .m-tab {
   display: flex;
@@ -394,11 +502,16 @@
   border-radius: 999px;
   transition:
     background 180ms ease,
-    color 180ms ease;
+    color 180ms ease,
+    transform 180ms var(--m-ease-spring);
 }
 .m-tab.active .m-tab-icon {
   background: var(--accent-soft);
   color: var(--accent);
+  transform: scale(1.06);
+}
+.m-tab:active .m-tab-icon {
+  transform: scale(0.92);
 }
 .m-tab-label {
   line-height: 1;
@@ -427,11 +540,11 @@
   font-size: 26px;
   cursor: pointer;
   transition:
-    transform 140ms ease,
-    box-shadow 140ms ease;
+    transform 160ms var(--m-ease-spring),
+    box-shadow 160ms ease;
 }
 .m-tab-fab:active {
-  transform: scale(0.92);
+  transform: scale(0.88);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
@@ -1144,7 +1257,7 @@
   height: 1px;
 }
 
-/* ---- Sheet / ActionSheet / Confirm ---- */
+/* ---- Sheet / ActionSheet / Confirm 浮层体系 ---- */
 .m-scrim {
   position: fixed;
   inset: 0;
@@ -1153,26 +1266,26 @@
   flex-direction: column;
   justify-content: flex-end;
   background: var(--scrim);
-  opacity: 0;
+  animation: m-anim-scrim-fade-in 220ms var(--m-ease-enter) forwards;
+  will-change: opacity;
+}
+.m-scrim.is-exiting {
   pointer-events: none;
-  transition: opacity 200ms var(--ease-standard);
+  animation: m-anim-scrim-fade-out 200ms var(--m-ease-exit) forwards;
 }
-.m-scrim-open {
-  opacity: 1;
-  pointer-events: auto;
-}
+
 .m-sheet {
   background: var(--pop);
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
   padding: 6px 12px calc(14px + var(--safe-bottom, 0px));
-  transform: translateY(100%);
-  transition: transform 280ms var(--ease-out);
   max-height: 72vh;
   overflow-y: auto;
+  animation: m-anim-sheet-slide-in var(--m-duration-sheet) var(--m-ease-enter) forwards;
+  will-change: transform;
 }
-.m-scrim-open .m-sheet {
-  transform: translateY(0);
+.m-scrim.is-exiting .m-sheet {
+  animation: m-anim-sheet-slide-out 220ms var(--m-ease-exit) forwards;
 }
 .m-sheet-title {
   padding: 12px 8px 6px;
@@ -1220,7 +1333,7 @@
   cursor: pointer;
 }
 
-/* 居中确认 */
+/* 居中确认（弹窗带平滑缩放进入与淡出退场） */
 .m-modal {
   position: relative;
   align-self: center;
@@ -1231,6 +1344,11 @@
   border-radius: var(--radius-lg);
   background: var(--pop);
   box-shadow: var(--shadow-floating);
+  animation: m-anim-modal-zoom-in var(--m-duration-modal) var(--m-ease-enter) forwards;
+  will-change: transform, opacity;
+}
+.m-scrim.is-exiting .m-modal {
+  animation: m-anim-modal-zoom-out 180ms var(--m-ease-exit) forwards;
 }
 .m-modal-title {
   font-size: var(--text-md);
@@ -1279,6 +1397,43 @@
   cursor: pointer;
   display: inline-flex;
   padding: 6px;
+}
+
+@keyframes m-anim-scrim-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes m-anim-scrim-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes m-anim-sheet-slide-in {
+  from { transform: translate3d(0, 100%, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+@keyframes m-anim-sheet-slide-out {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(0, 100%, 0); }
+}
+@keyframes m-anim-modal-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale3d(0.92, 0.92, 1) translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+  }
+}
+@keyframes m-anim-modal-zoom-out {
+  from {
+    opacity: 1;
+    transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: scale3d(0.95, 0.95, 1);
+  }
 }
 
 /* ---- 搜索页 ---- */
@@ -1377,6 +1532,11 @@
   background: var(--surface);
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow-sm);
+  max-height: 120px;
+  transition:
+    max-height 220ms var(--m-ease-enter),
+    margin-bottom 220ms var(--m-ease-enter),
+    opacity 180ms ease;
 }
 .m-group-card .m-swipe-wrap {
   border: none;
@@ -1387,6 +1547,19 @@
 }
 .m-group-card .m-swipe-wrap + .m-swipe-wrap {
   border-top: 1px solid var(--stroke);
+}
+.m-swipe-wrap.is-exit-left .m-mrow {
+  transform: translate3d(-100%, 0, 0) !important;
+  transition: transform 180ms var(--m-ease-exit) !important;
+}
+.m-swipe-wrap.is-collapsed {
+  max-height: 0 !important;
+  margin-bottom: 0 !important;
+  opacity: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border: none !important;
+  pointer-events: none;
 }
 .m-swipe-action {
   position: absolute;
@@ -1472,11 +1645,19 @@
   color: var(--on-accent);
   padding: 0;
   cursor: pointer;
+  transition:
+    transform 140ms var(--m-ease-spring),
+    background 180ms var(--m-ease-standard),
+    border-color 180ms var(--m-ease-standard);
+}
+.m-mrow-check:active {
+  transform: scale(0.85);
 }
 .m-mrow-check.checked {
   background: var(--green);
   border-color: var(--green);
   color: var(--on-success);
+  animation: m-anim-check-pop 200ms var(--m-ease-spring);
 }
 .m-mrow-del-icon {
   flex: none;
@@ -1500,6 +1681,15 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow-wrap: anywhere;
+  transition:
+    color 180ms var(--m-ease-standard),
+    opacity 180ms var(--m-ease-standard);
+}
+
+@keyframes m-anim-check-pop {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 .m-mrow-meta {
   display: inline-flex;

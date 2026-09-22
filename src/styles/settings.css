@@ -1088,14 +1088,6 @@
   color: var(--accent-hover);
 }
 
-.settings-update-notes {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: pre-wrap;
-}
-
 @keyframes settings-spin {
   from {
     transform: rotate(0deg);

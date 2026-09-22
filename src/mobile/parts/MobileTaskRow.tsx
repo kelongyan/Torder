@@ -12,6 +12,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type CSSProperties,
   type JSX,
   type PointerEvent as ReactPointerEvent,
@@ -65,6 +66,9 @@ export function MobileTaskRow({
   const done = task.status === "done";
   const overdue = task.dueAt ? formatDueLabel(task.dueAt) : null;
   const accent = listColor ?? "var(--accent)";
+
+  const [exitMode, setExitMode] = useState<"none" | "exit-left" | "collapsed">("none");
+  const exitingRef = useRef(false);
 
   // 手势回调最新引用：事件只绑一次，render 期不写 ref（由 effect 同步）
   const handlersRef = useRef({ onOpen, onToggle, onDelete, task });
@@ -133,11 +137,25 @@ export function MobileTaskRow({
     };
     const end = () => {
       if (!dragging) return;
-      const { onToggle, onDelete } = handlersRef.current;
+      const { onToggle, onDelete, task } = handlersRef.current;
       if (offset <= -SWIPE_FIRE) {
-        navigator.vibrate?.(14);
-        suppressClickRef.current = true;
-        onDelete(task);
+        if (!exitingRef.current) {
+          exitingRef.current = true;
+          navigator.vibrate?.(14);
+          suppressClickRef.current = true;
+          setExitMode("exit-left");
+          window.setTimeout(() => {
+            setExitMode("collapsed");
+            window.setTimeout(() => {
+              onDelete(task);
+            }, 220);
+          }, 160);
+        }
+        dragging = false;
+        lock = null;
+        offset = 0;
+        firedThreshold = false;
+        return;
       } else if (offset >= SWIPE_FIRE) {
         navigator.vibrate?.(14);
         suppressClickRef.current = true;
@@ -166,7 +184,6 @@ export function MobileTaskRow({
       el.removeEventListener("touchend", end);
       el.removeEventListener("touchcancel", cancel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 长按：Pointer 事件兼容触屏/预览鼠标；位移超限取消；触发后抑制本次 click
@@ -208,7 +225,9 @@ export function MobileTaskRow({
   } as CSSProperties;
 
   return (
-    <div className="m-swipe-wrap">
+    <div
+      className={`m-swipe-wrap ${exitMode === "exit-left" ? "is-exit-left" : ""} ${exitMode === "collapsed" ? "is-collapsed" : ""}`}
+    >
       {!deleted && (
         <>
           <div className="m-swipe-action m-swipe-left">
@@ -302,7 +321,12 @@ export function MobileTaskRow({
               className="m-mrow-del-btn bad"
               onClick={(e) => {
                 e.stopPropagation();
-                onPermanentDelete?.(task);
+                if (exitingRef.current) return;
+                exitingRef.current = true;
+                setExitMode("collapsed");
+                window.setTimeout(() => {
+                  onPermanentDelete?.(task);
+                }, 220);
               }}
             >
               <Trash2 aria-hidden="true" />

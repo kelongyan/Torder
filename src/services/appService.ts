@@ -175,15 +175,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * 净化更新说明文本：
- * 移除 GitHub / Gitee Release 页面末尾附带的裸露安装包表格与 SHA256 校验码区块
- * （应用内更新自带流式校验，无需向终端用户展示原始 Markdown 表格语法）。
+ * 1. 移除 GitHub / Gitee Release 页面末尾附带的裸露安装包表格与 SHA256 校验码
+ *    区块（应用内更新自带流式校验，无需向终端用户展示原始 Markdown 表格语法）；
+ * 2. 移除首行 H1 标题（如 `# Torder（今序）v2.8.2 发布说明`）——展示层已有
+ *    版本 hero 和卡片标题，这行纯属重复。
  */
 export function sanitizeReleaseNotes(notes: string): string {
   const cutIndex = notes.search(
     /(?:^|\n)\s*#{1,4}\s*(?:📦\s*)?安装包与校验信息/i,
   );
   const trimmed = cutIndex !== -1 ? notes.slice(0, cutIndex) : notes;
-  return trimmed.replace(/(?:\r?\n\s*---\s*)*\s*$/, "").trim();
+  return stripLeadingTitle(
+    trimmed.replace(/(?:\r?\n\s*---\s*)*\s*$/, ""),
+  ).trim();
+}
+
+/**
+ * 去掉首行的 H1 标题，以及紧跟其后的一根分割线——否则内容会以一根悬空的
+ * 横线开头。只动首行，正文中出现的标题不受影响。
+ */
+function stripLeadingTitle(text: string): string {
+  const title = /^\s*#[^\n]*\n?/.exec(text);
+  if (!title) return text;
+  return text.slice(title[0].length).replace(/^\s*(?:-{3,}|\*{3,})\s*\n?/, "");
 }
 
 /** 校验并提取单个平台目标；字段缺失/类型错误时抛出可诊断错误。 */

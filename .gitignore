@@ -28,6 +28,7 @@ android-test-*.png
 .workbuddy/
 .agents/
 .commandcode/
+.zcode/
 .DS_Store
 *.suo
 *.ntvs*
