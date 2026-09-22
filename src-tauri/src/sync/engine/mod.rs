@@ -56,6 +56,15 @@ const MAX_SNAPSHOT_JSON_BYTES: u64 = 32 * 1024 * 1024;
 const SNAPSHOT_INTERVAL: i64 = 100;
 const SNAPSHOT_MIN_OBJECTS: usize = 100;
 
+/// 把一条设置项投影成同步载荷的值部分；不该同步的键返回 `None`。
+///
+/// 集中在这里而不是散落各处：`apply`（远端变更落库）与 `identity`（存量引导）
+/// 必须用**同一套**裁剪规则，否则存量引导会把几何字段推给别的设备。
+pub(crate) fn settings_payload(key: &str, raw_value: &str) -> Option<serde_json::Value> {
+    let parsed: serde_json::Value = serde_json::from_str(raw_value).ok()?;
+    crate::sync::settings_policy::project_for_sync(key, &parsed)
+}
+
 #[derive(Clone)]
 pub(crate) struct EncryptionContext {
     config: EncryptionConfig,

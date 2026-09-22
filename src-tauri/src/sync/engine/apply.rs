@@ -313,6 +313,15 @@ pub fn apply_batch_with_limit(
                 record_remote_change(&transaction, batch, operation)?;
                 continue;
             }
+            // 设置的「冲突」没有裁决价值：两边都改了主题，用户不可能在
+            // 「本机的深色」和「远端的浅色」之间做有意义的选择——后写胜出
+            // 就是最合理的语义。进冲突面板只会拿无意义的条目打扰用户。
+            // 业务对象（任务/清单等）仍然照常进面板，那里冲突是真冲突。
+            if operation.entity == "settings" {
+                apply_operation(&transaction, operation)?;
+                record_remote_change(&transaction, batch, operation)?;
+                continue;
+            }
             transaction.execute(
                 r#"INSERT INTO sync_conflicts (
                     id, entity, object_id, local_revision, remote_revision,
@@ -523,7 +532,10 @@ fn entity_order(entity: &str) -> u8 {
         "taskLink" => 3,
         "attachment" => 4,
         "calendarEvent" => 5,
-        _ => 5,
+        // 设置独立于业务对象之外——放最后，避免初始化顺序影响其它实体
+        // （设置里的 defaultListId 会引用清单，必须等清单先落地）
+        "settings" => 6,
+        _ => 6,
     }
 }
 
@@ -573,12 +585,42 @@ pub(crate) fn current_payload(
         "taskLink" => "SELECT json_object('id', id, 'sourceTaskId', source_task_id, 'targetTaskId', target_task_id, 'relationType', relation_type, 'sortOrder', sort_order, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM task_links WHERE id = ?1",
         "calendarEvent" => "SELECT json_object('id', id, 'title', title, 'eventType', event_type, 'startDate', start_date, 'endDate', end_date, 'note', note, 'createdAt', created_at, 'updatedAt', updated_at, 'deletedAt', deleted_at) FROM calendar_events WHERE id = ?1",
         "attachment" => "SELECT json_object('id', a.id, 'taskId', a.task_id, 'kind', a.kind, 'blobId', a.blob_id, 'displayName', a.display_name, 'originalName', a.original_name, 'externalUrl', a.external_url, 'contentSha256', b.content_sha256, 'sizeBytes', b.size_bytes, 'mimeType', b.mime_type, 'remotePath', b.remote_path, 'encryptionKeyId', b.encryption_key_id, 'sortOrder', a.sort_order, 'createdAt', a.created_at, 'updatedAt', a.updated_at, 'deletedAt', a.deleted_at) FROM task_attachments AS a LEFT JOIN attachment_blobs AS b ON b.id = a.blob_id WHERE a.id = ?1",
+        // 设置项以键为对象 id；`value` 列存的是 JSON 文本，用 json() 取出后
+        // 由 project_settings_payload 按策略裁剪——裁剪必须在 Rust 侧做，
+        // 不能让几何字段有机会上云。
+        "settings" => "SELECT json_object('id', key, 'key', key, 'value', json(value), 'updatedAt', updated_at) FROM settings WHERE key = ?1",
         _ => return Err(RepositoryError::Validation("invalid sync entity")),
     };
     let encoded = transaction.query_row(sql, rusqlite::params![object_id], |row| {
         row.get::<_, String>(0)
     })?;
-    Ok(serde_json::from_str(&encoded)?)
+    let payload: Value = serde_json::from_str(&encoded)?;
+    project_settings_payload(object_id, payload)
+}
+
+/// 对 settings 实体载荷做投影：把 `value` 换成按白名单裁剪后的值。
+///
+/// 非 settings 载荷（没有 `key` 字段）原样返回。
+///
+/// 不在同步白名单里的键投影成**空对象**而不是报错：远端可能来自更新的版本、
+/// 或是被篡改的载荷，此时本地「无可同步内容」就是准确的描述。报错会打断整批
+/// 应用（一条脏数据让所有设备的同步卡死），而空投影让 `apply_operation`
+/// 自然跳过写入，其余变更照常落地。
+fn project_settings_payload(object_id: &str, payload: Value) -> RepositoryResult<Value> {
+    let Some(object) = payload.as_object() else {
+        return Ok(payload);
+    };
+    if !object.contains_key("key") {
+        return Ok(payload);
+    }
+    let raw_value = object
+        .get("value")
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "null".to_owned());
+    let projected = super::settings_payload(object_id, &raw_value).unwrap_or_else(|| json!({}));
+    let mut result = object.clone();
+    result.insert("value".to_owned(), projected);
+    Ok(Value::Object(result))
 }
 
 fn merged_payload(
@@ -648,6 +690,9 @@ fn has_full_insert_payload(entity: &str, payload: &Value) -> bool {
             "deletedAt",
         ],
         "attachment" => &["taskId", "kind", "displayName", "sortOrder", "deletedAt"],
+        // 设置项没有「删除」语义：白名单里的键永远存在（normalizeAppearance
+        // 之类保证回退值），同步只做 upsert。要求 value 存在即可整体插入。
+        "settings" => &["key", "value"],
         _ => return false,
     };
     required_fields
@@ -868,6 +913,43 @@ fn apply_operation(
                     string(&payload, "endDate", "1970-01-01"), optional_string(&payload, "note"),
                     optional_string(&payload, "createdAt"), optional_string(&payload, "updatedAt"),
                     optional_string(&payload, "deletedAt")],
+            )?;
+        }
+        // 设置项：把远端值按策略合并进本地值，再 upsert。
+        //
+        // 关键点：按字段同步的键（widget/clock）**只覆盖白名单字段**，
+        // 本地几何与开关原样保留。直接用远端值覆盖整列会把那台机器的
+        // 屏幕坐标写进来（见 sync::settings_policy 的注释）。
+        "settings" => {
+            use crate::sync::settings_policy::merge_remote_into_local;
+            let remote_value = payload.get("value").cloned().unwrap_or(Value::Null);
+            let local_raw: Option<String> = transaction
+                .query_row(
+                    "SELECT value FROM settings WHERE key = ?1",
+                    rusqlite::params![operation.object_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            let local_value = local_raw
+                .as_deref()
+                .and_then(|raw| serde_json::from_str::<Value>(raw).ok());
+            let Some(merged) =
+                merge_remote_into_local(&operation.object_id, local_value.as_ref(), &remote_value)
+            else {
+                // 不在白名单：静默跳过（远端可能来自更新的版本，本地不认识这个键）
+                return Ok(());
+            };
+            transaction.execute(
+                r#"INSERT INTO settings (key, value, updated_at)
+                   VALUES (?1, ?2, COALESCE(?3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))
+                   ON CONFLICT(key) DO UPDATE SET
+                     value = excluded.value,
+                     updated_at = excluded.updated_at"#,
+                rusqlite::params![
+                    operation.object_id,
+                    serde_json::to_string(&merged)?,
+                    optional_string(&payload, "updatedAt"),
+                ],
             )?;
         }
         _ => {}

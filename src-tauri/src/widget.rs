@@ -111,6 +111,11 @@ pub fn patch_widget_settings(
             params!["widget", value.to_string()],
         )
         .map_err(|error| error.to_string())?;
+    // 便签设置走自己的事务（不经 SettingsRepository::upsert），同步变更记录
+    // 要在这里单独补——漏了它便签外观改动永远同步不到别的设备。记录的是
+    // 裁剪后的值（只含外观字段），几何与开关不会上云。
+    crate::db::settings_repository::record_settings_change(&transaction, "widget", &value)
+        .map_err(|error| error.to_string())?;
     transaction.commit().map_err(|error| error.to_string())?;
     Ok(value)
 }

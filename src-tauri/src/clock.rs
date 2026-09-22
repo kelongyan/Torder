@@ -93,6 +93,10 @@ pub fn patch_clock_settings(
             params!["clock", value.to_string()],
         )
         .map_err(|error| error.to_string())?;
+    // 与 widget 同理：时钟设置有自己的事务，同步记录需单独补。
+    // 只同步外观/偏好字段，窗口几何（x/y/w/h）与开关不上云。
+    crate::db::settings_repository::record_settings_change(&transaction, "clock", &value)
+        .map_err(|error| error.to_string())?;
     transaction.commit().map_err(|error| error.to_string())?;
     Ok(value)
 }

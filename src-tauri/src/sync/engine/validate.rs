@@ -42,7 +42,13 @@ pub fn validate_manifest(manifest: &Manifest) -> RepositoryResult<()> {
 pub fn validate_operation(operation: &ChangeOperation) -> RepositoryResult<()> {
     if !matches!(
         operation.entity.as_str(),
-        "list" | "recurringRule" | "task" | "calendarEvent" | "attachment" | "taskLink"
+        "list"
+            | "recurringRule"
+            | "task"
+            | "calendarEvent"
+            | "attachment"
+            | "taskLink"
+            | "settings"
     ) {
         return Err(RepositoryError::Validation("invalid sync entity"));
     }
@@ -229,6 +235,9 @@ pub fn validate_entity_fields(
                     | "updatedAt"
                     | "deletedAt"
             ),
+            // 设置项载荷是 {id, key, value, updatedAt}：object_id 即设置键名，
+            // `value` 是裁剪过的 JSON（按字段同步的键只含白名单字段）。
+            "settings" => matches!(key.as_str(), "id" | "key" | "value" | "updatedAt"),
             _ => false,
         };
         if !allowed {
@@ -595,6 +604,9 @@ pub fn timestamp_field(
                 | "occurrenceAt"
                 | "nextDueAt"
                 | "endAt"
+                // 设置项的 updatedAt 允许为空：设置没有「业务时间」语义，
+                // 引导产生的存量变更也没有可信的时间源，用 null 表示「未知」。
+                | "updatedAt"
         )
     {
         return Ok(());
