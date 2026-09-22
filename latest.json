@@ -1,20 +1,20 @@
 {
-  "version": "2.8.3",
-  "notes": "v2.8.3：托盘右键菜单新增「设置」子菜单，常规/外观/提醒/同步/数据/关于一步直达，并可快速检查更新；移动端转场动画升级为原生手感（页面滑入滑出 + 视差 + 弹层滑动退场）；更新弹窗重做，更新说明终于能正确显示标题、列表与加粗排版。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.3/Torder_2.8.3_x64-setup.exe",
-  "sha256": "0f3ef077b183f317881998d0fe29f83a715afba9a027f96d3cee328976eb875b",
+  "version": "2.8.7",
+  "notes": "v2.8.7：补齐「换机 / 重装」链路——新增完整备份与迁移包（.torder），导出全部事项、清单、标签、附件与设置，导入前可预览，并支持合并或替换两种恢复方式；桌面便签字体改为可搜索的系统字体下拉框，直接列出电脑已装字体；WebDAV 云端同步扩展到设置与外观，窗口位置尺寸等设备私有项隔离不上云。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.7/Torder_2.8.7_x64-setup.exe",
+  "sha256": "25ccd1e2e3d594a723c4c3d82520445bb69e2ad569e6581594e473ef4ae45b7a",
   "platforms": {
     "windows": {
-      "version": "2.8.3",
-      "notes": "Windows v2.8.3：托盘图标右键新增「设置」子菜单，六类常用设置与「检查更新」一步直达；更新弹窗改为版本升级路径展示，更新说明支持标题/列表/加粗等 Markdown 排版；顺带修复浅色主题下下载进度条不可见等问题。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.3/Torder_2.8.3_x64-setup.exe",
-      "sha256": "0f3ef077b183f317881998d0fe29f83a715afba9a027f96d3cee328976eb875b"
+      "version": "2.8.7",
+      "notes": "Windows v2.8.7：数据设置新增「导出完整备份」与「从备份恢复」，一键把全部事项、清单、标签、附件与设置打包成 .torder 文件，可存网盘或 U 盘，换机重装后导入即可还原（导入前先预览内容，可选合并或替换）；便签字体设置改为可搜索的系统字体下拉框，输入关键字即时过滤、每个选项用其自身字体预览；WebDAV 同步范围扩展到设置与外观，窗口位置尺寸、开机自启等设备私有项不会上云。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.7/Torder_2.8.7_x64-setup.exe",
+      "sha256": "25ccd1e2e3d594a723c4c3d82520445bb69e2ad569e6581594e473ef4ae45b7a"
     },
     "android": {
-      "version": "2.8.3",
-      "notes": "Android v2.8.3（universal 安装包）：页面转场动画全面升级——进入下一层从右侧滑入并带视差暗化，返回原路复位，底部标签微缩放交叉淡出，弹层补齐滑落退场，滑动删除带收拢动画。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.3/Torder_2.8.3_universal.apk",
-      "sha256": "5fabc579d97b6b2636029b67d406d63b7323bc22437727c0d5ae510e8b4e896c"
+      "version": "2.8.7",
+      "notes": "Android v2.8.7（universal 安装包）：WebDAV 云端同步范围扩展到设置与外观配置，换设备登录同一账号即可带回主题、默认视图与清单等偏好，而窗口位置尺寸等设备私有项保持本地隔离；修复部分转场动画因样式变量未定义而静默失效的问题。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.7/Torder_2.8.7_universal.apk",
+      "sha256": "12626974dfd28ab76a167bf676b4a6c147878ac46054ae8754f509ee87719005"
     }
   }
 }
