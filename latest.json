@@ -1,20 +1,20 @@
 {
-  "version": "2.8.2",
-  "notes": "v2.8.2：新版本自动更新提示——打开软件检测到新版本后直接弹出更新窗口，支持一键下载安装与重启；「稍后提醒」或关闭后当天不再打扰，次日或发布更高版本时恢复提醒。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.2/Torder_2.8.2_x64-setup.exe",
-  "sha256": "4faca923ec3cd6777a9fbf754faa30464fe11ee0d4b9a22f01886835e24cefeb",
+  "version": "2.8.3",
+  "notes": "v2.8.3：托盘右键菜单新增「设置」子菜单，常规/外观/提醒/同步/数据/关于一步直达，并可快速检查更新；移动端转场动画升级为原生手感（页面滑入滑出 + 视差 + 弹层滑动退场）；更新弹窗重做，更新说明终于能正确显示标题、列表与加粗排版。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.3/Torder_2.8.3_x64-setup.exe",
+  "sha256": "0f3ef077b183f317881998d0fe29f83a715afba9a027f96d3cee328976eb875b",
   "platforms": {
     "windows": {
-      "version": "2.8.2",
-      "notes": "Windows v2.8.2：启动检测到新版本即弹出更新弹窗（含更新内容与下载进度），可一键安装并重启；点击「稍后提醒」或关闭后当天免打扰，次日启动或发布更高版本时重新提醒。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.2/Torder_2.8.2_x64-setup.exe",
-      "sha256": "4faca923ec3cd6777a9fbf754faa30464fe11ee0d4b9a22f01886835e24cefeb"
+      "version": "2.8.3",
+      "notes": "Windows v2.8.3：托盘图标右键新增「设置」子菜单，六类常用设置与「检查更新」一步直达；更新弹窗改为版本升级路径展示，更新说明支持标题/列表/加粗等 Markdown 排版；顺带修复浅色主题下下载进度条不可见等问题。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.3/Torder_2.8.3_x64-setup.exe",
+      "sha256": "0f3ef077b183f317881998d0fe29f83a715afba9a027f96d3cee328976eb875b"
     },
     "android": {
-      "version": "2.8.1",
-      "notes": "Android v2.8.1（universal 安装包）：设置界面微调同步到位；便签右键菜单为桌面端专有。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.1/Torder_2.8.1_universal.apk",
-      "sha256": "58cef13a9b72fd8a9a10dde5e450562069b5d837fc6332ea4c70ae70f6c0ae2f"
+      "version": "2.8.3",
+      "notes": "Android v2.8.3（universal 安装包）：页面转场动画全面升级——进入下一层从右侧滑入并带视差暗化，返回原路复位，底部标签微缩放交叉淡出，弹层补齐滑落退场，滑动删除带收拢动画。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.3/Torder_2.8.3_universal.apk",
+      "sha256": "5fabc579d97b6b2636029b67d406d63b7323bc22437727c0d5ae510e8b4e896c"
     }
   }
 }
