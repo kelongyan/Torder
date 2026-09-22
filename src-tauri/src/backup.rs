@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::db::attachment_repository::{
     attachment_blob_root, blob_absolute_path, sha256_file, AttachmentRepository,
 };
+use crate::db::calendar_event_repository::CalendarEventRepository;
 use crate::db::list_repository::ListRepository;
 use crate::db::migrations::CURRENT_SCHEMA_VERSION;
 use crate::db::recurring_repository::RecurringRuleRepository;
@@ -21,9 +22,9 @@ use crate::db::task_repository::TaskRepository;
 use crate::db::Database;
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{
-    CreateAttachmentInput, CreateListInput, CreateRecurringRuleInput, CreateTaskInput,
-    CreateTaskLinkInput, CreateWebLinkAttachmentInput, RecurringRule, Task, TaskList,
-    UpdateTaskInput,
+    CreateAttachmentInput, CreateCalendarEventInput, CreateListInput, CreateRecurringRuleInput,
+    CreateTaskInput, CreateTaskLinkInput, CreateWebLinkAttachmentInput, RecurringRule, Task,
+    TaskList, UpdateTaskInput, UpsertSettingInput,
 };
 
 const BACKUP_DIR_NAME: &str = "backups";
@@ -42,6 +43,10 @@ pub struct BackupImportPreview {
     pub list_count: usize,
     pub task_count: usize,
     pub recurring_rule_count: usize,
+    /// 包内设置项数量（迁移包才有意义；旧格式恒为库里的实际条数）。
+    pub setting_count: usize,
+    /// 包内日历事件数量；包来自没有该表的旧版本时为 0。
+    pub calendar_event_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -51,6 +56,48 @@ pub struct BackupImportResult {
     pub imported_tasks: usize,
     pub imported_recurring_rules: usize,
     pub skipped_lists: usize,
+    /// 本次写入的设置项数量（仅「完整迁移」路径非 0）。
+    pub imported_settings: usize,
+    /// 本次导入的日历事件数量。
+    pub imported_calendar_events: usize,
+}
+
+/// 迁移包恢复语义。
+///
+/// - `Merge`：保留现有数据，把包内容并进来（默认）——适合「装了个新环境，
+///   想把旧数据接上」以及「已经建了几条新任务，不想被覆盖」。
+/// - `Replace`：整库替换为包内快照，恢复前自动存一份当前库作后悔药——
+///   适合「我要回到备份那一刻」。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportMode {
+    Merge,
+    Replace,
+}
+
+impl ImportMode {
+    pub fn parse(value: &str) -> RepositoryResult<Self> {
+        match value {
+            "merge" => Ok(Self::Merge),
+            "replace" => Ok(Self::Replace),
+            _ => Err(RepositoryError::Validation(
+                "import mode must be merge or replace",
+            )),
+        }
+    }
+}
+
+impl BackupImportResult {
+    /// 覆盖模式的结果：整库替换，各表计数无意义（不是「导入 N 条」而是「整库换掉」）。
+    fn replaced() -> Self {
+        Self {
+            imported_lists: 0,
+            imported_tasks: 0,
+            imported_recurring_rules: 0,
+            skipped_lists: 0,
+            imported_settings: 0,
+            imported_calendar_events: 0,
+        }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -175,6 +222,64 @@ fn prune_backup_files(backup_dir: &Path, retention: i64) -> RepositoryResult<()>
         }
     }
     Ok(())
+}
+
+/// 导出完整备份包到用户选定路径（迁移场景：可存到任意磁盘位置/网盘）。
+///
+/// 与 `backup_database` 的区别只在落点与保留策略：
+/// - `backup_database` 写进 app data 的 `backups/`，参与保留份数清理（应用内自动备份）；
+/// - 本函数写到调用方给的任意路径，**不参与清理**（那是用户的文件，不是我们的缓存）。
+///
+/// 包内容与 `backup_database` 完全一致（整库快照 + 附件 blob + manifest 校验），
+/// 所以两个入口产出可互相导入。
+pub fn export_backup_package(
+    app: &AppHandle,
+    database: &Database,
+    destination: &str,
+) -> RepositoryResult<String> {
+    let data_dir = app.path().app_data_dir()?;
+    let db_path = data_dir.join(DB_FILE_NAME);
+    if !db_path.is_file() {
+        return Err(RepositoryError::Validation("database file is unavailable"));
+    }
+
+    let target = resolve_export_destination(destination)?;
+    create_backup_package(&data_dir, &db_path, &target)?;
+    // create_backup_package 内部会建临时目录，失败时已自清理；到这里包已完整落盘。
+    let _ = database;
+    Ok(target.display().to_string())
+}
+
+/// 校验导出目标路径：只认 `.torder` / `.zip` 扩展名，必须落在已存在的目录里。
+///
+/// 这里**不复用** `resolve_backup_path` 的「必须在 backups 目录内」约束——
+/// 那条约束是给「拿磁盘上任意文件覆盖数据库」的恢复入口用的；导出是写出，
+/// 用户可以存到任何地方。但仍要挡住扩展名与目录存在性，避免写出半成品路径。
+fn resolve_export_destination(destination: &str) -> RepositoryResult<PathBuf> {
+    let target = PathBuf::from(destination);
+    let extension = target
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase());
+    if !matches!(extension.as_deref(), Some("torder") | Some("zip")) {
+        return Err(RepositoryError::Validation(
+            "backup destination must end with .torder or .zip",
+        ));
+    }
+    let Some(parent) = target.parent() else {
+        return Err(RepositoryError::Validation("invalid backup destination"));
+    };
+    let parent = if parent.as_os_str().is_empty() {
+        std::env::current_dir()?
+    } else {
+        parent.to_path_buf()
+    };
+    if !parent.is_dir() {
+        return Err(RepositoryError::Validation(
+            "backup destination directory does not exist",
+        ));
+    }
+    Ok(target)
 }
 
 fn create_backup_package(
@@ -500,13 +605,29 @@ pub fn preview_backup_import(app: &AppHandle, path: &str) -> RepositoryResult<Ba
     let backup_dir = data_dir.join(BACKUP_DIR_NAME);
     fs::create_dir_all(&backup_dir)?;
     let source = resolve_backup_path(&backup_dir, path)?;
+    preview_backup_at(app, &source)
+}
+
+/// 预览迁移包（用户自选路径），内容与 `preview_backup_import` 同口径。
+///
+/// 比内部备份多返回设置/日历计数：迁移场景下用户最关心的正是
+/// 「我的偏好和日程在不在里面」，只报任务数不足以让人放心确认。
+pub fn preview_migration_package(
+    app: &AppHandle,
+    path: &str,
+) -> RepositoryResult<BackupImportPreview> {
+    let source = resolve_user_selected_backup(path)?;
+    preview_backup_at(app, &source)
+}
+
+fn preview_backup_at(app: &AppHandle, source: &Path) -> RepositoryResult<BackupImportPreview> {
     let name = source
         .file_name()
         .and_then(|value| value.to_str())
         .unwrap_or("backup.sqlite")
         .to_owned();
 
-    with_prepared_backup_database(app, &source, |backup_database, _backup_data_dir| {
+    with_prepared_backup_database(app, source, |backup_database, _backup_data_dir| {
         let lists = ListRepository::new(backup_database).list()?;
         let tasks = TaskRepository::new(backup_database)
             .export_all()?
@@ -518,16 +639,82 @@ pub fn preview_backup_import(app: &AppHandle, path: &str) -> RepositoryResult<Ba
             .into_iter()
             .filter(|rule| rule.deleted_at.is_none())
             .count();
+        // 设置与日历是迁移包里最容易被忽略、又最影响「重装后像不像原来」的两块。
+        let setting_count = SettingsRepository::new(backup_database).list()?.len();
+        let calendar_event_count = count_backup_calendar_events(backup_database)?;
         Ok(BackupImportPreview {
             path: source.display().to_string(),
             name,
             list_count: lists.len(),
             task_count: tasks,
             recurring_rule_count: recurring_rules,
+            setting_count,
+            calendar_event_count,
         })
     })
 }
 
+/// 统计包里的日历事件数；旧包可能没有该表（schema 较早），按 0 处理而非报错。
+fn count_backup_calendar_events(database: &Database) -> RepositoryResult<usize> {
+    if !backup_has_table(database, "calendar_events")? {
+        return Ok(0);
+    }
+    Ok(CalendarEventRepository::new(database)
+        .list()?
+        .into_iter()
+        .filter(|event| event.deleted_at.is_none())
+        .count())
+}
+
+/// 从用户选定的迁移包恢复数据（`merge` 合并 / `replace` 整库替换）。
+///
+/// 这是「卸载清库 → 重装 → 导入」的正式入口，与 `restore_backup` 的区别：
+/// - 路径来自系统文件选择器，不要求文件在 app data 目录内（卸载会带走那个目录，
+///   否则这条路径根本没有可用场景）；
+/// - `merge` 保留现有数据并补齐缺失（含设置与日历），`replace` 才整库覆盖。
+pub fn import_migration_package(
+    app: &AppHandle,
+    database: &Database,
+    path: &str,
+    mode: ImportMode,
+) -> RepositoryResult<BackupImportResult> {
+    let data_dir = app.path().app_data_dir()?;
+    let backup_dir = data_dir.join(BACKUP_DIR_NAME);
+    fs::create_dir_all(&backup_dir)?;
+    let source = resolve_user_selected_backup(path)?;
+
+    match mode {
+        // 覆盖模式复用既有的整库替换：它会先存一份后悔药快照，
+        // 所以「导错了包」也能从 backups/ 里捞回来。
+        ImportMode::Replace => match backup_extension(&source) {
+            Some("sqlite") => {
+                restore_sqlite_backup(&data_dir, &backup_dir, &source)?;
+                Ok(BackupImportResult::replaced())
+            }
+            Some("zip") => {
+                restore_package_backup(&data_dir, &backup_dir, &source)?;
+                Ok(BackupImportResult::replaced())
+            }
+            _ => Err(RepositoryError::Validation("unsupported backup format")),
+        },
+        ImportMode::Merge => with_prepared_backup_database(
+            app,
+            &source,
+            |backup_database, backup_data_dir| {
+                import_full_migration(
+                    database,
+                    &data_dir,
+                    backup_database,
+                    // 解包目录就是附件 blob 的来源根：managed 附件按
+                    // manifest 里的相对路径在这里取真实文件。
+                    backup_data_dir,
+                )
+            },
+        ),
+    }
+}
+
+/// 从 `backups/` 目录内的备份选择性导入（应用内备份管理面板用）。
 pub fn import_backup_selection(
     app: &AppHandle,
     database: &Database,
@@ -940,7 +1127,101 @@ fn import_from_prepared_backup(
         imported_tasks,
         imported_recurring_rules,
         skipped_lists,
+        imported_settings: 0,
+        imported_calendar_events: 0,
     })
+}
+
+/// 完整迁移：把包内**全部**用户数据接进当前库（合并语义）。
+///
+/// 在 `import_from_prepared_backup`（lists/tasks/recurring/links/attachments）
+/// 之上补两张此前被漏掉的表：
+/// - `settings` —— 主题、强调色、默认清单/视图、提醒偏好、便签与时钟外观、
+///   savedViews……全都在这里。缺了它，用户重装后会看到「数据回来了但应用不是我的」；
+/// - `calendar_events` —— 日历日程，此前导入完全没覆盖。
+///
+/// 附件沿用既有策略：从包内解出的 blob 重新走 `create_managed`（重算 sha256 +
+/// 按当前库重建 blob 记录）。比「直搬 blob 行」慢，但能在导入时再验一次内容，
+/// 且天然避开包间 blob_id 冲突——迁移是一次性操作，稳妥优先。
+fn import_full_migration(
+    database: &Database,
+    current_data_dir: &Path,
+    backup_database: &Database,
+    backup_data_dir: &Path,
+) -> RepositoryResult<BackupImportResult> {
+    let mut result = import_from_prepared_backup(
+        database,
+        Some(current_data_dir),
+        backup_database,
+        Some(backup_data_dir),
+        true,
+        true,
+        true,
+    )?;
+    result.imported_settings = import_settings(database, backup_database)?;
+    result.imported_calendar_events = import_calendar_events(database, backup_database)?;
+    Ok(result)
+}
+
+/// 逐键合并设置：**只填空缺，不覆盖已有值**。
+///
+/// 合并语义下这个方向是刻意的：用户在新环境里如果已经调过主题/默认清单，
+/// 那是他更近期的意愿，不该被旧备份里的设置盖掉。想让设置回到备份那一刻的，
+/// 应该用覆盖模式（整库替换）。
+fn import_settings(database: &Database, backup_database: &Database) -> RepositoryResult<usize> {
+    let backup_settings = SettingsRepository::new(backup_database).list()?;
+    let repository = SettingsRepository::new(database);
+    let mut imported = 0_usize;
+    for setting in backup_settings {
+        if repository.get(&setting.key)?.is_some() {
+            continue;
+        }
+        repository.upsert(UpsertSettingInput {
+            key: setting.key,
+            value: setting.value,
+        })?;
+        imported += 1;
+    }
+    Ok(imported)
+}
+
+/// 导入日历事件。旧包可能没有该表（schema 较早），此时返回 0 而非报错。
+///
+/// 按 (标题, 开始, 结束) 去重：日历事件没有跨库稳定的业务键，
+/// 用这三个字段做近似判重，避免重复导入同一个包时翻倍。
+fn import_calendar_events(
+    database: &Database,
+    backup_database: &Database,
+) -> RepositoryResult<usize> {
+    if !backup_has_table(backup_database, "calendar_events")? {
+        return Ok(0);
+    }
+    let existing = CalendarEventRepository::new(database).list()?;
+    let repository = CalendarEventRepository::new(database);
+    let mut imported = 0_usize;
+    for event in CalendarEventRepository::new(backup_database).list()? {
+        if event.deleted_at.is_some() {
+            continue;
+        }
+        let duplicate = existing.iter().any(|current| {
+            current.deleted_at.is_none()
+                && same_name(&current.title, &event.title)
+                && current.start_date == event.start_date
+                && current.end_date == event.end_date
+        });
+        if duplicate {
+            continue;
+        }
+        repository.create(CreateCalendarEventInput {
+            title: event.title,
+            event_type: event.event_type,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            note: event.note,
+        })?;
+        imported += 1;
+    }
+    Ok(imported)
 }
 
 fn backup_has_table(database: &Database, table: &str) -> RepositoryResult<bool> {
@@ -1088,6 +1369,11 @@ fn vacuum_into(connection: &rusqlite::Connection, target_path: &Path) -> Reposit
     Ok(())
 }
 
+/// 备份容器扩展名归一化。
+///
+/// `.torder` 与 `.zip` 是同一种容器（zip + manifest），前者是给用户看的迁移包
+/// 命名、后者是应用内自动备份的历史命名。归一化后下游只认 `"zip"`，两条路径
+/// 共用同一套解包/校验逻辑，不必各自分支。
 fn backup_extension(path: &Path) -> Option<&'static str> {
     match path
         .extension()
@@ -1096,7 +1382,7 @@ fn backup_extension(path: &Path) -> Option<&'static str> {
         .as_deref()
     {
         Some("sqlite") => Some("sqlite"),
-        Some("zip") => Some("zip"),
+        Some("zip") | Some("torder") => Some("zip"),
         _ => None,
     }
 }
@@ -1134,6 +1420,9 @@ fn validate_backup_relative_path(path: &str) -> RepositoryResult<()> {
 }
 
 /// 把传入路径限制在备份目录内，抵御 `..` 穿越与符号链接绕过。
+///
+/// 用于 `backups/` 下拉列表里的**内部**备份（`restore_backup` / `preview` 等
+/// 由路径字符串直接驱动的入口）——这些调用不接受用户手选路径，越出目录即视为攻击。
 fn resolve_backup_path(backup_dir: &Path, path: &str) -> RepositoryResult<PathBuf> {
     let source = PathBuf::from(path);
     if !source.is_file() {
@@ -1155,6 +1444,30 @@ fn resolve_backup_path(backup_dir: &Path, path: &str) -> RepositoryResult<PathBu
         ));
     }
     Ok(source)
+}
+
+/// 用户主动选定的迁移包路径（`open` 对话框返回的绝对路径）。
+///
+/// 与 `resolve_backup_path` 的分工：那条路给「应用自己管的备份」用，必须锁死在
+/// `backups/`；这条给「用户从桌面/网盘挑的文件」用，**本就允许任意位置**——否则
+/// 「卸载清库后重装再导入」物理上不可能（卸载会带走 app data 里的旧备份）。
+///
+/// 放宽位置不等于放宽校验：扩展名白名单、真实存在、canonicalize 后的**真实**
+/// 内容校验（`verify_restorable_database` / `validate_backup_package` 的
+/// integrity_check + schema 版本 + manifest 哈希）全都照旧执行。威胁模型上，
+/// 这等价于「用户主动打开一个文件」，而不是「webview 能读磁盘任意文件」——
+/// 路径来自系统文件选择器的返回值，前端无法凭空构造。
+fn resolve_user_selected_backup(path: &str) -> RepositoryResult<PathBuf> {
+    let source = PathBuf::from(path);
+    if !source.is_file() {
+        return Err(RepositoryError::Validation("backup file does not exist"));
+    }
+    if backup_extension(&source).is_none() {
+        return Err(RepositoryError::Validation(
+            "backup must be a .torder, .zip or .sqlite file",
+        ));
+    }
+    Ok(fs::canonicalize(&source)?)
 }
 
 /// 确认候选文件确实是本应用能读的 SQLite 库，且 schema 不比当前代码更新。
@@ -1428,6 +1741,122 @@ mod tests {
         assert_eq!(parse_retention(Some("0".to_owned())), 20);
         assert_eq!(parse_retention(Some("5".to_owned())), 5);
         assert_eq!(parse_retention(Some(" 12 ".to_owned())), 12);
+    }
+
+    /// `.torder` 与 `.zip` 必须归一化成同一种容器：迁移包用前者命名、
+    /// 应用内备份用后者，两条路径共用同一套解包/校验逻辑。漏掉这条，
+    /// 用户从桌面选的 `.torder` 会因为「扩展名不认识」直接被拒。
+    #[test]
+    fn backup_extension_normalizes_torder_and_zip_to_same_container() {
+        assert_eq!(backup_extension(Path::new("a.torder")), Some("zip"));
+        assert_eq!(backup_extension(Path::new("a.zip")), Some("zip"));
+        assert_eq!(backup_extension(Path::new("a.TORDER")), Some("zip"));
+        assert_eq!(backup_extension(Path::new("a.sqlite")), Some("sqlite"));
+        // 不认识的扩展名必须被拒，不能靠后缀模糊匹配放行
+        assert_eq!(backup_extension(Path::new("a.rar")), None);
+        assert_eq!(backup_extension(Path::new("a")), None);
+        assert_eq!(backup_extension(Path::new("a.zip.txt")), None);
+    }
+
+    /// 用户选定路径的网关：位置不受限（这是迁移场景的前提——
+    /// 卸载会带走 app data 里的 backups/），但扩展名白名单与存在性照旧。
+    #[test]
+    fn user_selected_backup_accepts_any_directory_but_enforces_extension() {
+        let dir = std::env::temp_dir().join(format!("torder-mig-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+
+        // 任意目录下的 .torder：放行（这正是「从桌面导入」的路径）
+        let torder = dir.join("my-backup.torder");
+        touch(&torder);
+        assert!(resolve_user_selected_backup(&torder.display().to_string()).is_ok());
+
+        // 同样放行 .zip / .sqlite
+        let zipped = dir.join("my-backup.zip");
+        touch(&zipped);
+        assert!(resolve_user_selected_backup(&zipped.display().to_string()).is_ok());
+
+        // 不认识的扩展名：拒绝
+        let bogus = dir.join("payload.exe");
+        touch(&bogus);
+        assert!(resolve_user_selected_backup(&bogus.display().to_string()).is_err());
+
+        // 不存在的文件：拒绝
+        let missing = dir.join("nope.torder");
+        assert!(resolve_user_selected_backup(&missing.display().to_string()).is_err());
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// 对照：内部备份路径仍必须锁死在 backups/ 目录内。
+    /// 放宽用户路径不能顺手把这条也放开了——它是「用任意文件覆盖数据库」
+    /// 的防线，两条路径的分工要一直成立。
+    #[test]
+    fn internal_backup_path_still_confined_to_backup_dir() {
+        let dir = std::env::temp_dir().join(format!("torder-conf-{}", uuid::Uuid::new_v4()));
+        let backup_dir = dir.join(BACKUP_DIR_NAME);
+        let outside_dir = dir.join("elsewhere");
+        fs::create_dir_all(&backup_dir).unwrap();
+        fs::create_dir_all(&outside_dir).unwrap();
+
+        let inside = backup_dir.join("torder-backup-20260922-000000.zip");
+        touch(&inside);
+        assert!(resolve_backup_path(&backup_dir, &inside.display().to_string()).is_ok());
+
+        // 同名的备份放在目录外：必须拒绝（这条就是内部路径与用户路径的区别）
+        let outside = outside_dir.join("torder-backup-20260922-000000.zip");
+        touch(&outside);
+        let escaped = resolve_backup_path(&backup_dir, &outside.display().to_string());
+        assert!(
+            escaped.is_err(),
+            "backups/ 之外的路径不得被内部入口接受"
+        );
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// 导出落点校验：扩展名白名单 + 目录必须已存在（避免写出半成品路径）。
+    #[test]
+    fn export_destination_requires_known_extension_and_existing_dir() {
+        let dir = std::env::temp_dir().join(format!("torder-exp-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+
+        // .torder / .zip 都行，且写进任意已存在目录
+        assert!(resolve_export_destination(&dir.join("out.torder").display().to_string()).is_ok());
+        assert!(resolve_export_destination(&dir.join("out.zip").display().to_string()).is_ok());
+
+        // 扩展名不认识：拒绝
+        assert!(
+            resolve_export_destination(&dir.join("out.txt").display().to_string()).is_err()
+        );
+
+        // 目录不存在：拒绝（不能凭空造出中间目录再写出半成品）
+        let missing_dir = dir.join("no-such-dir").join("out.torder");
+        assert!(resolve_export_destination(&missing_dir.display().to_string()).is_err());
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// 导入模式解析：只认 merge / replace，其余一律报错（不静默回退到某个默认值——
+    /// 恢复语义是破坏性决策，拼错时必须失败而不是猜）。
+    #[test]
+    fn import_mode_parsing_rejects_unknown_values() {
+        assert_eq!(ImportMode::parse("merge").unwrap(), ImportMode::Merge);
+        assert_eq!(ImportMode::parse("replace").unwrap(), ImportMode::Replace);
+        assert!(ImportMode::parse("Merge").is_err());
+        assert!(ImportMode::parse("").is_err());
+        assert!(ImportMode::parse("overwrite").is_err());
+    }
+
+    /// 覆盖模式的结果对象不应报告「导入 N 条」——整库替换没有逐条计数的语义，
+    /// 报 0 是刻意的，避免 UI 显示「导入了 0 条」误导用户以为失败了。
+    #[test]
+    fn replaced_result_reports_zero_counts() {
+        let result = BackupImportResult::replaced();
+        assert_eq!(result.imported_lists, 0);
+        assert_eq!(result.imported_tasks, 0);
+        assert_eq!(result.imported_recurring_rules, 0);
+        assert_eq!(result.imported_settings, 0);
+        assert_eq!(result.imported_calendar_events, 0);
     }
 
     #[test]
@@ -1742,6 +2171,235 @@ mod tests {
         drop(current_lists);
         drop(current);
         drop(backup);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// 完整迁移必须把设置与日历事件一起接过来——这两张表此前完全没被导入覆盖，
+    /// 正是「重装后数据回来了但应用不是我的」的根因。这条测试同时锁住合并语义的
+    /// 关键约定：设置只填空缺、不覆盖用户在新环境里已有的值。
+    #[test]
+    fn full_migration_imports_settings_and_calendar_events() {
+        let dir = std::env::temp_dir().join(format!("torder-mig-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let current = Database::initialize(dir.join("current.sqlite")).unwrap();
+        let backup = Database::initialize(dir.join("backup.sqlite")).unwrap();
+
+        // 备份侧：一个自定义设置 + 一条日历事件
+        SettingsRepository::new(&backup)
+            .upsert(UpsertSettingInput {
+                key: "accent".to_owned(),
+                value: "\"violet\"".to_owned(),
+            })
+            .unwrap();
+        CalendarEventRepository::new(&backup)
+            .create(CreateCalendarEventInput {
+                title: "旧日程".to_owned(),
+                event_type: "trip".to_owned(),
+                start_date: "2030-03-01".to_owned(),
+                end_date: "2030-03-05".to_owned(),
+                note: Some("出差".to_owned()),
+            })
+            .unwrap();
+
+        // 当前库：accent 已被用户改成别的值（模拟「新环境里已经调过」）
+        SettingsRepository::new(&current)
+            .upsert(UpsertSettingInput {
+                key: "accent".to_owned(),
+                value: "\"teal\"".to_owned(),
+            })
+            .unwrap();
+
+        // 两个库都由 Database::initialize 建出，默认设置键两边都有，因此
+        // 「填空缺」这一半在本用例里体现为「不覆盖」；补键的语义由下面这条
+        // 备份侧独有键来验证。
+        SettingsRepository::new(&backup)
+            .upsert(UpsertSettingInput {
+                key: "migrationOnlyKey".to_owned(),
+                value: "\"from-backup\"".to_owned(),
+            })
+            .unwrap();
+        let result = import_full_migration(&current, &dir, &backup, &dir).unwrap();
+
+        let accent = SettingsRepository::new(&current)
+            .get("accent")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            accent.value, "\"teal\"",
+            "合并模式必须保留当前库已有的设置值"
+        );
+        // 当前库没有的键要被补进来（「填空缺」那一半语义）
+        assert_eq!(result.imported_settings, 1);
+        let migrated = SettingsRepository::new(&current)
+            .get("migrationOnlyKey")
+            .unwrap()
+            .expect("包内独有设置应被补齐");
+        assert_eq!(migrated.value, "\"from-backup\"");
+
+        // 日历事件：进来了
+        assert_eq!(result.imported_calendar_events, 1);
+        let events = CalendarEventRepository::new(&current).list().unwrap();
+        assert!(events.iter().any(|event| event.title == "旧日程"));
+
+        drop(events);
+        drop(current);
+        drop(backup);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// 重复导入同一个包不应让日历事件翻倍（按标题+起止日期判重）。
+    #[test]
+    fn full_migration_is_idempotent_for_calendar_events() {
+        let dir = std::env::temp_dir().join(format!("torder-mig2-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let current = Database::initialize(dir.join("current.sqlite")).unwrap();
+        let backup = Database::initialize(dir.join("backup.sqlite")).unwrap();
+        CalendarEventRepository::new(&backup)
+            .create(CreateCalendarEventInput {
+                title: "重复日程".to_owned(),
+                event_type: "leave".to_owned(),
+                start_date: "2030-04-01".to_owned(),
+                end_date: "2030-04-02".to_owned(),
+                note: None,
+            })
+            .unwrap();
+
+        let first = import_full_migration(&current, &dir, &backup, &dir).unwrap();
+        let second = import_full_migration(&current, &dir, &backup, &dir).unwrap();
+
+        assert_eq!(first.imported_calendar_events, 1);
+        assert_eq!(second.imported_calendar_events, 0, "第二次不应重复导入");
+        let events = CalendarEventRepository::new(&current).list().unwrap();
+        assert_eq!(
+            events.iter().filter(|event| event.title == "重复日程").count(),
+            1
+        );
+
+        drop(events);
+        drop(current);
+        drop(backup);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// 迁移的完整往返：源库 → 打成包 → 校验并解包 → 合并进空的新库。
+    ///
+    /// 这条覆盖的是真实用户路径（导出文件 → 换机器/重装 → 导入），
+    /// 而不只是导入函数本身：它把 manifest 校验、zip 解包、附件 blob 定位
+    /// 这几段接缝一起跑通。上面的用例都是直接调 `import_full_migration`，
+    /// 接缝断了它们照样绿。
+    #[test]
+    fn package_round_trip_restores_settings_calendar_and_attachments() {
+        let dir = std::env::temp_dir().join(format!("torder-rt-{}", uuid::Uuid::new_v4()));
+        let source_dir = dir.join("source");
+        let target_dir = dir.join("target");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&target_dir).unwrap();
+
+        // ---- 源库：设置 + 日历 + 一个带附件的任务 ----
+        let source = Database::initialize(source_dir.join(DB_FILE_NAME)).unwrap();
+        SettingsRepository::new(&source)
+            .upsert(UpsertSettingInput {
+                key: "accent".to_owned(),
+                value: "\"violet\"".to_owned(),
+            })
+            .unwrap();
+        let list = ListRepository::new(&source)
+            .create(CreateListInput {
+                name: "迁移清单".to_owned(),
+                color: Some("#123456".to_owned()),
+                sort_order: Some(1),
+            })
+            .unwrap();
+        let task = TaskRepository::new(&source)
+            .create(CreateTaskInput {
+                title: "带附件的任务".to_owned(),
+                note: None,
+                priority: Some(1),
+                list_id: Some(list.id),
+                scheduled_date: None,
+                due_at: None,
+                sort_order: None,
+                remind_before: None,
+                repeat_rule: None,
+                subtasks: None,
+                tags: Some(vec!["迁移".to_owned()]),
+            })
+            .unwrap();
+        CalendarEventRepository::new(&source)
+            .create(CreateCalendarEventInput {
+                title: "往返日程".to_owned(),
+                event_type: "trip".to_owned(),
+                start_date: "2031-01-01".to_owned(),
+                end_date: "2031-01-03".to_owned(),
+                note: None,
+            })
+            .unwrap();
+
+        // 真实附件文件 → 让 managed 附件在包里带上 blob
+        let payload = source_dir.join("payload.txt");
+        fs::write(&payload, b"attachment payload").unwrap();
+        AttachmentRepository::new(&source)
+            .create_managed(
+                &source_dir,
+                CreateAttachmentInput {
+                    task_id: task.id.clone(),
+                    source_path: payload.display().to_string(),
+                    display_name: Some("说明.txt".to_owned()),
+                },
+            )
+            .unwrap();
+
+        // ---- 打包 ----
+        let package = dir.join("round-trip.torder");
+        create_backup_package(&source_dir, &source_dir.join(DB_FILE_NAME), &package).unwrap();
+        assert!(package.is_file(), "迁移包应落盘");
+
+        // ---- 解包 + 校验（走真实校验路径，含 manifest 哈希与 integrity_check）----
+        let work_dir = dir.join("work");
+        fs::create_dir_all(&work_dir).unwrap();
+        extract_backup_package(&package, &work_dir).unwrap();
+        let manifest = validate_backup_package(&work_dir).unwrap();
+        assert_eq!(manifest.backup_format, BACKUP_PACKAGE_FORMAT);
+        assert_eq!(manifest.attachments.len(), 1, "包内应含一个 managed 附件");
+
+        // ---- 导入空的新库 ----
+        let target = Database::initialize(target_dir.join(DB_FILE_NAME)).unwrap();
+        let package_db = Database::initialize(work_dir.join(DB_FILE_NAME)).unwrap();
+        let result = import_full_migration(&target, &target_dir, &package_db, &work_dir).unwrap();
+
+        // 设置：accent 从源库带来（新库初始化值是 blue，被 violet 顶掉）
+        let accent = SettingsRepository::new(&target)
+            .get("accent")
+            .unwrap()
+            .expect("设置应随包迁移");
+        assert_eq!(accent.value, "\"violet\"");
+        // 日历：事件到位
+        let events = CalendarEventRepository::new(&target).list().unwrap();
+        assert!(events.iter().any(|event| event.title == "往返日程"));
+        assert_eq!(result.imported_calendar_events, 1);
+        // 任务与标签
+        let tasks = TaskRepository::new(&target).export_all().unwrap();
+        let imported = tasks
+            .iter()
+            .find(|task| task.title == "带附件的任务")
+            .expect("任务应随包迁移");
+        assert_eq!(imported.tags, vec!["迁移"]);
+        // 附件：blob 真的复制到了新 data dir 并能读到内容
+        let attachments = AttachmentRepository::new(&target)
+            .list_by_task(&target_dir, &imported.id)
+            .unwrap();
+        assert_eq!(attachments.len(), 1, "managed 附件应被重建");
+        let blob_path = AttachmentRepository::new(&target)
+            .resolve_local_path(&target_dir, &attachments[0].id)
+            .unwrap();
+        assert_eq!(fs::read(&blob_path).unwrap(), b"attachment payload");
+
+        drop(attachments);
+        drop(tasks);
+        drop(events);
+        drop(target);
+        drop(package_db);
+        drop(source);
         fs::remove_dir_all(&dir).unwrap();
     }
 

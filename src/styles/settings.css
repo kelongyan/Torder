@@ -1036,33 +1036,6 @@
   letter-spacing: 0.02em;
 }
 
-.settings-backup-list {
-  display: grid;
-  gap: 4px;
-  margin-top: 12px;
-}
-
-.settings-backup-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  padding: 4px 6px 4px 10px;
-}
-
-.settings-backup-item > span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .settings-version {
   color: var(--text-secondary);
   font-size: 12px;
@@ -1133,6 +1106,35 @@
 
 .restore-confirm-card .settings-row {
   justify-content: flex-end;
+}
+
+/* 迁移包预览：恢复前让用户确认「包里到底有什么」，
+   尤其设置与日程两项——它们是「重装后像不像原来」的关键。 */
+.settings-migration-summary {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 21px;
+  list-style: disc;
+}
+
+.settings-migration-summary li::marker {
+  color: var(--text-muted);
+}
+
+.settings-migration-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.settings-migration-hint {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 /* --- 统计洞察 --- */

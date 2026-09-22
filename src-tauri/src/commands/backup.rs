@@ -54,3 +54,36 @@ pub fn import_backup_selection(
 pub fn restore_backup(app: AppHandle, path: String) -> Result<(), String> {
     backup::restore_backup(&app, &path).map_err(|error| error.to_string())
 }
+
+/// 导出完整迁移包到用户选定路径（系统保存对话框返回的绝对路径）。
+#[tauri::command]
+pub fn export_backup_package(
+    app: AppHandle,
+    database: State<'_, Database>,
+    destination: String,
+) -> Result<String, String> {
+    backup::export_backup_package(&app, &database, &destination)
+        .map_err(|error| error.to_string())
+}
+
+/// 预览用户选定的迁移包（比内部备份预览多报设置与日历项计数）。
+#[tauri::command]
+pub fn preview_migration_package(
+    app: AppHandle,
+    path: String,
+) -> Result<backup::BackupImportPreview, String> {
+    backup::preview_migration_package(&app, &path).map_err(|error| error.to_string())
+}
+
+/// 从迁移包恢复：`mode` = `merge`（保留现有数据并补齐）或 `replace`（整库替换）。
+#[tauri::command]
+pub fn import_migration_package(
+    app: AppHandle,
+    database: State<'_, Database>,
+    path: String,
+    mode: String,
+) -> Result<backup::BackupImportResult, String> {
+    let mode = backup::ImportMode::parse(&mode).map_err(|error| error.to_string())?;
+    backup::import_migration_package(&app, &database, &path, mode)
+        .map_err(|error| error.to_string())
+}
