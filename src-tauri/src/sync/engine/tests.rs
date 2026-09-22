@@ -2115,9 +2115,12 @@ fn plaintext_collection_can_be_migrated_to_encryption_by_rotation() {
             manifest: Some(empty_manifest()),
             ..MockDavConfig::default()
         },
-        7,
+        // 先跑一次常规同步把存量变更（含引导产生的设置项）推上去——
+        // 轮换密钥要求「无待上传变更」，这是真实前置条件而非测试噪声。
+        12,
     );
     let client = WebDavClient::new_for_test(address);
+    tauri::async_runtime::block_on(run_with_client(&database, &client, "sync")).unwrap();
     tauri::async_runtime::block_on(rotate_encryption_with_client(
         &database,
         &client,
@@ -2285,12 +2288,16 @@ fn webdav_flow_pulls_remote_batch_before_finishing() {
             .unwrap(),
         "远端同步清单"
     );
-    assert_eq!(
-        sync_repository::get_state(&connection, "lastRemoteSequence")
-            .unwrap()
-            .as_deref(),
-        Some("1")
-    );
+    // 远端推了一批（sequence 1），本地又有待上传的存量设置（含引导新增的），
+    // 于是接着推了第二批 → lastRemoteSequence 推进到 2。
+    // 早于「设置纳入同步」时这里恒为 1；断言改成「>= 1」以表达真实意图：
+    // 远端批次已被消费，而不是钉死某个具体序号。
+    let sequence: i64 = sync_repository::get_state(&connection, "lastRemoteSequence")
+        .unwrap()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(sequence >= 1, "远端批次应被消费，实际 sequence={sequence}");
     let devices = sync_repository::list_devices(&connection).unwrap();
     assert!(devices
         .iter()
@@ -2380,12 +2387,14 @@ fn webdav_flow_restores_compressed_snapshot_before_pruned_history() {
             .unwrap(),
         "来自压缩快照"
     );
-    assert_eq!(
-        sync_repository::get_state(&connection, "lastRemoteSequence")
-            .unwrap()
-            .as_deref(),
-        Some("1")
-    );
+    // 同 webdav_flow_pulls_remote_batch_before_finishing：本地待上传的存量设置
+    // 会把远端 sequence 继续推进，所以只断言「已消费远端快照」这一事实。
+    let sequence: i64 = sync_repository::get_state(&connection, "lastRemoteSequence")
+        .unwrap()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(sequence >= 1, "远端快照应被消费，实际 sequence={sequence}");
     let requests = requests.lock().unwrap();
     assert!(requests.iter().any(|request| {
         request.method == "GET"
@@ -2543,10 +2552,7 @@ fn webdav_manifest_conflict_keeps_local_changes_pending() {
         .unwrap_err()
         .to_string()
         .contains("remote manifest changed"));
-    assert_eq!(
-        sync_repository::pending_count(&database.connect().unwrap()).unwrap(),
-        1
-    );
+    assert_eq!(pending_business_changes(&database), 1);
     handle.join().unwrap();
     drop(database);
     cleanup_database(&path);
@@ -2575,10 +2581,7 @@ fn webdav_verification_failure_keeps_local_changes_pending() {
         error.contains("remote write verification failed"),
         "{error}"
     );
-    assert_eq!(
-        sync_repository::pending_count(&database.connect().unwrap()).unwrap(),
-        1
-    );
+    assert_eq!(pending_business_changes(&database), 1);
     handle.join().unwrap();
     drop(database);
     cleanup_database(&path);
@@ -3004,7 +3007,42 @@ fn bootstrap_tracks_existing_objects_once_without_default_list_noise() {
     bootstrap_existing_objects(&mut connection).unwrap();
     bootstrap_existing_objects(&mut connection).unwrap();
 
-    assert_eq!(sync_repository::pending_count(&connection).unwrap(), 2);
+    // 存量引导跟踪：1 个清单 + 1 个任务 + 白名单内的设置项（见下方断言）。
+    // 设置纳入同步是 2026-09-22 的新行为——默认迁移插入的键里除了
+    // `launchAtStartup`（设备私有）都该被跟踪。
+    let settings_tracked: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sync_objects WHERE entity = 'settings'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        sync_repository::pending_count(&connection).unwrap(),
+        2 + settings_tracked
+    );
+    // 幂等：第二次引导不再新增
+    assert_eq!(
+        settings_tracked,
+        sync_repository::list_pending(&connection, 100)
+            .unwrap()
+            .into_iter()
+            .filter(|change| change.entity == "settings")
+            .count() as i64,
+        "重复引导不应重复记录设置变更"
+    );
+    // 设备私有键不得进入同步
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_objects WHERE entity = 'settings' AND object_id = 'launchAtStartup'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        0,
+        "launchAtStartup 是设备私有设置，不该被同步跟踪"
+    );
     assert_eq!(
         connection
             .query_row(
@@ -3141,6 +3179,24 @@ fn create_pending_task(database: &Database) {
             tags: None,
         })
         .unwrap();
+}
+
+/// 只数业务对象的待同步变更，忽略设置项。
+///
+/// 自从 `settings` 纳入同步，任何走完 `Database::initialize` 的库都会有
+/// 一批「存量设置」待上传记录（见 `bootstrap_synced_settings`）。那些测试
+/// 关心的是「业务改动有没有被正确保留/上传」，绝对计数会被设置项污染，
+/// 所以这里按实体过滤——断言的是它真正要验证的东西。
+fn pending_business_changes(database: &Database) -> i64 {
+    database
+        .connect()
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM sync_changes WHERE uploaded_at IS NULL AND entity <> 'settings'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap()
 }
 
 fn configure_local_encryption(
@@ -3519,4 +3575,248 @@ fn cleanup_database(path: &std::path::Path) {
     let _ = std::fs::remove_file(path);
     let _ = std::fs::remove_file(format!("{}-wal", path.display()));
     let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+}
+
+/* ==== 设置同步（2026-09-22）==== */
+
+fn settings_value(database: &Database, key: &str) -> Option<Value> {
+    let connection = database.connect().unwrap();
+    let raw: Option<String> = connection
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            rusqlite::params![key],
+            |row| row.get(0),
+        )
+        .ok();
+    raw.and_then(|value| serde_json::from_str(&value).ok())
+}
+
+fn set_settings_value(database: &Database, key: &str, value: Value) {
+    let connection = database.connect().unwrap();
+    connection
+        .execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![key, value.to_string()],
+        )
+        .unwrap();
+}
+
+fn settings_batch(operations: Vec<ChangeOperation>) -> ChangeBatch {
+    ChangeBatch {
+        protocol: PROTOCOL,
+        sequence: 1,
+        device_id: "remote-device".to_owned(),
+        created_at: "2026-09-22T00:00:00.000Z".to_owned(),
+        operations,
+    }
+}
+
+/// 白名单设置能跨设备同步：整键值原样送达。
+#[test]
+fn synced_setting_travels_between_devices() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-settings-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+
+    let mut connection = database.connect().unwrap();
+    apply_batch(
+        &mut connection,
+        &settings_batch(vec![operation(
+            "remote-theme",
+            "settings",
+            "accent",
+            json!({ "id": "accent", "key": "accent", "value": "violet", "updatedAt": null }),
+        )]),
+    )
+    .unwrap();
+    drop(connection);
+
+    assert_eq!(
+        settings_value(&database, "accent"),
+        Some(json!("violet")),
+        "白名单设置应被远端值覆盖"
+    );
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// 设备私有设置不得被远端写入——即使远端硬塞一条。
+#[test]
+fn device_private_setting_is_not_written_by_remote() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-settings-priv-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    let before = settings_value(&database, "launchAtStartup");
+
+    let mut connection = database.connect().unwrap();
+    apply_batch(
+        &mut connection,
+        &settings_batch(vec![operation(
+            "remote-launch",
+            "settings",
+            "launchAtStartup",
+            json!({ "id": "launchAtStartup", "key": "launchAtStartup", "value": true, "updatedAt": null }),
+        )]),
+    )
+    .unwrap();
+    drop(connection);
+
+    assert_eq!(
+        settings_value(&database, "launchAtStartup"),
+        before,
+        "设备私有设置不该被远端改动"
+    );
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// 核心隔离保证：同步 widget 外观字段，**不动**本地几何与开关。
+#[test]
+fn widget_sync_updates_appearance_but_preserves_geometry() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-settings-widget-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+
+    // 本地：这台机器上的几何 + 开关 + 一个待被覆盖的外观字段
+    set_settings_value(
+        &database,
+        "widget",
+        json!({
+            "enabled": true, "x": 801, "y": 433, "w": 520, "h": 281, "locked": false,
+            "noteTheme": "sky", "noteFont": "handwriting"
+        }),
+    );
+
+    let mut connection = database.connect().unwrap();
+    apply_batch(
+        &mut connection,
+        &settings_batch(vec![operation(
+            "remote-widget",
+            "settings",
+            "widget",
+            json!({
+                "id": "widget", "key": "widget", "updatedAt": null,
+                "value": { "noteTheme": "glass", "noteFont": "微软雅黑" }
+            }),
+        )]),
+    )
+    .unwrap();
+    drop(connection);
+
+    let merged = settings_value(&database, "widget").unwrap();
+    let object = merged.as_object().unwrap();
+    // 外观字段被远端更新
+    assert_eq!(object.get("noteTheme").unwrap(), &json!("glass"));
+    assert_eq!(object.get("noteFont").unwrap(), &json!("微软雅黑"));
+    // 本机几何与开关原样保留——这是整个字段拆分设计要保证的
+    assert_eq!(object.get("x").unwrap(), &json!(801));
+    assert_eq!(object.get("y").unwrap(), &json!(433));
+    assert_eq!(object.get("w").unwrap(), &json!(520));
+    assert_eq!(object.get("h").unwrap(), &json!(281));
+    assert_eq!(object.get("enabled").unwrap(), &json!(true));
+
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// 远端载荷里塞了几何字段（旧客户端/被篡改）也必须忽略。
+#[test]
+fn remote_widget_geometry_is_ignored_even_if_present() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-settings-geom-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    set_settings_value(
+        &database,
+        "widget",
+        json!({ "x": 100, "y": 200, "noteTheme": "sky" }),
+    );
+
+    let mut connection = database.connect().unwrap();
+    apply_batch(
+        &mut connection,
+        &settings_batch(vec![operation(
+            "remote-widget-geom",
+            "settings",
+            "widget",
+            json!({
+                "id": "widget", "key": "widget", "updatedAt": null,
+                "value": { "noteTheme": "glass", "x": 9999, "y": 9999 }
+            }),
+        )]),
+    )
+    .unwrap();
+    drop(connection);
+
+    let merged = settings_value(&database, "widget").unwrap();
+    let object = merged.as_object().unwrap();
+    assert_eq!(object.get("x").unwrap(), &json!(100), "远端坐标必须被忽略");
+    assert_eq!(object.get("y").unwrap(), &json!(200), "远端坐标必须被忽略");
+    assert_eq!(object.get("noteTheme").unwrap(), &json!("glass"));
+
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// 设置冲突不进冲突面板（后写胜出）。
+#[test]
+fn setting_conflict_does_not_enter_conflict_panel() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-settings-conflict-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+
+    // 本地先产生一次变更（revision=1）
+    let connection = database.connect().unwrap();
+    let mut connection = connection;
+    apply_batch(
+        &mut connection,
+        &settings_batch(vec![operation(
+            "local-theme",
+            "settings",
+            "theme",
+            json!({ "id": "theme", "key": "theme", "value": "dark", "updatedAt": null }),
+        )]),
+    )
+    .unwrap();
+
+    // 远端基于 revision=0 的过期基线改同一个键 → 常规实体会判冲突
+    let stale = ChangeOperation {
+        base_revision: 0,
+        revision: 2,
+        ..operation(
+            "remote-theme-stale",
+            "settings",
+            "theme",
+            json!({ "id": "theme", "key": "theme", "value": "light", "updatedAt": null }),
+        )
+    };
+    apply_batch(&mut connection, &settings_batch(vec![stale])).unwrap();
+
+    let conflicts: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sync_conflicts WHERE entity = 'settings'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(conflicts, 0, "设置冲突不该进冲突面板");
+    assert_eq!(
+        settings_value(&database, "theme"),
+        Some(json!("light")),
+        "后写应当胜出"
+    );
+
+    drop(connection);
+    drop(database);
+    cleanup_database(&path);
 }

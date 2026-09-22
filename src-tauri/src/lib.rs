@@ -13,6 +13,8 @@ mod recurrence;
 pub mod runtime;
 pub mod sync;
 #[cfg(desktop)]
+mod system_fonts;
+#[cfg(desktop)]
 mod tray;
 #[cfg(desktop)]
 mod widget;
@@ -216,6 +218,9 @@ pub fn run() {
             commands::backup::preview_backup_import,
             commands::backup::import_backup_selection,
             commands::backup::restore_backup,
+            commands::backup::export_backup_package,
+            commands::backup::preview_migration_package,
+            commands::backup::import_migration_package,
             commands::attachment::list_task_attachments,
             commands::attachment::count_task_attachments,
             commands::attachment::add_managed_attachment,
@@ -286,15 +291,11 @@ pub fn run() {
             #[cfg(desktop)]
             commands::widget::patch_widget_settings,
             #[cfg(desktop)]
-            commands::widget::import_note_font,
-            #[cfg(desktop)]
-            commands::widget::read_note_font_bytes,
-            #[cfg(desktop)]
             commands::mini::toggle_mini,
             commands::tag::manage_tag,
             commands::notice::send_notice,
             #[cfg(desktop)]
-            commands::widget::remove_note_font,
+            commands::font::list_system_fonts,
             #[cfg(desktop)]
             commands::clock::toggle_clock,
             #[cfg(desktop)]

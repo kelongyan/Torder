@@ -1036,33 +1036,6 @@
   letter-spacing: 0.02em;
 }
 
-.settings-backup-list {
-  display: grid;
-  gap: 4px;
-  margin-top: 12px;
-}
-
-.settings-backup-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  padding: 4px 6px 4px 10px;
-}
-
-.settings-backup-item > span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .settings-version {
   color: var(--text-secondary);
   font-size: 12px;
@@ -1133,6 +1106,35 @@
 
 .restore-confirm-card .settings-row {
   justify-content: flex-end;
+}
+
+/* 迁移包预览：恢复前让用户确认「包里到底有什么」，
+   尤其设置与日程两项——它们是「重装后像不像原来」的关键。 */
+.settings-migration-summary {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 21px;
+  list-style: disc;
+}
+
+.settings-migration-summary li::marker {
+  color: var(--text-muted);
+}
+
+.settings-migration-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.settings-migration-hint {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 /* --- 统计洞察 --- */
@@ -1310,18 +1312,202 @@
   }
 }
 
-/* 字体卡网格：2×2（此前 .note-font-grid 缺失 CSS 定义，卡片曾全宽堆叠） */
+/* 字体选择器（FontPicker）：触发器 + 可搜索下拉面板 */
 
-.note-font-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+.font-picker {
+  position: relative;
 }
 
-@media (max-width: 480px) {
-  .note-font-grid {
-    grid-template-columns: 1fr;
-  }
+.font-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+.font-picker-trigger:hover:not(:disabled) {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+}
+
+.font-picker-trigger.is-open,
+.font-picker-trigger:focus-visible {
+  border-color: var(--accent-border);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.font-picker-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.font-picker-trigger-label {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-picker-caret {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.font-picker-panel {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  left: 0;
+  margin-top: 4px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-floating);
+  overflow: hidden;
+}
+
+.font-picker-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.font-picker-search-icon {
+  position: absolute;
+  left: 18px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.font-picker-search-input {
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 26px 4px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.font-picker-search-input:focus {
+  outline: none;
+}
+
+.font-picker-search-clear {
+  position: absolute;
+  right: 14px;
+  display: inline-flex;
+  padding: 3px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.font-picker-search-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 列表高度上限：字体可能几百个，面板不能无限长 */
+.font-picker-list {
+  max-height: 260px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-gutter: stable;
+}
+
+.font-picker-group + .font-picker-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.font-picker-group-title {
+  padding: 6px 8px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.font-picker-group-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.font-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* 悬停与键盘高亮同一视觉，避免鼠标/键盘两套状态 */
+.font-picker-option.is-highlight {
+  background: var(--bg-hover);
+}
+
+.font-picker-option.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.font-picker-option-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-picker-option-check {
+  flex: none;
+  width: 5px;
+  height: 9px;
+  border-right: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.font-picker-empty {
+  padding: 14px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 /* 便签主题卡：横向微缩便签画布 + 标题/描述/单选指示器 */
@@ -1362,8 +1548,7 @@
 }
 
 /* 隐藏底层原生 radio */
-.note-theme-card input,
-.note-font-card input {
+.note-theme-card input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1612,174 +1797,6 @@
   box-shadow:
     0 1px 4px rgba(0, 0, 0, 0.28),
     0 0 0 1px rgba(0, 0, 0, 0.06);
-}
-
-/* 字体卡共用卡片基座（原生 radio 隐藏、状态类由 React 驱动） */
-
-.note-font-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-tertiary);
-  cursor: pointer;
-  text-align: left;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
-}
-
-.note-font-card:hover {
-  border-color: var(--border-light);
-  background: var(--bg-hover);
-}
-
-.note-font-card.is-active {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-}
-
-.note-font-card:focus-within {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-.note-font-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.note-font-name {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary);
-}
-
-.note-font-card-radio {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border-light);
-  background: transparent;
-  flex-shrink: 0;
-  transition: all var(--motion-fast) var(--ease-standard);
-}
-
-.note-font-card.is-active .note-font-card-radio {
-  border-color: var(--accent);
-  background: var(--accent);
-  box-shadow: inset 0 0 0 3px var(--bg-tertiary);
-}
-
-.note-font-sample {
-  overflow: hidden;
-  font-size: 16px;
-  line-height: 24px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary);
-}
-
-.note-font-sample.is-placeholder {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.note-font-desc {
-  overflow: hidden;
-  font-size: 11px;
-  line-height: 15px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-tertiary);
-}
-
-.note-font-custom-name {
-  color: var(--text-secondary);
-  font-family: var(--font-mono, monospace);
-}
-
-.note-font-custom-header-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.note-font-inline-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.note-font-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 14px;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-}
-
-.note-font-action-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: var(--border-light);
-  color: var(--text-primary);
-}
-
-.note-font-action-btn.is-danger:hover:not(:disabled) {
-  border-color: rgba(255, 85, 85, 0.4);
-  color: var(--red);
-  background: rgba(255, 85, 85, 0.1);
-}
-
-.note-font-action-btn:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-/* 「导入字体」卡（非 radio 的按钮卡）：虚线边示意空槽位 */
-.note-font-card.note-font-import {
-  border-style: dashed;
-  color: var(--text-secondary);
-}
-
-.note-font-card.note-font-import:hover:not(:disabled) {
-  border-color: var(--accent-border);
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.note-font-card.note-font-import:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.note-font-import-icon {
-  color: var(--text-tertiary);
-  transition: color var(--motion-fast) var(--ease-standard);
-}
-
-.note-font-card.note-font-import:hover:not(:disabled) .note-font-import-icon {
-  color: var(--accent);
 }
 
 /* 恢复默认外观：沉底右对齐，text 风格弱化（与「更换/移除」链接同语言） */

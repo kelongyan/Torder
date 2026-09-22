@@ -1,14 +1,23 @@
-import { useEffect, useState } from "react";
-import { DatabaseBackup, HardDrive, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import {
+  open as openFileDialog,
+  save as saveFileDialog,
+} from "@tauri-apps/plugin-dialog";
+import { DatabaseBackup, FileDown, FileUp, HardDrive } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { usePresence } from "../../hooks/usePresence";
 import { ToggleSwitch } from "../common/ToggleSwitch";
 import {
   backupDatabase,
-  listBackups,
-  restoreBackup,
+  exportBackupPackage,
+  importMigrationPackage,
+  previewMigrationPackage,
+  type BackupImportPreview,
+  type ImportMode,
 } from "../../services/backupService";
 import { upsertSetting } from "../../services/settingsService";
+import { isTauri } from "@tauri-apps/api/core";
+import { isMobile } from "../../utils/platform";
 
 export function SettingsBackupSection({
   autoBackup,
@@ -22,32 +31,17 @@ export function SettingsBackupSection({
   onToast: (message: string, type: ToastKind) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [backups, setBackups] = useState<string[]>([]);
-  const [pendingRestore, setPendingRestore] = useState<string | null>(null);
+  const [migrationPreview, setMigrationPreview] =
+    useState<BackupImportPreview | null>(null);
   // 确认浮层走 usePresence（rendered + phase），避免裸条件渲染缺失退场动画
-  const restorePresence = usePresence(pendingRestore, 280);
-
-  // 挂载时加载一次已有备份，否则恢复入口只在手动备份后才可见
-  useEffect(() => {
-    let cancelled = false;
-    void listBackups()
-      .then((nextBackups) => {
-        if (!cancelled) setBackups(nextBackups);
-      })
-      .catch(() => {
-        // 列表加载失败不打扰用户，手动备份后仍会刷新
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const migrationPresence = usePresence(migrationPreview, 280);
+  // 迁移包需要系统保存/打开对话框，浏览器 mock 没有该能力
+  const migrationsAvailable = isTauri() && !isMobile();
 
   async function handleBackup() {
     setBusy(true);
     try {
       await backupDatabase();
-      const nextBackups = await listBackups();
-      setBackups(nextBackups);
       onToast("备份完成", "success");
     } catch (error) {
       onToast(`备份失败: ${String(error)}`, "error");
@@ -66,24 +60,62 @@ export function SettingsBackupSection({
     }
   }
 
-  async function handleRestore(path: string) {
-    setBusy(true);
+  /** 导出完整迁移包到用户选定位置（含事项、清单、设置、附件）。 */
+  async function handleExportPackage() {
     try {
-      await restoreBackup(path);
-      onClose();
-      // 重载让所有查询重新命中新库；此后组件已卸载，不再提示。
-      window.location.reload();
+      const destination = await saveFileDialog({
+        title: "导出完整备份",
+        defaultPath: `Torder_${new Date().toISOString().slice(0, 10)}.torder`,
+        filters: [{ name: "Torder 备份", extensions: ["torder"] }],
+      });
+      if (!destination) return; // 用户取消
+      setBusy(true);
+      await exportBackupPackage(destination);
+      onToast("完整备份已导出", "success");
     } catch (error) {
-      setPendingRestore(null);
-      onToast(`恢复失败: ${String(error)}`, "error");
+      onToast(`导出失败: ${String(error)}`, "error");
     } finally {
       setBusy(false);
     }
   }
 
-  function shortName(path: string): string {
-    const parts = path.split(/[\\/]/);
-    return parts[parts.length - 1] ?? path;
+  /** 选一个迁移包并预览内容，预览确认后才执行恢复。 */
+  async function handlePickPackage() {
+    try {
+      const selected = await openFileDialog({
+        title: "选择备份文件",
+        multiple: false,
+        directory: false,
+        filters: [
+          { name: "Torder 备份", extensions: ["torder", "zip", "sqlite"] },
+        ],
+      });
+      if (!selected || Array.isArray(selected)) return; // 用户取消
+      setBusy(true);
+      const preview = await previewMigrationPackage(selected);
+      setMigrationPreview(preview);
+    } catch (error) {
+      onToast(`无法读取备份: ${String(error)}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMigration(mode: ImportMode) {
+    const preview = migrationPreview;
+    if (!preview) return;
+    setBusy(true);
+    try {
+      await importMigrationPackage(preview.path, mode);
+      onClose();
+      // 与恢复同理：整库/大范围变更后必须重载，让所有查询重新命中新数据。
+      window.location.reload();
+    } catch (error) {
+      setMigrationPreview(null);
+      onToast(`导入失败: ${String(error)}`, "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -91,7 +123,7 @@ export function SettingsBackupSection({
       <section className="settings-section">
         <h3 className="settings-section-title">
           <DatabaseBackup aria-hidden="true" className="icon-sm" />
-          备份
+          备份与迁移
         </h3>
         <div className="settings-row settings-action-row">
           <button
@@ -103,6 +135,28 @@ export function SettingsBackupSection({
             <HardDrive aria-hidden="true" className="icon-sm" />
             立即备份
           </button>
+          {migrationsAvailable && (
+            <>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={busy}
+                onClick={() => void handleExportPackage()}
+              >
+                <FileDown aria-hidden="true" className="icon-sm" />
+                导出完整备份
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={busy}
+                onClick={() => void handlePickPackage()}
+              >
+                <FileUp aria-hidden="true" className="icon-sm" />
+                从备份恢复
+              </button>
+            </>
+          )}
         </div>
         <div className="settings-toggle-row">
           <span className="settings-toggle-label">启动时自动备份</span>
@@ -113,65 +167,62 @@ export function SettingsBackupSection({
             onChange={(next) => void handleAutoBackupToggle(next)}
           />
         </div>
-        {backups.length > 0 && (
-          <div className="settings-backup-list">
-            <div className="settings-list-label">已有备份</div>
-            {backups.map((path) => (
-              <div key={path} className="settings-backup-item">
-                <span title={path}>{shortName(path)}</span>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  disabled={busy}
-                  onClick={() => setPendingRestore(path)}
-                >
-                  <RefreshCw aria-hidden="true" className="icon-xs" />
-                  恢复
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
 
-      {restorePresence.rendered && restorePresence.value && (
+      {migrationPresence.rendered && migrationPresence.value && (
         <div
-          className={`dialog-overlay restore-confirm-overlay ${restorePresence.className}`}
+          className={`dialog-overlay restore-confirm-overlay ${migrationPresence.className}`}
         >
           <div
             className="restore-confirm-card"
             role="alertdialog"
             aria-modal="true"
           >
-            <h3>确认恢复备份?</h3>
+            <h3>从备份恢复</h3>
             <p>
-              用 <strong>{shortName(restorePresence.value)}</strong>{" "}
-              覆盖当前数据，不可撤销。
+              <strong>{migrationPresence.value.name}</strong> 包含：
             </p>
-            <div className="settings-row">
+            <ul className="settings-migration-summary">
+              <li>{migrationPresence.value.taskCount} 个事项</li>
+              <li>{migrationPresence.value.listCount} 个清单</li>
+              <li>{migrationPresence.value.recurringRuleCount} 条循环规则</li>
+              <li>{migrationPresence.value.calendarEventCount} 个日程</li>
+              <li>{migrationPresence.value.settingCount} 项设置</li>
+            </ul>
+            <div className="settings-migration-modes">
               <button
                 type="button"
                 className="btn-secondary"
                 disabled={busy}
-                onClick={() => setPendingRestore(null)}
+                onClick={() => setMigrationPreview(null)}
               >
                 取消
               </button>
               <button
                 type="button"
+                className="btn-secondary"
+                disabled={busy}
+                onClick={() => void handleMigration("merge")}
+              >
+                合并导入
+              </button>
+              <button
+                type="button"
                 className="btn-danger-solid"
                 disabled={busy}
-                onClick={() => {
-                  if (restorePresence.value)
-                    void handleRestore(restorePresence.value);
-                }}
+                onClick={() => void handleMigration("replace")}
               >
-                确认恢复
+                替换全部数据
               </button>
             </div>
+            <p className="settings-migration-hint">
+              合并会保留现有数据，只补齐备份里的内容（同名清单自动复用）；
+              替换会清空当前数据、完全回到备份状态（恢复前会自动存一份当前数据副本）。
+            </p>
           </div>
         </div>
       )}
+
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 use super::*;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::db::sync_repository;
 use crate::error::RepositoryResult;
@@ -73,6 +73,44 @@ pub(crate) fn bootstrap_existing_objects(
             sync_repository::record_change(&transaction, entity, &id, operation, payload)?;
         }
     }
+    bootstrap_synced_settings(&transaction)?;
     transaction.commit()?;
+    Ok(())
+}
+
+/// 存量设置引导：把已在白名单里的设置项补一条变更记录。
+///
+/// 与上面各实体不同之处：设置的「对象」是设置键，且**载荷要按策略裁剪**——
+/// `widget` / `clock` 这类只同步外观字段，几何与开关必须剔除（详见
+/// `sync::settings_policy`）。不裁剪会让存量几何随首次同步扩散到别的设备。
+pub(crate) fn bootstrap_synced_settings(
+    transaction: &rusqlite::Transaction<'_>,
+) -> RepositoryResult<()> {
+    let rows = {
+        let mut statement = transaction.prepare(
+            "SELECT item.key, item.value FROM settings AS item
+             LEFT JOIN sync_objects AS object
+               ON object.entity = 'settings' AND object.object_id = item.key
+             WHERE object.object_id IS NULL",
+        )?;
+        let values = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        values
+    };
+    for (key, raw_value) in rows {
+        let Some(value) = super::settings_payload(&key, &raw_value) else {
+            continue;
+        };
+        let payload = json!({
+            "id": key,
+            "key": key,
+            "value": value,
+            "updatedAt": Value::Null,
+        });
+        sync_repository::record_change(transaction, "settings", &key, "upsert", payload)?;
+    }
     Ok(())
 }
