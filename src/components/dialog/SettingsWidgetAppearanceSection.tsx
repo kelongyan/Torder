@@ -1,26 +1,21 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   getWidgetSettings,
   patchWidgetSettings,
 } from "../../services/widgetService";
 import {
   defaultWidgetAppearance,
-  ensureCustomNoteFont,
-  fontStackFor,
-  isCustomNoteFontRegistered,
+  listSystemFonts,
   MIN_NOTE_GLASS_OPACITY,
   noteFontOptions,
   noteThemeOptions,
-  registerCustomNoteFont,
-  unregisterCustomNoteFont,
   type NoteThemeId,
   type WidgetAppearance,
 } from "../../services/widgetAppearance";
+import { FontPicker, type FontPickerOption } from "../common/FontPicker";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
-import { RefreshCw, StickyNote, Trash2, Type, Upload } from "lucide-react";
+import { StickyNote, Type } from "lucide-react";
 
 const NOTE_THEME_DETAILS: Record<
   NoteThemeId,
@@ -30,34 +25,10 @@ const NOTE_THEME_DETAILS: Record<
   glass: { title: "通透磨砂", desc: "深色亚克力 · 融入桌面" },
 };
 
-const FONT_DESCRIPTIONS: Record<string, string> = {
-  handwriting: "经典便签 · 灵动手写",
-  sans: "现代黑体 · 清晰利落",
-  system: "系统默认 · 规范统一",
-};
-
 /** 滑杆拖动期间只更新本地状态，停顿 300ms 才落库——避免每像素一次 IPC */
 const SLIDER_FLUSH_MS = 300;
 
-/** 自定义字体导入的对话框过滤与大小上限提示（Rust 侧权威校验） */
-const FONT_DIALOG_FILTERS = [
-  { name: "字体文件", extensions: ["ttf", "otf", "woff", "woff2"] },
-];
-const FONT_ACCEPT = ".ttf,.otf,.woff,.woff2";
-
 type SliderField = "noteGlassOpacity";
-
-/** mock 模式的字体文件选择（Tauri 走系统对话框）。返回 null = 用户取消。 */
-function pickBrowserFontFile(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = FONT_ACCEPT;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
-    input.oncancel = () => resolve(null);
-    input.click();
-  });
-}
 
 /**
  * 设置 → 外观 → 桌面便签个性化：纸色（海蓝 + 磨砂两卡，2026-09-09 老大定稿）+
@@ -91,8 +62,8 @@ export function SettingsWidgetAppearanceSection({
 }) {
   const [appearance, setAppearance] = useState<WidgetAppearance | null>(null);
   const [busy, setBusy] = useState(false);
-  /** 自定义字体导入中（对话框 + 复制 + FontFace 注册） */
-  const [importingFont, setImportingFont] = useState(false);
+  /** 系统字体家族名（下拉数据源）；null = 尚未加载 */
+  const [systemFonts, setSystemFonts] = useState<string[] | null>(null);
   /** 最近一次成功落库的外观；写失败时按字段回滚到它 */
   const persistedRef = useRef<WidgetAppearance | null>(null);
   const sliderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,6 +71,31 @@ export function SettingsWidgetAppearanceSection({
   const pendingSliderRef = useRef<Partial<
     Pick<WidgetAppearance, SliderField>
   > | null>(null);
+
+  /**
+   * 字体下拉的数据源：预设组 → 已安装字体组。
+   *
+   * 系统字体在**首次打开下拉时**才拉取（`handleOpenFontList` 触发），
+   * 不随设置面板挂载：多数用户不改字体，没必要每次进设置都去枚举注册表。
+   */
+  const fontPickerOptions = useMemo<FontPickerOption[]>(() => {
+    const options: FontPickerOption[] = noteFontOptions.map((font) => ({
+      value: font.id,
+      label: font.name,
+      group: "预设",
+      preview: false,
+    }));
+    for (const family of systemFonts ?? []) {
+      options.push({
+        value: family,
+        label: family,
+        group: "已安装字体",
+        // 用字体自身渲染名字：选之前就能看出长相，比只列名字有用得多
+        preview: true,
+      });
+    }
+    return options;
+  }, [systemFonts]);
 
   useEffect(() => {
     if (isMobile()) return;
@@ -109,10 +105,6 @@ export function SettingsWidgetAppearanceSection({
       if (cancelled) return;
       setAppearance(settings);
       persistedRef.current = settings;
-      // 主窗此前从未注册自定义字体；字样卡要用它渲染（缓存命中，代价仅一次）
-      if (settings.noteCustomFontName && !isCustomNoteFontRegistered()) {
-        await ensureCustomNoteFont();
-      }
     })().catch(() => undefined);
     return () => {
       cancelled = true;
@@ -204,6 +196,19 @@ export function SettingsWidgetAppearanceSection({
     ).finally(() => setBusy(false));
   }
 
+  /**
+   * 首次打开字体下拉时拉取系统字体（惰性）。
+   *
+   * `systemFonts === null` 既表示「未加载」也表示「正在加载」，用 ref 之外的
+   * 状态判定会漏掉「加载失败后再次打开」的场景——失败时回填空数组，
+   * 让 UI 明确退化为「只有预设 + 导入字体」，而不是永远卡在「加载中」。
+   */
+  function handleOpenFontList() {
+    if (systemFonts !== null) return;
+    void listSystemFonts().then((fonts) => setSystemFonts(fonts));
+  }
+
+
   /** 恢复默认外观：重置外观字段（字号已锁死、开关组已无 UI，落库值由
    *  normalizeAppearance 归一），几何/锚点/启用开关不碰 */
   function handleResetDefaults() {
@@ -223,89 +228,6 @@ export function SettingsWidgetAppearanceSection({
     if (value === appearance.noteGlassOpacity) return;
     setAppearance({ ...appearance, noteGlassOpacity: value });
     scheduleSliderPersist({ noteGlassOpacity: value });
-  }
-
-  /**
-   * 导入自定义字体：Tauri 走系统文件对话框 → Rust 校验+复制进应用数据目录
-   * → 读回字节注册 FontFace；mock 走浏览器 <input type="file">（字节仅会话内
-   * 有效，重载后字体栈自然回退，姓名仍持久化便于观察回退表现）。
-   * 成功后自动切到 custom 并落库。
-   */
-  async function handleImportFont() {
-    if (!appearance || importingFont) return;
-    setImportingFont(true);
-    try {
-      let displayName: string;
-      if (isTauri()) {
-        const picked = await openFileDialog({
-          multiple: false,
-          directory: false,
-          title: "选择字体文件",
-          filters: FONT_DIALOG_FILTERS,
-        });
-        if (typeof picked !== "string" || picked.length === 0) return;
-        displayName = await invoke<string>("import_note_font", {
-          sourcePath: picked,
-        });
-        await ensureCustomNoteFont();
-      } else {
-        const file = await pickBrowserFontFile();
-        if (!file) return;
-        displayName = file.name.replace(/\.[^.]+$/, "") || "自定义字体";
-        await registerCustomNoteFont(await file.arrayBuffer());
-      }
-      const previous = appearance;
-      setAppearance({
-        ...appearance,
-        noteFont: "custom",
-        noteCustomFontName: displayName,
-      });
-      await persistPatch(
-        { noteFont: "custom", noteCustomFontName: displayName },
-        {
-          noteFont: previous.noteFont,
-          noteCustomFontName: previous.noteCustomFontName,
-        },
-      );
-    } catch (error) {
-      onToast(`字体导入失败: ${String(error)}`, "error");
-    } finally {
-      setImportingFont(false);
-    }
-  }
-
-  /** 移除自定义字体：清槽位（Tauri）+ 拉回默认字体；custom 选中态一并退出 */
-  async function handleRemoveCustomFont() {
-    if (!appearance || busy) return;
-    const previous = appearance;
-    unregisterCustomNoteFont();
-    setAppearance({
-      ...appearance,
-      noteFont:
-        previous.noteFont === "custom" ? "handwriting" : previous.noteFont,
-      noteCustomFontName: null,
-    });
-    setBusy(true);
-    try {
-      if (isTauri()) {
-        await invoke("remove_note_font");
-      }
-      await persistPatch(
-        {
-          noteFont:
-            previous.noteFont === "custom" ? "handwriting" : previous.noteFont,
-          noteCustomFontName: null,
-        },
-        {
-          noteFont: previous.noteFont,
-          noteCustomFontName: previous.noteCustomFontName,
-        },
-      );
-    } catch (error) {
-      onToast(`字体移除失败: ${String(error)}`, "error");
-    } finally {
-      setBusy(false);
-    }
   }
 
   const glassOpacityPercent = Math.round(appearance.noteGlassOpacity * 100);
@@ -418,121 +340,14 @@ export function SettingsWidgetAppearanceSection({
           <Type aria-hidden="true" className="icon-sm" />
           便签字体
         </h3>
-        <div className="note-font-grid" role="radiogroup" aria-label="便签字体">
-          {noteFontOptions.map((font) => {
-            const active = appearance.noteFont === font.id;
-            return (
-              <label
-                key={font.id}
-                className={`note-font-card ${active ? "is-active" : ""}`.trim()}
-              >
-                <input
-                  type="radio"
-                  name="note-font"
-                  value={font.id}
-                  checked={active}
-                  disabled={busy}
-                  onChange={() => handleFontChange(font.id)}
-                />
-                <div className="note-font-card-header">
-                  <span className="note-font-name">{font.name}</span>
-                  <span className="note-font-card-radio" aria-hidden="true" />
-                </div>
-                <div
-                  className="note-font-sample"
-                  style={{ fontFamily: fontStackFor(font.id) }}
-                >
-                  今天的事 09:30
-                </div>
-                <div className="note-font-desc">
-                  {FONT_DESCRIPTIONS[font.id] ?? font.name}
-                </div>
-              </label>
-            );
-          })}
-          {appearance.noteCustomFontName ? (
-            <label
-              className={`note-font-card ${appearance.noteFont === "custom" ? "is-active" : ""}`.trim()}
-              title={appearance.noteCustomFontName}
-            >
-              <input
-                type="radio"
-                name="note-font"
-                value="custom"
-                checked={appearance.noteFont === "custom"}
-                disabled={busy}
-                onChange={() => handleFontChange("custom")}
-              />
-              <div className="note-font-card-header">
-                <span className="note-font-name">自定义字体</span>
-                <div className="note-font-custom-header-right">
-                  <div className="note-font-inline-actions">
-                    <button
-                      type="button"
-                      className="note-font-action-btn"
-                      disabled={busy || importingFont}
-                      title="更换字体文件"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        void handleImportFont();
-                      }}
-                    >
-                      <RefreshCw
-                        size={11}
-                        className={importingFont ? "is-spinning" : ""}
-                      />
-                      <span>更换</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="note-font-action-btn is-danger"
-                      disabled={busy || importingFont}
-                      title="移除自定义字体"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        void handleRemoveCustomFont();
-                      }}
-                    >
-                      <Trash2 size={11} />
-                      <span>移除</span>
-                    </button>
-                  </div>
-                  <span className="note-font-card-radio" aria-hidden="true" />
-                </div>
-              </div>
-              <div
-                className="note-font-sample"
-                style={{ fontFamily: fontStackFor("custom") }}
-              >
-                今天的事 09:30
-              </div>
-              <div
-                className="note-font-desc note-font-custom-name"
-                title={appearance.noteCustomFontName}
-              >
-                {appearance.noteCustomFontName}
-              </div>
-            </label>
-          ) : (
-            <button
-              type="button"
-              className="note-font-card note-font-import"
-              disabled={busy || importingFont}
-              onClick={() => void handleImportFont()}
-            >
-              <div className="note-font-card-header">
-                <span className="note-font-name">自定义字体</span>
-                <Upload size={14} className="note-font-import-icon" />
-              </div>
-              <div className="note-font-sample is-placeholder">
-                {importingFont ? "正在读取文件…" : "＋ 导入本地字体"}
-              </div>
-              <div className="note-font-desc">支持 TTF / OTF / WOFF2</div>
-            </button>
-          )}
-        </div>
+        <FontPicker
+          value={appearance.noteFont}
+          options={fontPickerOptions}
+          onChange={handleFontChange}
+          disabled={busy}
+          loading={systemFonts === null}
+          onFirstOpen={handleOpenFontList}
+        />
       </section>
 
       <div className="note-reset-row">

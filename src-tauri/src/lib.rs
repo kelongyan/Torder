@@ -13,6 +13,8 @@ mod recurrence;
 pub mod runtime;
 pub mod sync;
 #[cfg(desktop)]
+mod system_fonts;
+#[cfg(desktop)]
 mod tray;
 #[cfg(desktop)]
 mod widget;
@@ -289,15 +291,11 @@ pub fn run() {
             #[cfg(desktop)]
             commands::widget::patch_widget_settings,
             #[cfg(desktop)]
-            commands::widget::import_note_font,
-            #[cfg(desktop)]
-            commands::widget::read_note_font_bytes,
-            #[cfg(desktop)]
             commands::mini::toggle_mini,
             commands::tag::manage_tag,
             commands::notice::send_notice,
             #[cfg(desktop)]
-            commands::widget::remove_note_font,
+            commands::font::list_system_fonts,
             #[cfg(desktop)]
             commands::clock::toggle_clock,
             #[cfg(desktop)]

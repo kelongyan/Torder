@@ -46,7 +46,6 @@ import {
 } from "../services/widgetService";
 import {
   applyWidgetAppearance,
-  ensureCustomNoteFont,
   listenWidgetSettings,
   type WidgetAppearance,
 } from "../services/widgetAppearance";
@@ -293,10 +292,6 @@ export function WidgetApp() {
       setDefaultListId(settings.defaultListId);
       const widgetSettings = await getWidgetSettings();
       if (cancelled) return;
-      // 自定义字体要先注册再应用外观，否则 custom 栈落到 var(--font-ui) 渲染
-      if (widgetSettings.noteFont === "custom") {
-        await ensureCustomNoteFont();
-      }
       // 权威外观（缓存只保证首帧不闪，这里读 SQLite/设置键后覆盖）
       appearanceRef.current = widgetSettings;
       applyWidgetAppearance(widgetSettings);
@@ -381,18 +376,12 @@ export function WidgetApp() {
   // 外观设置广播：其它窗口（主窗外观分区）patch 后即时同步到这里。
   // payload 在写入端已归一化，applyWidgetAppearance 幂等——widget 自己的
   // 几何写入触发的广播只是空操作重放，无需按来源排除。
-  // noteFont === "custom" 时先确保字体字节已注册（导入动作发生在主窗）。
   // noteHideDone 是行为字段，绕过 CSS 直接进条目派生。
   // Tauri 走 emit/listen，mock 走 BroadcastChannel，两条路径注册方式一致。
   useEffect(() => {
     return listenWidgetSettings((settings) => {
       appearanceRef.current = settings;
-      void (async () => {
-        if (settings.noteFont === "custom") {
-          await ensureCustomNoteFont();
-        }
-        applyWidgetAppearance(settings);
-      })();
+      applyWidgetAppearance(settings);
       setHideDone(settings.noteHideDone);
       setDblEdit(settings.noteDblEdit);
       const anySettings = settings as Partial<WidgetSettings>;

@@ -30,22 +30,31 @@ export const noteThemeOptions: ReadonlyArray<{
   { id: "glass", name: "磨砂" },
 ];
 
-export const noteFontIds = ["handwriting", "sans", "system", "custom"] as const;
-export type NoteFontId = (typeof noteFontIds)[number];
+export const noteFontIds = ["handwriting", "sans", "system"] as const;
+/** 内置预设字体（固定三项）。 */
+export type NoteFontPresetId = (typeof noteFontIds)[number];
 
-/** 字体展示名（设置界面字体卡）。id 须与 fontStackFor 的分支一一对应。
- *  `custom` 不进选项列表——由设置界面按「是否已导入字体文件」渲染第四张卡。 */
+/**
+ * 便签字体标识。
+ *
+ * 从「固定枚举」放宽为「预设 ∪ 任意系统字体家族名」：用户可在下拉里选电脑上
+ * 装的任何字体（`list_system_fonts` 枚举出的家族名，如「微软雅黑」）。系统字体
+ * 直接作 CSS `font-family` 值使用——浏览器能解析系统字体，**不需要**读字体字节。
+ *
+ * 历史 `custom`（用户导入字体文件）已于 2026-09-22 移除；旧值在
+ * `normalizeAppearance` 里回退到 `handwriting`（见那里的注释）。
+ */
+export type NoteFontId = NoteFontPresetId | (string & {});
+
+/** 字体展示名（设置界面的预设分组）。id 须与 fontStackFor 的分支一一对应。 */
 export const noteFontOptions: ReadonlyArray<{
-  id: NoteFontId;
+  id: NoteFontPresetId;
   name: string;
 }> = [
   { id: "handwriting", name: "手写体" },
   { id: "sans", name: "无衬线" },
   { id: "system", name: "系统字体" },
 ];
-
-/** 自定义字体的固定 FontFace 家族名（字节经 IPC 注册，家族名跨启动稳定）。 */
-export const CUSTOM_NOTE_FONT_FAMILY = "Torder Note Custom";
 
 /** 磨砂透明度区间（UI 用百分数 30–100 展示）。下限 30% 给 Release 白合成坑留安全边际。 */
 export const MIN_NOTE_GLASS_OPACITY = 0.3;
@@ -79,8 +88,6 @@ export interface WidgetAppearance {
   noteHideDone: boolean;
   /** 双击条目就地编辑标题（行为字段：交互开关，防误触可在设置关闭） */
   noteDblEdit: boolean;
-  /** 已导入自定义字体的显示名（源文件名去扩展名）；null = 未导入 */
-  noteCustomFontName: string | null;
 }
 
 /** 默认外观（= 经典黄）。经 normalizeAppearance 生成，与守卫共用同一份默认值来源。 */
@@ -94,10 +101,24 @@ export function isNoteThemeId(value: unknown): value is NoteThemeId {
   );
 }
 
-export function isNoteFontId(value: unknown): value is NoteFontId {
+/** 是否为内置预设字体 id（非预设值一律按「系统字体家族名」处理）。 */
+export function isNoteFontPresetId(value: unknown): value is NoteFontPresetId {
   return (
     typeof value === "string" &&
     (noteFontIds as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * 字体字段守卫。
+ *
+ * 从「白名单枚举」放宽为「非空字符串即合法」：字体名来自系统枚举，无法预先穷举。
+ * 保留约束两点——必须是字符串、必须非空（空串会让 `font-family: ""` 整条 CSS
+ * 失效，比回退默认更糟）。长度上限防脏数据把 CSS 变量撑爆。
+ */
+export function isNoteFontId(value: unknown): value is NoteFontId {
+  return (
+    typeof value === "string" && value.trim().length > 0 && value.length <= 256
   );
 }
 
@@ -136,7 +157,7 @@ export function normalizeAppearance(parsed: unknown): WidgetAppearance {
       1,
       DEFAULT_NOTE_GLASS_OPACITY,
     ),
-    noteFont: isNoteFontId(raw.noteFont) ? raw.noteFont : "handwriting",
+    noteFont: parseNoteFont(raw.noteFont),
     noteFontSize: 14,
     noteTexture: typeof raw.noteTexture === "boolean" ? raw.noteTexture : true,
     noteRules: typeof raw.noteRules === "boolean" ? raw.noteRules : true,
@@ -146,15 +167,16 @@ export function normalizeAppearance(parsed: unknown): WidgetAppearance {
       typeof raw.noteHideDone === "boolean" ? raw.noteHideDone : false,
     noteDblEdit:
       typeof raw.noteDblEdit === "boolean" ? raw.noteDblEdit : true,
-    noteCustomFontName:
-      typeof raw.noteCustomFontName === "string" &&
-      raw.noteCustomFontName.trim()
-        ? raw.noteCustomFontName.trim()
-        : null,
   };
 }
 
-/** 外观字段 → CSS font-family 栈。默认值须与 widget.css 的 `--font-note` 一致。 */
+/**
+ * 外观字段 → CSS font-family 栈。默认值须与 widget.css 的 `--font-note` 一致。
+ *
+ * 预设走固定分支；其余值（系统字体家族名）按字面家族名使用并追加 UI 字体兜底——
+ * 用户可能选了某个装在不同机器上不一定存在的字体，兜底保证不会掉到浏览器默认
+ * serif（那会让便签排版崩掉）。
+ */
 export function fontStackFor(font: NoteFontId): string {
   switch (font) {
     case "handwriting":
@@ -163,9 +185,32 @@ export function fontStackFor(font: NoteFontId): string {
       return `var(--font-ui)`;
     case "system":
       return `"Source Han Sans SC", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif`;
-    case "custom":
-      return `"${CUSTOM_NOTE_FONT_FAMILY}", var(--font-ui)`;
+    default:
+      // 系统字体家族名：必须引号包裹（家族名常含空格/中文，裸写会被当作
+      // 多个标识符），内部引号与反斜杠按 CSS 字符串规则转义。
+      return `"${escapeCssFontFamily(font)}", var(--font-ui)`;
   }
+}
+
+/**
+ * 解析持久化的 `noteFont` 值。
+ *
+ * `custom`（用户导入字体）已于 2026-09-22 移除，但老用户的设置里可能还留着它：
+ * 直接透传会让便签落到 `"custom"` 这个不存在的家族名上（视觉上退回 var(--font-ui)，
+ * 设置面板还会显示一个点不到的选项）。这里显式回退到 `handwriting`——
+ * 那是该功能引入前的默认值，也是移除后最接近的语义。
+ */
+function parseNoteFont(value: unknown): NoteFontId {
+  if (value === "custom") return "handwriting";
+  return isNoteFontId(value) ? value : "handwriting";
+}
+
+/** CSS 字符串内的转义：反斜杠与引号需转义，换行类字符直接剔除。 */
+function escapeCssFontFamily(name: string): string {
+  return name
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/[\r\n]/g, "");
 }
 
 /**
@@ -202,54 +247,21 @@ export function applyWidgetAppearance(appearance: WidgetAppearance): void {
   }
 }
 
-/* === 自定义字体（FontFace 动态注册） ===
-   字体文件由 Rust `import_note_font` 复制进应用数据目录 fonts/ 槽位；
-   两个窗口都按需经 `read_note_font_bytes` 拿字节后注册同一个家族名。
-   用字节注册而非 asset 协议 URL：免开 assetProtocol/ACL 配置面。
-   注册是「替换式」的：同会话更换字体文件时旧 face 先删再加，否则新字节不生效。 */
-
-let registeredCustomFace: FontFace | null = null;
-
-/** 注册（或替换）自定义字体。注册后使用 `CUSTOM_NOTE_FONT_FAMILY` 的文本自动重排。 */
-export async function registerCustomNoteFont(
-  bytes: ArrayBuffer,
-): Promise<void> {
-  const face = new FontFace(CUSTOM_NOTE_FONT_FAMILY, bytes);
-  await face.load();
-  if (registeredCustomFace) {
-    document.fonts.delete(registeredCustomFace);
-  }
-  document.fonts.add(face);
-  registeredCustomFace = face;
-}
-
-export function isCustomNoteFontRegistered(): boolean {
-  return registeredCustomFace !== null;
-}
-
-/** 注销自定义字体（移除字体文件时调用，避免会话内残留旧 face）。 */
-export function unregisterCustomNoteFont(): void {
-  if (registeredCustomFace) {
-    document.fonts.delete(registeredCustomFace);
-    registeredCustomFace = null;
-  }
-}
-
 /**
- * 确保 noteFont === "custom" 时字体已注册（Tauri：IPC 取字节；mock：无字节源，
- * 保持未注册 → 字体栈回退 var(--font-ui) 渲染，不报错）。
- * 返回是否最终处于已注册状态。
+ * 枚举系统已安装字体家族名，供便签字体下拉选择。
+ *
+ * 家族名直接作为 CSS `font-family` 值使用，**不需要**读字体字节
+ * （浏览器自己解析系统字体）。
+ *
+ * 浏览器 mock 没有系统字体枚举能力，返回空表让 UI 退化为「只有预设」，
+ * 与 mock 环境其它能力缺失时的处理一致。
  */
-export async function ensureCustomNoteFont(): Promise<boolean> {
-  if (registeredCustomFace) return true;
-  if (!isTauri()) return false;
+export async function listSystemFonts(): Promise<string[]> {
+  if (!isTauri()) return [];
   try {
-    const buffer = await invoke<ArrayBuffer>("read_note_font_bytes");
-    if (!buffer || buffer.byteLength === 0) return false;
-    await registerCustomNoteFont(buffer);
-    return true;
+    return await invoke<string[]>("list_system_fonts");
   } catch {
-    return false;
+    return [];
   }
 }
 
