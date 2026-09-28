@@ -1151,16 +1151,3 @@
 .content-motion-board {
   animation-name: content-reveal-wide;
 }
-
-/* R6：详情抽屉打开时头部收紧（占位组隐藏 + 分段图标化） */
-.header-actions.compact .tool-group--soon {
-  display: none;
-}
-
-.header-actions.compact .layout-tabs button {
-  padding: 0 9px;
-}
-
-.header-actions.compact .layout-tabs button span {
-  display: none;
-}

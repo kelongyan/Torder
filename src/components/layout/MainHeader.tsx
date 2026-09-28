@@ -70,7 +70,6 @@ export function MainHeader({
   onToggleBatchMode,
   syncStatus,
   showLayoutControls = true,
-  detailOpen = false,
   headerHidden = false,
 }: {
   title: string;
@@ -111,8 +110,6 @@ export function MainHeader({
   onToggleBatchMode: () => void;
   syncStatus: SyncStatus | null;
   showLayoutControls?: boolean;
-  /** R6：详情抽屉打开时头部工具收紧（占位组隐藏、分段图标化），避免溢出到抽屉下方。 */
-  detailOpen?: boolean;
   /** M3.2 移动端滚动折叠：向下滚动内容时整个主 header 收起（顶部滑出），true 表示收起。 */
   headerHidden?: boolean;
 }) {
@@ -267,7 +264,7 @@ export function MainHeader({
       </div>
 
       <div
-        className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"} ${detailOpen ? "compact" : ""}`}
+        className={`header-actions ${showLayoutControls ? "" : "no-layout-tabs"}`}
       >
         {/* 分组一：视图工具（布局分段 / 排序 / 筛选 / 批量 / 命令 / 未开发占位）。
             桌面端 display:contents 保持既有展平布局；移动端独立为工具行（M1.1）。 */}
