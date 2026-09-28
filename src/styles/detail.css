@@ -770,66 +770,9 @@
   clip-path: inset(50%);
 }
 
-/* ---------- R6 详情抽屉：非模态第三列（设计稿 .detail flex 0 0 min(392px,42%)） ---------- */
-.detail-drawer {
-  display: flex;
-  width: min(392px, 42%);
-  flex: 0 0 min(392px, 42%);
-  min-width: 0;
-  flex-direction: column;
-  border-left: 1px solid var(--stroke);
-  background: var(--bg-secondary);
-  box-shadow: -18px 0 48px -24px rgba(0, 0, 0, 0.35);
-}
-
-.detail-drawer.hidden {
-  display: none;
-}
-
-/* 内容卡填满抽屉：去弹窗卡外观 */
-.detail-drawer .detail-dialog {
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.detail-drawer.is-entering {
-  animation: drawer-slide-in var(--motion-panel) var(--ease-out) both;
-}
-
-.detail-drawer.is-exiting {
-  animation: drawer-slide-out var(--motion-fast) var(--ease-standard) both;
-  pointer-events: none;
-}
-
-@keyframes drawer-slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-}
-
-@keyframes drawer-slide-out {
-  to {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-}
-
-/* ≤1080：抽屉转右侧覆盖（设计稿 detail.css 断点行为） */
-@media (max-width: 1080px) {
-  .detail-drawer {
-    position: fixed;
-    top: 40px;
-    right: 0;
-    bottom: 0;
-    z-index: 40;
-    width: min(392px, 82vw);
-    flex-basis: auto;
-    background: var(--bg-secondary);
-  }
+/* ---------- 详情弹窗：外层复用 .dialog-overlay 遮罩 + 上方 .detail-dialog 卡片样式。
+   z-index 45 压在常规对话框(50)之下：从详情里打开的循环规则/删除确认弹窗可叠加其上。
+   双类选择器保证覆盖 .dialog-overlay 的 50（dialog.css 在本文件之后加载） ---------- */
+.dialog-overlay.detail-overlay {
+  z-index: 45;
 }

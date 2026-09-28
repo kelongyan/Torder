@@ -1462,7 +1462,6 @@ function App() {
             <main className="main">
               <MainHeader
                 title={currentTitle}
-                detailOpen={Boolean(selectedTask)}
                 headerHidden={mobile && mobileHeaderHidden}
                 meta={
                   searchViewActive
@@ -1693,7 +1692,7 @@ function App() {
                 )}
             </main>
 
-            {/* R6：详情抽屉为 app-shell 第三列（非模态，挤压列表；≤1080 转覆盖） */}
+            {/* 任务详情 = 居中弹窗（detail-overlay 遮罩，非模态列已废除） */}
             <TaskDetailPanel
               task={selectedTask}
               lists={lists}

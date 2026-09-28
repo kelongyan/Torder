@@ -77,14 +77,17 @@ export function TaskDetailPanel({
   const detailPresence = usePresence(task, 320);
   const presentTask = detailPresence.value;
 
+  if (!detailPresence.rendered) return null;
+
   return (
-    /* R6：详情抽屉 = 非模态第三列（设计稿 detail.css flex 0 0 min(392px,42%)），
-       挤压列表而非遮盖；≤1080 转右侧覆盖。关闭走顶部关闭钮 / Esc。 */
-    <aside
-      className={`detail-drawer ${
-        detailPresence.rendered ? detailPresence.className : "hidden"
-      }`}
-      aria-label="任务详情"
+    /* 详情弹窗 = .dialog-overlay 遮罩 + .detail-dialog 居中卡片。
+       关闭走点遮罩 / 顶部关闭钮 / Esc。 */
+    <div
+      className={`dialog-overlay detail-overlay ${detailPresence.className}`}
+      role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       {presentTask && (
         <TaskDetailContent
@@ -105,7 +108,7 @@ export function TaskDetailPanel({
           }
         />
       )}
-    </aside>
+    </div>
   );
 }
 
