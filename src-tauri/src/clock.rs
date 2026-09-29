@@ -156,6 +156,13 @@ mod win32 {
     }
 }
 
+/// 摘掉无边框窗口的 Win11 1px DWM 描边（clock.rs 与 widget.rs 共用）。
+/// 见上方 `win32::remove_dwm_border` 的说明。
+#[cfg(target_os = "windows")]
+pub fn remove_dwm_border(hwnd: isize) {
+    win32::remove_dwm_border(hwnd);
+}
+
 /// 剥掉时钟窗口的原生装饰残迹（Win11 1px DWM 边框）。
 ///
 /// 反面教训（2026-09-10，别再踩）：曾试图用 `SetWindowRgn` 圆角区域把
@@ -168,7 +175,7 @@ mod win32 {
 #[cfg(target_os = "windows")]
 fn strip_native_frame(window: &tauri::WebviewWindow) {
     if let Ok(hwnd) = window.hwnd() {
-        win32::remove_dwm_border(hwnd.0 as isize);
+        remove_dwm_border(hwnd.0 as isize);
     }
 }
 

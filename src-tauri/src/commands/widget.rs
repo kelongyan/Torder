@@ -61,6 +61,8 @@ pub fn hide_widget_window(app: AppHandle) -> Result<(), String> {
 /// 导致旋钮失灵且背板不渲染（2026-09-09 真机实锤后替换）。仅 Windows 10
 /// v1809+ 生效，其它平台与 widget 窗口不存在时均为 no-op（前端按
 /// noteTheme === "glass" 决定 enabled）。
+/// 固定态不需要守卫：2026-09-29 起「固定」只改 owner（不再把窗口挂成
+/// Progman 子窗口），便签始终是顶层窗口，SWCA 照常可用。
 /// 已知退化：Win10 v1903+/Win11 拖动窗口会卡顿（未公开 API 缺陷），
 /// 见 docx/widget-glass-mode-plan-2026-09-09.md §4。
 #[tauri::command]
@@ -85,6 +87,16 @@ pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(),
     let _ = (app, enabled, alpha);
 
     Ok(())
+}
+
+/// 便签「固定」按钮的窗口层副作用（2026-09-29）：锁定 → 清可最小化样式位 +
+/// 把窗口 owner 设为桌面宿主 Progman（显示桌面的最小化与全局 sweep 动画完全
+/// 免疫，便签保持顶层、应用窗口可盖住它、Acrylic 磨砂不受影响）；解锁 →
+/// 恢复样式位 + 清 owner（显示桌面时随其他窗口一起最小化）。
+/// 幂等；窗口不存在 / 非 Windows 均 no-op。详见 `widget::set_widget_locked`。
+#[tauri::command]
+pub fn set_widget_locked(app: AppHandle, locked: bool) -> Result<(), String> {
+    widget::set_widget_locked(&app, locked)
 }
 
 /// 原子 patch `widget` 设置键：读-改-写在 Rust 侧单条 IMMEDIATE 事务内完成，

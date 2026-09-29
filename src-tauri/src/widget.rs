@@ -166,6 +166,20 @@ pub fn create_widget_window(app: &AppHandle) -> tauri::Result<()> {
     // 否则在纸面（整张纸都是 data-tauri-drag-region="deep"）上双击就会最大化。
     .maximizable(false)
     .decorations(false)
+    // 必须显式关闭阴影（时钟窗 clock.rs 同款坑）。tao 在 Windows 上以
+    // MARKER_UNDECORATED_SHADOW 表示「无边框但要阴影」，默认 true；该标志为真
+    // 时 tao 会在 WM_NCCALCSIZE 里按 get_frame_thickness(dpi) 把客户区四周内缩
+    // （util.rs::calculate_insets_for_dpi：left/right/bottom = 框厚，top = 1 逻辑
+    // 像素），窗口因此留出一圈非客户区——因为 transparent(true)，这圈区域表现为
+    // 包裹在纸面外面的透明/黑边容器。实测（2026-09-29，100% DPI）便签窗口外框
+    // 335x493 而客户区/wry webview 只有 319x484，即左右各 8px、上 1px、下 8px
+    // 的黑边——正是用户报告的「两边似乎多出一点区域」。此前它被 SWCA 磨砂背板
+    // 盖住看不见，2026-09-29 引入固定功能清掉 acrylic 后显形。
+    // `.shadow(false)` 之后客户区铺满整窗；残余的 Win11 1px DWM 描边由下方
+    // strip_native_frame 摘除（注意：不要再用 SetWindowLongPtr+SWP_FRAMECHANGED
+    // 去「补」样式——那会把非客户区交回 DefWindowProc，系统会按样式里的
+    // WS_CAPTION 重新画出原生标题栏，clock.rs 有完整反面教训）。
+    .shadow(false)
     .transparent(true)
     .skip_taskbar(true)
     // 便签输入框不需要 WebView2 的「保存的信息」下拉（表单历史 + 个人信息建议）。
@@ -175,6 +189,17 @@ pub fn create_widget_window(app: &AppHandle) -> tauri::Result<()> {
     .visible(true)
     .build()?;
 
+    // 建窗即剥掉原生装饰残迹（Win11 1px DWM 边框），与 clock.rs 一致。
+    #[cfg(target_os = "windows")]
+    strip_native_frame(&window);
+
+    // 首帧窗口层状态对账：wry 的 webview bounds 定格在**建窗时**的客户区口径。
+    // 建窗时 NC 内缩尚未被 NCCALCSIZE 收编，wry 已按「当时的客户区」测算过一遍；
+    // 我们随后用 FFI 改的样式/宿主关系都不会让它自动重算。做一次 1px resize
+    // 往返强制它按当前客户区重算，保证纸面覆盖窗口每一个像素。
+    #[cfg(target_os = "windows")]
+    force_webview_bounds_resync(&window);
+
     let window_to_hide = window.clone();
     window.on_window_event(move |event| {
         if let WindowEvent::CloseRequested { api, .. } = event {
@@ -182,6 +207,214 @@ pub fn create_widget_window(app: &AppHandle) -> tauri::Result<()> {
             let _ = window_to_hide.hide();
         }
     });
+    Ok(())
+}
+
+/// 便签「固定」的窗口层副作用（2026-09-29）。
+///
+/// 「显示桌面」（任务栏右下角按钮 / Win+D，shell 的 ToggleDesktop）有两层效果：
+///
+/// 1. **最小化**：shell 只最小化「带系统菜单」的窗口。tao 在 `to_window_styles`
+///    里给所有窗口无条件加 `WS_SYSMENU`（`skip_taskbar` 只调
+///    `ITaskbarList::DeleteTab`，管不到这件事）——清掉
+///    `WS_SYSMENU / WS_MINIMIZEBOX / WS_MAXIMIZEBOX` 即可豁免最小化
+///    （实测：不清理时 Win+D 后 `IsIconic=true`、窗口被搬到 -32000,-32000；
+///    清理后同样触发，`IsIconic` 恒 false、rect 不变）。
+/// 2. **全局飞出动画**：DWM 合成层的 sweep 动画会扫过所有**顶层**窗口——窗口
+///    状态不变但像素被带走一帧再弹回（用户描述的「隐藏又自动弹出来」）。这条
+///    与样式无关：实测（`.tmp/probe-toplevel-exempt.ps1`，品红测试窗 + 像素级
+///    变化统计 + 对照窗必须被最小化才算一轮有效）清 SYSMENU、`DeleteTab`、
+///    `WS_EX_TOOLWINDOW`、`WS_EX_NOACTIVATE`、`DWMWA_TRANSITIONS_FORCEDISABLED`、
+///    `DWMWA_DISALLOW_PEEK`、`DWMWA_EXCLUDED_FROM_PEEK` 及其任意组合，sweep 一律
+///    照扫（像素签名 1 → 0）。
+///    **唯一豁免**：把 Progman 设为窗口的 **owner**（`SetWindowLongPtr(GWLP_HWNDPARENT,
+///    progman)`，注意不是 `SetParent`）——窗口仍是顶层 popup，但 shell 的 sweep
+///    不再收它（同轮对照窗被最小化、测试窗逐帧像素零变化，`.tmp` 探针实测）。
+///    这不改变 Z 序层级：锁定后的便签依然是「可被应用窗口盖住」的普通窗口。
+///
+/// - `locked=false`：清 owner + 恢复 tao 默认样式位 + `set_skip_taskbar(false)`
+///   （AddTab 重新注册任务栏），显示桌面时便签跟其他窗口一起被最小化
+///   （「正常状态全部隐藏」），任务栏出现按钮可供找回。
+/// - `locked=true`：`set_skip_taskbar(true)`（DeleteTab）+ 清可最小化样式 +
+///   owner=Progman。Acrylic 不需要动：窗口始终是顶层，SWCA 照常可用
+///   （2026-09-29 之前那套「挂成 Progman 子窗口」的做法才会黑死玻璃纸面）。
+///
+/// 幂等可重复调用；窗口不存在（便签未开启）时 no-op。
+pub fn set_widget_locked(app: &AppHandle, locked: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let Some(window) = app.get_webview_window(WIDGET_LABEL) else {
+            return Ok(());
+        };
+        // 任务栏注册决定 ToggleDesktop 是否收这个窗：skip_taskbar(true) 走
+        // ITaskbarList::DeleteTab，被删 tab 的窗口会被「显示桌面」跳过
+        // （实测：未固定的便签 Win+D 从不被最小化，同进程主窗每轮都收）。
+        // 未固定要「跟其他窗口一起隐藏」就必须 AddTab 开回来（skip=false，
+        // 任务栏会出现便签按钮，语义是普通窗口）；固定态保持 skip=true。
+        window.set_skip_taskbar(locked).map_err(|error| error.to_string())?;
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
+        unsafe { apply_widget_locked(hwnd, locked) }?;
+        // 样式位/owner 变过之后强制 wry 按当前客户区重算 webview bounds。
+        force_webview_bounds_resync(&window);
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (app, locked);
+        Ok(())
+    }
+}
+
+/// 摘掉 Win11 给带 WS_CAPTION 样式的窗口画的 1px DWM 描边（clock.rs 同款：
+/// 无边框窗口为保住 DWM 动画/贴靠语义在 HWND 上仍保留 WS_CAPTION，
+/// `.shadow(false)` 只能摘掉 WM_NCCALCSIZE 的客户区内缩，管不到这圈描边）。
+#[cfg(target_os = "windows")]
+fn strip_native_frame(window: &WebviewWindow) {
+    if let Ok(hwnd) = window.hwnd() {
+        crate::clock::remove_dwm_border(hwnd.0 as isize);
+    }
+}
+
+/// 强制 wry 重算 webview bounds（纸面必须覆盖每一个像素）。
+///
+/// wry 的 webview bounds 定格在**上一次窗口 resize 时**的客户区口径；我们通过
+/// FFI 改窗口样式（清 NC 面样式）或宿主关系时不会触发 wry 的 resize 回调，它
+/// 就永远按旧口径把 webview 摆小一圈——之前被 SWCA 磨砂背板盖住看不见，清掉
+/// acrylic 后以黑框显形（2026-09-29 用户报告「两边多出区域」）。做一次 1px
+/// `SetWindowPos` resize 往返逼它重算。
+///
+/// 必须用 FFI 的物理尺寸：tauri `set_size` 的 Size 语义要过 DPI 上下文换算，
+/// 会把窗口越改越大（踩过）。flags = SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE。
+#[cfg(target_os = "windows")]
+fn force_webview_bounds_resync(window: &WebviewWindow) {
+    let Ok(size) = window.outer_size() else {
+        return;
+    };
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+    let (width, height) = (size.width as i32, size.height as i32);
+    if width < 4 || height < 4 {
+        return;
+    }
+    use widget_lock_ffi::*;
+    unsafe {
+        SetWindowPos(hwnd.0 as isize, 0, 0, 0, width - 1, height - 1, 0x16);
+        SetWindowPos(hwnd.0 as isize, 0, 0, 0, width, height, 0x16);
+    }
+}
+
+#[cfg(target_os = "windows")]
+mod widget_lock_ffi {
+    /// EnumWindows 回调签名（`WNDENUMPROC`）：返回 0 停止枚举。
+    pub type EnumWindowsProc = unsafe extern "system" fn(isize, isize) -> i32;
+
+    #[link(name = "user32")]
+    extern "system" {
+        pub fn GetWindowLongPtrW(hwnd: isize, index: i32) -> isize;
+        pub fn SetWindowLongPtrW(hwnd: isize, index: i32, value: isize) -> isize;
+        pub fn EnumWindows(callback: EnumWindowsProc, param: isize) -> i32;
+        pub fn GetClassNameW(hwnd: isize, buffer: *mut u16, max_count: i32) -> i32;
+        pub fn SetWindowPos(
+            hwnd: isize,
+            after: isize,
+            x: i32,
+            y: i32,
+            cx: i32,
+            cy: i32,
+            flags: u32,
+        ) -> i32;
+    }
+}
+
+/// 找桌面宿主 Progman 的窗口句柄。
+///
+/// 不用 `FindWindowW("Progman", ..)`：本机实测该调用恒返回 0（原因未明，
+/// 2026-09-29 探针实锤），必须走 `EnumWindows` + 类名比对。
+#[cfg(target_os = "windows")]
+fn find_progman() -> isize {
+    use widget_lock_ffi::*;
+
+    // EnumWindows 回调是 extern "system" fn；用栈上变量传结果，不引入全局状态。
+    struct Probe {
+        found: isize,
+    }
+    unsafe extern "system" fn callback(hwnd: isize, param: isize) -> i32 {
+        let probe = &mut *(param as *mut Probe);
+        let mut buffer = [0u16; 64];
+        let len = GetClassNameW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32);
+        // "Progman" 的 UTF-16 编码（长度 7）
+        const EXPECTED: [u16; 7] = [80, 114, 111, 103, 109, 97, 110];
+        if len == 7 && buffer[..7] == EXPECTED {
+            probe.found = hwnd;
+            return 0; // 找到即停
+        }
+        1
+    }
+
+    let mut probe = Probe { found: 0 };
+    unsafe {
+        EnumWindows(callback, &mut probe as *mut Probe as isize);
+    }
+    probe.found
+}
+
+#[cfg(target_os = "windows")]
+unsafe fn apply_widget_locked(hwnd: isize, locked: bool) -> Result<(), String> {
+    use widget_lock_ffi::*;
+
+    const GWL_STYLE: i32 = -16;
+    const GWLP_HWNDPARENT: i32 = -8;
+    const WS_MAXIMIZEBOX: isize = 0x0001_0000;
+    const WS_MINIMIZEBOX: isize = 0x0002_0000;
+    const WS_SYSMENU: isize = 0x0008_0000;
+    const SWP_NOSIZE: u32 = 0x0001;
+    const SWP_NOMOVE: u32 = 0x0002;
+    const SWP_NOZORDER: u32 = 0x0004;
+    const SWP_NOACTIVATE: u32 = 0x0010;
+    const SWP_FRAMECHANGED: u32 = 0x0020;
+
+    // 只清「可最小化」相关的三个样式位：ToggleDesktop 的最小化集合按
+    // 「带系统菜单」筛选。CAPTION / SIZEBOX 必须保留——tao 的 WM_NCCALCSIZE
+    // 处理（无边框窗口靠它把客户区铺满 + 保 DWM 贴靠语义）依赖样式位不被动过；
+    // 之前把它整片清掉再补 WS_POPUP 的写法会把非客户区交回 DefWindowProc，
+    // 系统按残留样式重画边框（clock.rs 的反面教训，勿重蹈）。
+    const MINIMIZE_MASK: isize = WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    // 原始 tao 形态：清样式前先记下「带这三个位」的形态，解锁时按位恢复。
+    const TAO_BASE: isize = WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+
+    // ---- 样式：固定 → 清可最小化位；解锁 → 恢复 ----
+    let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+    let next_style = if locked {
+        style & !MINIMIZE_MASK
+    } else {
+        // 只补回可最小化位，其余样式位（CAPTION/SIZEBOX/CLIPSIBLINGS…）保持原样
+        style | (TAO_BASE & !style)
+    };
+    if next_style != style {
+        SetWindowLongPtrW(hwnd, GWL_STYLE, next_style);
+        SetWindowPos(
+            hwnd,
+            0,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        );
+    }
+
+    // ---- owner：固定 → Progman（免 sweep 动画）；解锁 → 清 owner ----
+    // GWLP_HWNDPARENT 对顶层窗口即「owner」语义（不是 SetParent 的父子关系），
+    // 窗口不会变成子窗口，Z 序与合成行为保持顶层窗口语义。
+    let progman = find_progman();
+    if locked {
+        if progman != 0 && GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT) != progman {
+            SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, progman);
+        }
+    } else if GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT) != 0 {
+        SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, 0);
+    }
     Ok(())
 }
 
