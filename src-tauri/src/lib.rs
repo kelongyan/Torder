@@ -289,6 +289,8 @@ pub fn run() {
             #[cfg(desktop)]
             commands::widget::set_widget_glass,
             #[cfg(desktop)]
+            commands::widget::set_widget_locked,
+            #[cfg(desktop)]
             commands::widget::patch_widget_settings,
             #[cfg(desktop)]
             commands::mini::toggle_mini,

@@ -145,6 +145,19 @@ export async function patchWidgetSettings(
 }
 
 /**
+ * 「固定便签」的窗口层副作用（2026-09-29）：锁定 → 清可最小化样式位并把
+ * 窗口 **owner** 设为桌面宿主 Progman，「显示桌面」的最小化与全局 sweep
+ * 动画完全免疫，而窗口**始终保持顶层**（应用窗口可盖住它，Acrylic 磨砂
+ * 照常可用）；解锁 → 恢复样式位并清 owner，显示桌面时随其他窗口一起被
+ * 最小化。幂等可重复调用；mock 无窗口层，no-op；失败静默——只影响豁免效果，
+ * 不影响锁定语义本身。机制与实测依据详见 src-tauri `widget.rs::set_widget_locked`。
+ */
+export function applyWidgetLock(locked: boolean): void {
+  if (!isTauri()) return;
+  void invoke("set_widget_locked", { locked }).catch(() => undefined);
+}
+
+/**
  * 收集 tasks 中所有非空 `taskPlanDateKey`，去重返回；存在跨天任务
  * （计划日期与截止日期并存且不是同一天——便签按区间显示，见 Rust
  * `query_for_widget`）时返回 null：区间中间日期无法枚举，调用方应

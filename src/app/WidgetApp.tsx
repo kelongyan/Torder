@@ -36,6 +36,7 @@ import {
   taskPlanDateKey,
 } from "../services/taskQuery";
 import {
+  applyWidgetLock,
   getWidgetSettings,
   notifyTasksChanged,
   openTaskInMainWindow,
@@ -272,6 +273,8 @@ export function WidgetApp() {
       }
     }
     await patchWidgetSettings(patch);
+    // 窗口层豁免（挂桌面层 / 摘回顶层）与锁定状态同步切换，幂等
+    applyWidgetLock(nextLocked);
     if (isTauri()) {
       try {
         await getCurrentWindow().setResizable(!nextLocked);
@@ -301,6 +304,9 @@ export function WidgetApp() {
       const isLocked = widgetSettings.locked === true;
       setLocked(isLocked);
       lockedRef.current = isLocked;
+      // 重启后恢复锁定态的窗口层豁免（幂等；未锁定时也会把可能残留的
+      // owner/样式摘掉）
+      applyWidgetLock(isLocked);
       if (isTauri() && isLocked) {
         void getCurrentWindow().setResizable(false);
       }
@@ -391,6 +397,7 @@ export function WidgetApp() {
       ) {
         setLocked(anySettings.locked);
         lockedRef.current = anySettings.locked;
+        applyWidgetLock(anySettings.locked);
         if (isTauri()) {
           void getCurrentWindow().setResizable(!anySettings.locked);
         }

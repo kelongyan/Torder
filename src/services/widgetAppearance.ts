@@ -224,6 +224,11 @@ function escapeCssFontFamily(name: string): string {
  * main.tsx 缓存重放），故在此内聚 invoke `set_widget_glass`——切到 glass
  * 开 Acrylic（tint alpha = noteGlassOpacity），切走即清除；非 Tauri（mock）
  * 只落 CSS alpha，玻璃退化为半透明无模糊。非 Windows 平台 Rust 侧 no-op。
+ *
+ * 固定态无需降级（2026-09-29 收敛）：便签「固定」只把窗口 owner 设为
+ * Progman（`widget.rs::set_widget_locked`），窗口**始终是顶层窗口**，SWCA
+ * Acrylic 照常可用——此前那套「挂成 Progman 子窗口」的实现会让玻璃黑死，
+ * 现已移除，`locked` 参数随之删除。
  */
 export function applyWidgetAppearance(appearance: WidgetAppearance): void {
   const root = document.documentElement;
