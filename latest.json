@@ -1,20 +1,20 @@
 {
-  "version": "2.8.8",
-  "notes": "v2.8.8：首页点击任务后的详情由右侧抽屉改为居中弹窗，不再挤压任务列表；点遮罩、右上角关闭或 Esc 均可收起，循环规则与删除确认弹窗叠加在详情之上。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.8/Torder_2.8.8_x64-setup.exe",
-  "sha256": "30975aed09d8972da8da5ce0f3ab1f48fa6422de6c9ef159fed16153680f4441",
+  "version": "2.8.13",
+  "notes": "v2.8.13：便签「固定」后豁免 Windows「显示桌面」飞出动画，钉在桌面不随动画闪退；重构窗口层实现，保留磨砂半透明质感，彻底解决固定后纸面变黑问题；消除边缘多出区域，纸面无缝铺满。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.13/Torder_2.8.13_x64-setup.exe",
+  "sha256": "f3f8516dec69e12ca9321aef60ef5794059275ddc5ca90a4ba63d33c482e435f",
   "platforms": {
     "windows": {
-      "version": "2.8.8",
-      "notes": "Windows v2.8.8：任务详情改为居中弹窗，点遮罩空白处即可关闭，右上角关闭按钮与 Esc 同样有效；列表不再被详情抽屉挤压，循环规则、删除确认等相关弹窗叠加在详情之上，操作链路不断。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.8/Torder_2.8.8_x64-setup.exe",
-      "sha256": "30975aed09d8972da8da5ce0f3ab1f48fa6422de6c9ef159fed16153680f4441"
+      "version": "2.8.13",
+      "notes": "Windows v2.8.13：便签「固定」后豁免 Windows「显示桌面」飞出动画，钉在桌面不随动画闪退；重构窗口层实现（owner 关系），彻底解决固定后纸面变黑变死的问题，玻璃 Acrylic 材质完美呈现；消除边缘多出区域，纸面无缝铺满。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.13/Torder_2.8.13_x64-setup.exe",
+      "sha256": "f3f8516dec69e12ca9321aef60ef5794059275ddc5ca90a4ba63d33c482e435f"
     },
     "android": {
-      "version": "2.8.8",
-      "notes": "Android v2.8.8（universal 安装包）：与桌面版本保持同步的小版本更新，功能无变化；移动端任务详情仍为全屏页面，循环规则、附件、引用任务等编辑能力保持不变。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.8/Torder_2.8.8_universal.apk",
-      "sha256": "173ac157bba1bfdc9d1593156666abc72cbd527ff1b95f5e8b183e610252ffee"
+      "version": "2.8.13",
+      "notes": "Android v2.8.13（universal 安装包）：与桌面版本保持同步更新，版本号与依赖对齐，包含底层稳定性优化与样式细节同步。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.13/Torder_2.8.13_universal.apk",
+      "sha256": "338c244ea0db9b7f47eb2adbeef04f49665e2a27ca9d52b25d64f6a963e2ed42"
     }
   }
 }
