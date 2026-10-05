@@ -701,7 +701,7 @@ fn normalize_note(note: Option<String>) -> Option<String> {
     })
 }
 
-fn select_rules() -> &'static str {
+pub(crate) fn select_rules() -> &'static str {
     r#"
     SELECT id, title, note, priority, list_id, frequency, interval_count,
            weekdays, month_day, first_due_at, next_due_at, timezone,
@@ -711,7 +711,7 @@ fn select_rules() -> &'static str {
     "#
 }
 
-fn map_rule(row: &Row<'_>) -> rusqlite::Result<RecurringRule> {
+pub(crate) fn map_rule(row: &Row<'_>) -> rusqlite::Result<RecurringRule> {
     let weekdays_json: String = row.get(7)?;
     let weekdays = serde_json::from_str(&weekdays_json).unwrap_or_default();
     Ok(RecurringRule {

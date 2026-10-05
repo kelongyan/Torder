@@ -293,7 +293,10 @@ export function Sidebar({
             count={counts.lists[list.id] ?? 0}
             onClick={() => onScopeChange(listScope(list.id))}
             onEdit={!list.isDefault ? () => onEditList(list) : undefined}
-            onDelete={!list.isDefault ? () => onDeleteList(list) : undefined}
+            // 默认清单同样可删（issue #9）；仅剩一个清单时不给删除入口。
+            onDelete={
+              lists.length > 1 ? () => onDeleteList(list) : undefined
+            }
           />
         ))}
 

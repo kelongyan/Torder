@@ -1434,6 +1434,96 @@ fn local_reference_attachment_stays_local_and_does_not_record_sync_change() -> R
     Ok(())
 }
 
+#[test]
+fn deletes_default_list_reassigns_members_and_rejects_last_list() -> RepositoryResult<()> {
+    let database_path =
+        std::env::temp_dir().join(format!("torder-list-delete-{}.sqlite", Uuid::new_v4()));
+    let database = Database::initialize(database_path.clone())?;
+    let lists = ListRepository::new(&database);
+    let tasks = TaskRepository::new(&database);
+    let recurring = RecurringRuleRepository::new(&database);
+
+    // 默认清单「工作」内放两个任务和一条循环规则，再删除它。
+    tasks.create(task_input("工作事项一", 1, None, Some("work"), 0))?;
+    tasks.create(task_input("工作事项二", 0, None, Some("work"), 1))?;
+    let rule = recurring.create(CreateRecurringRuleInput {
+        source_task_id: None,
+        title: "每日报表".to_owned(),
+        note: None,
+        priority: 1,
+        list_id: "work".to_owned(),
+        frequency: "daily".to_owned(),
+        interval_count: 1,
+        weekdays: vec![],
+        month_day: None,
+        first_due_at: "2024-01-01T09:00:00Z".to_owned(),
+        timezone: "Asia/Shanghai".to_owned(),
+        generate_ahead_minutes: 0,
+        remind_before: None,
+        end_at: None,
+    })?;
+
+    lists.delete("work")?;
+
+    // 清单没了，任务与规则迁入第一个剩余清单（个人，sort_order=1）。
+    let remaining = lists.list()?;
+    assert_eq!(
+        remaining
+            .iter()
+            .map(|list| list.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["personal", "study"]
+    );
+    let moved_tasks = tasks.query(query_input("view", "all", None, "date", true))?;
+    assert_eq!(moved_tasks.len(), 2);
+    assert!(moved_tasks.iter().all(|task| task.list_id == "personal"));
+    assert_eq!(recurring.get(&rule.id)?.list_id, "personal");
+
+    // 同步队列：1 条 list delete + 2 条 task upsert + 1 条 recurringRule upsert，
+    // 且规则载荷里的 listId 指向迁移目标。
+    {
+        let connection = database.connect()?;
+        let count = |sql: &str| -> RepositoryResult<i64> {
+            Ok(connection.query_row(sql, [], |row| row.get(0))?)
+        };
+        assert_eq!(
+            count(
+                "SELECT COUNT(*) FROM sync_changes WHERE entity = 'list' AND object_id = 'work' AND operation = 'delete'"
+            )?,
+            1
+        );
+        // 任务创建各记一条 upsert（revision=1），迁移再各记一条（revision=2）。
+        assert_eq!(
+            count(
+                "SELECT COUNT(*) FROM sync_changes WHERE entity = 'task' AND operation = 'upsert' AND revision > 1"
+            )?,
+            2
+        );
+        let rule_payload: String = connection.query_row(
+            "SELECT payload_json FROM sync_changes WHERE entity = 'recurringRule' AND object_id = ?1 ORDER BY revision DESC LIMIT 1",
+            rusqlite::params![rule.id],
+            |row| row.get(0),
+        )?;
+        assert!(rule_payload.contains("\"listId\":\"personal\""));
+    }
+
+    // 继续删到只剩一个清单时拒绝。
+    lists.delete("personal")?;
+    let error = lists.delete("study").unwrap_err();
+    assert!(matches!(error, RepositoryError::Validation(_)));
+    assert_eq!(lists.list()?.len(), 1);
+
+    // 重开数据库重新播种：已删除的默认清单不复活（软删行占据主键）。
+    drop(database);
+    let reopened = Database::initialize(database_path.clone())?;
+    let after_reopen = ListRepository::new(&reopened).list()?;
+    assert!(!after_reopen.iter().any(|list| list.id == "work"));
+
+    drop(reopened);
+    cleanup_database_files(&database_path);
+    Ok(())
+}
+
 fn query_input(
     scope_kind: &str,
     scope_value: &str,

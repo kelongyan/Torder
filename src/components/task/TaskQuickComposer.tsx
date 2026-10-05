@@ -67,7 +67,8 @@ export function TaskQuickComposer({
       parsed.listId ??
       (lists.some((list) => list.id === defaultListId)
         ? defaultListId
-        : "work");
+        : // "work" 可能已被删除（issue #9），兜底落到第一个剩余清单。
+          (lists[0]?.id ?? ""));
 
     // 普通日期词只设截止（scheduledDate 置空）；「到周X」截止语法从当前
     // 落位日期跨到截止日（区间任务，便签逐日可见），落位日期缺省为今天

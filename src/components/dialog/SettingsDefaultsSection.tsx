@@ -65,7 +65,8 @@ export function SettingsDefaultsSection({
               value={
                 lists.some((list) => list.id === settings.defaultListId)
                   ? settings.defaultListId
-                  : "work"
+                  : // 设置指向的清单可能已被删除（issue #9），回落到第一个剩余清单。
+                    (lists[0]?.id ?? "")
               }
               options={lists.map((list) => ({
                 value: list.id,

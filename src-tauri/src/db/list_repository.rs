@@ -2,6 +2,7 @@ use rusqlite::{params, Row};
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::db::{recurring_repository, task_repository};
 use crate::error::{RepositoryError, RepositoryResult};
 use crate::models::{CreateListInput, TaskList, UpdateListInput};
 
@@ -99,23 +100,105 @@ impl<'database> ListRepository<'database> {
         self.get(&input.id)
     }
 
+    /// 删除清单（issue #9：默认清单同样可删）。软删，行保留以满足外键。
+    ///
+    /// - 仅剩最后一个清单时拒绝：`tasks.list_id` / `recurring_rules.list_id`
+    ///   均非空且外键指向清单，零清单状态不可表示。
+    /// - 成员任务与循环规则迁入第一个剩余清单（sort_order 最小，与前端
+    ///   `lists[0]` 兜底一致），逐个记录同步变更；清单删除本身也记一条。
     pub fn delete(&self, id: &str) -> RepositoryResult<()> {
-        let list = self.get(id)?;
-        if list.is_default {
-            return Err(RepositoryError::Validation(
-                "default lists cannot be deleted",
-            ));
-        }
+        self.get(id)?;
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
-        let member_count: i64 = transaction.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE list_id = ?1 AND deleted_at IS NULL AND purged_at IS NULL",
+        let list_count: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM lists WHERE deleted_at IS NULL",
+            [],
+            |row| row.get(0),
+        )?;
+        if list_count <= 1 {
+            return Err(RepositoryError::Validation(
+                "cannot delete the last remaining list",
+            ));
+        }
+        let target_list_id: String = transaction.query_row(
+            r#"
+            SELECT id FROM lists
+            WHERE deleted_at IS NULL AND id != ?1
+            ORDER BY sort_order ASC, created_at ASC
+            LIMIT 1
+            "#,
             params![id],
             |row| row.get(0),
         )?;
-        if member_count > 0 {
-            return Err(RepositoryError::Validation("list still contains tasks"));
+
+        let task_ids: Vec<String> = {
+            let mut statement = transaction.prepare(
+                "SELECT id FROM tasks WHERE list_id = ?1 AND deleted_at IS NULL AND purged_at IS NULL",
+            )?;
+            let ids = statement
+                .query_map(params![id], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            ids
+        };
+        for task_id in &task_ids {
+            transaction.execute(
+                r#"
+                UPDATE tasks
+                SET list_id = ?2, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?1
+                "#,
+                params![task_id, target_list_id],
+            )?;
+            // 迁移后的任务逐个走完整载荷（serde 序列化）进同步队列，
+            // 形状与 task_repository::update 一致。
+            let changed_task = transaction.query_row(
+                &format!("{} WHERE id = ?1", task_repository::select_tasks()),
+                params![task_id],
+                task_repository::map_task,
+            )?;
+            sync_repository::record_change(
+                &transaction,
+                "task",
+                task_id,
+                "upsert",
+                serde_json::to_value(changed_task)?,
+            )?;
         }
+
+        // 循环规则的 list_id 一起迁走：否则未来生成的实例仍会落进已删清单。
+        // next_due_at 等调度字段不动（list_id 不是调度字段）。
+        let rule_ids: Vec<String> = {
+            let mut statement = transaction.prepare(
+                "SELECT id FROM recurring_rules WHERE list_id = ?1 AND deleted_at IS NULL",
+            )?;
+            let ids = statement
+                .query_map(params![id], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            ids
+        };
+        for rule_id in &rule_ids {
+            transaction.execute(
+                r#"
+                UPDATE recurring_rules
+                SET list_id = ?2, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?1
+                "#,
+                params![rule_id, target_list_id],
+            )?;
+            let changed_rule = transaction.query_row(
+                &format!("{} WHERE id = ?1", recurring_repository::select_rules()),
+                params![rule_id],
+                recurring_repository::map_rule,
+            )?;
+            sync_repository::record_change(
+                &transaction,
+                "recurringRule",
+                rule_id,
+                "upsert",
+                serde_json::to_value(changed_rule)?,
+            )?;
+        }
+
         let deleted_at = chrono::Utc::now().to_rfc3339();
         let updated = transaction.execute(
             "UPDATE lists SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",

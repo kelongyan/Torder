@@ -187,6 +187,24 @@ export async function deleteRecurringRule(
   return Promise.resolve();
 }
 
+/** 清单删除时把该清单的循环规则迁到目标清单（浏览器 mock 专用），返回迁移数量。 */
+export function reassignBrowserRulesFromList(
+  listId: string,
+  targetListId: string,
+): number {
+  let count = 0;
+  browserRules = browserRules.map((rule) => {
+    if (rule.listId !== listId || rule.deletedAt) return rule;
+    count += 1;
+    return {
+      ...rule,
+      listId: targetListId,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  return count;
+}
+
 function generateBrowserRule(rule: RecurringRule, force: boolean): number {
   if (!rule.enabled || !rule.nextDueAt) return 0;
   const now = new Date();

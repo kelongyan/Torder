@@ -1,6 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { DEFAULT_LIST_COLOR, defaultListColors } from "../constants/listConfig";
 import type { TaskList } from "../types/database";
+import { reassignBrowserTasksFromList } from "./browserTaskMock";
+import { reassignBrowserRulesFromList } from "./recurringService";
 
 export interface CreateListInput {
   name: string;
@@ -90,7 +92,15 @@ export function deleteList(id: string): Promise<void> {
   if (!isTauri()) {
     const list = listsSnapshot.find((item) => item.id === id);
     if (!list) return Promise.reject(new Error("清单不存在"));
-    if (list.isDefault) return Promise.reject(new Error("默认清单不能删除"));
+    if (listsSnapshot.length <= 1) {
+      return Promise.reject(new Error("至少保留一个清单"));
+    }
+    // 与 Rust 侧 delete 一致：成员任务/循环规则迁入第一个剩余清单。
+    const target = listsSnapshot
+      .filter((item) => item.id !== id)
+      .sort(compareLists)[0];
+    reassignBrowserTasksFromList(id, target.id);
+    reassignBrowserRulesFromList(id, target.id);
     listsSnapshot = listsSnapshot.filter((item) => item.id !== id);
     return Promise.resolve();
   }

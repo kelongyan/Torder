@@ -111,8 +111,8 @@ function taskPlanDateKey(task: Task): string | null {
 
 export function pickDefaultListId(scope: TaskScope, lists: TaskList[]): string {
   if (scope.kind === "list") return scope.listId;
-  if (lists.some((list) => list.id === "work")) return "work";
-  return lists[0]?.id ?? "work";
+  // 不偏置 "work"：该清单可能已被删除（issue #9），第一个剩余清单更可靠。
+  return lists[0]?.id ?? "";
 }
 
 function findList(lists: TaskList[], id: string): TaskList | null {

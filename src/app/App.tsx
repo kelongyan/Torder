@@ -67,6 +67,7 @@ import {
   listLists,
   updateList,
 } from "../services/listService";
+import { notifyTasksChanged } from "../services/widgetService";
 import { TaskDetailPanel } from "../components/detail/TaskDetailPanel";
 import {
   attachPendingAttachments,
@@ -995,16 +996,37 @@ function App() {
   }
 
   function requestDeleteList(listToDelete: TaskList) {
-    if (listToDelete.isDefault) return;
+    // 至少保留一个清单：tasks.list_id 非空且外键指向清单，零清单不可表示。
+    if (lists.length <= 1) return;
+    // 成员任务/循环规则由服务层迁入第一个剩余清单（Rust 事务内迁移，mock 同步迁移）。
+    const targetList = [...lists]
+      .filter((list) => list.id !== listToDelete.id)
+      .sort(
+        (left, right) =>
+          left.sortOrder !== right.sortOrder
+            ? left.sortOrder - right.sortOrder
+            : left.createdAt.localeCompare(right.createdAt),
+      )[0];
+    if (!targetList) return;
+    const memberCount = allTasks.filter(
+      (task) => task.listId === listToDelete.id,
+    ).length;
     setConfirmState({
       title: "确认删除清单",
-      body: `删除“${listToDelete.name}”？任务保留。`,
+      body:
+        memberCount > 0
+          ? `删除“${listToDelete.name}”？其中 ${memberCount} 个任务将移入“${targetList.name}”。`
+          : `删除“${listToDelete.name}”？`,
       confirmText: "删除清单",
       danger: true,
       onConfirm: async () => {
         await deleteList(listToDelete.id);
         const nextLists = await listLists();
         setLists(nextLists);
+        // 任务已在服务层迁移，重拉任务让派生视图与计数回到一致；
+        // 广播 tasks-changed（空日期键 = 保守全量），便签按清单色渲染任务行。
+        await useTaskStore.getState().loadTasks();
+        notifyTasksChanged("main");
         if (scope.kind === "list" && scope.listId === listToDelete.id) {
           await setScope({ kind: "view", view: "all" });
         }

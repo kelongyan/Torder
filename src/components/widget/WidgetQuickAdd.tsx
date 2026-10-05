@@ -54,7 +54,8 @@ export function WidgetQuickAdd({
       parsed.listId ??
       (lists.some((list) => list.id === defaultListId)
         ? defaultListId
-        : "work");
+        : // "work" 可能已被删除（issue #9），兜底落到第一个剩余清单。
+          (lists[0]?.id ?? ""));
     setBusy(true);
     try {
       await onCreate({

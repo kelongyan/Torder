@@ -60,6 +60,24 @@ export function findBrowserTaskIncludingDeleted(id: string): Task | undefined {
   return browserTasks.find((item) => item.id === id);
 }
 
+/** 清单删除时把该清单的存活任务迁到目标清单，返回迁移数量。 */
+export function reassignBrowserTasksFromList(
+  listId: string,
+  targetListId: string,
+): number {
+  let count = 0;
+  browserTasks = browserTasks.map((task) => {
+    if (task.listId !== listId || task.deletedAt) return task;
+    count += 1;
+    return {
+      ...task,
+      listId: targetListId,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  return count;
+}
+
 function createBrowserTasks(): Task[] {
   const today = new Date();
   const makeDate = (offset: number, hour = 18, minute = 0) => {
