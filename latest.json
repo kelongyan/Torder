@@ -1,20 +1,20 @@
 {
-  "version": "2.8.13",
-  "notes": "v2.8.13：便签「固定」后豁免 Windows「显示桌面」飞出动画，钉在桌面不随动画闪退；重构窗口层实现，保留磨砂半透明质感，彻底解决固定后纸面变黑问题；消除边缘多出区域，纸面无缝铺满。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.13/Torder_2.8.13_x64-setup.exe",
-  "sha256": "f3f8516dec69e12ca9321aef60ef5794059275ddc5ca90a4ba63d33c482e435f",
+  "version": "2.8.14",
+  "notes": "v2.8.14：默认三个清单（工作/个人/学习）支持删除，删除时任务与循环规则自动迁入第一个剩余清单并完整同步；修复清单删除后新任务可能落入已删清单的隐患；清单页头单行重设计——渐变徽标、无框数字统计、渐变进度环。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.14/Torder_2.8.14_x64-setup.exe",
+  "sha256": "63dcd099371facea5022ac6a695f44cb6646a06a35c4bec64726e5b04481300d",
   "platforms": {
     "windows": {
-      "version": "2.8.13",
-      "notes": "Windows v2.8.13：便签「固定」后豁免 Windows「显示桌面」飞出动画，钉在桌面不随动画闪退；重构窗口层实现（owner 关系），彻底解决固定后纸面变黑变死的问题，玻璃 Acrylic 材质完美呈现；消除边缘多出区域，纸面无缝铺满。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.13/Torder_2.8.13_x64-setup.exe",
-      "sha256": "f3f8516dec69e12ca9321aef60ef5794059275ddc5ca90a4ba63d33c482e435f"
+      "version": "2.8.14",
+      "notes": "Windows v2.8.14：默认三个清单（工作/个人/学习）支持删除（issue #9），删除时任务与循环规则自动迁入第一个剩余清单，至少保留一个清单；修复清单删除后快速添加等入口回落错误的隐患；清单页头单行重设计——渐变徽标、无框数字统计（总数/进行中/已完成）、渐变描边进度环。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.14/Torder_2.8.14_x64-setup.exe",
+      "sha256": "63dcd099371facea5022ac6a695f44cb6646a06a35c4bec64726e5b04481300d"
     },
     "android": {
-      "version": "2.8.13",
-      "notes": "Android v2.8.13（universal 安装包）：与桌面版本保持同步更新，版本号与依赖对齐，包含底层稳定性优化与样式细节同步。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.13/Torder_2.8.13_universal.apk",
-      "sha256": "338c244ea0db9b7f47eb2adbeef04f49665e2a27ca9d52b25d64f6a963e2ed42"
+      "version": "2.8.14",
+      "notes": "Android v2.8.14（universal 安装包）：与桌面版本保持同步更新，包含默认清单可删除与清单页头重设计。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.14/Torder_2.8.14_universal.apk",
+      "sha256": "c0c04eb9c448e3913a642c54ae52551d3782a2b80e970e71eb73ce5dcb42777c"
     }
   }
 }
