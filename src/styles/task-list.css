@@ -976,22 +976,23 @@ mark {
   color: var(--on-accent);
 }
 
-/* 阶段 D：项目详情页头（T-06，2026-09-03） */
+/* 阶段 D：项目详情页头（T-06，2026-09-03）；2026-10-05 单行重设计——
+   徽标 + 标题 + 无框数字统计 + 渐变进度环收进一行，去掉描边统计卡。 */
 .project-header {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 0 12px;
+  padding: 2px 0 12px;
 }
 .project-header-main {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .project-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1004,8 +1005,8 @@ mark {
 }
 .project-title {
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 500;
+  font-size: var(--text-xl);
+  font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1015,12 +1016,46 @@ mark {
   margin: 2px 0 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.project-cards {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+.project-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 16px;
+}
+.project-stat + .project-stat {
+  border-left: 1px solid var(--border-subtle);
+}
+.project-stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.project-stat.is-doing .project-stat-value {
+  color: var(--accent);
+}
+.project-stat.is-done .project-stat-value {
+  color: var(--done);
+}
+.project-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 .project-ring {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   flex: none;
+  margin-left: 8px;
 }
 .project-ring-text {
   position: absolute;
@@ -1028,34 +1063,8 @@ mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-.project-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.project-stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 8px 10px;
-  background: var(--bg-secondary);
-}
-.project-stat-icon {
-  color: var(--accent);
-  flex: none;
-}
-.project-stat-value {
-  font-size: var(--text-md);
-  font-weight: 500;
+  font-size: var(--text-base);
+  font-weight: 600;
   color: var(--text-primary);
-}
-.project-stat-label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
