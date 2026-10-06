@@ -1,14 +1,14 @@
 {
-  "version": "2.8.14",
-  "notes": "v2.8.14：默认三个清单（工作/个人/学习）支持删除，删除时任务与循环规则自动迁入第一个剩余清单并完整同步；修复清单删除后新任务可能落入已删清单的隐患；清单页头单行重设计——渐变徽标、无框数字统计、渐变进度环。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.14/Torder_2.8.14_x64-setup.exe",
-  "sha256": "63dcd099371facea5022ac6a695f44cb6646a06a35c4bec64726e5b04481300d",
+  "version": "2.8.15",
+  "notes": "v2.8.15：清单页头视觉精修——移除左侧渐变清单徽标；完成度展示由渐变进度环改为百分比数字加细进度条，清单颜色改由进度条填充承载。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.15/Torder_2.8.15_x64-setup.exe",
+  "sha256": "d9dc3a8f890c678d711efb19e0cd8c69c0e65870149f4d2139a4ad1fa19247e4",
   "platforms": {
     "windows": {
-      "version": "2.8.14",
-      "notes": "Windows v2.8.14：默认三个清单（工作/个人/学习）支持删除（issue #9），删除时任务与循环规则自动迁入第一个剩余清单，至少保留一个清单；修复清单删除后快速添加等入口回落错误的隐患；清单页头单行重设计——渐变徽标、无框数字统计（总数/进行中/已完成）、渐变描边进度环。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.14/Torder_2.8.14_x64-setup.exe",
-      "sha256": "63dcd099371facea5022ac6a695f44cb6646a06a35c4bec64726e5b04481300d"
+      "version": "2.8.15",
+      "notes": "Windows v2.8.15：清单页头视觉精修——移除左侧渐变清单徽标；完成度展示由渐变进度环改为百分比数字加细进度条，清单颜色改由进度条填充承载。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.15/Torder_2.8.15_x64-setup.exe",
+      "sha256": "d9dc3a8f890c678d711efb19e0cd8c69c0e65870149f4d2139a4ad1fa19247e4"
     },
     "android": {
       "version": "2.8.14",
