@@ -481,6 +481,14 @@ function App() {
   const deletedViewActive =
     !recurringViewActive && scope.kind === "view" && scope.view === "deleted";
   const effectiveLayout = deletedViewActive ? "list" : layout;
+  // 清单页头（ProjectHeader）在 list scope 下渲染标题/统计/进度条，主头部标题隐藏，
+  // 避免同屏出现两个清单名。渲染条件必须与下方 ProjectHeader 的 JSX 判断保持一致。
+  const projectHeaderActive =
+    scope.kind === "list" &&
+    !searchViewActive &&
+    !recurringViewActive &&
+    !deletedViewActive &&
+    currentList !== null;
   // R3：视图副标题按设计稿映射（今天=日期、计划=接下来 7 天、已完成=最近 30 天、回收站=保留 30 天）。
   // 原头部 ViewSummary 进度与分组头进度重复且挤压标题，撤掉后由 MainHeader 显示「N 项 · 布局」兜底。
   // D4 今日已完成段：从 allTasks 筛 completedAt 在今天的任务（不动 taskQuery/Rust 查询语义）。
@@ -1484,6 +1492,7 @@ function App() {
             <main className="main">
               <MainHeader
                 title={currentTitle}
+                titleHidden={projectHeaderActive}
                 headerHidden={mobile && mobileHeaderHidden}
                 meta={
                   searchViewActive
@@ -1550,13 +1559,9 @@ function App() {
                 </div>
               )}
 
-              {scope.kind === "list" &&
-                !searchViewActive &&
-                !recurringViewActive &&
-                !deletedViewActive &&
-                currentList && (
-                  <ProjectHeader list={currentList} tasks={currentListTasks} />
-                )}
+              {projectHeaderActive && currentList && (
+                <ProjectHeader list={currentList} tasks={currentListTasks} />
+              )}
               <section
                 className="content-panel"
                 aria-label={`${currentTitle}任务`}

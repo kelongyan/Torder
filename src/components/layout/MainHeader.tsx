@@ -36,6 +36,7 @@ import { ViewMenu } from "../common/ViewMenu";
 
 export function MainHeader({
   title,
+  titleHidden = false,
   meta,
   taskCount,
   layout,
@@ -73,6 +74,8 @@ export function MainHeader({
   headerHidden = false,
 }: {
   title: string;
+  /** 清单页头（ProjectHeader）已承担清单标题时隐藏主头部标题，避免同屏重复。 */
+  titleHidden?: boolean;
   meta?: string | ReactNode | null;
   taskCount: number;
   layout: TaskLayout;
@@ -257,10 +260,12 @@ export function MainHeader({
 
       <div className="main-header-left">
         <img src={logoUrl} alt="" className="main-header-logo" />
-        <div className="main-header-copy">
-          <h1>{title}</h1>
-          {headerMeta && <p>{headerMeta}</p>}
-        </div>
+        {!titleHidden && (
+          <div className="main-header-copy">
+            <h1>{title}</h1>
+            {headerMeta && <p>{headerMeta}</p>}
+          </div>
+        )}
       </div>
 
       <div

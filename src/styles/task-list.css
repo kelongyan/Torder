@@ -977,11 +977,12 @@ mark {
 }
 
 /* 阶段 D：项目详情页头（T-06，2026-09-03）；2026-10-05 单行重设计——
-   标题 + 无框数字统计 + 进度条收进一行；2026-10-06 去徽标、圆环换细进度条。 */
+   标题 + 无框数字统计 + 进度条收进一行；2026-10-06 去徽标、圆环换细进度条，
+   横向内衬对齐 .main-header（26px），进度条不再贴窗口右缘。 */
 .project-header {
   display: flex;
   flex-direction: column;
-  padding: 2px 0 12px;
+  padding: 2px 26px 12px;
 }
 .project-header-main {
   display: flex;
