@@ -1,16 +1,14 @@
-import { ListChecks } from "lucide-react";
 import type { Task, TaskList } from "../../types/database";
 import { listProgress } from "../../utils/taskStats";
 
 /**
  * 项目详情页头（阶段 D / T-06）：清单进入 list 布局时展示在列表上方。
- * 单行布局：渐变清单徽标 + 标题/副标题 + 内联数字统计（无框）+ 渐变进度环。
+ * 单行布局：标题/副标题 + 内联数字统计（无框）+ 细进度条（百分比 + 轨道）。
+ * 2026-10-06 重设计：移除渐变清单徽标——清单色身份移交给进度条填充；
+ * 64px 渐变圆环换成细进度条，与无框统计同一套视觉语言，弱装饰、强扫读。
  * 统计口径来自 taskStats（与 T-04 每日回顾同一实现，禁止另写）。
  * 空项目空态由下方 TaskListView 的 EmptyState 承接（主操作新建第一个事项）。
  */
-
-const RING_RADIUS = 26.5;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export function ProjectHeader({
   list,
@@ -22,22 +20,12 @@ export function ProjectHeader({
 }) {
   const progress = listProgress(tasks);
   const ratio = Math.min(1, Math.max(0, progress.ratio));
-  const offset = RING_CIRCUMFERENCE * (1 - ratio);
+  const percent = Math.round(ratio * 100);
   const accentColor = list.color ?? "var(--accent)";
 
   return (
     <div className="project-header">
       <div className="project-header-main">
-        <div
-          className="project-avatar"
-          style={{
-            backgroundColor: accentColor,
-            boxShadow: `0 3px 14px -3px color-mix(in srgb, ${accentColor} 45%, transparent)`,
-          }}
-          aria-hidden="true"
-        >
-          <ListChecks className="icon-sm" />
-        </div>
         <div className="project-title-col">
           <h2 className="project-title">{list.name}</h2>
           <p className="project-subtitle">
@@ -61,39 +49,20 @@ export function ProjectHeader({
           </div>
         </div>
         <div
-          className="project-ring"
-          role="img"
-          aria-label={`完成度 ${Math.round(ratio * 100)}%`}
+          className="project-progress"
+          role="progressbar"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="清单完成度"
         >
-          <svg width="64" height="64" viewBox="0 0 64 64">
-            <defs>
-              <linearGradient id="project-ring-gradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="var(--accent-hi)" />
-                <stop offset="100%" stopColor="var(--accent)" />
-              </linearGradient>
-            </defs>
-            <circle
-              cx="32"
-              cy="32"
-              r={RING_RADIUS}
-              fill="none"
-              stroke="var(--accent-soft)"
-              strokeWidth="7"
+          <span className="project-progress-value">{percent}%</span>
+          <span className="project-progress-track">
+            <span
+              className="project-progress-fill"
+              style={{ width: `${ratio * 100}%`, backgroundColor: accentColor }}
             />
-            <circle
-              cx="32"
-              cy="32"
-              r={RING_RADIUS}
-              fill="none"
-              stroke="url(#project-ring-gradient)"
-              strokeWidth="7"
-              strokeLinecap="round"
-              strokeDasharray={RING_CIRCUMFERENCE}
-              strokeDashoffset={offset}
-              transform="rotate(-90 32 32)"
-            />
-          </svg>
-          <span className="project-ring-text">{Math.round(ratio * 100)}%</span>
+          </span>
         </div>
       </div>
     </div>

@@ -977,7 +977,7 @@ mark {
 }
 
 /* 阶段 D：项目详情页头（T-06，2026-09-03）；2026-10-05 单行重设计——
-   徽标 + 标题 + 无框数字统计 + 渐变进度环收进一行，去掉描边统计卡。 */
+   标题 + 无框数字统计 + 进度条收进一行；2026-10-06 去徽标、圆环换细进度条。 */
 .project-header {
   display: flex;
   flex-direction: column;
@@ -988,16 +988,6 @@ mark {
   align-items: center;
   gap: 12px;
   min-width: 0;
-}
-.project-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  flex: none;
 }
 .project-title-col {
   flex: 1;
@@ -1050,21 +1040,35 @@ mark {
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
-.project-ring {
+.project-progress {
   position: relative;
-  width: 64px;
-  height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  width: 96px;
   flex: none;
   margin-left: 8px;
 }
-.project-ring-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-base);
+.project-progress-value {
+  font-size: var(--text-lg);
   font-weight: 600;
+  line-height: 1.2;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.project-progress-track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+.project-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width var(--motion-fast) var(--ease-standard);
 }
