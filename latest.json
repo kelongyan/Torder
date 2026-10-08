@@ -1,20 +1,20 @@
 {
   "version": "2.8.15",
-  "notes": "v2.8.15：清单页头视觉精修——移除左侧渐变清单徽标；完成度展示由渐变进度环改为百分比数字加细进度条，清单颜色改由进度条填充承载。",
+  "notes": "v2.8.15：修复便签与时钟窗开机位置漂移（程序化移动不再被误当用户拖动固化，开机自动对账拉回存档位置）；清单页头视觉精修——移除渐变徽标，完成度改为百分比数字加细进度条。",
   "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.15/Torder_2.8.15_x64-setup.exe",
-  "sha256": "d9dc3a8f890c678d711efb19e0cd8c69c0e65870149f4d2139a4ad1fa19247e4",
+  "sha256": "ecb7f9ff496e2c23cdfc82fbe390b34f336a67f624af4485b0c122cd8b99ba3b",
   "platforms": {
     "windows": {
       "version": "2.8.15",
-      "notes": "Windows v2.8.15：清单页头视觉精修——移除左侧渐变清单徽标；完成度展示由渐变进度环改为百分比数字加细进度条，清单颜色改由进度条填充承载。",
+      "notes": "Windows v2.8.15：修复便签与时钟窗开机位置漂移——只有用户真实拖拽才写回位置存档，开机后自动对账拉回存档位置（副屏未就绪时不误回位）；清单页头视觉精修——移除渐变徽标，完成度由进度环改为百分比数字加细进度条，页头与内容区对齐。",
       "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.15/Torder_2.8.15_x64-setup.exe",
-      "sha256": "d9dc3a8f890c678d711efb19e0cd8c69c0e65870149f4d2139a4ad1fa19247e4"
+      "sha256": "ecb7f9ff496e2c23cdfc82fbe390b34f336a67f624af4485b0c122cd8b99ba3b"
     },
     "android": {
-      "version": "2.8.14",
-      "notes": "Android v2.8.14（universal 安装包）：与桌面版本保持同步更新，包含默认清单可删除与清单页头重设计。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.14/Torder_2.8.14_universal.apk",
-      "sha256": "c0c04eb9c448e3913a642c54ae52551d3782a2b80e970e71eb73ce5dcb42777c"
+      "version": "2.8.15",
+      "notes": "Android v2.8.15（universal 安装包）：与桌面版本保持同步更新，包含位置漂移修复与清单页头调整。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.15/Torder_2.8.15_universal.apk",
+      "sha256": "c2b93aab8cc0bd1ef0cdbfa97b475e6d98eeefc02523fdb93820aa0a70166c86"
     }
   }
 }
