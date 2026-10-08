@@ -3,7 +3,11 @@ import type {
   FocusEvent as ReactFocusEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  availableMonitors,
+  getCurrentWindow,
+  LogicalPosition,
+} from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Flame, Pencil } from "lucide-react";
@@ -85,6 +89,14 @@ export function ClockApp() {
   const secRef = useRef<HTMLInputElement | null>(null);
   const editBoxRef = useRef<HTMLDivElement | null>(null);
   const flushTimerRef = useRef<number | null>(null);
+  /**
+   * 用户是否正在（或刚刚）操作窗口。开机后 DPI 稳定 / 显示器就绪引发的
+   * 程序化移动同样触发 onMoved——只有按下期间或落位宽限内才写回 x/y，
+   * 否则漂移会被固化（与 WidgetApp 同款修复）。
+   */
+  const userActiveRef = useRef(false);
+  /** 存档逻辑坐标：开机位置对账的基准。 */
+  const savedPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   // 专注状态机绑定
   const mode = useFocusStore((state) => state.mode);
@@ -291,7 +303,12 @@ export function ClockApp() {
     const adopt = (settings: {
       alwaysOnTop?: boolean | null;
       locked?: boolean | null;
+      x?: number | null;
+      y?: number | null;
     }) => {
+      if (typeof settings.x === "number" && typeof settings.y === "number") {
+        savedPositionRef.current = { x: settings.x, y: settings.y };
+      }
       if (settings.alwaysOnTop !== undefined) {
         // 窗口行为的落地点在挂件这侧：设置页只写设置键 + 广播，
         // 真正的 setAlwaysOnTop 必须由本窗口执行（单一数据源，避免两处都写）。
@@ -339,6 +356,88 @@ export function ClockApp() {
     };
   }, []);
 
+  // 按下即标记「用户正在操作」，3s 自动过期；期间每次被采信的移动续命。
+  // 不能依赖 pointerup：原生拖拽会让 OS 捕获鼠标，webview 收不到抬起事件
+  // （与 WidgetApp 同款修复）。
+  const activeRenewRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let expireTimer: number | null = null;
+    const renew = () => {
+      if (expireTimer) window.clearTimeout(expireTimer);
+      userActiveRef.current = true;
+      expireTimer = window.setTimeout(() => {
+        expireTimer = null;
+        userActiveRef.current = false;
+      }, 3000);
+    };
+    activeRenewRef.current = renew;
+    const markActive = () => renew();
+    window.addEventListener("pointerdown", markActive);
+    return () => {
+      window.removeEventListener("pointerdown", markActive);
+      if (expireTimer) window.clearTimeout(expireTimer);
+      activeRenewRef.current = null;
+    };
+  }, []);
+
+  // 开机位置对账：登录早期 scale / 显示器枚举可能尚未就绪，建窗时按错误
+  // 口径放置。DPI 稳定（onScaleChanged）或建窗 1.5s 后拉回存档坐标；
+  // 用户本会话真拖过则不再干预。对账的 setPosition 触发的 onMoved 已被门控。
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    let unlistenScale: (() => void) | null = null;
+    let scaleTimer: number | null = null;
+    const win = getCurrentWindow();
+    const reconcile = async () => {
+      if (cancelled || userActiveRef.current) return;
+      const saved = savedPositionRef.current;
+      if (!saved) return;
+      try {
+        // 存档点必须落在当前已就绪的任一显示器内才回位：开机时副屏
+        // 可能尚未枚举，硬回位会把窗口甩到屏幕外。
+        const monitors = await availableMonitors();
+        const inside = monitors.some((monitor) => {
+          const left = monitor.position.x / monitor.scaleFactor;
+          const top = monitor.position.y / monitor.scaleFactor;
+          const right = left + monitor.size.width / monitor.scaleFactor;
+          const bottom = top + monitor.size.height / monitor.scaleFactor;
+          return (
+            saved.x >= left && saved.y >= top && saved.x < right && saved.y < bottom
+          );
+        });
+        if (!inside) return;
+        const scale = await win.scaleFactor();
+        const pos = await win.outerPosition();
+        if (
+          Math.abs(pos.x / scale - saved.x) > 2 ||
+          Math.abs(pos.y / scale - saved.y) > 2
+        ) {
+          await win.setPosition(new LogicalPosition(saved.x, saved.y));
+        }
+      } catch {
+        // 窗口已销毁等瞬态失败：放弃本次对账，下次启动再对
+      }
+    };
+    const initialTimer = window.setTimeout(() => void reconcile(), 1500);
+    void win
+      .onScaleChanged(() => {
+        if (scaleTimer) window.clearTimeout(scaleTimer);
+        scaleTimer = window.setTimeout(() => void reconcile(), 300);
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlistenScale = fn;
+      });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialTimer);
+      if (scaleTimer) window.clearTimeout(scaleTimer);
+      unlistenScale?.();
+    };
+  }, []);
+
   // 记忆桌面坐标与拉伸后的尺寸。两者共用同一个节流器：拖拽/拉伸过程中
   // 事件会高频触发，逐次写 IPC 会把 settings 表刷爆，只在动作停下后落一次盘。
   useEffect(() => {
@@ -357,6 +456,9 @@ export function ClockApp() {
 
     void appWindow
       .onMoved(({ payload: pos }) => {
+        // 仅用户操作期间（按下 + 3s 续命窗口）的移动才写回存档。
+        if (!userActiveRef.current) return;
+        activeRenewRef.current?.();
         flushLater(async () => {
           const scale = await appWindow.scaleFactor();
           await patchClockSettings({ x: pos.x / scale, y: pos.y / scale });

@@ -11,6 +11,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   LogicalPosition,
   LogicalSize,
+  availableMonitors,
   getCurrentWindow,
 } from "@tauri-apps/api/window";
 import { WidgetPinTop } from "../components/widget/WidgetPin";
@@ -113,6 +114,16 @@ export function WidgetApp() {
     position: { x: number; y: number } | null;
     size: { width: number; height: number } | null;
   }>({ position: null, size: null });
+  /**
+   * 用户是否正在（或刚刚）操作窗口。开机后 DPI 稳定、显示器就绪、锁定挂载、
+   * 高度动画等**程序化/系统性**移动同样触发 onMoved——只有按下过窗口、
+   * 且还在按下期间或落位宽限内，移动才是用户意图，才允许写回 x/y 存档，
+   * 否则漂移会被固化（用户报：开机后便签位置变化，锁定也挡不住）。
+   * pointerup 后保留 800ms 宽限，覆盖原生拖拽落位的最后几个 move 事件。
+   */
+  const userActiveRef = useRef(false);
+  /** 存档逻辑坐标：开机位置对账的基准。 */
+  const savedPositionRef = useRef<{ x: number; y: number } | null>(null);
   /**
    * 设置写入串行化。字段合并本身已由 Rust `patch_widget_settings` 单点完成，
    * 跨窗口不再互相吞字段；但拖上边缘会同时触发 onMoved + onResized，
@@ -295,6 +306,9 @@ export function WidgetApp() {
       setDefaultListId(settings.defaultListId);
       const widgetSettings = await getWidgetSettings();
       if (cancelled) return;
+      if (widgetSettings.x !== null && widgetSettings.y !== null) {
+        savedPositionRef.current = { x: widgetSettings.x, y: widgetSettings.y };
+      }
       // 权威外观（缓存只保证首帧不闪，这里读 SQLite/设置键后覆盖）
       appearanceRef.current = widgetSettings;
       applyWidgetAppearance(widgetSettings);
@@ -432,6 +446,90 @@ export function WidgetApp() {
     [],
   );
 
+  // 按下即标记「用户正在操作」，3s 自动过期；期间每次被采信的位置事件续命。
+  // 不能依赖 pointerup：原生拖拽（startDragging）会让 OS 捕获鼠标，
+  // webview 收不到抬起事件，靠 up 复位会让门控永久敞开（实测）。
+  // 便签是独立窗口，pointer 事件只会发生在便签内部，无需过滤目标。
+  const activeRenewRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let expireTimer: ReturnType<typeof setTimeout> | null = null;
+    const renew = () => {
+      if (expireTimer) clearTimeout(expireTimer);
+      userActiveRef.current = true;
+      expireTimer = setTimeout(() => {
+        expireTimer = null;
+        userActiveRef.current = false;
+      }, 3000);
+    };
+    activeRenewRef.current = renew;
+    const markActive = () => renew();
+    window.addEventListener("pointerdown", markActive);
+    return () => {
+      window.removeEventListener("pointerdown", markActive);
+      if (expireTimer) clearTimeout(expireTimer);
+      activeRenewRef.current = null;
+    };
+  }, []);
+
+  // 开机位置对账：登录早期 scale / 显示器枚举可能尚未就绪，建窗时
+  // resolve_position 按错误口径放置。DPI 稳定（onScaleChanged）或建窗
+  // 1.5s 后，把窗口拉回存档坐标；用户本会话真拖过则不再干预。
+  // 对账的 setPosition 触发的 onMoved 已被 userDraggedRef 门控，不会回写。
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    let unlistenScale: (() => void) | null = null;
+    let scaleTimer: ReturnType<typeof setTimeout> | null = null;
+    const win = getCurrentWindow();
+    const reconcile = async () => {
+      if (cancelled || userActiveRef.current) return;
+      const saved = savedPositionRef.current;
+      if (!saved) return;
+      try {
+        // 存档点必须落在当前已就绪的任一显示器内才回位：开机时副屏
+        // 可能尚未枚举，硬回位会把窗口甩到屏幕外。
+        const monitors = await availableMonitors();
+        const inside = monitors.some((monitor) => {
+          const left = monitor.position.x / monitor.scaleFactor;
+          const top = monitor.position.y / monitor.scaleFactor;
+          const right = left + monitor.size.width / monitor.scaleFactor;
+          const bottom = top + monitor.size.height / monitor.scaleFactor;
+          return (
+            saved.x >= left && saved.y >= top && saved.x < right && saved.y < bottom
+          );
+        });
+        if (!inside) return;
+        const scale = await win.scaleFactor();
+        const pos = await win.outerPosition();
+        if (
+          Math.abs(pos.x / scale - saved.x) > 2 ||
+          Math.abs(pos.y / scale - saved.y) > 2
+        ) {
+          await win.setPosition(new LogicalPosition(saved.x, saved.y));
+        }
+      } catch {
+        // 窗口已销毁等瞬态失败：放弃本次对账，下次启动再对
+      }
+    };
+    const initialTimer = setTimeout(() => void reconcile(), 1500);
+    void win
+      .onScaleChanged(() => {
+        if (scaleTimer) clearTimeout(scaleTimer);
+        scaleTimer = setTimeout(() => void reconcile(), 300);
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlistenScale = fn;
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
+      if (scaleTimer) clearTimeout(scaleTimer);
+      unlistenScale?.();
+    };
+  }, []);
+
   // 拖拽 / 拉伸后的几何记忆（仅 Tauri）：onMoved + onResized 合并防抖写入设置键。
   // 拖起手本身由 .widget-stage 上的 data-tauri-drag-region="deep" + Tauri 注入的
   // drag.js 负责；拉伸起手由 WidgetResizeHandles 调 startResizeDragging，
@@ -449,6 +547,10 @@ export function WidgetApp() {
     void (async () => {
       const nextUnlisteners = await Promise.all([
         currentWindow.onMoved((event) => {
+          // 仅用户操作期间（按下 + 3s 续命窗口）的移动才写回存档：开机 DPI/
+          // 显示器就绪引发的系统移动、高度动画与锁定挂载的 setPosition 不污染 x/y。
+          if (!userActiveRef.current) return;
+          activeRenewRef.current?.();
           pendingGeometry.current.position = {
             x: event.payload.x,
             y: event.payload.y,
