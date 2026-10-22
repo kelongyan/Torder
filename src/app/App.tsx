@@ -1084,17 +1084,21 @@ function App() {
     task: Task,
     columnId: "todo" | "doing" | "done",
   ) {
-    if (columnId === "done") {
-      await patchTask(task.id, { status: "done" });
-    } else if (columnId === "doing") {
-      await patchTask(task.id, { status: "todo", priority: 2 });
-    } else {
-      await patchTask(task.id, {
-        status: "todo",
-        priority: task.priority === 2 ? 1 : task.priority,
-      });
+    try {
+      if (columnId === "done") {
+        await patchTask(task.id, { status: "done" });
+      } else if (columnId === "doing") {
+        await patchTask(task.id, { status: "todo", priority: 2 });
+      } else {
+        await patchTask(task.id, {
+          status: "todo",
+          priority: task.priority === 2 ? 1 : task.priority,
+        });
+      }
+      pushToast("看板状态已更新", "success");
+    } catch (error) {
+      pushToast(`看板状态更新失败：${normalizeError(error)}`, "error");
     }
-    pushToast("看板状态已更新", "success");
   }
 
   async function handleMoveTaskDate(taskId: string, dateKey: string) {
@@ -1658,7 +1662,7 @@ function App() {
                       onOpen={(task) => selectTask(task.id)}
                       onToggle={(task) => void handleToggleTask(task)}
                       onMove={(task, columnId) =>
-                        void handleBoardMove(task, columnId)
+                        handleBoardMove(task, columnId)
                       }
                     />
                   ) : effectiveLayout === "month" ? (

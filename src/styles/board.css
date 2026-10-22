@@ -29,8 +29,44 @@
   box-shadow: var(--shadow);
 }
 
-.board-column:has(.board-card[draggable="true"]:active) {
-  border-color: var(--accent-border);
+/* 拖拽进行中：落点列高亮（dnd-kit 的 isOver，见 TaskBoard 的 BoardColumn）。
+   旧实现用 :has(.board-card[draggable]:active) 判断，改用指针拖拽后该选择器失效。 */
+.board-column.is-drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--mica-side));
+}
+
+/* 卡片拖拽包装层：让整张卡都是拖拽起手区，同时保持原卡片布局不变。 */
+.board-card-drag {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-card-drag.is-dragging {
+  opacity: 0.35;
+}
+
+.board-card-drag.is-moving {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* 拖拽中的原卡片：保留位置但不再响应 hover。 */
+.board-card-drag.is-dragging .board-card {
+  cursor: grabbing;
+  transform: none;
+}
+
+/* 拖拽浮层里的卡片：不再有 hover 抬升，视觉上跟手。
+   board-card-overlay 与 board-card 是同一个元素，不能用后代选择器。 */
+.board-card.board-card-overlay,
+.board-card.board-card-overlay:hover {
+  cursor: grabbing;
+  transform: none;
+  box-shadow: var(--inset-hi);
+  animation: none;
 }
 
 .board-column > header {
@@ -115,9 +151,7 @@
   transform: scale(0.99);
 }
 
-.board-card[draggable="true"] {
-  cursor: grab;
-}
+
 
 .board-card.completed h3 {
   color: var(--text-muted);

@@ -20,8 +20,10 @@ export function TaskCard({
   motionIndex = 0,
   onOpen,
   onToggle,
-  draggable = false,
-  onDragStart,
+  /** 拖拽起手已交给外层 dnd-kit 包装（见 TaskBoard 的 DraggableBoardCard），
+   *  卡片本身不再挂 HTML5 draggable：主窗口开着 dragDropEnabled（附件拖入需要
+   *  它），此时 WebView2 会接管拖放，HTML5 drop 收不到，卡片就拖不动（issue #10）。 */
+  overlay = false,
 }: {
   task: Task;
   list: TaskList | null;
@@ -30,8 +32,8 @@ export function TaskCard({
   motionIndex?: number;
   onOpen: (task: Task) => void;
   onToggle: (task: Task) => void;
-  draggable?: boolean;
-  onDragStart?: (task: Task) => void;
+  /** 拖拽浮层里渲染的副本：不可交互、不带选中态。 */
+  overlay?: boolean;
 }) {
   const listColor = list?.color ?? DEFAULT_LIST_COLOR;
   const completedSubtasks = task.subtasks.filter(
@@ -40,11 +42,13 @@ export function TaskCard({
 
   return (
     <article
-      className={`board-card ${selected ? "selected" : ""} ${task.status === "done" ? "completed" : ""} ${priorityClass(task.priority)}`}
+      className={`board-card ${overlay ? "board-card-overlay" : ""} ${selected ? "selected" : ""} ${task.status === "done" ? "completed" : ""} ${priorityClass(task.priority)}`}
       style={{ "--item-index": motionIndex } as CSSProperties}
-      draggable={draggable}
-      onDragStart={() => onDragStart?.(task)}
-      onClick={() => onOpen(task)}
+      aria-hidden={overlay || undefined}
+      onClick={() => {
+        if (overlay) return;
+        onOpen(task);
+      }}
     >
       <span
         className="list-inline board-card-list"
@@ -58,6 +62,7 @@ export function TaskCard({
         className={`task-check compact ${task.status === "done" ? "checked" : ""}`}
         onClick={(event) => {
           event.stopPropagation();
+          if (overlay) return;
           onToggle(task);
         }}
         aria-label={task.status === "done" ? "恢复任务" : "完成任务"}
