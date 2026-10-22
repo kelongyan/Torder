@@ -67,6 +67,16 @@ pub async fn cleanup_sync_history(
     service::cleanup_sync_history(&app, &database, &runtime).await
 }
 
+/// 清理已撤销设备记录（本地 + 远端 manifest），返回移除条数。
+#[tauri::command]
+pub async fn prune_revoked_sync_devices(
+    app: AppHandle,
+    database: State<'_, Database>,
+    runtime: State<'_, SyncRuntime>,
+) -> Result<i64, String> {
+    service::prune_revoked_devices(&app, &database, &runtime).await
+}
+
 #[tauri::command]
 pub fn export_sync_diagnostics(
     app: AppHandle,

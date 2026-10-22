@@ -84,8 +84,16 @@ impl<'database> AttachmentRepository<'database> {
 
         let mut connection = self.database.connect()?;
         let transaction = connection.transaction()?;
-        ensure_task_exists(&transaction, &task_id)?;
-        ensure_attachment_capacity(&transaction, &task_id)?;
+        // 文件先落盘、事务后校验：校验失败时事务回滚，但磁盘文件不会自己消失，
+        // 而它又没有对应的 attachment_blobs 行，孤儿清理（按行查询）永远扫不到它。
+        // 这类“无主文件”会一直堆在 attachments/blobs 下，所以失败路径必须显式删掉。
+        if let Err(error) = ensure_task_exists(&transaction, &task_id)
+            .and_then(|()| ensure_attachment_capacity(&transaction, &task_id))
+        {
+            drop(transaction);
+            let _ = fs::remove_file(&target);
+            return Err(error);
+        }
         transaction.execute(
             r#"
             INSERT INTO attachment_blobs (
@@ -245,6 +253,9 @@ impl<'database> AttachmentRepository<'database> {
         if updated == 0 {
             return Err(RepositoryError::NotFound("attachment"));
         }
+        // localReference 是设备私有引用：既不上传，也不写远端业务行。
+        // `bootstrap_existing_objects` 已明确排除它，所以删除时无需再记墓碑——
+        // 记了反而会让接收端留下一条没有业务行的 sync_objects（快照孤儿）。
         if existing.kind != "localReference" {
             let mut deleted = query_attachment(&transaction, id)?;
             deleted.deleted_at = Some(now);

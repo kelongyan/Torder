@@ -55,7 +55,7 @@ pub(crate) async fn load_or_create_manifest(
 fn map_conditional_write_error(error: WebDavError) -> RepositoryError {
     match error {
         WebDavError::Http(status) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            RepositoryError::Tauri("remote manifest changed; retry sync".to_owned())
+            RepositoryError::RemoteManifestChanged
         }
         error => RepositoryError::Tauri(error.to_string()),
     }
@@ -103,9 +103,7 @@ pub(crate) async fn put_manifest(
             if current.collection_id != manifest.collection_id
                 || current.latest_sequence != expected_previous_sequence
             {
-                return Err(RepositoryError::Tauri(
-                    "remote manifest changed; retry sync".to_owned(),
-                ));
+                return Err(RepositoryError::RemoteManifestChanged);
             }
             if let Some(etag) = current_etag.as_deref() {
                 client

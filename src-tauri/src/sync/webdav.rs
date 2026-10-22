@@ -7,6 +7,7 @@ const MAX_JSON_BYTES: usize = 1024 * 1024;
 const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 const MAX_BLOB_BYTES: usize = 100 * 1024 * 1024 + 1024;
 const MAX_ATTEMPTS: usize = 3;
+const MAX_ERROR_BYTES: usize = 4096;
 
 #[derive(Debug)]
 pub enum WebDavError {
@@ -15,6 +16,14 @@ pub enum WebDavError {
     Request(reqwest::Error),
     Http(StatusCode),
     BodyTooLarge,
+    /// 带上下文的 HTTP 错误（方法与 URL），用于定位 403 这类“看不出是哪个请求”的失败。
+    Context(&'static str, String),
+    /// 服务端配额耗尽（坚果云 `TrafficRateExhausted`）。
+    ///
+    /// 坚果云免费账号每月有下载流量上限，耗尽后连 manifest 都拒绝读取，但
+    /// PROPFIND（元数据）仍正常——所以它**不是**鉴权失败，重输密码也没用。
+    /// 单独建一个变体，避免被 `sync_error_state` 误判成 `needsAuth`。
+    QuotaExhausted(String),
 }
 
 impl std::fmt::Display for WebDavError {
@@ -25,6 +34,11 @@ impl std::fmt::Display for WebDavError {
             Self::Request(error) => write!(formatter, "WebDAV request failed: {error}"),
             Self::Http(status) => write!(formatter, "WebDAV server returned HTTP {status}"),
             Self::BodyTooLarge => write!(formatter, "WebDAV response is too large"),
+            Self::Context(label, detail) => write!(formatter, "{label}: {detail}"),
+            Self::QuotaExhausted(detail) => write!(
+                formatter,
+                "WebDAV 流量配额已耗尽（TrafficRateExhausted）：{detail}；请等待配额重置或升级账户后再同步。"
+            ),
         }
     }
 }
@@ -411,7 +425,26 @@ impl WebDavClient {
                 {
                     tokio::time::sleep(retry_delay(attempt)).await;
                 }
-                Ok(response) => return Err(WebDavError::Http(response.status())),
+                Ok(response) => {
+                    // 只报 “HTTP 403” 时完全不知道是哪个请求被拒（坚果云限流、
+                    // 权限拒绝、路径越权都是 403），排查同步问题无从下手。
+                    // 这里把方法与路径一并带进错误消息。
+                    let status = response.status();
+                    if status == reqwest::StatusCode::FORBIDDEN {
+                        let (exception, message) = read_error_body(response).await;
+                        if is_quota_exhausted(exception.as_deref(), message.as_deref()) {
+                            let detail = message
+                                .or(exception)
+                                .unwrap_or_else(|| "traffic quota exhausted".to_owned());
+                            return Err(WebDavError::QuotaExhausted(detail));
+                        }
+                        return Err(WebDavError::Context(
+                            "WebDAV server returned HTTP 403",
+                            format!("{method} {url}"),
+                        ));
+                    }
+                    return Err(WebDavError::Http(status));
+                }
                 Err(error)
                     if attempt + 1 < MAX_ATTEMPTS && (error.is_timeout() || error.is_connect()) =>
                 {
@@ -435,6 +468,60 @@ fn retry_delay(attempt: usize) -> Duration {
         0 => 150,
         _ => 500,
     })
+}
+
+/// 读取错误响应体（有上限），返回 WebDAV XML 里的 `exception` / `message`。
+///
+/// 坚果云把配额耗尽放在 403 的 XML 正文里：
+/// `<s:exception>TrafficRateExhausted</s:exception>`。只凭状态码无法与
+/// 权限拒绝区分，而两者的用户处置完全不同（等配额 vs 重新登录）。
+async fn read_error_body(mut response: reqwest::Response) -> (Option<String>, Option<String>) {
+    let mut bytes = Vec::new();
+    while let Ok(Some(chunk)) = response.chunk().await {
+        if bytes.len() + chunk.len() > MAX_ERROR_BYTES {
+            break;
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    parse_error_body(&bytes)
+}
+
+fn parse_error_body(body: &[u8]) -> (Option<String>, Option<String>) {
+    if body.is_empty() {
+        return (None, None);
+    }
+    let mut reader = quick_xml::Reader::from_reader(body);
+    reader.config_mut().trim_text(true);
+    let mut exception = None;
+    let mut message = None;
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(element)) => match element.local_name().as_ref() {
+                b"exception" => {
+                    if let Ok(value) = reader.read_text(element.name()) {
+                        exception = Some(value.into_owned());
+                    }
+                }
+                b"message" => {
+                    if let Ok(value) = reader.read_text(element.name()) {
+                        message = Some(value.into_owned());
+                    }
+                }
+                _ => {}
+            },
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
+        }
+    }
+    (exception, message)
+}
+
+fn is_quota_exhausted(exception: Option<&str>, message: Option<&str>) -> bool {
+    exception.is_some_and(|value| value.contains("TrafficRateExhausted"))
+        || message.is_some_and(|value| {
+            let lower = value.to_ascii_lowercase();
+            lower.contains("traffic rate is exhausted") || lower.contains("quota")
+        })
 }
 
 #[cfg(test)]
@@ -560,6 +647,37 @@ mod tests {
     }
 
     #[test]
+    fn detects_webdav_quota_exhaustion_in_403_body() {
+        let body = r#"<?xml version="1.0" encoding="UTF-8" standalone="no"?><d:error xmlns:d="DAV:" xmlns:s="http://ns.jianguoyun.com"><s:exception>TrafficRateExhausted</s:exception><s:message>The downstream traffic rate is exhausted. The free rate is 333 while you want to consume 505</s:message></d:error>"#;
+        let (address, _requests, handle) = spawn_server(vec![xml_response(403, body)], None);
+        let client = test_client(address, Duration::from_secs(2));
+        let result = tauri::async_runtime::block_on(client.get_json("manifest.json"));
+        match result {
+            Err(WebDavError::QuotaExhausted(message)) => {
+                assert!(message.contains("downstream traffic rate"));
+                assert!(WebDavError::QuotaExhausted(message)
+                    .to_string()
+                    .contains("TrafficRateExhausted"));
+            }
+            other => panic!("expected quota exhaustion, got {other:?}"),
+        }
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn keeps_unclassified_403_as_a_context_error() {
+        let (address, _requests, handle) =
+            spawn_server(vec![xml_response(403, "<d:error/>")], None);
+        let client = test_client(address, Duration::from_secs(2));
+        let result = tauri::async_runtime::block_on(client.get_json("manifest.json"));
+        assert!(matches!(
+            result,
+            Err(WebDavError::Context(_, detail)) if detail.contains("GET ")
+        ));
+        handle.join().unwrap();
+    }
+
+    #[test]
     fn retries_locked_rate_limited_and_server_errors() {
         for status in [423, 429, 500] {
             let (address, requests, handle) = spawn_server(
@@ -617,6 +735,7 @@ mod tests {
         let reason = match status {
             201 => "Created",
             401 => "Unauthorized",
+            403 => "Forbidden",
             404 => "Not Found",
             409 => "Conflict",
             423 => "Locked",
@@ -625,6 +744,18 @@ mod tests {
             _ => "Error",
         };
         format!("HTTP/1.1 {status} {reason}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+    }
+
+    fn xml_response(status: u16, body: &str) -> String {
+        let reason = match status {
+            403 => "Forbidden",
+            500 => "Internal Server Error",
+            _ => "Error",
+        };
+        format!(
+            "HTTP/1.1 {status} {reason}\r\nContent-Type: text/xml; charset=UTF-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
     }
 
     fn json_response(body: &str) -> String {

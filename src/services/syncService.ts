@@ -53,6 +53,12 @@ export function cleanupSyncHistory(): Promise<SyncCleanupResult> {
   return invoke<SyncCleanupResult>("cleanup_sync_history");
 }
 
+export function pruneRevokedSyncDevices(): Promise<number> {
+  if (!isTauri())
+    return Promise.reject(new Error("浏览器演示模式不支持设备清理"));
+  return invoke<number>("prune_revoked_sync_devices");
+}
+
 export function exportSyncDiagnostics(): Promise<string> {
   if (!isTauri())
     return Promise.reject(new Error("浏览器演示模式不支持诊断导出"));

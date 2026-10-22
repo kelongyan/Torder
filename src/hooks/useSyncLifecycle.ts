@@ -57,6 +57,9 @@ export function useSyncLifecycle({
       return (
         message.includes("HTTP 401") ||
         message.includes("HTTP 403") ||
+        // 配额耗尽（坚果云 TrafficRateExhausted）是长期状态：免费账号要等到
+        // 下个计费周期才恢复，指数退避重试只会白跑。保留前台/启动触发的重试。
+        message.includes("TrafficRateExhausted") ||
         message.includes("credential") ||
         message.includes("password is required") ||
         message.includes("revoked") ||

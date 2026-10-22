@@ -49,7 +49,9 @@ pub(crate) fn bootstrap_existing_objects(
         ),
         (
             "attachment",
-            "SELECT item.id FROM task_attachments AS item LEFT JOIN sync_objects AS object ON object.entity = 'attachment' AND object.object_id = item.id WHERE object.object_id IS NULL",
+            // localReference 指向的本机路径只在这台设备上有效，同步出去对方也解析不出
+            // 文件（载荷里根本没有 local_path），因此从一开始就不该进同步队列。
+            "SELECT item.id FROM task_attachments AS item LEFT JOIN sync_objects AS object ON object.entity = 'attachment' AND object.object_id = item.id WHERE object.object_id IS NULL AND item.kind <> 'localReference'",
         ),
         (
             "calendarEvent",

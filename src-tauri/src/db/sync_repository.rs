@@ -355,6 +355,27 @@ pub fn revoke_device(connection: &rusqlite::Connection, id: &str) -> RepositoryR
     Ok(())
 }
 
+/// 清掉本机已撤销（`enabled = 0`）且非当前设备的设备记录。
+///
+/// 为什么需要它（issue #12）：设备身份是 `sync_state.deviceId` 里的一个 UUID，
+/// 「移除同步配置 → 重新添加」会生成新的 UUID，旧记录只是被置为 `enabled = 0`，
+/// 于是同名设备在列表里越堆越多，用户看到的就是「3 个变 4 个」的幽灵设备。
+///
+/// 不按名字自动去重：默认名是 `Torder · windows`，两台真的同型号机器会撞名，
+/// 自动禁用会把另一台正常设备踢下线。这里只清理**已撤销**的记录——它们本来就
+/// 不再参与同步，删掉不会影响任何活着的设备，也能顺带让撤销语义保持持久
+/// （撤销后重加不会把老记录复活）。
+///
+/// 当前设备永远保留：删掉它会让 `deviceId` 指向一条不存在的记录。
+pub fn prune_revoked_devices(connection: &rusqlite::Connection) -> RepositoryResult<i64> {
+    let current = get_state(connection, "deviceId")?;
+    let removed = connection.execute(
+        "DELETE FROM sync_devices WHERE enabled = 0 AND id <> ?1",
+        params![current.unwrap_or_default()],
+    )?;
+    Ok(removed as i64)
+}
+
 pub fn prune_history(connection: &rusqlite::Connection) -> RepositoryResult<SyncCleanupResult> {
     let transaction = connection.unchecked_transaction()?;
     let changes_removed = transaction.execute(
@@ -379,10 +400,34 @@ pub fn prune_history(connection: &rusqlite::Connection) -> RepositoryResult<Sync
              )"#,
         [],
     )? as i64;
+    // 清掉指向已不存在业务行的「孤儿引用」。
+    //
+    // 业务行被彻底删除（purge / 清理）时 `sync_objects` 里的墓碑记录会留下来。
+    // 这类记录既没有对应数据行，又没有待上传变更，留在库里只会让 `build_snapshot`
+    // 每次都撞上 `Query returned no rows`（已在 apply.rs 里降级为墓碑载荷，
+    // 但源头也应该清掉，否则墓碑会越积越多）。
+    let orphan_objects_removed = transaction.execute(
+        r#"DELETE FROM sync_objects AS object
+           WHERE NOT EXISTS (
+               SELECT 1 FROM sync_changes AS change
+               WHERE change.entity = object.entity
+                 AND change.object_id = object.object_id
+             )
+             AND (
+               (object.entity = 'list' AND NOT EXISTS (SELECT 1 FROM lists WHERE id = object.object_id))
+               OR (object.entity = 'task' AND NOT EXISTS (SELECT 1 FROM tasks WHERE id = object.object_id))
+               OR (object.entity = 'recurringRule' AND NOT EXISTS (SELECT 1 FROM recurring_rules WHERE id = object.object_id))
+               OR (object.entity = 'calendarEvent' AND NOT EXISTS (SELECT 1 FROM calendar_events WHERE id = object.object_id))
+               OR (object.entity = 'taskLink' AND NOT EXISTS (SELECT 1 FROM task_links WHERE id = object.object_id))
+               OR (object.entity = 'attachment' AND NOT EXISTS (SELECT 1 FROM task_attachments WHERE id = object.object_id))
+               OR (object.entity = 'settings' AND NOT EXISTS (SELECT 1 FROM settings WHERE key = object.object_id))
+             )"#,
+        [],
+    )? as i64;
     transaction.commit()?;
     Ok(SyncCleanupResult {
         changes_removed,
-        tombstones_removed,
+        tombstones_removed: tombstones_removed + orphan_objects_removed,
         attachment_blobs_removed: 0,
         attachment_bytes_removed: 0,
         remote_attachment_blobs_removed: 0,

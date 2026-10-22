@@ -11,6 +11,8 @@ interface SyncDevicesPanelProps {
   /** 任一同步操作进行中，禁用全部按钮。 */
   busy: boolean;
   onRevokeRequest: (device: SyncDevice) => void;
+  /** 清理「已撤销」设备记录（issue #12 的幽灵设备）。 */
+  onPruneRevokedRequest: () => void;
   onCleanupRequest: () => void;
   onRotateRequest: () => void;
   onExport: () => void;
@@ -27,11 +29,13 @@ export function SyncDevicesPanel({
   status,
   busy,
   onRevokeRequest,
+  onPruneRevokedRequest,
   onCleanupRequest,
   onRotateRequest,
   onExport,
 }: SyncDevicesPanelProps) {
   const configured = Boolean(status?.configured);
+  const revokedCount = devices.filter((device) => !device.enabled).length;
   return (
     <>
       {devices.length > 0 && (
@@ -63,6 +67,19 @@ export function SyncDevicesPanel({
             </div>
           ))}
         </div>
+      )}
+      {/* 「移除同步配置 → 重新添加」会换新 deviceId，旧记录只会被置为已撤销，
+          同名设备于是在列表里越堆越多。这里给一个显式出口，不按名字自动去重
+          （默认名在两台同型号机器上会撞名）。 */}
+      {revokedCount > 0 && (
+        <button
+          type="button"
+          className="btn-secondary btn-sm form-grid-full"
+          disabled={busy}
+          onClick={onPruneRevokedRequest}
+        >
+          清理已撤销设备（{revokedCount}）
+        </button>
       )}
       {configured && (
         <button

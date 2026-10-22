@@ -9,6 +9,28 @@ pub enum RepositoryError {
     Tauri(String),
     Validation(&'static str),
     NotFound(&'static str),
+    /// 远端序号已被其他设备占位（并发同步争用）。
+    ///
+    /// 这**不是**失败，而是一个明确的「重试即可」信号：远端 manifest 已经被别的
+    /// 设备推进，本机手上的 `latestSequence` 已过期。调用方应重新读取 manifest
+    /// 后再开一轮，而不是把它当作终态错误报给用户（issue 反馈：两台设备同时同步
+    /// 时弹出 “remote sequence was claimed by another device; retry sync”）。
+    RemoteSequenceTaken,
+    /// 远端 manifest 在本次读写之间被其他设备改写（ETag/序号前置条件失败）。
+    ///
+    /// 与 `RemoteSequenceTaken` 同类：并发同步的正常结果，重读 manifest 后
+    /// 重开一轮即可，不应向用户报错。
+    RemoteManifestChanged,
+}
+
+impl RepositoryError {
+    /// 并发争用类错误：调用方可以安全地重读远端状态后重试。
+    pub fn is_retryable_conflict(&self) -> bool {
+        matches!(
+            self,
+            Self::RemoteSequenceTaken | Self::RemoteManifestChanged
+        )
+    }
 }
 
 impl Display for RepositoryError {
@@ -21,6 +43,13 @@ impl Display for RepositoryError {
             Self::Tauri(message) => write!(formatter, "app error: {message}"),
             Self::Validation(message) => write!(formatter, "validation error: {message}"),
             Self::NotFound(entity) => write!(formatter, "{entity} not found"),
+            Self::RemoteSequenceTaken => write!(
+                formatter,
+                "app error: remote sequence was claimed by another device; retrying"
+            ),
+            Self::RemoteManifestChanged => {
+                write!(formatter, "app error: remote manifest changed; retrying")
+            }
         }
     }
 }

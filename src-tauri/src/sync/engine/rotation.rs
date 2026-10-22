@@ -60,6 +60,32 @@ pub(crate) async fn rotate_encryption_with_client(
     remote_path: &str,
     new_password: &str,
 ) -> RepositoryResult<()> {
+    // 序号冲突在轮换里是「可自愈」的：孤儿空批次会被接管并推进 manifest，
+    // 下一轮换一个新序号继续。没有这个循环，注释里的「重试一次即可」就只是
+    // 一句空话，用户会一直看到同一个冲突。
+    let mut retries = 0_usize;
+    loop {
+        match rotate_encryption_once(database, client, remote_path, new_password).await {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if error.is_retryable_conflict() && retries < MAX_ROTATION_SEQUENCE_RETRIES =>
+            {
+                retries += 1;
+                tokio::time::sleep(std::time::Duration::from_millis(150 * retries as u64)).await;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+const MAX_ROTATION_SEQUENCE_RETRIES: usize = 3;
+
+async fn rotate_encryption_once(
+    database: &Database,
+    client: &WebDavClient,
+    remote_path: &str,
+    new_password: &str,
+) -> RepositoryResult<()> {
     let mut connection = database.connect()?;
     if sync_repository::pending_count(&connection)? > 0 {
         return Err(RepositoryError::Validation(
@@ -135,21 +161,44 @@ pub(crate) async fn rotate_encryption_with_client(
     };
     let batch_path = format!("{root}/changes/{sequence:020}.json");
     let batch_value = serde_json::to_value(&empty_batch)?;
-    put_change_batch_create_only(
-        client,
-        &batch_path,
-        &batch_value,
-        "remote sequence was claimed by another device; retry key rotation",
-    )
-    .await?;
+    // 这份空批次是本机上轮中断留下的孤儿（例如 manifest 没推进）。它没有
+    // operations，内容与新轮换无关，可以安全接管：把它记入远端历史并推进
+    // manifest，下一轮换新序号重写空批次 + 新密钥快照。
+    if matches!(
+        put_change_batch_create_only(client, &batch_path, &batch_value).await?,
+        BatchWrite::AlreadyMine
+    ) {
+        adopt_rotation_sequence(
+            database,
+            client,
+            &manifest_path,
+            &mut manifest,
+            manifest_etag.as_deref(),
+            sequence,
+            &local_device_id,
+        )
+        .await?;
+        return Err(RepositoryError::RemoteSequenceTaken);
+    }
     let snapshot_path = format!("{root}/snapshots/{sequence:020}.json.gz");
-    put_snapshot_create_only(
-        client,
-        &snapshot_path,
-        &snapshot_payload,
-        "remote snapshot sequence was claimed by another device; retry key rotation",
-    )
-    .await?;
+    match put_snapshot_create_only(client, &snapshot_path, &snapshot_payload).await {
+        Ok(()) => {}
+        Err(RepositoryError::RemoteSequenceTaken) => {
+            // 上轮已写入快照但 manifest 没推进；空批次是本机的，接管序号后重试。
+            adopt_rotation_sequence(
+                database,
+                client,
+                &manifest_path,
+                &mut manifest,
+                manifest_etag.as_deref(),
+                sequence,
+                &local_device_id,
+            )
+            .await?;
+            return Err(RepositoryError::RemoteSequenceTaken);
+        }
+        Err(error) => return Err(error),
+    }
     let verified_snapshot = client
         .get_snapshot(&snapshot_path)
         .await
@@ -204,5 +253,38 @@ pub(crate) async fn rotate_encryption_with_client(
             &pruned_sequence.to_string(),
         )?;
     }
+    Ok(())
+}
+
+/// 把一轮中断留下的孤儿序号记入远端历史，供下一轮换新序号继续。
+///
+/// 孤儿批次是**空批次**（零 operations），所以推进 manifest 不会丢任何业务
+/// 变更；同时把本地 `lastRemoteSequence` 推到该序号，否则下一轮的前置校验
+/// 会以「先同步远端」为由再次拒绝。
+async fn adopt_rotation_sequence(
+    database: &Database,
+    client: &WebDavClient,
+    manifest_path: &str,
+    manifest: &mut Manifest,
+    etag: Option<&str>,
+    sequence: i64,
+    device_id: &str,
+) -> RepositoryResult<()> {
+    let previous_sequence = manifest.latest_sequence;
+    manifest.latest_sequence = sequence;
+    manifest.updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    put_manifest(
+        client,
+        manifest_path,
+        manifest,
+        etag,
+        previous_sequence,
+        device_id,
+    )
+    .await?;
+    // 连接必须在 await 之后再打开：&rusqlite::Connection 不是 Sync，
+    // 持有它跨 await 会让 Tauri command 的 future 失去 Send。
+    let connection = database.connect()?;
+    sync_repository::set_state(&connection, "lastRemoteSequence", &sequence.to_string())?;
     Ok(())
 }

@@ -105,6 +105,54 @@ pub async fn revoke_sync_device(
     Ok(())
 }
 
+/// 清理「已撤销」设备记录（本地 + 远端 manifest），返回移除条数。
+///
+/// 与同步共用运行门禁：这个动作要写远端 manifest，与进行中的同步交错会打架。
+pub async fn prune_revoked_devices(
+    app: &AppHandle,
+    database: &Database,
+    runtime: &SyncRuntime,
+) -> Result<i64, String> {
+    let _guard = runtime.try_lock().map_err(str::to_owned)?;
+    let connection = database.connect().map_err(|error| error.to_string())?;
+    let server_url = sync_repository::get_state(&connection, "serverUrl")
+        .map_err(|error| error.to_string())?
+        .ok_or("sync server URL is not configured")?;
+    let remote_path = sync_repository::get_state(&connection, "remotePath")
+        .map_err(|error| error.to_string())?
+        .ok_or("sync remote path is not configured")?;
+    let username =
+        sync_repository::get_state(&connection, "username").map_err(|error| error.to_string())?;
+    let password = credentials::load(&connection).map_err(|error| error.to_string())?;
+    drop(connection);
+
+    let result = match tokio::time::timeout(
+        std::time::Duration::from_secs(120),
+        engine::prune_revoked_remote_devices(
+            database,
+            &server_url,
+            &remote_path,
+            username,
+            password,
+        ),
+    )
+    .await
+    {
+        Ok(result) => result.map_err(|error| error.to_string()),
+        Err(_) => Err("device cleanup timed out after 120 seconds".to_owned()),
+    };
+    let removed = match result {
+        Ok(value) => value,
+        Err(error) => {
+            record_sync_command_error(database, &error);
+            return Err(error);
+        }
+    };
+    app.emit("sync-completed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(removed)
+}
+
 pub async fn cleanup_sync_history(
     app: &AppHandle,
     database: &Database,
@@ -558,7 +606,12 @@ fn is_sync_protocol_error(message: &str) -> bool {
 }
 
 fn sync_error_state(message: &str) -> &'static str {
-    if message.contains("HTTP 401")
+    // 配额耗尽不是鉴权问题：重输密码不会有任何作用，归为普通错误让前端
+    // 保留手动/前台触发的重试能力。必须排在 403 判断之前（错误正文里可能带
+    // 用户看得懂的说明，未来也可能补上状态码）。
+    if message.contains("TrafficRateExhausted") || message.contains("流量配额已耗尽") {
+        "error"
+    } else if message.contains("HTTP 401")
         || message.contains("HTTP 403")
         || message.contains("credential")
         || message.contains("password is required")
@@ -566,9 +619,22 @@ fn sync_error_state(message: &str) -> &'static str {
         "needsAuth"
     } else if is_sync_protocol_error(message) {
         "incompatible"
+    } else if is_sequence_conflict(message) {
+        // 序号被抢占是**并发**而不是协议损坏：不能落到 incompatible，
+        // 否则前端会把它当成“需要升级客户端”而不再自动重试。
+        "error"
     } else {
         "error"
     }
+}
+
+/// 远端序号被其他设备占位（并发同步）。
+///
+/// 自动重试在 `run_with_client_mode` 里做；这里用于错误归类：它既不是鉴权问题
+/// 也不是协议不兼容，只能归为普通可重试错误。
+fn is_sequence_conflict(message: &str) -> bool {
+    message.contains("remote sequence was claimed")
+        || message.contains("remote snapshot sequence was claimed")
 }
 
 fn record_sync_command_error(database: &Database, message: &str) {
@@ -617,6 +683,19 @@ mod tests {
         assert_eq!(
             sync_error_state("remote sync lock is held; retry later"),
             "error"
+        );
+        assert_eq!(
+            sync_error_state(
+                "app error: WebDAV 流量配额已耗尽（TrafficRateExhausted）：The downstream traffic rate is exhausted"
+            ),
+            "error",
+            "quota exhaustion is not an auth failure"
+        );
+        assert_eq!(
+            sync_error_state(
+                "app error: WebDAV server returned HTTP 403: GET https://dav.example/manifest.json"
+            ),
+            "needsAuth"
         );
     }
 

@@ -8,6 +8,7 @@ import {
   getSyncStatus,
   listSyncConflicts,
   listSyncDevices,
+  pruneRevokedSyncDevices,
   removeSyncConfig,
   revokeSyncDevice,
   resolveSyncConflict,
@@ -409,6 +410,22 @@ export function SettingsSyncSection({
       onToast("设备已撤销", "info");
     } catch (error) {
       onToast(`撤销设备失败: ${String(error)}`, "error");
+    } finally {
+      setSyncBusy(null);
+    }
+  }
+
+  async function handlePruneRevokedDevices() {
+    setSyncBusy("run");
+    try {
+      const removed = await pruneRevokedSyncDevices();
+      await refreshSyncStatus();
+      onToast(
+        removed > 0 ? `已清理 ${removed} 个已撤销设备` : "没有需要清理的设备",
+        "info",
+      );
+    } catch (error) {
+      onToast(`清理设备失败: ${String(error)}`, "error");
     } finally {
       setSyncBusy(null);
     }
@@ -863,6 +880,7 @@ export function SettingsSyncSection({
               status={syncStatus}
               busy={syncBusy !== null}
               onRevokeRequest={(device) => setPendingDeviceRevoke(device)}
+              onPruneRevokedRequest={() => void handlePruneRevokedDevices()}
               onCleanupRequest={() => setPendingSyncCleanup(true)}
               onRotateRequest={() => setPendingSyncRotation(true)}
               onExport={() => void handleExportSyncDiagnostics()}

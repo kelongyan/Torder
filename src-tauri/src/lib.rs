@@ -267,6 +267,7 @@ pub fn run() {
             commands::sync::list_sync_devices,
             commands::sync::revoke_sync_device,
             commands::sync::cleanup_sync_history,
+            commands::sync::prune_revoked_sync_devices,
             commands::sync::export_sync_diagnostics,
             commands::sync::resolve_sync_conflict,
             commands::sync::test_sync_connection,

@@ -286,11 +286,13 @@ fn rejects_invalid_remote_payload_fields_and_limits() {
             "task-id",
             json!({ "id": "task-id", "password": "must-not-sync" }),
         ),
+        // localReference 是合法 kind（issue #12：本机引用不该让整批同步失败），
+        // 真正非法的是这个不在枚举里的值。
         operation(
             "bad-attachment-kind",
             "attachment",
             "attachment-id",
-            json!({ "id": "attachment-id", "taskId": "task-id", "kind": "localReference", "displayName": "本机路径", "sortOrder": 0, "deletedAt": null }),
+            json!({ "id": "attachment-id", "taskId": "task-id", "kind": "remoteSsh", "displayName": "未知类型", "sortOrder": 0, "deletedAt": null }),
         ),
         operation(
             "bad-attachment-url",
@@ -724,6 +726,183 @@ fn applies_remote_attachment_metadata_after_task() {
     .unwrap();
     assert_eq!(payload["displayName"], "合同.pdf");
     assert_eq!(payload["sizeBytes"], 12);
+
+    drop(connection);
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// issue #12 的回归锁：远端发来一条 localReference 附件，必须被正常消费。
+///
+/// 曾经的实现把 `localReference` 判为非法 kind 并返回 Validation 错误，导致整批
+/// 回滚——一条本机引用就能让所有设备永久停在 incompatible。
+#[test]
+fn consumes_remote_local_reference_attachment_without_writing_a_row() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-local-reference-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    let mut connection = database.connect().unwrap();
+    let task_payload = json!({
+        "id": "local-ref-task",
+        "title": "带本机引用的任务",
+        "status": "todo",
+        "priority": 1,
+        "listId": "work",
+        "sortOrder": 0,
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "updatedAt": "2026-08-21T00:00:00.000Z",
+        "deletedAt": null,
+    });
+    let batch = ChangeBatch {
+        protocol: PROTOCOL,
+        sequence: 1,
+        device_id: "remote-device".to_owned(),
+        created_at: "2026-08-21T00:00:00.000Z".to_owned(),
+        operations: vec![
+            operation("local-ref-task-op", "task", "local-ref-task", task_payload),
+            operation(
+                "local-ref-op",
+                "attachment",
+                "local-ref-attachment",
+                json!({
+                    "id": "local-ref-attachment",
+                    "taskId": "local-ref-task",
+                    "kind": "localReference",
+                    "displayName": "本机路径.txt",
+                    "originalName": "本机路径.txt",
+                    "sortOrder": 0,
+                    "createdAt": "2026-08-21T00:00:00.000Z",
+                    "updatedAt": "2026-08-21T00:00:00.000Z",
+                    "deletedAt": null,
+                }),
+            ),
+        ],
+    };
+
+    // 关键断言：整批必须成功，而不是因为一条本机引用就回滚。
+    apply_batch(&mut connection, &batch).unwrap();
+
+    // 本机引用不落库（路径只在源设备有效），但变更本身必须被消费掉，
+    // 否则下次同步会反复重试同一条。
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM task_attachments WHERE id = 'local-ref-attachment'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0,
+        "localReference 不应写入 task_attachments"
+    );
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_objects WHERE entity = 'attachment' AND object_id = 'local-ref-attachment'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0,
+        "localReference 不应进入 sync_objects（快照会留下无业务行的孤儿）"
+    );
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_changes WHERE entity = 'attachment' AND object_id = 'local-ref-attachment'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        1,
+        "变更本身必须被消费，避免被反复重试"
+    );
+    // 同批次里的任务正常落地，证明整批没有被拖垮
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE id = 'local-ref-task'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        1
+    );
+
+    drop(connection);
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// issue #12 的第二处根因：远端删除附件时不得重建 blob 行。
+///
+/// 旧实现不看 operation，delete 墓碑也会 INSERT attachment_blobs 并置
+/// sync_state = 'pendingDownload'、deleted_at = NULL——把已删附件复活成待下载，
+/// 随后整份文件被重新拉下来又立刻变成孤儿（诊断里的 orphanCount 只涨不跌）。
+#[test]
+fn remote_attachment_delete_does_not_resurrect_blob_for_download() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-attachment-delete-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    let mut connection = database.connect().unwrap();
+    // 删除墓碑仍会写 task_attachments 行（带 deleted_at），外键要求任务存在。
+    // 真实批次里任务先于附件落地（apply_batch 按 entity_order 排序），这里保持一致。
+    let task_payload = json!({
+        "id": "task-id",
+        "title": "带附件的任务",
+        "status": "todo",
+        "priority": 1,
+        "listId": "work",
+        "sortOrder": 0,
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "updatedAt": "2026-08-21T00:00:00.000Z",
+        "deletedAt": null,
+    });
+    let batch = ChangeBatch {
+        protocol: PROTOCOL,
+        sequence: 1,
+        device_id: "remote-device".to_owned(),
+        created_at: "2026-08-21T00:00:00.000Z".to_owned(),
+        operations: vec![
+            operation("task-op", "task", "task-id", task_payload),
+            operation(
+            "deleted-attachment-op",
+            "attachment",
+            "deleted-attachment",
+            json!({
+                "id": "deleted-attachment",
+                "taskId": "task-id",
+                "kind": "managed",
+                "blobId": "deleted-blob",
+                "displayName": "已删附件.pdf",
+                "contentSha256": "abc123",
+                "sizeBytes": 12,
+                "remotePath": "attachments/blobs/de/deleted-blob.bin",
+                "sortOrder": 0,
+                "createdAt": "2026-08-21T00:00:00.000Z",
+                "updatedAt": "2026-08-21T00:00:00.000Z",
+                "deletedAt": "2026-08-21T00:00:00.000Z",
+            }),
+        )],
+    };
+
+    apply_batch(&mut connection, &batch).unwrap();
+
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM attachment_blobs WHERE id = 'deleted-blob'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0,
+        "删除墓碑不应重建 blob 行（否则会被重新下载成孤儿）"
+    );
 
     drop(connection);
     drop(database);
@@ -1826,6 +2005,93 @@ fn remote_device_revocation_updates_manifest_before_local_state() {
     cleanup_database(&path);
 }
 
+/// issue #12 的幽灵设备：撤销后再「移除配置 → 重新添加」会换新 deviceId，
+/// 旧记录留在 manifest 与本地列表里，同名设备越堆越多（3 个变 4 个）。
+///
+/// 这里锁两件事：远端 manifest 里已撤销条目被清掉、本地同步删除；
+/// 并且**活着的设备哪怕同名也保留**（不按名字去重）。
+#[test]
+fn prunes_revoked_devices_from_remote_manifest_and_local_state() {
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-prune-devices-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    let manifest = json!({
+        "protocol": PROTOCOL,
+        "collectionId": uuid::Uuid::new_v4().to_string(),
+        "format": "torder-sync",
+        "schemaVersion": 2,
+        "latestSequence": 1,
+        "snapshotSequence": 0,
+        "updatedAt": "2026-08-21T00:00:00.000Z",
+        "devices": [
+            { "id": "local-device", "name": "本机", "lastSeenAt": "2026-08-21T00:00:00.000Z", "lastSequence": 1, "enabled": true },
+            // 两台同名活设备：默认名会撞名，必须都留下
+            { "id": "phone-live", "name": "Torder · windows", "lastSeenAt": "2026-08-21T00:00:00.000Z", "lastSequence": 1, "enabled": true },
+            // 已撤销的幽灵记录：应当被清掉
+            { "id": "phone-ghost", "name": "Torder · windows", "lastSeenAt": "2026-08-21T00:00:00.000Z", "lastSequence": 1, "enabled": false }
+        ]
+    });
+    {
+        let connection = database.connect().unwrap();
+        sync_repository::set_state(&connection, "deviceId", "local-device").unwrap();
+        sync_repository::ensure_device(&connection, "local-device", "本机").unwrap();
+        sync_repository::ensure_device(&connection, "phone-live", "Torder · windows").unwrap();
+        sync_repository::ensure_device(&connection, "phone-ghost", "Torder · windows").unwrap();
+        sync_repository::revoke_device(&connection, "phone-ghost").unwrap();
+    }
+    let (address, requests, handle) = spawn_mock_dav(
+        MockDavConfig {
+            manifest: Some(manifest),
+            ..MockDavConfig::default()
+        },
+        2,
+    );
+    let client = WebDavClient::new_for_test(address);
+
+    let removed = tauri::async_runtime::block_on(prune_revoked_remote_devices_with_client(
+        &database, &client, "sync",
+    ))
+    .unwrap();
+    assert!(removed >= 1, "至少要清掉那条幽灵设备，实际 {removed}");
+
+    // 远端 manifest：幽灵没了，两台活设备（含同名的）都在
+    {
+        let requests = requests.lock().unwrap();
+        let updated: Value = requests
+            .iter()
+            .find(|request| request.method == "PUT" && request.path.ends_with("/manifest.json"))
+            .map(|request| serde_json::from_slice(&request.body).unwrap())
+            .expect("清理后必须回写 manifest");
+        let ids: Vec<&str> = updated["devices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|device| device["id"].as_str().unwrap())
+            .collect();
+        assert!(!ids.contains(&"phone-ghost"), "已撤销设备应被移除: {ids:?}");
+        assert!(ids.contains(&"phone-live"), "同名活设备不能被误删: {ids:?}");
+        assert!(ids.contains(&"local-device"), "当前设备必须保留: {ids:?}");
+    }
+    // 本地：幽灵记录也没了
+    {
+        let connection = database.connect().unwrap();
+        let remaining: Vec<String> = sync_repository::list_devices(&connection)
+            .unwrap()
+            .into_iter()
+            .map(|device| device.id)
+            .collect();
+        assert!(!remaining.contains(&"phone-ghost".to_owned()), "{remaining:?}");
+        assert!(remaining.contains(&"phone-live".to_owned()), "{remaining:?}");
+    }
+
+    handle.join().unwrap();
+    drop(client);
+    drop(database);
+    cleanup_database(&path);
+}
+
 #[test]
 fn encrypted_upload_hides_payload_and_rotation_publishes_new_snapshot() {
     let _keyring_guard = keyring_test_guard();
@@ -1974,6 +2240,95 @@ fn encrypted_upload_hides_payload_and_rotation_publishes_new_snapshot() {
     new_device_handle.join().unwrap();
     drop(new_device);
     cleanup_database(&new_device_path);
+    credentials::remove_encryption_keys(&connection).unwrap();
+    drop(connection);
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// 轮换前一轮中断留下的「空批次已写、manifest 未推进」必须能自愈：
+/// 接管该序号，再用下一个序号写新的空批次 + 新密钥快照。
+#[test]
+fn rotation_adopts_orphaned_empty_batch_and_uses_the_next_sequence() {
+    let _keyring_guard = keyring_test_guard();
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-rotation-orphan-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    let mut connection = database.connect().unwrap();
+    let local_device = device_id(&connection).unwrap();
+    // 让库处于「已同步、无待传变更」状态：先引导业务对象，再把已有变更标记为已上传。
+    // 否则 rotation 的前置检查会以 pendingChanges > 0 为由提前返回。
+    bootstrap_existing_objects(&mut connection).unwrap();
+    connection
+        .execute(
+            r#"UPDATE sync_changes
+               SET uploaded_at = COALESCE(uploaded_at, created_at),
+                   remote_sequence = COALESCE(remote_sequence, 0)"#,
+            [],
+        )
+        .unwrap();
+    drop(connection);
+
+    let orphan_batch = json!({
+        "protocol": PROTOCOL,
+        "sequence": 1,
+        "deviceId": local_device,
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "operations": []
+    });
+    let (address, requests, handle) = spawn_mock_dav(
+        MockDavConfig {
+            manifest: Some(empty_manifest()),
+            batch: Some(orphan_batch),
+            ..MockDavConfig::default()
+        },
+        10,
+    );
+    let client = WebDavClient::new_for_test(address);
+    tauri::async_runtime::block_on(rotate_encryption_with_client(
+        &database,
+        &client,
+        "sync",
+        "new sync password",
+    ))
+    .unwrap();
+
+    let requests = requests.lock().unwrap();
+    assert!(
+        requests.iter().any(|request| {
+            request.method == "PUT" && request.path.ends_with("/changes/00000000000000000002.json")
+        }),
+        "接管孤儿序号后必须在 2 号写新的空批次"
+    );
+    assert!(
+        requests.iter().any(|request| {
+            request.method == "PUT"
+                && request
+                    .path
+                    .ends_with("/snapshots/00000000000000000002.json.gz")
+        }),
+        "新密钥快照必须落在 2 号序号"
+    );
+    let manifest_put = requests
+        .iter()
+        .rev()
+        .find(|request| request.method == "PUT" && request.path.ends_with("/manifest.json"))
+        .unwrap();
+    let manifest: Value = serde_json::from_slice(&manifest_put.body).unwrap();
+    assert_eq!(manifest["latestSequence"], 2);
+    assert_eq!(manifest["snapshotSequence"], 2);
+    drop(requests);
+    handle.join().unwrap();
+
+    let connection = database.connect().unwrap();
+    assert_eq!(
+        sync_repository::get_state(&connection, "lastRemoteSequence")
+            .unwrap()
+            .as_deref(),
+        Some("2")
+    );
     credentials::remove_encryption_keys(&connection).unwrap();
     drop(connection);
     drop(database);
@@ -2530,6 +2885,163 @@ fn webdav_flow_generates_occurrence_after_pulling_recurring_rule() {
     cleanup_database(&path);
 }
 
+/// 孤儿批次自愈：远端 `latestSequence = N`，但 `changes/N+1.json` 已经存在且是
+/// **本机自己**写的（批次写完、manifest 没推进）。
+///
+/// 这是用户实际遇到的永久卡死场景：每次同步都去占 N+1，读到的永远是那份旧批次，
+/// 于是“remote sequence was claimed”反复出现，重试多少次都没用。
+///
+/// 修复后必须能自愈：接管这份孤儿批次推进 manifest，本地 pending 保持不变。
+#[test]
+fn adopts_orphaned_batch_left_by_itself_and_recovers() {
+    let collection_id = uuid::Uuid::new_v4().to_string();
+    // 远端 manifest 停在 sequence 0，但 changes/1.json 已经存在（本机写的）
+    let orphan_manifest = json!({
+        "protocol": PROTOCOL,
+        "collectionId": collection_id,
+        "format": "torder-sync",
+        "schemaVersion": 2,
+        "latestSequence": 0,
+        "updatedAt": "2026-08-21T00:00:00.000Z",
+        "devices": []
+    });
+    let config = MockDavConfig {
+        manifest: Some(orphan_manifest),
+        batch: None,
+        ..MockDavConfig::default()
+    };
+    let (address, requests, handle) = spawn_mock_dav(config, 6);
+    let client = WebDavClient::new_for_test(address);
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-orphan-batch-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    let local_device = {
+        let connection = database.connect().unwrap();
+        let id = device_id(&connection).unwrap();
+        drop(connection);
+        id
+    };
+    create_pending_task(&database);
+
+    // 让 mock 认为 changes/1.json 已存在，且内容是本机写的空批次。
+    let orphan_batch = json!({
+        "protocol": PROTOCOL,
+        "sequence": 1,
+        "deviceId": local_device,
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "operations": []
+    });
+    {
+        // 先写进去：用客户端自己 PUT 一次，mock 会记录该路径已存在
+        tauri::async_runtime::block_on(put_change_batch_create_only(
+            &client,
+            "changes/00000000000000000001.json",
+            &orphan_batch,
+        ))
+        .unwrap();
+    }
+
+    let result = tauri::async_runtime::block_on(run_with_client(&database, &client, "sync"));
+
+    // 关键：不再报 “remote sequence was claimed”，而是自愈成功
+    assert!(
+        result.is_ok(),
+        "孤儿批次必须自愈，实际报错: {:?}",
+        result.err().map(|error| error.to_string())
+    );
+    let requests = requests.lock().unwrap();
+    // 孤儿批次内容与本轮构造的不同，不得被覆写
+    let batch_puts = requests
+        .iter()
+        .filter(|request| {
+            request.method == "PUT" && request.path.contains("/changes/00000000000000000001.json")
+        })
+        .count();
+    assert_eq!(batch_puts, 1, "只有预置那一次写入，后续不得覆写孤儿批次");
+    let manifest_puts = requests
+        .iter()
+        .filter(|request| request.method == "PUT" && request.path.ends_with("/manifest.json"))
+        .count();
+    assert!(manifest_puts >= 1, "必须回写 manifest 推进序号");
+    drop(requests);
+
+    let connection = database.connect().unwrap();
+    let last_remote = sync_repository::get_state(&connection, "lastRemoteSequence").unwrap();
+    let last_remote: i64 = last_remote.expect("应推进 lastRemoteSequence").parse().unwrap();
+    assert!(
+        last_remote >= 1,
+        "接管后 lastRemoteSequence 应至少推进到孤儿批次序号，实际 {last_remote}"
+    );
+    drop(connection);
+    // 外层会再跑一轮把 pending 真正推上去，所以这里应该已清空。
+    assert_eq!(
+        pending_business_changes(&database),
+        0,
+        "自愈后下一轮应把 pending 真正上传"
+    );
+
+    handle.join().unwrap();
+    drop(database);
+    cleanup_database(&path);
+}
+
+/// 并发同步回归：另一台设备先占了同一个远端序号时，本机必须**自动重开一轮**
+/// （重读 manifest → 拿新序号），而不是把 “remote sequence was claimed by
+/// another device; retry sync” 当作终态错误弹给用户。
+///
+/// 这里用一个内容不同的同序号批次模拟“对方先到”。重试上限内都撞车，所以最终
+/// 仍会失败，但可以断言：错误类型是可重试的并发冲突，且确实重读了 manifest
+/// （每个重试轮次各一次），本地待传变更一条没丢。
+#[test]
+fn remote_sequence_conflict_retries_instead_of_failing_immediately() {
+    let conflicting_batch = json!({
+        "protocol": PROTOCOL,
+        "sequence": 1,
+        "deviceId": "other-device",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "operations": []
+    });
+    let config = MockDavConfig {
+        manifest: Some(empty_manifest()),
+        batch: Some(conflicting_batch),
+        ..MockDavConfig::default()
+    };
+    let (address, requests, handle) = spawn_mock_dav(config, 4);
+    let client = WebDavClient::new_for_test(address);
+    let path = std::env::temp_dir().join(format!(
+        "torder-sync-sequence-conflict-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let database = Database::initialize(path.clone()).unwrap();
+    create_pending_task(&database);
+
+    let error = tauri::async_runtime::block_on(run_with_client(&database, &client, "sync"))
+        .unwrap_err();
+
+    assert!(
+        error.is_retryable_conflict(),
+        "序号争用必须是可重试的并发冲突，实际: {error}"
+    );
+    // 首轮 + MAX_SEQUENCE_CONFLICT_RETRIES 轮重试，每轮都重读一次 manifest
+    let manifest_reads = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|request| request.method == "GET" && request.path.ends_with("/manifest.json"))
+        .count();
+    assert!(
+        manifest_reads > 1,
+        "必须在冲突后重开一轮（重读 manifest），实际只读了 {manifest_reads} 次"
+    );
+    // 重试期间不能丢本地待传变更
+    assert_eq!(pending_business_changes(&database), 1);
+    handle.join().unwrap();
+    drop(database);
+    cleanup_database(&path);
+}
+
 #[test]
 fn webdav_manifest_conflict_keeps_local_changes_pending() {
     let config = MockDavConfig {
@@ -2795,6 +3307,65 @@ fn compressed_snapshot_round_trips_and_restores_business_state() {
         0
     );
     assert!(decode_snapshot(b"not-gzip").is_err());
+
+    drop(source_connection);
+    drop(target_connection);
+    drop(source);
+    drop(target);
+    cleanup_database(&source_path);
+    cleanup_database(&target_path);
+}
+
+/// 快照必须跳过「sync_objects 有记录、业务行已不存在」的孤儿对象。
+///
+/// 回归锁：旧实现会把它伪造成 `{id, deletedAt}`，而接收端 `merged_payload`
+/// 要求本地无行时必须是完整插入载荷，于是整快照回滚——新设备永远同步不上。
+#[test]
+fn build_snapshot_skips_orphaned_sync_objects() {
+    let source_path = std::env::temp_dir().join(format!(
+        "torder-sync-snapshot-orphan-source-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let source = Database::initialize(source_path.clone()).unwrap();
+    let mut source_connection = source.connect().unwrap();
+    source_connection
+        .execute(
+            r#"INSERT INTO sync_objects (
+                   entity, object_id, revision, last_changed_at, last_source_device, deleted_at
+               ) VALUES ('attachment', 'missing-attachment', 4,
+                         '2026-08-21T00:00:00.000Z', 'device-a', NULL)"#,
+            [],
+        )
+        .unwrap();
+
+    let mut snapshot = build_snapshot(&mut source_connection, 9).unwrap();
+    snapshot.created_at = "2026-08-21T00:00:00.000Z".to_owned();
+    assert!(
+        snapshot
+            .operations
+            .iter()
+            .all(|operation| operation.object_id != "missing-attachment"),
+        "孤儿对象不应进入快照"
+    );
+
+    let target_path = std::env::temp_dir().join(format!(
+        "torder-sync-snapshot-orphan-target-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let target = Database::initialize(target_path.clone()).unwrap();
+    let mut target_connection = target.connect().unwrap();
+    apply_snapshot(&mut target_connection, &snapshot).unwrap();
+    assert_eq!(
+        target_connection
+            .query_row(
+                "SELECT COUNT(*) FROM task_attachments WHERE id = 'missing-attachment'",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0,
+        "孤儿对象不应在接收端变成默认字段的幽灵行"
+    );
 
     drop(source_connection);
     drop(target_connection);

@@ -271,8 +271,16 @@ pub fn validate_entity_fields(
     string_field(payload, "remotePath", 512)?;
     string_field(payload, "encryptionKeyId", MAX_ID_LENGTH)?;
 
+    // `localReference` 必须放行：它指向的路径只在本机有效，本不该进入同步队列，
+    // 但 2.8.15 的存量引导没有排除它（见 `bootstrap_existing_objects`），已经
+    // 把这类变更留在了用户的本地队列里。接收端若在这里硬报错，一条脏变更就会让
+    // 整批回滚、所有设备永久停在 incompatible——正是 issue #12 的现象。
+    // 正确语义由 `apply_operation` 承担：跳过写入，但消费掉这条变更。
     if let Some(value) = payload.get("kind") {
-        if !matches!(value.as_str(), Some("managed" | "webLink")) {
+        if !matches!(
+            value.as_str(),
+            Some("managed" | "webLink" | "localReference")
+        ) {
             return Err(RepositoryError::Validation("invalid sync attachment kind"));
         }
     }
@@ -334,6 +342,7 @@ pub fn validate_entity_fields(
                     ));
                 }
             }
+            // localReference 没有 blob / URL 要求，只要基础字段齐全即可。
             Some(_) => {}
             None => {
                 if !payload.contains_key("deletedAt") {

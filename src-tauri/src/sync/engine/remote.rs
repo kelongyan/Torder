@@ -157,42 +157,64 @@ pub fn confirmation_key(server_url: &str, remote_path: &str) -> String {
 /// 不能只依赖 `If-None-Match: *`：坚果云会忽略该前置条件直接覆盖（实测 204），
 /// 于是另一台设备刚占位的同序号批次会被静默摧毁，远端历史与该设备本地记录永久分叉。
 /// 这里先显式探一次存在性；内容一致说明是本设备上次中断后的重试，可继续。
+/// 批次写入结果。
+///
+/// `Written`：本次真的写入了（或内容一致的重试）。
+/// `AlreadyMine`：该序号上已经有一份**本机自己**之前写的批次，但 manifest 当时
+/// 没推进——这是一个可以自愈的中断态（见 `adopt_orphaned_batch`）。
+pub(crate) enum BatchWrite {
+    Written,
+    AlreadyMine,
+}
+
 pub(crate) async fn put_change_batch_create_only(
     client: &WebDavClient,
     path: &str,
     value: &serde_json::Value,
-    conflict_message: &str,
-) -> RepositoryResult<()> {
+) -> RepositoryResult<BatchWrite> {
     if client
         .exists(path)
         .await
         .map_err(|error| RepositoryError::Tauri(error.to_string()))?
     {
-        return confirm_existing_batch(client, path, value, conflict_message).await;
+        return confirm_existing_batch(client, path, value).await;
     }
     match client.put_json_if_none_match(path, value).await {
-        Ok(()) => Ok(()),
+        Ok(()) => Ok(BatchWrite::Written),
         Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            confirm_existing_batch(client, path, value, conflict_message).await
+            confirm_existing_batch(client, path, value).await
         }
         Err(error) => Err(RepositoryError::Tauri(error.to_string())),
     }
 }
 
+/// 判定已存在的同序号批次归属。
+///
+/// 内容完全一致 → 本机上次中断后的重试，直接继续（幂等）。
+/// 内容不同但 `deviceId` 是本机 → 典型的「批次已写入、manifest 未推进」中断态。
+///
+/// 这个中断态会永久卡死同步：`latestSequence` 停在 N，而 `changes/N+1.json`
+/// 已经存在，之后每次同步都尝试占 N+1 并撞车（用户实测：一直报
+/// remote sequence was claimed，重试 3 次也没用）。自动重试在这里无效，
+/// 因为冲突永远在同一个序号上。正确做法是**接管**这份孤儿批次。
 async fn confirm_existing_batch(
     client: &WebDavClient,
     path: &str,
     value: &serde_json::Value,
-    conflict_message: &str,
-) -> RepositoryResult<()> {
+) -> RepositoryResult<BatchWrite> {
     let existing = client
         .get_json(path)
         .await
         .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
     if &existing == value {
-        return Ok(());
+        return Ok(BatchWrite::Written);
     }
-    Err(RepositoryError::Tauri(conflict_message.to_owned()))
+    if existing.get("deviceId").and_then(serde_json::Value::as_str)
+        == value.get("deviceId").and_then(serde_json::Value::as_str)
+    {
+        return Ok(BatchWrite::AlreadyMine);
+    }
+    Err(RepositoryError::RemoteSequenceTaken)
 }
 
 /// 「仅创建」写入快照，语义与 `put_change_batch_create_only` 一致。
@@ -200,14 +222,13 @@ pub(crate) async fn put_snapshot_create_only(
     client: &WebDavClient,
     path: &str,
     payload: &[u8],
-    conflict_message: &str,
 ) -> RepositoryResult<()> {
     if client
         .exists(path)
         .await
         .map_err(|error| RepositoryError::Tauri(error.to_string()))?
     {
-        return confirm_existing_snapshot(client, path, payload, conflict_message).await;
+        return confirm_existing_snapshot(client, path, payload).await;
     }
     match client
         .put_snapshot_if_none_match(path, payload.to_vec())
@@ -215,7 +236,7 @@ pub(crate) async fn put_snapshot_create_only(
     {
         Ok(()) => Ok(()),
         Err(WebDavError::Http(status)) if status == reqwest::StatusCode::PRECONDITION_FAILED => {
-            confirm_existing_snapshot(client, path, payload, conflict_message).await
+            confirm_existing_snapshot(client, path, payload).await
         }
         Err(error) => Err(RepositoryError::Tauri(error.to_string())),
     }
@@ -225,7 +246,6 @@ async fn confirm_existing_snapshot(
     client: &WebDavClient,
     path: &str,
     payload: &[u8],
-    conflict_message: &str,
 ) -> RepositoryResult<()> {
     let existing = client
         .get_snapshot(path)
@@ -234,5 +254,5 @@ async fn confirm_existing_snapshot(
     if existing == payload {
         return Ok(());
     }
-    Err(RepositoryError::Tauri(conflict_message.to_owned()))
+    Err(RepositoryError::RemoteSequenceTaken)
 }

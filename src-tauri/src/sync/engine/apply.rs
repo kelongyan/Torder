@@ -99,7 +99,7 @@ pub fn resolve_conflict_with_payload(
     };
     validate_operation(&operation)?;
     if resolution != "keepLocal" {
-        apply_operation(&transaction, &operation)?;
+        let _ = apply_operation(&transaction, &operation)?;
     }
     sync_repository::record_change(
         &transaction,
@@ -163,10 +163,23 @@ pub fn build_snapshot(
         ));
     }
     let mut operations = Vec::with_capacity(objects.len());
-    for (index, (entity, object_id, revision, changed_at)) in objects.into_iter().enumerate() {
-        let payload = current_payload(&transaction, &entity, &object_id)?;
+    for (entity, object_id, revision, changed_at) in objects {
+        // sync_objects 里可能残留指向已不存在业务行的「孤儿引用」（例如被清理的
+        // 附件、被硬删除的循环规则）。快照构建时如果直接 `?` 上抛，就会得到
+        // `database error: Query returned no rows`——而快照是上传链路的一环，
+        // 一条孤儿记录就能把整个同步永久卡死（用户实测）。
+        //
+        // 不能在这里伪造 `{id, deletedAt}` 墓碑：接收端 `merged_payload` 要求
+        // 本地无对应行时必须是完整插入载荷，否则一条假墓碑会让整批/整快照回滚，
+        // 反而把新设备挡在门外。快照只是"当前对象"的增量集合，直接跳过孤儿即可；
+        // `prune_history` 会负责把这些 sync_objects 记录清掉。
+        let payload = match current_payload(&transaction, &entity, &object_id) {
+            Ok(payload) => payload,
+            Err(RepositoryError::Database(rusqlite::Error::QueryReturnedNoRows)) => continue,
+            Err(error) => return Err(error),
+        };
         operations.push(ChangeOperation {
-            id: format!("snapshot-{sequence}-{index}"),
+            id: format!("snapshot-{sequence}-{}", operations.len()),
             entity,
             object_id,
             operation: if payload.get("deletedAt").and_then(Value::as_str).is_some() {
@@ -318,7 +331,7 @@ pub fn apply_batch_with_limit(
             // 就是最合理的语义。进冲突面板只会拿无意义的条目打扰用户。
             // 业务对象（任务/清单等）仍然照常进面板，那里冲突是真冲突。
             if operation.entity == "settings" {
-                apply_operation(&transaction, operation)?;
+                let _ = apply_operation(&transaction, operation)?;
                 record_remote_change(&transaction, batch, operation)?;
                 continue;
             }
@@ -340,26 +353,30 @@ pub fn apply_batch_with_limit(
             record_remote_change(&transaction, batch, operation)?;
             continue;
         }
-        apply_operation(&transaction, operation)?;
+        let records_object = apply_operation(&transaction, operation)?;
         record_remote_change(&transaction, batch, operation)?;
         resolve_remote_list_name_conflict(&transaction, operation)?;
-        transaction.execute(
-            r#"INSERT INTO sync_objects (entity, object_id, revision, last_changed_at, last_source_device, deleted_at)
-               VALUES (?1, ?2, ?3, ?4, ?5, json_extract(?6, '$.deletedAt'))
-               ON CONFLICT(entity, object_id) DO UPDATE SET
-                 revision = excluded.revision,
-                 last_changed_at = excluded.last_changed_at,
-                 last_source_device = excluded.last_source_device,
-                 deleted_at = excluded.deleted_at"#,
-            rusqlite::params![
-                operation.entity,
-                operation.object_id,
-                operation.revision,
-                operation.changed_at,
-                batch.device_id,
-                serde_json::to_string(&operation.payload)?,
-            ],
-        )?;
+        // 设备私有的 localReference 只消费变更、不落业务行，因此也不能进入
+        // sync_objects（快照按 sync_objects 生成，会留下永远查不到行的孤儿）。
+        if records_object {
+            transaction.execute(
+                r#"INSERT INTO sync_objects (entity, object_id, revision, last_changed_at, last_source_device, deleted_at)
+                   VALUES (?1, ?2, ?3, ?4, ?5, json_extract(?6, '$.deletedAt'))
+                   ON CONFLICT(entity, object_id) DO UPDATE SET
+                     revision = excluded.revision,
+                     last_changed_at = excluded.last_changed_at,
+                     last_source_device = excluded.last_source_device,
+                     deleted_at = excluded.deleted_at"#,
+                rusqlite::params![
+                    operation.entity,
+                    operation.object_id,
+                    operation.revision,
+                    operation.changed_at,
+                    batch.device_id,
+                    serde_json::to_string(&operation.payload)?,
+                ],
+            )?;
+        }
     }
     transaction.commit()?;
     Ok(())
@@ -700,10 +717,15 @@ fn has_full_insert_payload(entity: &str, payload: &Value) -> bool {
         .all(|field| payload.contains_key(*field))
 }
 
+/// 返回是否在本地落下了可快照的业务对象。
+///
+/// `localReference` 是设备私有引用，只消费变更、不写业务行；调用方据此决定
+/// 是否为它记录 `sync_objects`。把这种对象写进快照会让接收端永远找不到对应
+/// 业务行（见 `build_snapshot` 的孤儿处理）。
 fn apply_operation(
     transaction: &rusqlite::Transaction<'_>,
     operation: &ChangeOperation,
-) -> RepositoryResult<()> {
+) -> RepositoryResult<bool> {
     let payload = merged_payload(transaction, operation)?;
     match operation.entity.as_str() {
         "list" => {
@@ -754,7 +776,7 @@ fn apply_operation(
                     |row| row.get(0),
                 )?;
                 if duplicate {
-                    return Ok(());
+                    return Ok(false);
                 }
             }
             transaction.execute(
@@ -793,8 +815,50 @@ fn apply_operation(
         }
         "attachment" => {
             let kind = string(&payload, "kind", "managed");
+            // localReference 是**设备私有**的：`local_attachment_references.local_path`
+            // 不在同步载荷里，别的设备拿到 kind 也解析不出任何文件。
+            //
+            // 这里跳过写入而不是报错：报错会让整批回滚，一条本机引用就能让所有设备
+            // 永久卡在 incompatible（issue #12）。跳过之后 `apply_batch` 仍会记录
+            // sync_changes，所以这条变更被正常消费，不会反复重试；但**不能**记录
+            // sync_objects——它会把一条没有业务行的对象带进快照，接收端无处落库。
+            if kind == "localReference" {
+                return Ok(false);
+            }
             let blob_id = optional_string(&payload, "blobId");
-            if kind == "managed" {
+            // 删除墓碑不得重建 blob 行。
+            //
+            // 曾经的实现不看 operation：远端发来一条 attachment delete，这里照样
+            // INSERT attachment_blobs（sync_state = 'pendingDownload'）并 `deleted_at=NULL`
+            // ——把已经删掉的附件重新“复活”成待下载状态。随后
+            // `download_pending_attachment_blobs` 会把整份文件重新拉下来，而附件行仍是
+            // 删除态，于是这份几 MB 的 blob 立刻变成孤儿。这正是 issue #12 里
+            // 「云端清空后重同步，orphanCount 从 1 涨到 4」的机制：每删一次就多一份。
+            let is_deleted = optional_string(&payload, "deletedAt").is_some();
+            // 删除墓碑的 blob 引用要按本地实际情况收敛：
+            //
+            // `task_attachments.blob_id` 有指向 `attachment_blobs` 的外键。新设备可能
+            // 只收到删除墓碑、本地从没下载过这份 blob（甚至压根没建过 blob 行），
+            // 硬挂 blob_id 会触发外键失败 → 整批回滚 → 同步永久卡在同一批（issue #12
+            // 里「云端清空后依然失败」的其中一种形态）。本地有就保留，让孤儿清理能按
+            // 附件删除时间算保留期；没有就置 NULL。
+            let blob_id = if is_deleted {
+                blob_id.filter(|id| {
+                    transaction
+                        .query_row(
+                            "SELECT 1 FROM attachment_blobs WHERE id = ?1",
+                            rusqlite::params![id],
+                            |_| Ok(()),
+                        )
+                        .optional()
+                        .ok()
+                        .flatten()
+                        .is_some()
+                })
+            } else {
+                blob_id
+            };
+            if kind == "managed" && !is_deleted {
                 let blob_id = blob_id.ok_or(RepositoryError::Validation(
                     "managed attachment requires blob id",
                 ))?;
@@ -936,8 +1000,9 @@ fn apply_operation(
             let Some(merged) =
                 merge_remote_into_local(&operation.object_id, local_value.as_ref(), &remote_value)
             else {
-                // 不在白名单：静默跳过（远端可能来自更新的版本，本地不认识这个键）
-                return Ok(());
+                // 不在白名单：静默跳过（远端可能来自更新的版本，本地不认识这个键）。
+                // 不写业务行，也不记录 sync_objects（避免快照里出现无行可查的孤儿）。
+                return Ok(false);
             };
             transaction.execute(
                 r#"INSERT INTO settings (key, value, updated_at)
@@ -954,7 +1019,7 @@ fn apply_operation(
         }
         _ => {}
     }
-    Ok(())
+    Ok(true)
 }
 
 fn string<'a>(payload: &'a Value, key: &str, fallback: &'a str) -> &'a str {

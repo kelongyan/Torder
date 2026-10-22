@@ -138,6 +138,121 @@ pub async fn revoke_remote_device(
     sync_repository::revoke_device(&connection, target_device_id)
 }
 
+/// 彻底移除「已撤销」的设备记录（本地 + 远端 manifest）。
+///
+/// 与 `revoke_remote_device` 的区别：撤销只是把 `enabled` 置 false，记录仍留在
+/// manifest 里。而「移除同步配置 → 重新添加」会换一个新的 `deviceId`，旧记录
+/// 留在原处，于是同名设备越积越多（issue #12 的「3 个变 4 个」）。
+///
+/// **必须先改远端再删本地**：`run_with_client_once` 会用 manifest 里的设备列表
+/// 覆盖本地 `sync_devices`（`import_manifest_device`），只删本地的话下一次同步
+/// 就全被导回来了。
+///
+/// 只删 `enabled = false` 的条目，且永远保留当前设备：活着的设备哪怕同名也不
+/// 受影响（默认名 `Torder · windows` 在两台同型号机器上会撞名，按名字去重
+/// 会误伤另一台正常设备）。
+pub async fn prune_revoked_remote_devices(
+    database: &Database,
+    server_url: &str,
+    remote_path: &str,
+    username: Option<String>,
+    password: Option<String>,
+) -> RepositoryResult<i64> {
+    let connection = database.connect()?;
+    let expected_confirmation = confirmation_key(server_url, remote_path);
+    if sync_repository::get_state(&connection, "remoteConfirmedFor")?.as_deref()
+        != Some(expected_confirmation.as_str())
+    {
+        return Err(RepositoryError::Validation(
+            "remote sync directory is not confirmed",
+        ));
+    }
+    let current_device_id = device_id(&connection)?;
+    drop(connection);
+
+    let client = WebDavClient::new(server_url, username, password)
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    client
+        .options()
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    let root = validated_remote_root(remote_path)?;
+    let manifest_path = format!("{root}/manifest.json");
+    let (value, etag) = client
+        .get_json_with_etag(&manifest_path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    let mut manifest: Manifest = serde_json::from_value(value)
+        .map_err(|_| RepositoryError::Validation("invalid remote manifest"))?;
+    validate_manifest(&manifest)?;
+
+    let before = manifest.devices.len();
+    manifest
+        .devices
+        .retain(|device| device.enabled || device.id == current_device_id);
+    let removed_remotely = (before - manifest.devices.len()) as i64;
+    if removed_remotely > 0 {
+        manifest.updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        put_manifest(
+            &client,
+            &manifest_path,
+            &manifest,
+            etag.as_deref(),
+            manifest.latest_sequence,
+            &current_device_id,
+        )
+        .await?;
+    }
+
+    let connection = database.connect()?;
+    let removed_locally = sync_repository::prune_revoked_devices(&connection)?;
+    Ok(removed_remotely.max(removed_locally))
+}
+
+/// 测试用：走已建好的 client，避免测试里再起一遍网络栈。
+#[cfg(test)]
+pub(crate) async fn prune_revoked_remote_devices_with_client(
+    database: &Database,
+    client: &WebDavClient,
+    remote_path: &str,
+) -> RepositoryResult<i64> {
+    let connection = database.connect()?;
+    let current_device_id = device_id(&connection)?;
+    drop(connection);
+
+    let root = validated_remote_root(remote_path)?;
+    let manifest_path = format!("{root}/manifest.json");
+    let (value, etag) = client
+        .get_json_with_etag(&manifest_path)
+        .await
+        .map_err(|error| RepositoryError::Tauri(error.to_string()))?;
+    let mut manifest: Manifest = serde_json::from_value(value)
+        .map_err(|_| RepositoryError::Validation("invalid remote manifest"))?;
+    validate_manifest(&manifest)?;
+
+    let before = manifest.devices.len();
+    manifest
+        .devices
+        .retain(|device| device.enabled || device.id == current_device_id);
+    let removed_remotely = (before - manifest.devices.len()) as i64;
+    if removed_remotely > 0 {
+        manifest.updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        put_manifest(
+            client,
+            &manifest_path,
+            &manifest,
+            etag.as_deref(),
+            manifest.latest_sequence,
+            &current_device_id,
+        )
+        .await?;
+    }
+
+    let connection = database.connect()?;
+    let removed_locally = sync_repository::prune_revoked_devices(&connection)?;
+    Ok(removed_remotely.max(removed_locally))
+}
+
 #[cfg(test)]
 pub(crate) async fn revoke_remote_device_with_client(
     database: &Database,
@@ -202,6 +317,12 @@ async fn run_with_client_mode(
     // A single remote batch is capped at 500 operations. Keep draining the
     // local queue in the same user-triggered sync so large offline edits do
     // not silently wait for a later lifecycle event.
+    //
+    // 序号争用重试：两台设备同时同步时，双方都会读到同一个 latestSequence，
+    // 各自去占 sequence+1，后到的那个必然被拒。这不是错误而是正常并发——
+    // 这里直接重开一轮（重读 manifest → 拿到新序号），不向用户报错。
+    // 上限 3 次：超过就说明对方持续在写，交给上层的退避重试。
+    let mut sequence_conflict_retries = 0_usize;
     let mut first_pass = true;
     loop {
         let mode = if first_pass {
@@ -210,13 +331,30 @@ async fn run_with_client_mode(
         } else {
             InitialSyncMode::Merge
         };
-        run_with_client_once(database, client, remote_path, mode).await?;
+        match run_with_client_once(database, client, remote_path, mode).await {
+            Ok(()) => {}
+            Err(error)
+                if error.is_retryable_conflict()
+                    && sequence_conflict_retries < MAX_SEQUENCE_CONFLICT_RETRIES =>
+            {
+                sequence_conflict_retries += 1;
+                // 让出一点时间，避免两台设备退避步调完全一致而反复撞车。
+                tokio::time::sleep(std::time::Duration::from_millis(
+                    120 * sequence_conflict_retries as u64,
+                ))
+                .await;
+                continue;
+            }
+            Err(error) => return Err(error),
+        }
         let connection = database.connect()?;
         if sync_repository::pending_count(&connection)? == 0 {
             return Ok(());
         }
     }
 }
+
+const MAX_SEQUENCE_CONFLICT_RETRIES: usize = 3;
 
 async fn run_with_client_once(
     database: &Database,
@@ -422,13 +560,34 @@ async fn run_with_client_once(
         sequence,
     )?;
     let batch_path = format!("{root}/changes/{sequence:020}.json");
-    put_change_batch_create_only(
-        client,
-        &batch_path,
-        &batch_value,
-        "remote sequence was claimed by another device; retry sync",
-    )
-    .await?;
+    let batch_write = put_change_batch_create_only(client, &batch_path, &batch_value).await?;
+    // 孤儿批次接管（见 `BatchWrite::AlreadyMine`）：这份批次是本机上次写到一半
+    // 留下的（文件已写、manifest 没推），于是 `latestSequence` 永远停在 N，
+    // 之后每次同步都去占 N+1 并撞车——**自动重试无法自愈**，因为冲突永远
+    // 发生在同一个序号上。
+    //
+    // 处理方式：承认这份孤儿批次是远端历史的一部分，只把 manifest 推进到它，
+    // 然后立刻返回让外层再开一轮——本地待传变更**保持 pending**（孤儿批次里
+    // 是旧内容，绝不能拿它当成"已上传"去清 pending），下一轮会在 N+2 正常上传。
+    let adopted_orphan = matches!(batch_write, BatchWrite::AlreadyMine);
+    if adopted_orphan {
+        let previous_sequence = manifest.latest_sequence;
+        manifest.latest_sequence = sequence;
+        manifest.updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        put_manifest(
+            client,
+            &manifest_path,
+            &manifest,
+            manifest_etag.as_deref(),
+            previous_sequence,
+            &local_device_id,
+        )
+        .await?;
+        sync_repository::set_state(&connection, "lastRemoteSequence", &sequence.to_string())?;
+        // 不标记 uploaded、不更新 lastSyncAt：本轮没有真正上传任何东西。
+        // 外层会重新跑一轮，在下一个序号上把 pending 真正推上去。
+        return Ok(());
+    }
     if pending_total <= MAX_BATCH_OPERATIONS as i64 && operation_count == changes.len() {
         let mut snapshot = build_snapshot(&mut connection, sequence)?;
         snapshot.created_at = batch.created_at.clone();
@@ -436,13 +595,7 @@ async fn run_with_client_once(
             let snapshot_path = format!("{root}/snapshots/{sequence:020}.json.gz");
             encrypt_operations(&mut snapshot.operations, encryption.as_ref())?;
             let snapshot_payload = encode_snapshot(&snapshot)?;
-            put_snapshot_create_only(
-                client,
-                &snapshot_path,
-                &snapshot_payload,
-                "remote snapshot sequence was claimed by another device; retry sync",
-            )
-            .await?;
+            put_snapshot_create_only(client, &snapshot_path, &snapshot_payload).await?;
             let verified_snapshot = client
                 .get_snapshot(&snapshot_path)
                 .await
