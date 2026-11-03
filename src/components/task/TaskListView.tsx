@@ -388,16 +388,18 @@ export function TaskListView({
         </>
       )}
       {!deletedView && !batchMode && onQuickCreate && (
-        <TaskQuickComposer
-          lists={lists}
-          defaultListId={defaultListId}
-          parseNaturalLanguage={parseNaturalLanguage}
-          overrides={
-            // 今天视图里新建的事项要留在当前视图，否则建完就"消失"
-            todayView ? { scheduledDate: toDateKey(new Date()) } : undefined
-          }
-          onCreate={onQuickCreate}
-        />
+        <div className="task-composer-dock">
+          <TaskQuickComposer
+            lists={lists}
+            defaultListId={defaultListId}
+            parseNaturalLanguage={parseNaturalLanguage}
+            overrides={
+              // 今天视图里新建的事项要留在当前视图，否则建完就"消失"
+              todayView ? { scheduledDate: toDateKey(new Date()) } : undefined
+            }
+            onCreate={onQuickCreate}
+          />
+        </div>
       )}
     </div>
   );

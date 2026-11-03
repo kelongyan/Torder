@@ -63,14 +63,17 @@ export function WidgetQuickAdd({
         priority: parsed.priority ?? 1,
         listId,
         tags: parsed.tags,
-        // 无日期词落到小窗当前查看日期；「到周X」截止语法从当前查看日期
-        // 跨到截止日（区间任务，便签逐日可见）；普通日期词只设截止（原行为）
+        // 显式起点优先；否则无日期词落到小窗当前查看日期，「到周X」截止
+        // 语法从当前查看日期跨到截止日（区间任务，便签逐日可见），普通
+        // 日期词只设截止（原行为）
         dueAt: parsed.dueAt,
-        scheduledDate: parsed.dueAt
-          ? parsed.dueIsDeadline
-            ? targetDateKey
-            : null
-          : targetDateKey,
+        scheduledDate:
+          parsed.startDateKey ??
+          (parsed.dueAt
+            ? parsed.dueIsDeadline
+              ? targetDateKey
+              : null
+            : targetDateKey),
         remindBefore: null,
       });
       setTitle("");
@@ -93,7 +96,7 @@ export function WidgetQuickAdd({
           // 的 Suggestions 在某些情况下不认这里的 off。
           autoComplete="off"
           value={title}
-          placeholder="输入事项，按 Enter 添加"
+          placeholder="按 Enter 添加（支持「到下周一」）"
           aria-label="快速添加任务"
           disabled={busy}
           tabIndex={open ? 0 : -1}

@@ -66,8 +66,11 @@ export function MiniApp() {
             : (lists[0]?.id ?? "work")),
         tags: parsed.tags,
         dueAt: parsed.dueAt,
-        // 「到周X」截止语法：从今天跨到截止日（区间任务，便签逐日可见）
-        scheduledDate: parsed.dueIsDeadline ? localDateKey(new Date()) : null,
+        // 显式起点优先；否则「到周X」截止语法从今天跨到截止日
+        //（区间任务，便签逐日可见）
+        scheduledDate:
+          parsed.startDateKey ??
+          (parsed.dueIsDeadline ? localDateKey(new Date()) : null),
         remindBefore: null,
       });
       notifyTasksChanged("mini");
@@ -89,7 +92,7 @@ export function MiniApp() {
           type="text"
           autoComplete="off"
           value={text}
-          placeholder="速记：明天 3 点 #工作 !高 交周报"
+          placeholder="速记：明天 3 点 #工作 !高 / 到下周一 交周报"
           aria-label="快速创建任务"
           onChange={(event) => {
             setText(event.target.value);

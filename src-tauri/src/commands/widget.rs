@@ -55,18 +55,25 @@ pub fn hide_widget_window(app: AppHandle) -> Result<(), String> {
 }
 
 /// 便签磨砂玻璃（Acrylic）。enabled=true 在 widget 窗口后面开启 SWCA Acrylic
-/// 模糊（tint 用深色磨砂暗调 RGB(20, 24, 30)，alpha 即透明度旋钮 0–1 → 0–255，真生效）；
-/// false 清除材质恢复不透明纸面。走自实现 SWCA（`crate::acrylic`）而非
-/// window-vibrancy：后者在 Win11 22H2+ 走 SYSTEMBACKDROP 路线忽略 tint color，
-/// 导致旋钮失灵且背板不渲染（2026-09-09 真机实锤后替换）。仅 Windows 10
-/// v1809+ 生效，其它平台与 widget 窗口不存在时均为 no-op（前端按
-/// noteTheme === "glass" 决定 enabled）。
+/// 模糊；`light=true`（frost 浅色磨砂）用浅色 tint，否则用深色磨砂暗调。
+/// alpha 即透明度旋钮 0–1，深色折算 0–120、浅色额外抬高 20–150，两边各自
+/// 标定以保证 15% 下限仍有足够底色；false 清除材质恢复不透明纸面。走自实现
+/// SWCA（`crate::acrylic`）而非 window-vibrancy：后者在 Win11 22H2+ 走
+/// SYSTEMBACKDROP 路线忽略 tint color，导致旋钮失灵且背板不渲染
+/// （2026-09-09 真机实锤后替换）。仅 Windows 10 v1809+ 生效，其它平台与
+/// widget 窗口不存在时均为 no-op（前端按 isGlassNoteTheme 决定 enabled，
+/// frost 传 light=true）。
 /// 固定态不需要守卫：2026-09-29 起「固定」只改 owner（不再把窗口挂成
 /// Progman 子窗口），便签始终是顶层窗口，SWCA 照常可用。
 /// 已知退化：Win10 v1903+/Win11 拖动窗口会卡顿（未公开 API 缺陷），
 /// 见 docx/widget-glass-mode-plan-2026-09-09.md §4。
 #[tauri::command]
-pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(), String> {
+pub fn set_widget_glass(
+    app: AppHandle,
+    enabled: bool,
+    alpha: f64,
+    light: bool,
+) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let Some(window) = app.get_webview_window(widget::WIDGET_LABEL) else {
@@ -75,16 +82,27 @@ pub fn set_widget_glass(app: AppHandle, enabled: bool, alpha: f64) -> Result<(),
         let hwnd = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
         if enabled {
             // SWCA Acrylic 的 tint_alpha 控制系统底板遮罩权重：全额 255 会糊成死黑实心板；
-            // 折算到 0–120 区间（默认 0.5 对应 60 遮罩），保留充足通透感同时激发 DWM 磨砂模糊
-            let tint_alpha = (alpha.clamp(0.0, 1.0) * 120.0).round() as u8;
-            crate::acrylic::apply_acrylic(hwnd, (18, 22, 28, tint_alpha))?;
+            // 深色折算到 0–120（默认 0.5 对应 60 遮罩），保留充足通透感同时激发 DWM 磨砂模糊。
+            // 浅色从 20 起步、上限 150：浅色磨砂若过透，深色文字压在深色壁纸上会失去对比度。
+            let alpha = alpha.clamp(0.0, 1.0);
+            let tint_alpha = if light {
+                (20.0 + alpha * 130.0).round() as u8
+            } else {
+                (alpha * 120.0).round() as u8
+            };
+            let tint = if light {
+                (244, 248, 252, tint_alpha)
+            } else {
+                (18, 22, 28, tint_alpha)
+            };
+            crate::acrylic::apply_acrylic(hwnd, tint)?;
         } else {
             crate::acrylic::clear_acrylic(hwnd)?;
         }
     }
 
     #[cfg(not(target_os = "windows"))]
-    let _ = (app, enabled, alpha);
+    let _ = (app, enabled, alpha, light);
 
     Ok(())
 }

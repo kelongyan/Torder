@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   getWidgetSettings,
   patchWidgetSettings,
 } from "../../services/widgetService";
 import {
   defaultWidgetAppearance,
+  isGlassNoteTheme,
   listSystemFonts,
   MIN_NOTE_GLASS_OPACITY,
   noteFontOptions,
@@ -17,13 +24,12 @@ import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
 import { StickyNote, Type } from "lucide-react";
 
-const NOTE_THEME_DETAILS: Record<
-  NoteThemeId,
-  { title: string; desc: string }
-> = {
-  sky: { title: "海蓝纸面", desc: "经典便签 · 温暖手写" },
-  glass: { title: "通透磨砂", desc: "深色亚克力 · 融入桌面" },
-};
+const NOTE_THEME_DETAILS: Record<NoteThemeId, { title: string; desc: string }> =
+  {
+    sky: { title: "海蓝纸面", desc: "经典便签 · 温暖手写" },
+    glass: { title: "深色磨砂", desc: "深色亚克力 · 沉浸融桌" },
+    frost: { title: "浅色磨砂", desc: "浅色亚克力 · 柔和融桌" },
+  };
 
 /** 滑杆拖动期间只更新本地状态，停顿 300ms 才落库——避免每像素一次 IPC */
 const SLIDER_FLUSH_MS = 300;
@@ -37,9 +43,9 @@ type SliderField = "noteGlassOpacity";
  * docs/appearance-layout-optimization-plan.md §3。
  *
  * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组、旧全局不透明度
- * 滑杆全部移除。2026-09-09 老大定稿：新增磨砂（glass）主题卡，透明度归其
- * 专属——磨砂卡右上角齿轮弹出横向滑杆（30–100%，参考图胶囊渐变轨道 +
- * 白色大圆拇指），透明度实时预览到磨砂色卡并防抖 300ms 落库。
+ * 滑杆全部移除。2026-09-09 定稿：新增深色磨砂（glass）主题卡，透明度归其
+ * 专属——磨砂卡下方横向滑杆（2026-11-02 起 15–100%），实时预览并防抖落库。
+ * 2026-11-02（issue #13）：新增浅色磨砂（frost），两种磨砂共用同一滑杆；
  * 主题/字体点击立即落库；卸载时 flush 防抖尾值。
  *
  * - 纸面效果以桌面小窗本体为预览（改动经广播实时生效，
@@ -129,8 +135,6 @@ export function SettingsWidgetAppearanceSection({
     [],
   );
 
-
-
   if (isMobile() || !appearance) return null;
 
   /**
@@ -208,7 +212,6 @@ export function SettingsWidgetAppearanceSection({
     void listSystemFonts().then((fonts) => setSystemFonts(fonts));
   }
 
-
   /** 恢复默认外观：重置外观字段（字号已锁死、开关组已无 UI，落库值由
    *  normalizeAppearance 归一），几何/锚点/启用开关不碰 */
   function handleResetDefaults() {
@@ -231,7 +234,7 @@ export function SettingsWidgetAppearanceSection({
   }
 
   const glassOpacityPercent = Math.round(appearance.noteGlassOpacity * 100);
-  // 渐变已选段比例按滑杆刻度折算（min 30 起步），与拇指位置逐像素一致
+  // 渐变已选段比例按滑杆刻度折算（min 15 起步），与拇指位置逐像素一致
   const glassFillPercent = Math.round(
     ((glassOpacityPercent - MIN_NOTE_GLASS_OPACITY * 100) /
       (100 - MIN_NOTE_GLASS_OPACITY * 100)) *
@@ -252,7 +255,7 @@ export function SettingsWidgetAppearanceSection({
         >
           {noteThemeOptions.map((theme) => {
             const active = appearance.noteTheme === theme.id;
-            const isGlass = theme.id === "glass";
+            const isGlass = isGlassNoteTheme(theme.id);
             const detail = NOTE_THEME_DETAILS[theme.id];
             return (
               <label
@@ -290,8 +293,13 @@ export function SettingsWidgetAppearanceSection({
                 </div>
                 <div className="note-theme-card-body">
                   <div className="note-theme-card-header">
-                    <span className="note-theme-card-title">{detail.title}</span>
-                    <span className="note-theme-card-radio" aria-hidden="true" />
+                    <span className="note-theme-card-title">
+                      {detail.title}
+                    </span>
+                    <span
+                      className="note-theme-card-radio"
+                      aria-hidden="true"
+                    />
                   </div>
                   <span className="note-theme-card-desc">{detail.desc}</span>
                 </div>
@@ -300,8 +308,8 @@ export function SettingsWidgetAppearanceSection({
           })}
         </div>
 
-        {/* 磨砂透明度内联调节：选中通透磨砂时直接在下方呈现，不再用蹩脚的小齿轮浮层 */}
-        {appearance.noteTheme === "glass" && (
+        {/* 磨砂透明度内联调节：选中任一磨砂主题时直接在下方呈现 */}
+        {isGlassNoteTheme(appearance.noteTheme) && (
           <div className="note-glass-inline-panel">
             <div className="note-glass-slider-head">
               <span className="note-glass-slider-title">磨砂浓度</span>

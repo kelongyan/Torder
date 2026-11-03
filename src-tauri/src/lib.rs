@@ -189,11 +189,15 @@ pub fn run() {
                     app.handle(),
                     clock::is_clock_visible(app.handle()),
                 );
-                // 开机自启动以 --silent 拉起：静默驻留托盘，不弹主窗口
+                // 主窗口在配置里默认 visible:false，避免启动时先闪一帧再隐藏。
+                // --silent（开机自启动）保持隐藏、直接驻留托盘；普通启动在
+                // setup 完成后显示，托盘/全局快捷键的 show_main_window 仍可兜底。
                 if std::env::args().any(|arg| arg == "--silent") {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.hide();
                     }
+                } else {
+                    tray::show_main_window(app.handle());
                 }
             }
 

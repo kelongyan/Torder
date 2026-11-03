@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type { CreateTaskInput, TaskList } from "../../types/database";
 import { localDateKey } from "../../services/taskQuery";
@@ -9,15 +9,15 @@ import { parseQuickAddText } from "../../utils/taskHelpers";
  *
  * 收起态是一行「+ 快速新建」，点开变输入行；Enter 创建、Esc 收起、空值失焦自动收起。
  * 文本走 `parseQuickAddText`（与便签速记同一解析器），所以 `明天 15:00 交周报 #工作 !高`
- * 这类写法在两处行为一致。列表底部与看板列头共用本组件，差异只在 `variant` 与
- * 调用方给的 `overrides`。
+ * 与 `从今天到下周一 写周报` 这类写法在两处行为一致。列表底部与看板列头共用本组件，
+ * 差异只在 `variant` 与调用方给的 `overrides`。
  */
 export function TaskQuickComposer({
   lists,
   defaultListId,
   variant = "list",
   placeholder = "快速新建",
-  inputPlaceholder = "输入事项，Enter 创建（支持「明天 15:00 交周报 #工作 !高」）",
+  inputPlaceholder = "输入任务，回车创建",
   defaultOpen = false,
   /** T-10 甲组：设置里的「识别自然语言速记」开关，关闭则整句作标题。 */
   parseNaturalLanguage = true,
@@ -41,6 +41,8 @@ export function TaskQuickComposer({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  /** 「Enter 创建」提示的 id：语法示例对读屏是噪音，只有这条提示值得播报 */
+  const submitHintId = useId();
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -58,6 +60,7 @@ export function TaskQuickComposer({
           tags: [],
           dueAt: null,
           dueIsDeadline: false,
+          startDateKey: null,
         };
     const title = parsed.title.trim();
     // 整行都是修饰词（如只写了「#工作 !高」）时不建空标题任务
@@ -70,10 +73,13 @@ export function TaskQuickComposer({
         : // "work" 可能已被删除（issue #9），兜底落到第一个剩余清单。
           (lists[0]?.id ?? ""));
 
-    // 普通日期词只设截止（scheduledDate 置空）；「到周X」截止语法从当前
-    // 落位日期跨到截止日（区间任务，便签逐日可见），落位日期缺省为今天
+    // 显式起点（「从X到Y」/「X开始」）优先；否则普通日期词只设截止
+    //（scheduledDate 置空），「到周X」截止语法从当前落位日期跨到截止日
+    //（区间任务，便签逐日可见），落位日期缺省为今天。
     let scheduledDate: string | null | undefined;
-    if (parsed.dueAt) {
+    if (parsed.startDateKey) {
+      scheduledDate = parsed.startDateKey;
+    } else if (parsed.dueAt) {
       scheduledDate = parsed.dueIsDeadline
         ? (overrides?.scheduledDate ?? localDateKey(new Date()))
         : null;
@@ -108,7 +114,7 @@ export function TaskQuickComposer({
         <span className="task-composer-plus" aria-hidden="true">
           <Plus />
         </span>
-        <span>{placeholder}</span>
+        <span className="task-composer-label">{placeholder}</span>
       </button>
     );
   }
@@ -118,36 +124,58 @@ export function TaskQuickComposer({
       <span className="task-composer-plus" aria-hidden="true">
         <Plus />
       </span>
-      <input
-        ref={inputRef}
-        className="task-composer-input"
-        type="text"
-        name="task-quick-add"
-        autoComplete="off"
-        value={text}
-        placeholder={inputPlaceholder}
-        aria-label="快速新建事项"
-        disabled={busy}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            // Ctrl/⌘ + Enter 连续录入，普通 Enter 建完收起
-            void submit(event.ctrlKey || event.metaKey);
-            return;
-          }
-          if (event.key === "Escape") {
-            // 阻止冒泡到全局 Esc 链（否则会连带关掉详情抽屉等）
-            event.preventDefault();
-            event.stopPropagation();
-            setText("");
-            setOpen(false);
-          }
-        }}
-        onBlur={() => {
-          if (!text.trim()) setOpen(false);
-        }}
-      />
+      <div className="task-composer-field">
+        <input
+          ref={inputRef}
+          className="task-composer-input"
+          type="text"
+          name="task-quick-add"
+          autoComplete="off"
+          value={text}
+          placeholder={inputPlaceholder}
+          aria-label="快速新建事项"
+          aria-describedby={variant === "list" ? submitHintId : undefined}
+          disabled={busy}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              // Ctrl/⌘ + Enter 连续录入，普通 Enter 建完收起
+              void submit(event.ctrlKey || event.metaKey);
+              return;
+            }
+            if (event.key === "Escape") {
+              // 阻止冒泡到全局 Esc 链（否则会连带关掉详情抽屉等）
+              event.preventDefault();
+              event.stopPropagation();
+              setText("");
+              setOpen(false);
+            }
+          }}
+          onBlur={() => {
+            if (!text.trim()) setOpen(false);
+          }}
+        />
+        {variant === "list" && (
+          <div className="task-composer-meta">
+            <span className="task-composer-chip" aria-hidden="true">
+              #清单
+            </span>
+            <span className="task-composer-chip" aria-hidden="true">
+              !优先级
+            </span>
+            <span className="task-composer-chip" aria-hidden="true">
+              明天 15:00
+            </span>
+            <span className="task-composer-chip" aria-hidden="true">
+              到下周一
+            </span>
+            <span className="task-composer-submit-hint" id={submitHintId}>
+              Enter 创建
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

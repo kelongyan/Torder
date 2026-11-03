@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   fontStackFor,
+  isGlassNoteTheme,
   isNoteFontId,
   isNoteFontPresetId,
+  MIN_NOTE_GLASS_OPACITY,
   normalizeAppearance,
   noteFontIds,
   noteFontOptions,
+  noteThemeIds,
 } from "./widgetAppearance";
 
 /**
@@ -97,9 +100,7 @@ describe("fontStackFor（字体栈生成）", () => {
 
   it("转义家族名里的引号与反斜杠（防注入破坏整条声明）", () => {
     expect(fontStackFor(`My"Font`)).toBe(`"My\\"Font", var(--font-ui)`);
-    expect(fontStackFor("Back\\slash")).toBe(
-      `"Back\\\\slash", var(--font-ui)`,
-    );
+    expect(fontStackFor("Back\\slash")).toBe(`"Back\\\\slash", var(--font-ui)`);
   });
 
   it("剔除换行符（CSS 字符串里换行非法，会让声明提前终止）", () => {
@@ -131,6 +132,44 @@ describe("fontStackFor（字体栈生成）", () => {
         stack.includes("var(--font-ui)") || stack.includes("sans-serif"),
       ).toBe(true);
     }
+  });
+});
+
+/**
+ * 主题枚举：2026-11-02 新增浅色磨砂（frost）。glass 与 frost 共用玻璃结构
+ * （data-note-material="glass"），但配色与 Rust tint 分离；未知主题仍回退 sky。
+ */
+describe("noteTheme：glass / frost", () => {
+  it("主题枚举包含 sky / glass / frost", () => {
+    expect(noteThemeIds).toEqual(["sky", "glass", "frost"]);
+  });
+
+  it("frost 是合法主题，归一后保留", () => {
+    expect(normalizeAppearance({ noteTheme: "frost" }).noteTheme).toBe("frost");
+  });
+
+  it("glass 仍保持原值，未知主题回退 sky", () => {
+    expect(normalizeAppearance({ noteTheme: "glass" }).noteTheme).toBe("glass");
+    expect(normalizeAppearance({ noteTheme: "sakura" }).noteTheme).toBe("sky");
+  });
+
+  it("isGlassNoteTheme 只认两种磨砂", () => {
+    expect(isGlassNoteTheme("glass")).toBe(true);
+    expect(isGlassNoteTheme("frost")).toBe(true);
+    expect(isGlassNoteTheme("sky")).toBe(false);
+  });
+
+  it("noteGlassOpacity 下限降到 0.15，上界仍为 1", () => {
+    expect(MIN_NOTE_GLASS_OPACITY).toBe(0.15);
+    expect(
+      normalizeAppearance({ noteGlassOpacity: 0.05 }).noteGlassOpacity,
+    ).toBe(MIN_NOTE_GLASS_OPACITY);
+    expect(
+      normalizeAppearance({ noteGlassOpacity: 0.15 }).noteGlassOpacity,
+    ).toBe(0.15);
+    expect(
+      normalizeAppearance({ noteGlassOpacity: 1.5 }).noteGlassOpacity,
+    ).toBe(1);
   });
 });
 

@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { FileText, Info, ScrollText } from "lucide-react";
+import {
+  FileText,
+  GitBranch,
+  Info,
+  MessageSquare,
+  ScrollText,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DialogShell } from "./DialogShell";
 import { usePresence } from "../../hooks/usePresence";
 import { CHANGELOG, LICENSES } from "../../constants/changelog";
+import { openExternalLink } from "../../services/appService";
+import type { ToastKind } from "../../types/ui";
 
 type AboutDialog = "changelog" | "licenses" | null;
 
@@ -11,7 +19,11 @@ type AboutDialog = "changelog" | "licenses" | null;
  * F2 · T-11：关于 pane 的更新日志 / 开源许可入口（原灰显行转正）。
  * 内容为静态数据（constants/changelog.ts），弹层挂在设置对话框之上。
  */
-export function SettingsAboutExtras() {
+export function SettingsAboutExtras({
+  onToast,
+}: {
+  onToast: (message: string, type: ToastKind) => void;
+}) {
   const [requested, setRequested] = useState<AboutDialog>(null);
   const presence = usePresence<Exclude<AboutDialog, null>>(requested, 220);
   const openDialog = presence.value;
@@ -25,12 +37,48 @@ export function SettingsAboutExtras() {
     { id: "licenses", label: "开源许可", icon: FileText },
   ];
 
+  const externalLinks: Array<{ label: string; url: string; icon: LucideIcon }> =
+    [
+      {
+        label: "GitHub 仓库",
+        url: "https://github.com/kelongyan/Torder",
+        icon: GitBranch,
+      },
+      {
+        label: "问题反馈",
+        url: "https://github.com/kelongyan/Torder/issues",
+        icon: MessageSquare,
+      },
+    ];
+
+  async function handleOpenExternal(url: string) {
+    try {
+      await openExternalLink(url);
+    } catch (error) {
+      onToast(`打开链接失败: ${String(error)}`, "error");
+    }
+  }
+
   return (
     <section className="settings-section">
       <h3 className="settings-section-title">
         <Info aria-hidden="true" className="icon-sm" />
         更多信息
       </h3>
+      {externalLinks.map(({ label, url, icon: Icon }) => (
+        <div key={url} className="settings-row settings-action-row">
+          <span className="settings-version">{label}</span>
+          <button
+            type="button"
+            className="btn-secondary"
+            aria-label={`打开${label}`}
+            onClick={() => void handleOpenExternal(url)}
+          >
+            <Icon aria-hidden="true" className="icon-sm" />
+            打开
+          </button>
+        </div>
+      ))}
       {entries.map(({ id, label, icon: Icon }) => (
         <div key={id} className="settings-row settings-action-row">
           <span className="settings-version">{label}</span>

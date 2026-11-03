@@ -259,6 +259,11 @@ export interface QuickAddParsed {
    * 恒为 false——那只表达「某天要做」，不表达「持续到某天」。
    */
   dueIsDeadline: boolean;
+  /**
+   * 「从X到Y」或「X开始」里的起点日期键（YYYY-MM-DD）。null = 未显式写起点，
+   * 由调用方按当前视图/今天决定。起点只在跨天任务里与 scheduledDate 配合。
+   */
+  startDateKey: string | null;
 }
 
 const weekdayNumber: Record<string, number> = {
@@ -274,24 +279,38 @@ const weekdayNumber: Record<string, number> = {
 
 /**
  * 自然语言快速添加解析：`#清单` `!高|!中|!低` `今天/明天/后天/周X/下周X`
- * `到周X`（截止词，跨天任务）`HH:MM`。其余文本拼成标题。
- * 未识别的 token 一律保留在标题里，不打断输入。
- * 日期词与截止词占同一个槽位，先出现者生效（`到X` 生效时置 dueIsDeadline）。
+ * `到周X`（截止词，跨天任务）`从X到Y` / `X开始`（显式起点）`HH:MM`。
+ * 其余文本拼成标题；未识别的 token 一律保留，不打断输入。
+ * 日期词与截止词占同一个槽位，先出现者生效（`到X` / `从X到Y` 生效时置
+ * dueIsDeadline）。中文逗号/顿号/分号与空白都作分隔符便于口语式断句，
+ * 但分隔符只在**两侧都是标题片段**时才留在标题里（中文标点原样保留，
+ * 空白归一为单个空格）——`买牛奶，鸡蛋` 的逗号不会丢，`周报，今天开始`
+ * 里被语法吃掉那半边的逗号才随 token 一起丢弃。
  */
 export function parseQuickAddText(
   text: string,
   lists: TaskList[],
 ): QuickAddParsed {
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  // token 与分隔符交替切出：分隔符要原样留着，供标题按上下文取舍
+  const segments = text.trim().match(/[，、；\s]+|[^，、；\s]+/g) ?? [];
   let priority: 0 | 1 | 2 | undefined;
   let listId: string | undefined;
   const tags: string[] = [];
   let dateToken: string | undefined;
+  let startDateKey: string | null = null;
   let dueIsDeadline = false;
   let timeToken: string | undefined;
   const titleParts: string[] = [];
+  let pendingSeparator = "";
 
-  for (const token of tokens) {
+  for (const token of segments) {
+    if (/^[，、；\s]+$/.test(token)) {
+      pendingSeparator += token;
+      continue;
+    }
+    // 进标题才算「用得上」：被语法消费的 token 会连同挂起的分隔符一起丢弃
+    const separator = pendingSeparator;
+    pendingSeparator = "";
     if (token.startsWith("#")) {
       const name = token.slice(1);
       const list = lists.find((item) => item.name === name);
@@ -319,6 +338,27 @@ export function parseQuickAddText(
         continue;
       }
     }
+    // 「从X到Y」：一个 token 同时给出起点与截止，是最贴近口语的跨天写法
+    const spanMatch = token.match(
+      /^从(今天|明天|后天|(?:下?周|星期)[一二三四五六日天])到(今天|明天|后天|(?:下?周|星期)[一二三四五六日天])$/,
+    );
+    if (spanMatch) {
+      // 已有日期槽位时让位（首个日期词生效），但 token 仍然吞掉不进标题
+      if (!dateToken && startDateKey === null) {
+        startDateKey = resolveQuickAddStartDate(spanMatch[1]);
+        dateToken = spanMatch[2];
+        dueIsDeadline = true;
+      }
+      continue;
+    }
+    // 「X开始」只声明起点，不改变截止语义
+    const startMatch = token.match(
+      /^(今天|明天|后天|(?:下?周|星期)[一二三四五六日天])开始$/,
+    );
+    if (startMatch) {
+      startDateKey ??= resolveQuickAddStartDate(startMatch[1]);
+      continue;
+    }
     if (
       /^(今天|明天|后天)$/.test(token) ||
       /^(下?周|星期)[一二三四五六日天]$/.test(token)
@@ -339,21 +379,71 @@ export function parseQuickAddText(
       timeToken ??= token;
       continue;
     }
+    if (titleParts.length > 0) {
+      titleParts.push(joinTitleSeparator(separator));
+    }
     titleParts.push(token);
   }
 
+  let dueAt = resolveQuickAddDue(dateToken, timeToken);
+  // 起点晚于截止（如「从下周一到周五」按当日口径解析出本周五早于下周一）：
+  // 截止顺延整周（同周内的相对位置不变），而不是丢掉起点——丢起点会让
+  // 「从下周一到周五」塌成「今天到本周五」，与用户说的不是一回事。
+  const dueDateKey = toLocalDateKey(dueAt);
+  if (startDateKey && dueAt && dueDateKey && startDateKey > dueDateKey) {
+    const shifted = new Date(dueAt);
+    shifted.setDate(shifted.getDate() + 7);
+    dueAt = shifted.toISOString();
+  }
+
   return {
-    title: titleParts.join(" "),
+    title: titleParts.join(""),
     priority,
     listId,
     tags: normalizeTags(tags),
-    dueAt: resolveQuickAddDue(dateToken, timeToken),
+    dueAt,
     dueIsDeadline,
+    startDateKey,
   };
+}
+
+/** 标题片段之间的分隔符：纯空白归一为单个空格，含中文标点则原样保留。 */
+function joinTitleSeparator(separator: string): string {
+  const withoutPunctuation = separator.replace(/[，、；]/g, "");
+  return withoutPunctuation === separator ? " " : separator.trim();
 }
 
 export function parseTagsInput(value: string): string[] {
   return normalizeTags(value.split(/[\s,，、]+/));
+}
+
+/** 日期词 → 当地 Date（保持当前时分；只解析日期，不处理时间词）。 */
+function resolveQuickAddDate(dateToken: string): Date {
+  const date = new Date();
+  const today = new Date();
+  if (dateToken === "今天") {
+    // 保持当天
+  } else if (dateToken === "明天") {
+    date.setDate(date.getDate() + 1);
+  } else if (dateToken === "后天") {
+    date.setDate(date.getDate() + 2);
+  } else {
+    const match = dateToken.match(/^(下?周|星期)([一二三四五六日天])$/);
+    if (match) {
+      const target = weekdayNumber[match[2]];
+      const isNextWeek = match[1] === "下周";
+      let diff = target - (today.getDay() || 7);
+      if (isNextWeek) diff += 7;
+      else if (diff <= 0) diff += 7;
+      date.setDate(today.getDate() + diff);
+    }
+  }
+  return date;
+}
+
+/** 显式起点日期词 → YYYY-MM-DD（scheduledDate 只需要日期键，不含时刻）。 */
+function resolveQuickAddStartDate(dateToken: string): string {
+  return toDateKey(resolveQuickAddDate(dateToken));
 }
 
 /** 日期词 + 时间词 → ISO；无日期词时时间已过顺延到明天。 */
@@ -363,27 +453,7 @@ function resolveQuickAddDue(
 ): string | null {
   if (!dateToken && !timeToken) return null;
 
-  const date = new Date();
-  const today = new Date();
-  if (dateToken) {
-    if (dateToken === "今天") {
-      // 保持当天
-    } else if (dateToken === "明天") {
-      date.setDate(date.getDate() + 1);
-    } else if (dateToken === "后天") {
-      date.setDate(date.getDate() + 2);
-    } else {
-      const match = dateToken.match(/^(下?周|星期)([一二三四五六日天])$/);
-      if (match) {
-        const target = weekdayNumber[match[2]];
-        const isNextWeek = match[1] === "下周";
-        let diff = target - (today.getDay() || 7);
-        if (isNextWeek) diff += 7;
-        else if (diff <= 0) diff += 7;
-        date.setDate(today.getDate() + diff);
-      }
-    }
-  }
+  const date = dateToken ? resolveQuickAddDate(dateToken) : new Date();
 
   if (timeToken) {
     const [hour, minute] = timeToken.split(":").map(Number);

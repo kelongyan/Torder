@@ -90,7 +90,7 @@
 
 /* === 磨砂主题透明样式（深色通透 Acrylic 磨砂） ===
    DWM Acrylic 路线：Rust `set_widget_glass` 在 widget 窗口后面开深色 Acrylic
-   模糊（tint = RGB(20, 24, 30)，tint alpha = noteGlassOpacity）。
+   模糊（tint = RGB(18, 22, 28)，tint alpha = noteGlassOpacity × 120）。
    本块提供深色通透毛玻璃视觉：
    - 双选择器保证特异性：[data-note-theme="glass"], :root[data-note-theme="glass"]
    - 外层 .widget-stage 背景透明，消除双层叠加造成的泛白浑浊
@@ -135,21 +135,55 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-/* 消除 stage 双层半透明叠加，全权由 shell::before 承载单层玻璃背景 */
-:root[data-note-theme="glass"] .widget-stage {
+/* === 浅色磨砂（frost，2026-11-02） ===
+   与 glass 共用 Acrylic 结构与交互规则，仅换浅色纸面 + 深墨字。
+   CSS 纸面 alpha 用 0.32 + 0.48×滑杆，保证 15% 下限时仍有足够底色承载
+   深色文字（浅色玻璃若过透，深字压在深色壁纸上会失去对比度）；Rust 侧
+   tint 单独抬到 20–150，不共用深色主题的 0–120。 */
+[data-note-theme="frost"],
+:root[data-note-theme="frost"] {
+  --note-glass-tint-alpha: calc(0.32 + var(--note-glass-alpha, 0.5) * 0.48);
+  --note-bg-start: rgba(248, 250, 252, var(--note-glass-tint-alpha));
+  --note-bg-mid: rgba(244, 247, 251, var(--note-glass-tint-alpha));
+  --note-bg-end: rgba(238, 243, 249, var(--note-glass-tint-alpha));
+  --note-text: #1f2937;
+  --note-title: #1e4f7a;
+  --note-muted: rgba(31, 41, 55, 0.72);
+  --note-ink: 31, 41, 55;
+  --note-check: #17705b;
+  --note-high: #b42318;
+  --note-strong: #1e4f7a;
+  --note-rule: rgba(31, 41, 55, 0.12);
+  --note-texture-1: rgba(255, 255, 255, 0.45);
+  --note-texture-2: rgba(255, 255, 255, 0.35);
+  --note-sheen: rgba(255, 255, 255, 0.5);
+  --note-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    0 12px 40px rgba(15, 23, 42, 0.22);
+  /* 浅色菜单底：比纸面更实一档，避免深字压在半透明浮层上 */
+  --note-menu-bg: rgba(250, 252, 255, 0.97);
+  --note-menu-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.2),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+/* 消除 stage 双层半透明叠加，全权由 shell::before 承载单层玻璃背景。
+   glass / frost 共用结构，故按 material 标记命中。 */
+:root[data-note-material="glass"] .widget-stage {
   background: transparent !important;
 }
 
 /* 隐藏拟物便签纸元素（图钉、卷角），收拢顶部留白为现代玻璃卡片 */
-:root[data-note-theme="glass"] .widget-pin-top {
+:root[data-note-material="glass"] .widget-pin-top {
   display: none;
 }
 
-:root[data-note-theme="glass"] .widget-shell {
+:root[data-note-material="glass"] .widget-shell {
   padding-top: 16px;
 }
 
-:root[data-note-theme="glass"] .widget-shell::after {
+:root[data-note-material="glass"] .widget-shell::after {
   display: none;
 }
 
@@ -274,6 +308,126 @@
 
 :root[data-note-theme="glass"] .widget-resize-handle:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* === 浅色磨砂交互配色（frost，2026-11-02） ===
+   glass 的白色高光/白色文字规则在浅色纸面上不可用；这里逐项换成
+   深墨派生色。字号/布局不复制，仍由 material 结构块统一承载。 */
+:root[data-note-theme="frost"] .widget-title,
+:root[data-note-theme="frost"] .widget-item-title,
+:root[data-note-theme="frost"] .widget-item-edit-input {
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+:root[data-note-theme="frost"] .widget-meta {
+  color: rgba(31, 41, 55, 0.72);
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.65);
+  opacity: 1;
+}
+
+:root[data-note-theme="frost"] .widget-empty {
+  color: rgba(31, 41, 55, 0.78);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+  opacity: 1;
+}
+
+:root[data-note-theme="frost"] .widget-titlebar {
+  border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+}
+
+:root[data-note-theme="frost"] .widget-date-nav:hover,
+:root[data-note-theme="frost"] .widget-control:hover,
+:root[data-note-theme="frost"] .widget-close-btn:hover {
+  background: rgba(31, 41, 55, 0.08);
+  color: #1f2937;
+}
+
+:root[data-note-theme="frost"] .widget-date-today-btn {
+  border-color: rgba(31, 41, 55, 0.22);
+  color: rgba(31, 41, 55, 0.9);
+}
+
+:root[data-note-theme="frost"] .widget-date-today-btn:hover {
+  border-color: #1f2937;
+  background: rgba(31, 41, 55, 0.08);
+  color: #1f2937;
+}
+
+:root[data-note-theme="frost"] .widget-item:hover {
+  background: rgba(31, 41, 55, 0.05);
+}
+
+:root[data-note-theme="frost"] .widget-item:active {
+  background: rgba(31, 41, 55, 0.09);
+}
+
+:root[data-note-theme="frost"] .widget-item-checkbox {
+  border-color: rgba(31, 41, 55, 0.35);
+}
+
+:root[data-note-theme="frost"] .widget-item-checkbox:hover:not(:disabled) {
+  border-color: rgba(31, 41, 55, 0.75);
+}
+
+:root[data-note-theme="frost"] .widget-item-checkbox.checked {
+  background: rgba(23, 112, 91, 0.14);
+  border-color: #17705b;
+}
+
+:root[data-note-theme="frost"] .widget-item-checkbox.checked svg {
+  stroke: #17705b;
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-inner {
+  border-bottom: 1.5px solid rgba(31, 41, 55, 0.2);
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-inner:focus-within {
+  border-bottom-color: rgba(31, 41, 55, 0.65);
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-input {
+  color: #1f2937;
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-input::placeholder {
+  color: rgba(31, 41, 55, 0.45);
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-confirm {
+  background: rgba(31, 41, 55, 0.9);
+  color: #f8fafc;
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-confirm:disabled {
+  background: rgba(31, 41, 55, 0.1);
+  color: rgba(31, 41, 55, 0.35);
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-confirm:not(:disabled):hover {
+  background: #111827;
+  color: #ffffff;
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-cancel {
+  color: rgba(31, 41, 55, 0.65);
+}
+
+:root[data-note-theme="frost"] .widget-quick-add-cancel:hover {
+  background: rgba(31, 41, 55, 0.08);
+  color: #1f2937;
+}
+
+:root[data-note-theme="frost"] .widget-list {
+  scrollbar-color: rgba(31, 41, 55, 0.25) transparent;
+}
+
+:root[data-note-theme="frost"] .widget-list::-webkit-scrollbar-thumb {
+  background: rgba(31, 41, 55, 0.25);
+}
+
+:root[data-note-theme="frost"] .widget-resize-handle:hover {
+  background: rgba(31, 41, 55, 0.08);
 }
 
 /* === 透明窗（让桌面"墙"透过来，便签贴在墙上的视觉效果） === */

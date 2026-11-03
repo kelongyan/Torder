@@ -14,20 +14,31 @@ import { emit, listen } from "@tauri-apps/api/event";
  *   缓存只读于首帧前（main.tsx），用于消灭「默认纸色闪一帧」，不作数据源。
  */
 
-export const noteThemeIds = ["sky", "glass"] as const;
+export const noteThemeIds = ["sky", "glass", "frost"] as const;
 export type NoteThemeId = (typeof noteThemeIds)[number];
+
+/** glass / frost 共用同一套玻璃结构样式（data-note-material="glass"），
+ *  仅配色与 Rust tint 不同；sky 是不透明纸面，不参与。 */
+export function isGlassNoteTheme(
+  theme: NoteThemeId,
+): theme is "glass" | "frost" {
+  return theme === "glass" || theme === "frost";
+}
 
 /** 主题展示名（设置界面色卡）。顺序即 UI 呈现顺序；id 须与 widget.css 主题块一一对应。
  *  2026-09-08 老大定稿：纸色只保留海蓝（sky）并作为默认，其余配色与「跟随应用」
  *  全部移除；normalizeAppearance 会把旧存档里的历史主题值归一到 sky。
- *  2026-09-09 老大定稿：新增磨砂（glass）主题——DWM Acrylic 模糊 + 海蓝纸色
- *  alpha 化，透明度为该主题专属（色卡右上角齿轮设置，见 noteGlassOpacity）。 */
+ *  2026-09-09 定稿：新增深色磨砂（glass）——DWM Acrylic 模糊 + 海蓝纸色
+ *  alpha 化，透明度为该主题专属（见 noteGlassOpacity）。
+ *  2026-11-02 新增浅色磨砂（frost）：同一套 Acrylic 结构，浅色 tint + 深色墨迹，
+ *  解决深色磨砂与浅色桌面融合生硬的问题。 */
 export const noteThemeOptions: ReadonlyArray<{
   id: NoteThemeId;
   name: string;
 }> = [
   { id: "sky", name: "海蓝" },
-  { id: "glass", name: "磨砂" },
+  { id: "glass", name: "深色磨砂" },
+  { id: "frost", name: "浅色磨砂" },
 ];
 
 export const noteFontIds = ["handwriting", "sans", "system"] as const;
@@ -56,8 +67,10 @@ export const noteFontOptions: ReadonlyArray<{
   { id: "system", name: "系统字体" },
 ];
 
-/** 磨砂透明度区间（UI 用百分数 30–100 展示）。下限 30% 给 Release 白合成坑留安全边际。 */
-export const MIN_NOTE_GLASS_OPACITY = 0.3;
+/** 磨砂透明度区间（UI 用百分数 15–100 展示）。
+ *  2026-11-02 从 30% 下调到 15%：30–100 在双层面板叠加后观感差异被压缩（issue #13）。
+ *  下限仍保留非零 alpha；如 Release 透明像素白合成复现，回退到 0.2。 */
+export const MIN_NOTE_GLASS_OPACITY = 0.15;
 
 /** 磨砂透明度默认值。同一数值同时驱动 Acrylic tint alpha 与 CSS 纸面 alpha，
  *  有效覆盖率 = 1-(1-α)²（双层叠加），0.5 → 75% 模糊覆盖：磨砂感与可读性的
@@ -70,9 +83,9 @@ export interface WidgetAppearance {
   /** 纸面不透明度（旧全局滑杆）。2026-09-09 起透明度归磨砂主题专属，
    *  滑杆 UI 已移除，字段保留但归一恒为 1（历史存档值一并失效）。 */
   noteOpacity: number;
-  /** 磨砂主题专属透明度（0.3–1，UI 百分数展示）。仅 noteTheme === "glass"
-   *  时生效：驱动 Rust set_widget_glass 的 Acrylic tint alpha 与 CSS
-   *  --note-glass-alpha（纸面渐变 alpha 化）。 */
+  /** 磨砂主题专属透明度（0.15–1，UI 百分数展示）。仅 glass / frost 生效：
+   *  驱动 Rust set_widget_glass 的 Acrylic tint alpha 与 CSS --note-glass-alpha
+   *  （纸面渐变 alpha 化）。 */
   noteGlassOpacity: number;
   noteFont: NoteFontId;
   noteFontSize: number;
@@ -141,8 +154,9 @@ function clampNumber(
  * - 字号设置面已移除，noteFontSize 锁死 14px（存档中的历史值一并忽略）；
  * - 纸面细节开关（纹理/格线/图钉/色点）的设置面已移除，字段与归一逻辑保留，
  *   历史存档值继续生效（无 UI 可再修改）。
- * 2026-09-09 老大定稿：新增磨砂主题（glass），透明度归其专属——
+ * 2026-09-09 定稿：新增深色磨砂（glass），透明度归其专属——
  * noteOpacity 锁死 1（旧全局滑杆移除），noteGlassOpacity 接管透明度语义。
+ * 2026-11-02 新增浅色磨砂（frost），与 glass 共用结构、独立配色。
  */
 export function normalizeAppearance(parsed: unknown): WidgetAppearance {
   const raw = (
@@ -165,8 +179,7 @@ export function normalizeAppearance(parsed: unknown): WidgetAppearance {
     noteDots: typeof raw.noteDots === "boolean" ? raw.noteDots : true,
     noteHideDone:
       typeof raw.noteHideDone === "boolean" ? raw.noteHideDone : false,
-    noteDblEdit:
-      typeof raw.noteDblEdit === "boolean" ? raw.noteDblEdit : true,
+    noteDblEdit: typeof raw.noteDblEdit === "boolean" ? raw.noteDblEdit : true,
   };
 }
 
@@ -221,9 +234,13 @@ function escapeCssFontFamily(name: string): string {
  * `noteHideDone` 是行为过滤不是样式，由 WidgetApp 的条目派生消费（不在此处理）。
  *
  * 磨砂玻璃（2026-09-09）：仅 widget 窗口上下文调用本函数（WidgetApp +
- * main.tsx 缓存重放），故在此内聚 invoke `set_widget_glass`——切到 glass
- * 开 Acrylic（tint alpha = noteGlassOpacity），切走即清除；非 Tauri（mock）
- * 只落 CSS alpha，玻璃退化为半透明无模糊。非 Windows 平台 Rust 侧 no-op。
+ * main.tsx 缓存重放），故在此内聚 invoke `set_widget_glass`——glass / frost
+ * 开 Acrylic（tint alpha = noteGlassOpacity，tint 由 Rust 按 light 选择），
+ * 切走即清除；非 Tauri（mock）只落 CSS alpha，玻璃退化为半透明无模糊。
+ * 非 Windows 平台 Rust 侧 no-op。
+ *
+ * 2026-11-02：glass 与 frost 共用结构样式，靠 data-note-material="glass"
+ * 标记；具体配色仍由 data-note-theme 区分。
  *
  * 固定态无需降级（2026-09-29 收敛）：便签「固定」只把窗口 owner 设为
  * Progman（`widget.rs::set_widget_locked`），窗口**始终是顶层窗口**，SWCA
@@ -232,7 +249,10 @@ function escapeCssFontFamily(name: string): string {
  */
 export function applyWidgetAppearance(appearance: WidgetAppearance): void {
   const root = document.documentElement;
+  const glass = isGlassNoteTheme(appearance.noteTheme);
   root.dataset.noteTheme = appearance.noteTheme;
+  if (glass) root.dataset.noteMaterial = "glass";
+  else root.removeAttribute("data-note-material");
   root.style.setProperty("--note-opacity", String(appearance.noteOpacity));
   root.style.setProperty(
     "--note-glass-alpha",
@@ -246,8 +266,9 @@ export function applyWidgetAppearance(appearance: WidgetAppearance): void {
   root.classList.toggle("note-no-dots", !appearance.noteDots);
   if (isTauri()) {
     void invoke("set_widget_glass", {
-      enabled: appearance.noteTheme === "glass",
+      enabled: glass,
       alpha: appearance.noteGlassOpacity,
+      light: appearance.noteTheme === "frost",
     }).catch(() => undefined);
   }
 }

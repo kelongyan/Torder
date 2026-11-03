@@ -89,11 +89,74 @@ describe("parseQuickAddText · 普通日期词回归", () => {
     expect(parsed.title).toBe("开会");
     expect(parsed.dueIsDeadline).toBe(false);
     expect(parsed.dueAt).toBe(new Date(2026, 8, 8, 15, 0).toISOString());
+    expect(parsed.startDateKey).toBeNull();
   });
 
   it("周五：flag 恒为 false", () => {
     const parsed = parseQuickAddText("周五 团建", lists);
     expect(parsed.dueIsDeadline).toBe(false);
     expect(parsed.dueAt).toBe(new Date(2026, 8, 11, 9, 0).toISOString());
+    expect(parsed.startDateKey).toBeNull();
+  });
+});
+
+describe("parseQuickAddText · 从X到Y / X开始", () => {
+  it("从今天到下周一：显式起点 + 截止", () => {
+    const parsed = parseQuickAddText("从今天到下周一 写周报", lists);
+    expect(parsed.title).toBe("写周报");
+    expect(parsed.dueIsDeadline).toBe(true);
+    expect(parsed.startDateKey).toBe("2026-09-08");
+    expect(parsed.dueAt).toBe(new Date(2026, 8, 14, 9, 0).toISOString());
+  });
+
+  it("从明天到下周三：起点跟随日期词", () => {
+    const parsed = parseQuickAddText("从明天到下周三 交报告", lists);
+    expect(parsed.dueIsDeadline).toBe(true);
+    expect(parsed.startDateKey).toBe("2026-09-09");
+    expect(parsed.dueAt).toBe(new Date(2026, 8, 16, 9, 0).toISOString());
+  });
+
+  it("今天开始 + 到下周一：分两个 token 也能组合", () => {
+    const parsed = parseQuickAddText("今天开始 到下周一 写周报", lists);
+    expect(parsed.dueIsDeadline).toBe(true);
+    expect(parsed.startDateKey).toBe("2026-09-08");
+    expect(parsed.dueAt).toBe(new Date(2026, 8, 14, 9, 0).toISOString());
+  });
+
+  it("只有 X开始：只落起点，不设截止", () => {
+    const parsed = parseQuickAddText("明天开始 整理", lists);
+    expect(parsed.title).toBe("整理");
+    expect(parsed.dueIsDeadline).toBe(false);
+    expect(parsed.startDateKey).toBe("2026-09-09");
+    expect(parsed.dueAt).toBeNull();
+  });
+
+  it("中文逗号可断句", () => {
+    const parsed = parseQuickAddText("周报，今天开始 到下周一", lists);
+    expect(parsed.title).toBe("周报");
+    expect(parsed.startDateKey).toBe("2026-09-08");
+    expect(parsed.dueIsDeadline).toBe(true);
+  });
+
+  it("起点晚于截止时截止顺延一周，起点保留", () => {
+    // 当前 2026-09-08 周二：「周五」按当日口径 = 09-11（本周），「下周一」= 09-14，
+    // 起点晚于截止 → 截止顺延到下周同一天 09-18，而不是把起点丢掉
+    const parsed = parseQuickAddText("从下周一到周五 写", lists);
+    expect(parsed.title).toBe("写");
+    expect(parsed.startDateKey).toBe("2026-09-14");
+    expect(parsed.dueIsDeadline).toBe(true);
+    expect(parsed.dueAt).toBe(new Date(2026, 8, 18, 9, 0).toISOString());
+  });
+
+  it("标题里的中文标点原样保留", () => {
+    const parsed = parseQuickAddText("买牛奶，鸡蛋 明天", lists);
+    expect(parsed.title).toBe("买牛奶，鸡蛋");
+    expect(parsed.dueAt).toBe(new Date(2026, 8, 9, 9, 0).toISOString());
+  });
+
+  it("多个标题片段之间用单个空格拼接", () => {
+    const parsed = parseQuickAddText("买牛奶   鸡蛋  !高", lists);
+    expect(parsed.title).toBe("买牛奶 鸡蛋");
+    expect(parsed.priority).toBe(2);
   });
 });

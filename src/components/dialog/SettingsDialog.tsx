@@ -297,7 +297,7 @@ export function SettingsDialog({
               onOpenUpdateDialog={onOpenUpdateDialog}
             />
             {/* F2 · T-11：更新日志 / 开源许可转正 */}
-            <SettingsAboutExtras />
+            <SettingsAboutExtras onToast={onToast} />
           </>
         )}
       </div>

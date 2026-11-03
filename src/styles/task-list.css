@@ -823,35 +823,37 @@ mark {
   font-size: calc(var(--text-xs) + 0.5px);
 }
 
-/* F1 · T-05：由灰显占位转为真实控件（收起态是按钮，展开态是输入行） */
+/* 快速新建：收起态是一条低存在感的「添加任务」行，展开后升为输入卡片。
+   宽度用 calc：左右各 20px 安全边距，按钮/div 都保持满宽，避免收起态
+   变成左侧一截小胶囊（2026-11-02 视觉重做）。 */
 .task-composer {
   display: flex;
-  /* 不设 width:100%——侧边 20px margin 是设计稿安全边距，块级/flex-item 的
-     auto 宽度会自动扣掉 margin，正好内缩 20px；写 100% 会向右溢出容器 20px */
+  width: calc(100% - 40px);
   min-height: 46px;
   align-items: center;
-  gap: calc(var(--space-3) - 1px);
-  /* R4 对齐设计稿 composer：左右 20px 安全边距 + --mica-side 材质 */
+  gap: 10px;
   margin: 6px 20px 16px;
-  border: 1px solid var(--stroke-mid);
+  border: 1px solid transparent;
   border-radius: 14px;
-  background: var(--mica-side);
+  background: color-mix(in srgb, var(--mica-side) 58%, transparent);
   padding: 0 12px;
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: 13px;
   text-align: left;
-  cursor: text;
+  cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 }
 
-/* 桌面端列表视图：内容不足一屏时 composer 也要钉在可视区底部，与列表始终对齐。
+/* 桌面端列表视图：快速新建始终停在可视区底部，不再随长列表滚到屏幕外。
    content-motion 高度是 auto + min-height:100%，孙级（list-container）的百分比
    高度解析不到，所以把链路显式 flex 化：content-motion-list → list-container
-   走列布局，list-container flex:1 拉伸占满，composer 用 margin-top:auto 下沉。
-   内容超过一屏时回到正常文档流（跟在最后一行任务后），无 fixed/sticky 的
-   containing-block 问题（content-reveal 动画的 transform 困不住 auto margin）。
+   走列布局，list-container flex:1 拉伸占满；短列表用 margin-top:auto 下沉，
+   长列表用 sticky bottom 吸底。content-reveal 用 backwards 填充，不会留下
+   恒等 transform 困住 sticky（见 layout.css）。
    board variant 嵌在列内不参与；mobile 端由 responsive.css 接管。 */
 .window-frame:not(.mobile) .content-motion-list {
   display: flex;
@@ -867,28 +869,74 @@ mark {
 .window-frame:not(.mobile)
   .content-motion-list
   .list-container
-  > .task-composer {
+  > .task-composer-dock {
+  position: sticky;
+  /* 抵消 content-panel 的底部内衬，避免最后 20px 露出滚动的任务行 */
+  bottom: calc(var(--space-5) * -1);
+  z-index: 4;
   margin-top: auto;
+  padding: 12px 0 calc(16px + var(--space-5));
+  /* 吸底时任务行会滚到 composer 下方，用与内容区同材质的渐隐底遮住过渡带 */
+  background: linear-gradient(
+    to top,
+    var(--mica) 0%,
+    var(--mica) 72%,
+    transparent 100%
+  );
+  /* 渐隐区只是视觉过渡：整层不吃指针，否则滚到 dock 底下的任务行
+     在渐隐带里点不动（交互重新落回下方任务行与 composer 本身） */
+  pointer-events: none;
 }
 
-.task-composer:hover {
-  border-color: var(--stroke-strong);
-  color: var(--text-2);
+/* 底部留白由 dock 的 padding 承担，避免 composer 的外边距塌出背景层 */
+.window-frame:not(.mobile)
+  .content-motion-list
+  .list-container
+  > .task-composer-dock
+  > .task-composer {
+  margin-bottom: 0;
+  pointer-events: auto;
 }
 
-.task-composer.is-open {
-  border-color: var(--accent);
+.task-composer:not(.is-open):hover {
+  border-color: var(--stroke-mid);
+  background: var(--mica-side);
   color: var(--text-primary);
 }
 
-.task-composer.is-open .task-composer-plus {
-  border-style: solid;
+.task-composer:not(.is-open):focus-visible {
   border-color: var(--accent);
-  color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.task-composer.is-open {
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-color: var(--accent-line);
+  background: var(--pop);
+  color: var(--text-primary);
+  cursor: text;
+  box-shadow: var(--shadow-card);
+}
+
+.task-composer.is-open:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--focus-ring),
+    var(--shadow-card);
+}
+
+.task-composer.is-open .task-composer-plus {
+  margin-top: 1px;
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: none;
 }
 
 /* T-13 看板列内联新建：无外边距、更矮、圆角对齐列内卡片 */
 .task-composer--board {
+  width: 100%;
   min-height: 34px;
   margin: 0 0 8px;
   border-radius: 10px;
@@ -897,12 +945,25 @@ mark {
   font-size: 12.5px;
 }
 
+.task-composer--board.is-open {
+  padding: 6px 8px;
+}
+
+.task-composer-field {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .task-composer-input {
   width: 100%;
+  height: 24px;
   min-width: 0;
-  flex: 1;
   border: 0;
   background: transparent;
+  padding: 0;
   color: var(--text-primary);
   font-family: inherit;
   font-size: inherit;
@@ -913,23 +974,70 @@ mark {
   color: var(--text-3);
 }
 
+.task-composer-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 语法提示：收起态完全不占空间，展开后才出现；chip 用低对比底，
+   不抢输入框的注意力。 */
+.task-composer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.task-composer-chip {
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-3) 10%, transparent);
+  padding: 1px 6px;
+}
+
+.task-composer-submit-hint {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
 .task-composer-plus {
   display: grid;
   width: 24px;
   height: 24px;
   flex: 0 0 24px;
   place-items: center;
-  border: 1px dashed var(--border-light);
-  border-radius: 50%;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
   transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.task-composer:not(.is-open):hover .task-composer-plus {
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: rotate(90deg);
 }
 
 .task-composer--board .task-composer-plus {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
+  border-radius: 6px;
+}
+
+.task-composer--board .task-composer-field {
+  gap: 0;
 }
 
 .task-composer-plus svg {

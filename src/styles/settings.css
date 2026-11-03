@@ -1297,12 +1297,15 @@
 /* note-slider-row 已删（2026-09-15）：字号滑杆 2026-09-08 移除后无引用的遗留；
    磨砂浓度的滑杆样式在下方 note-glass-slider-* 块。 */
 
-/* 纸色色卡：沿用 5 列网格保持卡片尺寸稳定（当前 2 选项：海蓝 + 磨砂）；
-   窄面板折 3 列 */
+/* 纸色色卡：自适应网格（当前 3 选项：海蓝 + 深色磨砂 + 浅色磨砂）。
+   卡片是「60px 预览 + 文字」的横向布局，设置面板内容宽约 562px：
+   minmax(220px) 下稳定两列（每张 275px，描述文字单行不挤），3 张会折成
+   2+1；再窄由下方 560px 媒体查询收成单列。三张一行会把描述挤到换行，
+   故不做。 */
 
 .note-theme-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
 }
 
@@ -1606,18 +1609,40 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-/* 磨砂微缩便签：深色透明毛玻璃 + 1px 晶莹高光边框 */
+/* 磨砂微缩便签：深色透明毛玻璃 + 1px 晶莹高光边框。
+   纸面 alpha 跟随「磨砂浓度」滑杆（--note-glass-alpha 由色卡内联注入），
+   让拖动滑杆时色卡同步变化；系数在 α=0.5 时与原硬编码值逐像素一致
+   （顶 0.7 / 底 0.85），α=1 时溢出由 rgba() 自行截断。 */
 .note-theme-card[data-note-theme="glass"] .note-theme-mini-note {
+  --note-preview-alpha-top: calc(0.5 + var(--note-glass-alpha, 0.5) * 0.4);
+  --note-preview-alpha-bottom: calc(0.65 + var(--note-glass-alpha, 0.5) * 0.4);
   background: linear-gradient(
     180deg,
-    rgba(24, 30, 42, 0.7) 0%,
-    rgba(14, 18, 28, 0.85) 100%
+    rgba(24, 30, 42, var(--note-preview-alpha-top)) 0%,
+    rgba(14, 18, 28, var(--note-preview-alpha-bottom)) 100%
   );
   backdrop-filter: blur(8px);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* 浅色磨砂微缩便签：浅色透明纸面 + 深墨线（2026-11-02）。
+   同样跟随滑杆；α=0.5 时与原值一致（顶 0.82 / 底 0.9）。 */
+.note-theme-card[data-note-theme="frost"] .note-theme-mini-note {
+  --note-preview-alpha-top: calc(0.6 + var(--note-glass-alpha, 0.5) * 0.44);
+  --note-preview-alpha-bottom: calc(0.68 + var(--note-glass-alpha, 0.5) * 0.44);
+  background: linear-gradient(
+    180deg,
+    rgba(249, 251, 253, var(--note-preview-alpha-top)) 0%,
+    rgba(232, 240, 249, var(--note-preview-alpha-bottom)) 100%
+  );
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 0 0 1px rgba(31, 41, 55, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 4px 12px rgba(15, 23, 42, 0.14);
 }
 
 /* 微缩线条 */
@@ -1664,6 +1689,26 @@
 .note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-check {
   width: 38%;
   background: #3fb950;
+  opacity: 1;
+}
+
+.note-theme-card[data-note-theme="frost"] .note-theme-mini-line {
+  background: rgba(31, 41, 55, 0.68);
+}
+
+.note-theme-card[data-note-theme="frost"] .note-theme-mini-line.is-title {
+  width: 65%;
+  background: #1e4f7a;
+  opacity: 1;
+}
+
+.note-theme-card[data-note-theme="frost"] .note-theme-mini-line.is-short {
+  width: 80%;
+}
+
+.note-theme-card[data-note-theme="frost"] .note-theme-mini-line.is-check {
+  width: 38%;
+  background: #17705b;
   opacity: 1;
 }
 
