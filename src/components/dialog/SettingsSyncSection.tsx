@@ -29,6 +29,7 @@ import { isMobile } from "../../utils/platform";
 import { isTauri } from "@tauri-apps/api/core";
 import { mergedConflictPayload } from "../../utils/syncConflict";
 import { ToggleSwitch } from "../common/ToggleSwitch";
+import { SegmentedControl } from "../common/SegmentedControl";
 import { SyncConflictPanel } from "./SyncConflictPanel";
 import { SyncDevicesPanel } from "./SyncDevicesPanel";
 import { SyncEncryptionCard } from "./SyncEncryptionCard";
@@ -519,6 +520,25 @@ export function SettingsSyncSection({
           : "准备同步";
   }
 
+  /** 首次同步方式的后果说明——放在行标签下方，替掉原来每项一张卡里的 small */
+  function initialModeHint(
+    mode: InitialSyncMode,
+    status: SyncStatus | null,
+  ): string {
+    if (mode === "upload") {
+      return syncInspection?.initialized
+        ? "远端已有数据，此方式不可用"
+        : "以本机数据建立远端集合";
+    }
+    if (mode === "download") {
+      const pending = status?.pendingChanges ?? 0;
+      return pending > 0
+        ? `待上传 ${pending} 项，先把本机改动同步上去再选`
+        : "以远端为准，本机不留存改动";
+    }
+    return "推荐：两边的改动都保留，逐项合并";
+  }
+
   return (
     <>
       <section className="settings-section">
@@ -555,10 +575,7 @@ export function SettingsSyncSection({
         ) : (
           <div className="sync-config-grid">
             {!syncStatus?.configured && (
-              <div
-                className="sync-setup-steps form-grid-full"
-                aria-label="同步设置进度"
-              >
+              <div className="sync-setup-steps" aria-label="同步设置进度">
                 {["服务器", "认证", "确认"].map((label, index) => (
                   <span
                     key={label}
@@ -571,42 +588,55 @@ export function SettingsSyncSection({
             )}
             {(syncStatus?.configured || syncSetupStep === 1) && (
               <>
-                <label className="form-field form-grid-full">
-                  <span>WebDAV 地址</span>
-                  <input
-                    type="url"
-                    inputMode="url"
-                    autoComplete="url"
-                    placeholder="WebDAV 地址"
-                    value={syncServerUrl}
-                    onChange={(event) => {
-                      setSyncServerUrl(event.target.value);
-                      invalidateSyncInspection();
-                    }}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>远端目录</span>
-                  <input
-                    type="text"
-                    placeholder="远端目录"
-                    value={syncRemotePath}
-                    onChange={(event) => {
-                      setSyncRemotePath(event.target.value);
-                      invalidateSyncInspection();
-                    }}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>设备名称</span>
-                  <input
-                    type="text"
-                    maxLength={128}
-                    placeholder="设备名称"
-                    value={syncDeviceName}
-                    onChange={(event) => setSyncDeviceName(event.target.value)}
-                  />
-                </label>
+                <div className="settings-row">
+                  <span className="settings-row-label">WebDAV 地址</span>
+                  <div className="settings-row-control">
+                    <input
+                      type="url"
+                      inputMode="url"
+                      autoComplete="url"
+                      placeholder="WebDAV 地址"
+                      value={syncServerUrl}
+                      onChange={(event) => {
+                        setSyncServerUrl(event.target.value);
+                        invalidateSyncInspection();
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="settings-row">
+                  <span className="settings-row-label">远端目录</span>
+                  <div className="settings-row-control">
+                    <input
+                      type="text"
+                      placeholder="远端目录"
+                      value={syncRemotePath}
+                      onChange={(event) => {
+                        setSyncRemotePath(event.target.value);
+                        invalidateSyncInspection();
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="settings-row">
+                  <div className="settings-row-copy">
+                    <span className="settings-row-label">设备名称</span>
+                    <span className="settings-row-desc">
+                      在多设备列表里区分本机
+                    </span>
+                  </div>
+                  <div className="settings-row-control">
+                    <input
+                      type="text"
+                      maxLength={128}
+                      placeholder="设备名称"
+                      value={syncDeviceName}
+                      onChange={(event) =>
+                        setSyncDeviceName(event.target.value)
+                      }
+                    />
+                  </div>
+                </div>
               </>
             )}
             {(syncStatus?.configured ||
@@ -615,36 +645,47 @@ export function SettingsSyncSection({
               <>
                 {(syncStatus?.configured || syncSetupStep === 2) && (
                   <>
-                    <label className="form-field form-grid-full">
-                      <span>用户名</span>
-                      <input
-                        type="text"
-                        autoComplete="username"
-                        enterKeyHint="next"
-                        value={syncUsername}
-                        onChange={(event) => {
-                          setSyncUsername(event.target.value);
-                          invalidateSyncInspection();
-                        }}
-                      />
-                    </label>
-                    <label className="form-field form-grid-full">
-                      <span>
-                        {syncStatus?.hasCredential
-                          ? "更新应用密码（可选）"
-                          : "应用密码"}
-                      </span>
-                      <input
-                        type="password"
-                        autoComplete="current-password"
-                        enterKeyHint="done"
-                        value={syncPassword}
-                        onChange={(event) =>
-                          setSyncPassword(event.target.value)
-                        }
-                        onKeyDown={handleSyncCredentialKeyDown}
-                      />
-                    </label>
+                    <div className="settings-row">
+                      <span className="settings-row-label">用户名</span>
+                      <div className="settings-row-control">
+                        <input
+                          type="text"
+                          autoComplete="username"
+                          enterKeyHint="next"
+                          value={syncUsername}
+                          onChange={(event) => {
+                            setSyncUsername(event.target.value);
+                            invalidateSyncInspection();
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="settings-row">
+                      <div className="settings-row-copy">
+                        <span className="settings-row-label">
+                          {syncStatus?.hasCredential
+                            ? "更新应用密码"
+                            : "应用密码"}
+                        </span>
+                        {syncStatus?.hasCredential && (
+                          <span className="settings-row-desc">
+                            留空表示沿用已保存的密码
+                          </span>
+                        )}
+                      </div>
+                      <div className="settings-row-control">
+                        <input
+                          type="password"
+                          autoComplete="current-password"
+                          enterKeyHint="done"
+                          value={syncPassword}
+                          onChange={(event) =>
+                            setSyncPassword(event.target.value)
+                          }
+                          onKeyDown={handleSyncCredentialKeyDown}
+                        />
+                      </div>
+                    </div>
                   </>
                 )}
                 <SyncEncryptionCard
@@ -662,7 +703,7 @@ export function SettingsSyncSection({
             )}
             {syncInspection &&
               (syncStatus?.configured || syncSetupStep === 3) && (
-                <div className="sync-inspection form-grid-full" role="status">
+                <div className="sync-inspection" role="status">
                   <span className="sync-inspection-copy">
                     <strong>
                       {syncInspection.initialized
@@ -695,68 +736,36 @@ export function SettingsSyncSection({
             {!syncStatus?.configured &&
               syncSetupStep === 3 &&
               syncInspection && (
-                <fieldset className="sync-initial-mode-list form-grid-full">
-                  <legend>首次同步</legend>
-                  <label className="sync-initial-mode">
-                    <input
-                      type="radio"
-                      name="sync-initial-mode"
-                      value="merge"
-                      checked={syncInitialMode === "merge"}
-                      onChange={() => setSyncInitialMode("merge")}
-                    />
-                    <span>
-                      <strong>安全合并</strong>
-                      <small>推荐</small>
+                <div className="settings-row">
+                  <div className="settings-row-copy">
+                    <span className="settings-row-label">首次同步</span>
+                    <span className="settings-row-desc">
+                      {initialModeHint(syncInitialMode, syncStatus)}
                     </span>
-                  </label>
-                  <label
-                    className={`sync-initial-mode ${
-                      syncInspection.initialized ? "is-disabled" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="sync-initial-mode"
-                      value="upload"
-                      checked={syncInitialMode === "upload"}
-                      disabled={syncInspection.initialized}
-                      onChange={() => setSyncInitialMode("upload")}
+                  </div>
+                  <div className="settings-row-control is-wide">
+                    <SegmentedControl
+                      value={syncInitialMode}
+                      options={[
+                        { value: "merge", label: "安全合并" },
+                        {
+                          value: "upload",
+                          label: "上传本机",
+                          disabled: syncInspection.initialized,
+                        },
+                        {
+                          value: "download",
+                          label: "下载远端",
+                          disabled: (syncStatus?.pendingChanges ?? 0) > 0,
+                        },
+                      ]}
+                      onChange={setSyncInitialMode}
+                      ariaLabel="首次同步方式"
                     />
-                    <span>
-                      <strong>上传本机</strong>
-                      <small>
-                        {syncInspection.initialized
-                          ? "远端已有数据"
-                          : "以本机建立远端"}
-                      </small>
-                    </span>
-                  </label>
-                  <label
-                    className={`sync-initial-mode ${
-                      (syncStatus?.pendingChanges ?? 0) > 0 ? "is-disabled" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="sync-initial-mode"
-                      value="download"
-                      checked={syncInitialMode === "download"}
-                      disabled={(syncStatus?.pendingChanges ?? 0) > 0}
-                      onChange={() => setSyncInitialMode("download")}
-                    />
-                    <span>
-                      <strong>下载远端</strong>
-                      <small>
-                        {(syncStatus?.pendingChanges ?? 0) > 0
-                          ? `待上传 ${syncStatus?.pendingChanges ?? 0} 项`
-                          : "以远端为准"}
-                      </small>
-                    </span>
-                  </label>
-                </fieldset>
+                  </div>
+                </div>
               )}
-            <div className="settings-row sync-actions form-grid-full">
+            <div className="settings-row sync-actions">
               {syncStatus?.configured ? (
                 <>
                   <button
@@ -854,25 +863,39 @@ export function SettingsSyncSection({
               )}
             </div>
             {syncStatus?.configured && (
-              <div className="settings-toggle-row form-grid-full">
-                <span className="settings-toggle-label">自动同步</span>
-                <ToggleSwitch
-                  checked={syncAutoEnabled}
-                  label="自动同步"
-                  disabled={syncBusy !== null}
-                  onChange={(next) => void handleSyncAutoToggle(next)}
-                />
+              <div className="settings-row">
+                <div className="settings-row-copy">
+                  <span className="settings-row-label">自动同步</span>
+                  <span className="settings-row-desc">
+                    改动后台自动推送到远端
+                  </span>
+                </div>
+                <div className="settings-row-control">
+                  <ToggleSwitch
+                    checked={syncAutoEnabled}
+                    label="自动同步"
+                    disabled={syncBusy !== null}
+                    onChange={(next) => void handleSyncAutoToggle(next)}
+                  />
+                </div>
               </div>
             )}
             {syncStatus?.configured && mobile && (
-              <div className="settings-toggle-row form-grid-full">
-                <span className="settings-toggle-label">仅 Wi-Fi 自动同步</span>
-                <ToggleSwitch
-                  checked={syncWifiOnly}
-                  label="仅 Wi-Fi 自动同步"
-                  disabled={syncBusy !== null}
-                  onChange={(next) => void handleSyncWifiOnlyToggle(next)}
-                />
+              <div className="settings-row">
+                <div className="settings-row-copy">
+                  <span className="settings-row-label">仅 Wi-Fi 自动同步</span>
+                  <span className="settings-row-desc">
+                    移动网络下不自动同步
+                  </span>
+                </div>
+                <div className="settings-row-control">
+                  <ToggleSwitch
+                    checked={syncWifiOnly}
+                    label="仅 Wi-Fi 自动同步"
+                    disabled={syncBusy !== null}
+                    onChange={(next) => void handleSyncWifiOnlyToggle(next)}
+                  />
+                </div>
               </div>
             )}
             <SyncDevicesPanel

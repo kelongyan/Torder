@@ -153,24 +153,32 @@
   gap: 14px;
 }
 
-.settings-dialog-mobile .settings-preference-grid,
-.settings-dialog-mobile .sync-config-grid,
-.settings-dialog-mobile .sync-encryption-fields {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .settings-dialog-mobile .settings-section-title {
-  font-size: 14px;
+  font-size: 12px;
 }
 
-.settings-dialog-mobile .form-field > span,
-.settings-dialog-mobile .settings-toggle-label {
-  font-size: 13px;
+/* 触摸：行高与控件都上到 44px 以上，字号上到 14px 一档 */
+.settings-dialog-mobile .settings-row {
+  min-height: 52px;
+}
+
+.settings-dialog-mobile .settings-row-label {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.settings-dialog-mobile .settings-row-desc {
+  font-size: 12px;
+  line-height: 17px;
 }
 
 .settings-dialog-mobile .select-trigger,
-.settings-dialog-mobile .form-field input,
-.settings-dialog-mobile .form-field select {
+.settings-dialog-mobile .font-picker-trigger,
+.settings-dialog-mobile .settings-backup-select,
+.settings-dialog-mobile .settings-row-control input[type="number"],
+.settings-dialog-mobile .settings-row-control input[type="text"],
+.settings-dialog-mobile .settings-row-control input[type="url"],
+.settings-dialog-mobile .settings-row-control input[type="password"] {
   min-height: 44px;
   font-size: 14px;
 }
@@ -182,8 +190,14 @@
   font-size: 14px;
 }
 
-.settings-dialog-mobile .settings-toggle-row {
-  min-height: 48px;
+.settings-dialog-mobile .settings-ghost-button {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+/* 分段选择器选项默认 26px 高，手指点不准；主题切换是移动端高频动作 */
+.settings-dialog-mobile .segmented-option {
+  min-height: 44px;
 }
 
 /* 触摸尺寸：桌面这几个控件是 24–26px 的紧凑件，手指点不准。
@@ -191,15 +205,41 @@
    显示偏好（密度/字号）已于 2026-09-08 移除。 */
 
 .settings-dialog-mobile .accent-swatches {
-  gap: 14px;
+  gap: 8px;
 }
 
+/* 6 个色点：命中区撑到 44px，可见圆仍是 32px（::after 内缩 6px 画出来）。
+   直接放大按钮会让色点本身变重，而设置页里色板不该抢过内容。 */
 .settings-dialog-mobile .accent-swatch {
-  width: 32px;
-  height: 32px;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  background: transparent;
 }
 
-.settings-dialog-mobile .theme-card {
-  width: calc((100% - 20px) / 3);
-  min-width: 96px;
+.settings-dialog-mobile .accent-swatch::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.settings-dialog-mobile .accent-swatch.is-on {
+  box-shadow: none;
+}
+
+.settings-dialog-mobile .accent-swatch.is-on::after {
+  box-shadow:
+    0 0 0 2px var(--surface-raised),
+    0 0 0 4px var(--swatch);
+}
+
+/* 便签主题瓦片：窄 sheet 上保持一行三张，不再有描边卡需要收边 */
+.settings-dialog-mobile .settings-choice-strip {
+  padding: 4px 12px 8px;
+}
+
+.settings-dialog-mobile .settings-choice {
+  min-width: 0;
 }

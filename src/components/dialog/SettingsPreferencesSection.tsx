@@ -1,4 +1,3 @@
-import { Settings2 } from "lucide-react";
 import { taskViewCopy } from "../../constants/taskViews";
 import { cleanupTrash } from "../../services/taskService";
 import { saveAppSetting } from "../../services/settingsService";
@@ -90,13 +89,10 @@ export function SettingsPreferencesSection({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Settings2 aria-hidden="true" className="icon-sm" />
-        默认行为
-      </h3>
-      <div className="settings-preference-grid">
-        <label className="form-field">
-          <span>启动视图</span>
+      <h3 className="settings-section-title">视图与清理</h3>
+      <div className="settings-row">
+        <span className="settings-row-label">启动视图</span>
+        <div className="settings-row-control">
           <Select<SystemView>
             value={settings.defaultView}
             options={defaultViewOptions}
@@ -105,10 +101,12 @@ export function SettingsPreferencesSection({
             }
             ariaLabel="启动默认视图"
           />
-        </label>
-        {!isMobile() && (
-          <label className="form-field">
-            <span>备份保留</span>
+        </div>
+      </div>
+      {!isMobile() && (
+        <div className="settings-row">
+          <span className="settings-row-label">备份保留</span>
+          <div className="settings-row-control">
             <Select<number>
               value={settings.backupRetentionCount}
               options={backupRetentionOptions}
@@ -121,39 +119,50 @@ export function SettingsPreferencesSection({
               }
               ariaLabel="备份保留份数"
             />
-          </label>
-        )}
-        <label className="form-field form-grid-full">
-          <span>回收站清理</span>
+          </div>
+        </div>
+      )}
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">回收站清理</span>
+          <span className="settings-row-desc">
+            超过保留天数的回收站任务将被清出数据库
+          </span>
+        </div>
+        <div className="settings-row-control">
           <Select<number>
             value={settings.trashRetentionDays ?? -1}
             options={trashRetentionOptions}
             onChange={(value) => void handleTrashRetentionChange(value)}
             ariaLabel="回收站自动清理"
           />
-        </label>
+        </div>
       </div>
       {/*
        * 阶段 D · T-10 乙组：逾期自动顺延到明天。数据行为开关（非纯偏好），
        * 顺延规则唯一走 taskStats.shiftOverdueTaskPatch，与每日回顾一致。
        */}
-      <div className="settings-toggle-row">
-        <span className="settings-toggle-label">逾期自动顺延</span>
-        <ToggleSwitch
-          checked={settings.autoPostponeOverdue}
-          label="逾期任务自动顺延到明天"
-          onChange={(next) =>
-            void savePreference(
-              "autoPostponeOverdue",
-              next,
-              next ? "已开启逾期自动顺延" : "已关闭逾期自动顺延",
-            )
-          }
-        />
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">逾期自动顺延</span>
+          <span className="settings-row-desc">
+            每天首次打开时，昨日逾期顺延到明天
+          </span>
+        </div>
+        <div className="settings-row-control">
+          <ToggleSwitch
+            checked={settings.autoPostponeOverdue}
+            label="逾期任务自动顺延到明天"
+            onChange={(next) =>
+              void savePreference(
+                "autoPostponeOverdue",
+                next,
+                next ? "已开启逾期自动顺延" : "已关闭逾期自动顺延",
+              )
+            }
+          />
+        </div>
       </div>
-      <p className="settings-section-hint">
-        每天首次打开时，昨日逾期自动顺延到明天。
-      </p>
     </section>
   );
 }

@@ -38,13 +38,10 @@ export function SettingsExportSection({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Download aria-hidden="true" className="icon-sm" />
-        导出
-      </h3>
-      <div className="settings-export-panel">
-        <span className="settings-export-label">格式</span>
-        <div className="settings-export-control">
+      <h3 className="settings-section-title">导出</h3>
+      <div className="settings-row">
+        <span className="settings-row-label">格式</span>
+        <div className="settings-row-control is-wide">
           <Select<ExportFormat>
             value={exportFormat}
             options={exportFormatOptions}

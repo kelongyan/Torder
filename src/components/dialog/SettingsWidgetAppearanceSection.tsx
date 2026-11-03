@@ -22,7 +22,7 @@ import {
 import { FontPicker, type FontPickerOption } from "../common/FontPicker";
 import type { ToastKind } from "../../types/ui";
 import { isMobile } from "../../utils/platform";
-import { StickyNote, Type } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 
 const NOTE_THEME_DETAILS: Record<NoteThemeId, { title: string; desc: string }> =
   {
@@ -38,9 +38,11 @@ type SliderField = "noteGlassOpacity";
 
 /**
  * 设置 → 外观 → 桌面便签个性化：纸色（海蓝 + 磨砂两卡，2026-09-09 老大定稿）+
- * 字体 + 自定义字体导入；2026-09-15 起两组升格为标准 settings-section
- * （带图标标题，与「应用主题/强调色」同语言），布局规约见
- * docs/appearance-layout-optimization-plan.md §3。
+ * 字体 + 自定义字体导入；布局规约见 docs/appearance-layout-optimization-plan.md §3。
+ * 2026-11-03 结构级重构：并入「桌面便签」一个分组——主题是 3 个无边框瓦片
+ * （.settings-choice-strip，选中态 = accent-soft 底 + 强调色标题 + 角标对勾），
+ * 磨砂浓度、便签字体、恢复默认各占一条设置行。原来 6 张 187×125 描边卡 +
+ * 3 个通栏描边容器（字体 / 滑杆 / 重置）的「一排方框」形态到此为止。
  *
  * 2026-09-08 收敛：字号滑杆（锁死 14px）、纸面与显示开关组、旧全局不透明度
  * 滑杆全部移除。2026-09-09 定稿：新增深色磨砂（glass）主题卡，透明度归其
@@ -53,9 +55,8 @@ type SliderField = "noteGlassOpacity";
  * - 字体卡的字样直接用真实字体栈渲染：手写体字样会命中 Torder Note 的
  *   HTTP 缓存（widget 窗口每次启动都拉同一文件），仅外观页首次打开多一次缓存读；
  *   这是主窗唯一引用该字体的地方（AGENTS.md 的「仅 .widget-* 引用」约定以此为例外）。
- * - 色卡/字体卡用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动；
- *   磨砂卡齿轮与透明度弹层渲染在 label 外的包裹层上（真机验证 label 的
- *   激活行为不被 preventDefault 拦住，点齿轮会误选磨砂主题），结构隔离最彻底。
+ * - 主题瓦片用原生 radio（同 name 组自带方向键导航），选中态类名由状态驱动；
+ *   预览里的角标对勾与线条都是 aria-hidden 的装饰件，语义只由 radio 承担。
  * - 写入走 `patchWidgetSettings`（扁平字段），主窗 → widget 窗经
  *   `widget-settings-changed` 广播实时同步；失败回滚到最近成功值并 toast——
  *   与 `SettingsDesktopSection` 的开关同一范式。
@@ -242,132 +243,126 @@ export function SettingsWidgetAppearanceSection({
   );
 
   return (
-    <>
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          <StickyNote aria-hidden="true" className="icon-sm" />
-          便签主题
-        </h3>
-        <div
-          className="note-theme-grid"
-          role="radiogroup"
-          aria-label="便签主题"
-        >
-          {noteThemeOptions.map((theme) => {
-            const active = appearance.noteTheme === theme.id;
-            const isGlass = isGlassNoteTheme(theme.id);
-            const detail = NOTE_THEME_DETAILS[theme.id];
-            return (
-              <label
-                key={theme.id}
-                className={`note-theme-card ${active ? "is-active" : ""}`.trim()}
-                data-note-theme={theme.id}
-              >
-                <input
-                  type="radio"
-                  name="note-theme"
-                  value={theme.id}
-                  checked={active}
-                  disabled={busy}
-                  onChange={() => handleThemeChange(theme.id)}
-                />
-                <div className="note-theme-card-preview">
-                  <div
-                    className="note-theme-mini-note"
-                    style={
-                      isGlass
-                        ? ({
-                            "--note-glass-alpha": String(
-                              appearance.noteGlassOpacity,
-                            ),
-                          } as CSSProperties)
-                        : undefined
-                    }
-                  >
-                    {!isGlass && <div className="note-theme-mini-pin" />}
-                    <div className="note-theme-mini-line is-title" />
-                    <div className="note-theme-mini-line" />
-                    <div className="note-theme-mini-line is-short" />
-                    <div className="note-theme-mini-line is-check" />
-                  </div>
-                </div>
-                <div className="note-theme-card-body">
-                  <div className="note-theme-card-header">
-                    <span className="note-theme-card-title">
-                      {detail.title}
-                    </span>
-                    <span
-                      className="note-theme-card-radio"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <span className="note-theme-card-desc">{detail.desc}</span>
-                </div>
-              </label>
-            );
-          })}
-        </div>
-
-        {/* 磨砂透明度内联调节：选中任一磨砂主题时直接在下方呈现 */}
-        {isGlassNoteTheme(appearance.noteTheme) && (
-          <div className="note-glass-inline-panel">
-            <div className="note-glass-slider-head">
-              <span className="note-glass-slider-title">磨砂浓度</span>
-              <span className="note-glass-slider-value">
-                {glassOpacityPercent}%
-              </span>
-            </div>
-            <div className="note-glass-slider-track-wrap">
+    <section className="settings-section">
+      <h3 className="settings-section-title">桌面便签</h3>
+      <div
+        className="settings-choice-strip"
+        role="radiogroup"
+        aria-label="便签主题"
+      >
+        {noteThemeOptions.map((theme) => {
+          const active = appearance.noteTheme === theme.id;
+          const isGlass = isGlassNoteTheme(theme.id);
+          const detail = NOTE_THEME_DETAILS[theme.id];
+          return (
+            <label
+              key={theme.id}
+              className={`settings-choice ${active ? "is-on" : ""}`.trim()}
+              data-note-theme={theme.id}
+            >
               <input
-                type="range"
-                min={Math.round(MIN_NOTE_GLASS_OPACITY * 100)}
-                max={100}
-                step={5}
-                value={glassOpacityPercent}
-                aria-label="磨砂浓度"
-                style={
-                  {
-                    "--glass-fill": `${glassFillPercent}%`,
-                  } as CSSProperties
-                }
-                onChange={(event) =>
-                  handleGlassOpacityChange(Number(event.target.value))
-                }
+                type="radio"
+                name="note-theme"
+                value={theme.id}
+                checked={active}
+                disabled={busy}
+                onChange={() => handleThemeChange(theme.id)}
               />
-            </div>
-            <div className="note-glass-slider-ends" aria-hidden="true">
-              <span>通透</span>
-              <span>深邃</span>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          <Type aria-hidden="true" className="icon-sm" />
-          便签字体
-        </h3>
-        <FontPicker
-          value={appearance.noteFont}
-          options={fontPickerOptions}
-          onChange={handleFontChange}
-          disabled={busy}
-          loading={systemFonts === null}
-          onFirstOpen={handleOpenFontList}
-        />
-      </section>
-
-      <div className="note-reset-row">
-        <button
-          type="button"
-          className="note-reset-link"
-          disabled={busy}
-          onClick={handleResetDefaults}
-        >
-          恢复默认外观
-        </button>
+              <span className="settings-choice-preview">
+                <span
+                  className="note-theme-mini-note"
+                  style={
+                    isGlass
+                      ? ({
+                          "--note-glass-alpha": String(
+                            appearance.noteGlassOpacity,
+                          ),
+                        } as CSSProperties)
+                      : undefined
+                  }
+                >
+                  {!isGlass && <span className="note-theme-mini-pin" />}
+                  <span className="note-theme-mini-line is-title" />
+                  <span className="note-theme-mini-line" />
+                  <span className="note-theme-mini-line is-short" />
+                  <span className="note-theme-mini-line is-check" />
+                </span>
+                <span className="settings-choice-check" aria-hidden="true">
+                  <Check />
+                </span>
+              </span>
+              <span className="settings-choice-title">{detail.title}</span>
+              <span className="settings-choice-desc">{detail.desc}</span>
+            </label>
+          );
+        })}
       </div>
-    </>
+
+      {/* 磨砂浓度：选中任一磨砂主题时，作为分组内的一条通栏行展开 */}
+      {isGlassNoteTheme(appearance.noteTheme) && (
+        <div className="settings-row is-stacked">
+          <div className="settings-row-copy">
+            <span className="settings-row-label">磨砂浓度</span>
+            <span className="settings-row-desc">
+              越往右纸面越实、越不透桌面
+            </span>
+          </div>
+          <div className="settings-row-control">
+            <input
+              className="settings-range"
+              type="range"
+              min={Math.round(MIN_NOTE_GLASS_OPACITY * 100)}
+              max={100}
+              step={5}
+              value={glassOpacityPercent}
+              aria-label="磨砂浓度"
+              style={
+                {
+                  "--glass-fill": `${glassFillPercent}%`,
+                } as CSSProperties
+              }
+              onChange={(event) =>
+                handleGlassOpacityChange(Number(event.target.value))
+              }
+            />
+            <span className="settings-range-value">{glassOpacityPercent}%</span>
+          </div>
+        </div>
+      )}
+
+      <div className="settings-row">
+        <span className="settings-row-label">便签字体</span>
+        <div className="settings-row-control">
+          <FontPicker
+            value={appearance.noteFont}
+            options={fontPickerOptions}
+            onChange={handleFontChange}
+            disabled={busy}
+            loading={systemFonts === null}
+            onFirstOpen={handleOpenFontList}
+          />
+        </div>
+      </div>
+
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">恢复默认外观</span>
+          <span className="settings-row-desc">
+            纸色与字体回到初始值，位置与尺寸不变
+          </span>
+        </div>
+        <div className="settings-row-control">
+          <button
+            type="button"
+            className="settings-ghost-button"
+            disabled={busy}
+            onClick={handleResetDefaults}
+          >
+            <RotateCcw aria-hidden="true" className="icon-xs" />
+            恢复
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }

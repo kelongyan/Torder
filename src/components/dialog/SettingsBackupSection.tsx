@@ -3,7 +3,7 @@ import {
   open as openFileDialog,
   save as saveFileDialog,
 } from "@tauri-apps/plugin-dialog";
-import { DatabaseBackup, FileDown, FileUp, HardDrive } from "lucide-react";
+import { FileDown, FileUp, HardDrive } from "lucide-react";
 import type { ToastKind } from "../../types/ui";
 import { usePresence } from "../../hooks/usePresence";
 import { ToggleSwitch } from "../common/ToggleSwitch";
@@ -121,51 +121,58 @@ export function SettingsBackupSection({
   return (
     <>
       <section className="settings-section">
-        <h3 className="settings-section-title">
-          <DatabaseBackup aria-hidden="true" className="icon-sm" />
-          备份与迁移
-        </h3>
-        <div className="settings-row settings-action-row">
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={busy}
-            onClick={() => void handleBackup()}
-          >
+        <h3 className="settings-section-title">备份与迁移</h3>
+        {/* 三条命令各自占一整行：动作就是行本身，不再一排方框挤在一条线上 */}
+        <button
+          type="button"
+          className="settings-row settings-row-action"
+          disabled={busy}
+          onClick={() => void handleBackup()}
+        >
+          <span className="settings-row-label settings-row-nav-label">
             <HardDrive aria-hidden="true" className="icon-sm" />
             立即备份
-          </button>
-          {migrationsAvailable && (
-            <>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy}
-                onClick={() => void handleExportPackage()}
-              >
+          </span>
+        </button>
+        {migrationsAvailable && (
+          <>
+            <button
+              type="button"
+              className="settings-row settings-row-action"
+              disabled={busy}
+              onClick={() => void handleExportPackage()}
+            >
+              <span className="settings-row-label settings-row-nav-label">
                 <FileDown aria-hidden="true" className="icon-sm" />
                 导出完整备份
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy}
-                onClick={() => void handlePickPackage()}
-              >
+              </span>
+            </button>
+            <button
+              type="button"
+              className="settings-row settings-row-action"
+              disabled={busy}
+              onClick={() => void handlePickPackage()}
+            >
+              <span className="settings-row-label settings-row-nav-label">
                 <FileUp aria-hidden="true" className="icon-sm" />
                 从备份恢复
-              </button>
-            </>
-          )}
-        </div>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-label">启动时自动备份</span>
-          <ToggleSwitch
-            checked={autoBackup}
-            label="启动时自动备份"
-            disabled={busy}
-            onChange={(next) => void handleAutoBackupToggle(next)}
-          />
+              </span>
+            </button>
+          </>
+        )}
+        <div className="settings-row">
+          <div className="settings-row-copy">
+            <span className="settings-row-label">启动时自动备份</span>
+            <span className="settings-row-desc">每次启动后自动存一份快照</span>
+          </div>
+          <div className="settings-row-control">
+            <ToggleSwitch
+              checked={autoBackup}
+              label="启动时自动备份"
+              disabled={busy}
+              onChange={(next) => void handleAutoBackupToggle(next)}
+            />
+          </div>
         </div>
       </section>
 
@@ -222,7 +229,6 @@ export function SettingsBackupSection({
           </div>
         </div>
       )}
-
     </>
   );
 }

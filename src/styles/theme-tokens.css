@@ -23,6 +23,8 @@
   --titlebar: rgba(255, 255, 255, 0.02);
   --pop: #343746;
   --pop-line: rgba(255, 255, 255, 0.12);
+  /* 设置分组外壳：深色下比对话框卡面（--mica）抬高一档，用 --pop 混出来 */
+  --surface-raised: color-mix(in srgb, var(--pop) 58%, var(--mica));
   --scrim: rgba(33, 34, 44, 0.7);
   --hover: rgba(68, 71, 90, 0.45);
   --hover-strong: rgba(68, 71, 90, 0.75);
@@ -110,6 +112,8 @@
   --titlebar: rgba(255, 255, 255, 0.6);
   --pop: #ffffff;
   --pop-line: rgba(15, 23, 42, 0.08);
+  /* 设置分组外壳：浅色下 --pop 与 --mica 同为白，只能往下压，靠一层极浅灰显形 */
+  --surface-raised: rgba(15, 23, 42, 0.05);
   --scrim: rgba(15, 23, 42, 0.32);
   --hover: rgba(15, 23, 42, 0.04);
   --hover-strong: rgba(15, 23, 42, 0.07);

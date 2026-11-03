@@ -39,7 +39,7 @@ export function SyncConfirmOverlay({
       >
         <h3>{title}</h3>
         {children}
-        <div className="settings-row">
+        <div className="restore-confirm-actions">
           <button
             type="button"
             className="btn-secondary"

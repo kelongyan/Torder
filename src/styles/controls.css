@@ -196,6 +196,11 @@
   opacity: 0.45;
 }
 
+.segmented-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .segmented-dot {
   width: 7px;
   height: 7px;

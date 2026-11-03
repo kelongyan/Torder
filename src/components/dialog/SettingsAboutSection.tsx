@@ -76,30 +76,33 @@ export function SettingsAboutSection({
 
   return (
     <section className="settings-section">
-      {/* 单节面板：标题与面板大标题「关于」同名，按 P4 方案省略区块标题行 */}
-      <div className="settings-row settings-action-row">
-        <span className="settings-version">
-          {appInfo ? `当前版本 v${appInfo.version}` : ""}
-        </span>
-        {!isMobile() && (
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={updateState.state === "checking"}
-            onClick={() => void handleCheckUpdate()}
-          >
-            <RefreshCw
-              aria-hidden="true"
-              className={`icon-sm ${
-                updateState.state === "checking" ? "is-spinning" : ""
-              }`}
-            />
-            {updateState.state === "checking" ? "检查中…" : "检查更新"}
-          </button>
-        )}
+      {/* 单节面板：标题与面板大标题「关于」同名，省略区块标题行 */}
+      <div className="settings-row">
+        <span className="settings-row-label">当前版本</span>
+        <div className="settings-row-control">
+          <span className="settings-version">
+            {appInfo ? `v${appInfo.version}` : ""}
+          </span>
+          {!isMobile() && (
+            <button
+              type="button"
+              className="settings-ghost-button"
+              disabled={updateState.state === "checking"}
+              onClick={() => void handleCheckUpdate()}
+            >
+              <RefreshCw
+                aria-hidden="true"
+                className={`icon-sm ${
+                  updateState.state === "checking" ? "is-spinning" : ""
+                }`}
+              />
+              {updateState.state === "checking" ? "检查中…" : "检查更新"}
+            </button>
+          )}
+        </div>
       </div>
       {!isMobile() && updateState.state === "none" && (
-        <p className="settings-status-note success">当前已是最新版本。</p>
+        <p className="settings-section-hint">当前已是最新版本。</p>
       )}
       {!isMobile() && updateState.state === "found" && (
         <div className="settings-update-card">

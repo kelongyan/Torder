@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { Monitor } from "lucide-react";
 import { getSetting } from "../../services/settingsService";
 import {
   getWidgetSettings,
@@ -193,13 +192,13 @@ export function SettingsDesktopSection({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Monitor aria-hidden="true" className="icon-sm" />
-        桌面与启动
-      </h3>
-      <div className="settings-toggle-list">
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-label">开机自启动</span>
+      <h3 className="settings-section-title">桌面与启动</h3>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">开机自启动</span>
+          <span className="settings-row-desc">随系统启动，静默驻留托盘</span>
+        </div>
+        <div className="settings-row-control">
           <ToggleSwitch
             checked={launchAtStartup}
             label="开机自启动"
@@ -207,8 +206,15 @@ export function SettingsDesktopSection({
             onChange={(next) => void handleLaunchToggle(next)}
           />
         </div>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-label">桌面便签</span>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">桌面便签</span>
+          <span className="settings-row-desc">
+            在桌面显示一张随时可写的便签
+          </span>
+        </div>
+        <div className="settings-row-control">
           <ToggleSwitch
             checked={widgetEnabled}
             label="桌面便签"
@@ -216,13 +222,15 @@ export function SettingsDesktopSection({
             onChange={(next) => void handleWidgetToggle(next)}
           />
         </div>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-copy">
-            <span className="settings-toggle-label">便签双击编辑</span>
-            <span className="settings-toggle-desc">
-              双击条目改标题：Enter 保存，Esc 取消；右键条目可转到主窗改详细内容。
-            </span>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">便签双击编辑</span>
+          <span className="settings-row-desc">
+            双击条目改标题：Enter 保存，Esc 取消；右键条目可转到主窗改详细内容
           </span>
+        </div>
+        <div className="settings-row-control">
           <ToggleSwitch
             checked={widgetDblEdit}
             label="便签双击编辑"
@@ -230,13 +238,15 @@ export function SettingsDesktopSection({
             onChange={(next) => void handleWidgetDblEditToggle(next)}
           />
         </div>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-copy">
-            <span className="settings-toggle-label">桌面时钟</span>
-            <span className="settings-toggle-desc">
-              单击数字开始专注；点悬浮铅笔改时长；专注中空格暂停、Esc 结束。
-            </span>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">桌面时钟</span>
+          <span className="settings-row-desc">
+            单击数字开始专注；点悬浮铅笔改时长；专注中空格暂停、Esc 结束
           </span>
+        </div>
+        <div className="settings-row-control">
           <ToggleSwitch
             checked={clockEnabled}
             label="桌面时钟"
@@ -244,8 +254,10 @@ export function SettingsDesktopSection({
             onChange={(next) => void handleClockToggle(next)}
           />
         </div>
-        <div className="settings-toggle-row is-sub">
-          <span className="settings-toggle-label">时钟置顶显示</span>
+      </div>
+      <div className="settings-row is-sub">
+        <span className="settings-row-label">时钟置顶显示</span>
+        <div className="settings-row-control">
           <ToggleSwitch
             checked={clockAlwaysOnTop}
             label="时钟置顶显示"
@@ -253,8 +265,10 @@ export function SettingsDesktopSection({
             onChange={(next) => void handleClockAlwaysOnTopToggle(next)}
           />
         </div>
-        <div className="settings-toggle-row is-sub">
-          <span className="settings-toggle-label">锁定时钟位置</span>
+      </div>
+      <div className="settings-row is-sub">
+        <span className="settings-row-label">锁定时钟位置</span>
+        <div className="settings-row-control">
           <ToggleSwitch
             checked={clockLocked}
             label="锁定时钟位置"
@@ -263,9 +277,14 @@ export function SettingsDesktopSection({
           />
         </div>
       </div>
-      <div className="settings-preference-grid">
-        <label className="form-field form-grid-full">
-          <span>专注时长（{FOCUS_MIN_MINUTES}–{FOCUS_MAX_MINUTES} 分钟）</span>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">专注时长</span>
+          <span className="settings-row-desc">
+            {FOCUS_MIN_MINUTES}–{FOCUS_MAX_MINUTES} 分钟，专注进行中不可改
+          </span>
+        </div>
+        <div className="settings-row-control">
           <input
             type="number"
             inputMode="numeric"
@@ -273,6 +292,7 @@ export function SettingsDesktopSection({
             max={FOCUS_MAX_MINUTES}
             step={5}
             value={durationDraft ?? String(Math.round(durationSec / 60))}
+            aria-label="专注时长（分钟）"
             onChange={(event) => setDurationDraft(event.target.value)}
             onBlur={commitDuration}
             onKeyDown={(event) => {
@@ -282,7 +302,7 @@ export function SettingsDesktopSection({
               }
             }}
           />
-        </label>
+        </div>
       </div>
     </section>
   );

@@ -233,46 +233,43 @@ export function SettingsImportSection({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <FileUp aria-hidden="true" className="icon-sm" />
-        导入
-      </h3>
-      <div className="settings-import-panel">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,.md,.markdown,.json,application/json,text/csv,text/markdown"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void handleFile(file);
-          }}
-        />
-        <div className="settings-import-file-head">
-          <span>文件导入</span>
-          <button
-            type="button"
-            className="btn-secondary btn-sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-          >
-            <FileUp aria-hidden="true" className="icon-sm" />
-            选择文件
-          </button>
+      <h3 className="settings-section-title">导入</h3>
+      <input
+        ref={inputRef}
+        type="file"
+        hidden
+        accept=".csv,.md,.markdown,.json,application/json,text/csv,text/markdown"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void handleFile(file);
+        }}
+      />
+      <button
+        type="button"
+        className="settings-row settings-row-action"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+      >
+        <span className="settings-row-label settings-row-nav-label">
+          <FileUp aria-hidden="true" className="icon-sm" />
+          从文件导入
+        </span>
+        <span className="settings-row-control">
+          <span className="settings-row-desc">CSV · Markdown · JSON</span>
+        </span>
+      </button>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">从本地备份恢复</span>
+          <span className="settings-row-desc">
+            {backupPaths.length === 0
+              ? "暂无可选备份"
+              : `本地共有 ${backupPaths.length} 份自动备份`}
+          </span>
         </div>
-        <div className="settings-import-backup">
-          <div className="settings-import-backup-head">
-            <span>备份恢复</span>
-            <button
-              type="button"
-              className="btn-secondary btn-sm"
-              onClick={() => void loadBackupOptions()}
-              disabled={busy}
-            >
-              <RefreshCw aria-hidden="true" className="icon-sm" />
-              刷新
-            </button>
-          </div>
+        <div className="settings-row-control is-wide">
           <select
+            className="settings-backup-select"
             value={backupPreview?.path ?? ""}
             onChange={(event) => void handleBackupPreview(event.target.value)}
             disabled={busy || backupPaths.length === 0}
@@ -287,103 +284,135 @@ export function SettingsImportSection({
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="settings-ghost-button"
+            onClick={() => void loadBackupOptions()}
+            disabled={busy}
+            aria-label="刷新备份列表"
+          >
+            <RefreshCw aria-hidden="true" className="icon-xs" />
+            刷新
+          </button>
         </div>
-        {preview && (
-          <div className="settings-import-preview">
-            <strong>{preview.name}</strong>
-            <span>
-              {preview.lists.length} 个清单 · {preview.tasks.length} 个任务 ·{" "}
-              {preview.recurringRules.length} 条循环规则
-            </span>
-            <label>
-              <input
-                type="checkbox"
-                checked={includeLists}
-                disabled={preview.lists.length === 0}
-                onChange={(event) => setIncludeLists(event.target.checked)}
-              />
-              清单
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={includeTasks}
-                disabled={preview.tasks.length === 0}
-                onChange={(event) => setIncludeTasks(event.target.checked)}
-              />
-              任务
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={includeRecurring}
-                disabled={preview.recurringRules.length === 0}
-                onChange={(event) => setIncludeRecurring(event.target.checked)}
-              />
-              循环规则
-            </label>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => void importPreview()}
-              disabled={
-                busy || (!includeLists && !includeTasks && !includeRecurring)
-              }
-            >
-              <RefreshCw aria-hidden="true" className="icon-sm" />
-              导入
-            </button>
-          </div>
-        )}
-        {backupPreview && (
-          <div className="settings-import-preview">
-            <strong>{backupPreview.name}</strong>
-            <span>
-              {backupPreview.listCount} 个清单 · {backupPreview.taskCount}{" "}
-              个任务 · {backupPreview.recurringRuleCount} 条循环规则
-            </span>
-            <label>
-              <input
-                type="checkbox"
-                checked={includeLists}
-                disabled={backupPreview.listCount === 0}
-                onChange={(event) => setIncludeLists(event.target.checked)}
-              />
-              清单
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={includeTasks}
-                disabled={backupPreview.taskCount === 0}
-                onChange={(event) => setIncludeTasks(event.target.checked)}
-              />
-              任务
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={includeRecurring}
-                disabled={backupPreview.recurringRuleCount === 0}
-                onChange={(event) => setIncludeRecurring(event.target.checked)}
-              />
-              循环规则
-            </label>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => void importBackupPreview()}
-              disabled={
-                busy || (!includeLists && !includeTasks && !includeRecurring)
-              }
-            >
-              <RefreshCw aria-hidden="true" className="icon-sm" />
-              导入
-            </button>
-          </div>
-        )}
       </div>
+      {preview && (
+        <ImportPreviewCard
+          name={preview.name}
+          summary={`${preview.lists.length} 个清单 · ${preview.tasks.length} 个任务 · ${preview.recurringRules.length} 条循环规则`}
+          picks={[
+            {
+              label: "清单",
+              checked: includeLists,
+              disabled: preview.lists.length === 0,
+              onChange: setIncludeLists,
+            },
+            {
+              label: "任务",
+              checked: includeTasks,
+              disabled: preview.tasks.length === 0,
+              onChange: setIncludeTasks,
+            },
+            {
+              label: "循环规则",
+              checked: includeRecurring,
+              disabled: preview.recurringRules.length === 0,
+              onChange: setIncludeRecurring,
+            },
+          ]}
+          importDisabled={
+            busy || (!includeLists && !includeTasks && !includeRecurring)
+          }
+          onImport={() => void importPreview()}
+        />
+      )}
+      {backupPreview && (
+        <ImportPreviewCard
+          name={backupPreview.name}
+          summary={`${backupPreview.listCount} 个清单 · ${backupPreview.taskCount} 个任务 · ${backupPreview.recurringRuleCount} 条循环规则`}
+          picks={[
+            {
+              label: "清单",
+              checked: includeLists,
+              disabled: backupPreview.listCount === 0,
+              onChange: setIncludeLists,
+            },
+            {
+              label: "任务",
+              checked: includeTasks,
+              disabled: backupPreview.taskCount === 0,
+              onChange: setIncludeTasks,
+            },
+            {
+              label: "循环规则",
+              checked: includeRecurring,
+              disabled: backupPreview.recurringRuleCount === 0,
+              onChange: setIncludeRecurring,
+            },
+          ]}
+          importDisabled={
+            busy || (!includeLists && !includeTasks && !includeRecurring)
+          }
+          onImport={() => void importBackupPreview()}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * 导入预览块：文件名 + 计数 + 三项勾选 + 导入按钮。
+ * 文件预览与备份预览原本是两段逐字符重复的 JSX，这里收成一个组件。
+ */
+function ImportPreviewCard({
+  name,
+  summary,
+  picks,
+  importDisabled,
+  onImport,
+}: {
+  name: string;
+  summary: string;
+  picks: Array<{
+    label: string;
+    checked: boolean;
+    disabled: boolean;
+    onChange: (next: boolean) => void;
+  }>;
+  importDisabled: boolean;
+  onImport: () => void;
+}) {
+  return (
+    <div className="settings-import-preview">
+      <div className="settings-import-preview-head">
+        <span className="settings-row-label">{name}</span>
+        <span className="settings-row-desc">{summary}</span>
+      </div>
+      <div className="settings-import-picks">
+        {picks.map((pick) => (
+          <label key={pick.label} className="settings-import-pick">
+            <input
+              type="checkbox"
+              checked={pick.checked}
+              disabled={pick.disabled}
+              onChange={(event) => pick.onChange(event.target.checked)}
+            />
+            {pick.label}
+          </label>
+        ))}
+      </div>
+      <div className="settings-import-preview-actions">
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={onImport}
+          disabled={importDisabled}
+        >
+          <RefreshCw aria-hidden="true" className="icon-sm" />
+          导入
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { Droplet, Monitor, Moon, Palette, Sun } from "lucide-react";
 import { saveAppSetting } from "../../services/settingsService";
 import type {
   AccentPreference,
@@ -7,24 +6,25 @@ import type {
   ThemePreference,
 } from "../../types/settings";
 import type { ToastKind } from "../../types/ui";
+import { SegmentedControl } from "../common/SegmentedControl";
 import { SettingsWidgetAppearanceSection } from "./SettingsWidgetAppearanceSection";
 
 /**
  * 设置 → 外观分区的组合出口。
- * R7：新增「应用主题」三卡（真实生效，写 settings.theme）+
- * T-09 强调色六色板（真实生效，写 settings.accent → data-accent）；便签卡
- * （v3 重排）保留在最后。
+ * R7：应用主题（真实生效，写 settings.theme）+ T-09 强调色六色板
+ * （真实生效，写 settings.accent → data-accent）；桌面便签分组在最后。
  * 2026-09-08 老大定稿：「显示偏好」（界面密度/字号）整段移除，界面恒标准档。
+ * 2026-11-03 结构级重构：主题三卡 → 行内分段选择器，强调色板 → 行内色点。
+ * 面板由此前的 4 个分节、11 个描边盒收敛为「界面 + 桌面便签」两个分组。
  */
 
-const THEME_CARDS: Array<{
+const THEME_OPTIONS: Array<{
   value: ThemePreference;
   label: string;
-  icon: typeof Sun;
 }> = [
-  { value: "light", label: "浅色", icon: Sun },
-  { value: "dark", label: "深色", icon: Moon },
-  { value: "system", label: "跟随系统", icon: Monitor },
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
+  { value: "system", label: "跟随系统" },
 ];
 
 const ACCENT_SWATCHES: Array<{ value: AccentPreference; color: string }> = [
@@ -82,61 +82,43 @@ export function SettingsAppearanceSection({
   return (
     <>
       <section className="settings-section">
-        <h3 className="settings-section-title">
-          <Palette aria-hidden="true" className="icon-sm" />
-          应用主题
-        </h3>
-        <div className="theme-cards">
-          {THEME_CARDS.map(({ value, label, icon: Icon }) => {
-            const on = settings.theme === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                className={`theme-card ${on ? "is-on" : ""}`}
-                onClick={() => handleThemeChange(value)}
-                aria-pressed={on}
-              >
-                <span
-                  className={`theme-card-preview preview-${value}`}
-                  aria-hidden="true"
-                >
-                  <i className="pv-side" />
-                  <i className="pv-line" />
-                  <i className="pv-line short" />
-                </span>
-                <span className="theme-card-label">
-                  <Icon aria-hidden="true" className="icon-xs" />
-                  {label}
-                </span>
-              </button>
-            );
-          })}
+        <h3 className="settings-section-title">界面</h3>
+        <div className="settings-row">
+          <span className="settings-row-label">应用主题</span>
+          <div className="settings-row-control is-wide">
+            <SegmentedControl
+              value={settings.theme}
+              options={THEME_OPTIONS}
+              onChange={handleThemeChange}
+              ariaLabel="应用主题"
+            />
+          </div>
         </div>
-      </section>
-
-      {/* F2 · T-09：强调色六色板（真实生效） */}
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          <Droplet aria-hidden="true" className="icon-sm" />
-          强调色
-        </h3>
-        <div className="accent-swatches" role="radiogroup" aria-label="强调色">
-          {ACCENT_SWATCHES.map(({ value, color }) => {
-            const on = settings.accent === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                aria-label={ACCENT_SWATCH_LABELS[value]}
-                className={`accent-swatch ${on ? "is-on" : ""}`}
-                style={{ "--swatch": color } as CSSProperties}
-                onClick={() => handleAccentChange(value)}
-              />
-            );
-          })}
+        <div className="settings-row">
+          <span className="settings-row-label">强调色</span>
+          <div className="settings-row-control">
+            <div
+              className="accent-swatches"
+              role="radiogroup"
+              aria-label="强调色"
+            >
+              {ACCENT_SWATCHES.map(({ value, color }) => {
+                const on = settings.accent === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    aria-label={ACCENT_SWATCH_LABELS[value]}
+                    className={`accent-swatch ${on ? "is-on" : ""}`}
+                    style={{ "--swatch": color } as CSSProperties}
+                    onClick={() => handleAccentChange(value)}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 

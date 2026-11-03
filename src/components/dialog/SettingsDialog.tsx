@@ -396,6 +396,11 @@ export function SettingsDialog({
           >
             <div className="settings-content-head">
               <h3>{effectiveMeta.title}</h3>
+              {/* 面板描述此前只喂给移动端列表与搜索关键词，桌面端补上后，
+                  单节面板（提醒 / 快捷键 / 关于）不写分节标题也讲得清自己是干什么的 */}
+              <p className="settings-content-desc">
+                {panelDescription(effectiveMeta, false)}
+              </p>
             </div>
             {renderPanelBody(effectiveMeta)}
           </div>

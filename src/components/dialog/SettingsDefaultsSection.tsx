@@ -1,4 +1,3 @@
-import { CircleCheckBig, Settings2 } from "lucide-react";
 import { saveAppSetting } from "../../services/settingsService";
 import type { AppSettings, DefaultDueDate } from "../../types/settings";
 import type { TaskList } from "../../types/database";
@@ -54,13 +53,10 @@ export function SettingsDefaultsSection({
   return (
     <>
       <section className="settings-section">
-        <h3 className="settings-section-title">
-          <Settings2 aria-hidden="true" className="icon-sm" />
-          新建事项时
-        </h3>
-        <div className="settings-preference-grid">
-          <label className="form-field">
-            <span>默认清单</span>
+        <h3 className="settings-section-title">新建事项时</h3>
+        <div className="settings-row">
+          <span className="settings-row-label">默认清单</span>
+          <div className="settings-row-control">
             <Select<string>
               value={
                 lists.some((list) => list.id === settings.defaultListId)
@@ -78,9 +74,11 @@ export function SettingsDefaultsSection({
               }
               ariaLabel="默认清单"
             />
-          </label>
-          <label className="form-field">
-            <span>默认截止</span>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-row-label">默认截止</span>
+          <div className="settings-row-control">
             <Select<DefaultDueDate>
               value={settings.defaultDueDate}
               options={defaultDueOptions}
@@ -89,9 +87,11 @@ export function SettingsDefaultsSection({
               }
               ariaLabel="默认截止日期"
             />
-          </label>
-          <label className="form-field">
-            <span>默认优先级</span>
+          </div>
+        </div>
+        <div className="settings-row">
+          <span className="settings-row-label">默认优先级</span>
+          <div className="settings-row-control">
             <Select<AppSettings["defaultPriority"]>
               value={settings.defaultPriority}
               options={defaultPriorityOptions}
@@ -104,44 +104,52 @@ export function SettingsDefaultsSection({
               }
               ariaLabel="默认优先级"
             />
-          </label>
+          </div>
         </div>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-label">识别自然语言速记</span>
-          <ToggleSwitch
-            checked={settings.quickAddNaturalLanguage}
-            label="识别自然语言速记"
-            onChange={(next) =>
-              void savePreference(
-                "quickAddNaturalLanguage",
-                next,
-                next ? "已开启自然语言速记" : "已关闭自然语言速记",
-              )
-            }
-          />
+        <div className="settings-row">
+          <div className="settings-row-copy">
+            <span className="settings-row-label">识别自然语言速记</span>
+            <span className="settings-row-desc">
+              如「明天 15:00 交周报 #工作 !高」，自动解析日期、清单与优先级
+            </span>
+          </div>
+          <div className="settings-row-control">
+            <ToggleSwitch
+              checked={settings.quickAddNaturalLanguage}
+              label="识别自然语言速记"
+              onChange={(next) =>
+                void savePreference(
+                  "quickAddNaturalLanguage",
+                  next,
+                  next ? "已开启自然语言速记" : "已关闭自然语言速记",
+                )
+              }
+            />
+          </div>
         </div>
-        <p className="settings-section-hint">
-          如「明天 15:00 交周报 #工作 !高」，自动解析日期、清单与优先级。
-        </p>
       </section>
       <section className="settings-section">
-        <h3 className="settings-section-title">
-          <CircleCheckBig aria-hidden="true" className="icon-sm" />
-          完成事项时
-        </h3>
-        <div className="settings-toggle-row">
-          <span className="settings-toggle-label">完成后立刻归入已完成</span>
-          <ToggleSwitch
-            checked={settings.moveCompletedImmediately}
-            label="完成后立刻归入已完成"
-            onChange={(next) =>
-              void savePreference(
-                "moveCompletedImmediately",
-                next,
-                next ? "打勾后立刻归入已完成" : "打勾后暂留原位",
-              )
-            }
-          />
+        <h3 className="settings-section-title">完成事项时</h3>
+        <div className="settings-row">
+          <div className="settings-row-copy">
+            <span className="settings-row-label">完成后立刻归入已完成</span>
+            <span className="settings-row-desc">
+              关闭后，打勾的事项会先留在原位
+            </span>
+          </div>
+          <div className="settings-row-control">
+            <ToggleSwitch
+              checked={settings.moveCompletedImmediately}
+              label="完成后立刻归入已完成"
+              onChange={(next) =>
+                void savePreference(
+                  "moveCompletedImmediately",
+                  next,
+                  next ? "打勾后立刻归入已完成" : "打勾后暂留原位",
+                )
+              }
+            />
+          </div>
         </div>
       </section>
     </>

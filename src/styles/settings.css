@@ -1,7 +1,41 @@
 /* --- 设置对话框 --- */
+/* 设计语言（2026-11-03 结构级重构：box-first → row-first）
+
+   这份样式此前的问题是「每一项都装进一个描边盒子」：外观面板一屏内 6 个
+   187×125 描边大卡 + 3 个通栏描边容器，整页 36 个按钮。现在改成现代设置页
+   通行的行优先结构，五条铁律：
+
+     1) 行优先——内容的基本单位是「行」＝左标签 / 右控件。同一面板内所有
+        控件共用一个右边界（.settings-row-control 统一 justify-self:end，
+        Select 统一 --settings-control-w），也就是尾缘对齐。
+     2) 每分组一个容器——分组外壳 .settings-section 是唯一容器，用
+        --surface-raised 底色 + 圆角 12 表达，**不描边**；行与行之间是内缩
+        12px 的发丝线（.settings-row + .settings-row::before）。
+     3) 选中态只用一个强调色——accent-soft 底 + 强调色文字 + 对勾，
+        不用「描边框 + 3px 光晕」。
+     4) 同心圆角——外层 12、内层 8，差值 4 正好是外壳内边距
+        （--settings-group-pad），子元素不会跟外壳圆角打架。
+     5) 内容区不透明——玻璃/磨砂只留在侧栏与对话框 chrome。Apple Liquid
+        Glass 的规矩：材质属于导航层，不属于内容层；内容层叠磨砂必然糊。
+
+   尺度仍全部落在 tokens.css 档位：控件高 --control-md=30、行高 40（带说明
+   行自然涨到 ~52）、外壳圆角 --radius-lg=12、内层 --radius-sm=8、
+   分组间距 --space-3=12。改样式优先扩档位，不要新增字面量。 */
+.settings-dialog {
+  /* 外壳圆角 12 与内边距 4 的差值 = --radius-sm(8)，保证内外圆角同心 */
+  --settings-group-radius: var(--radius-lg);
+  --settings-group-pad: var(--space-1);
+  /* 控件列宽度单点：同一面板内所有 Select 等宽，尾缘自然对齐 */
+  --settings-control-w: 176px;
+  --settings-row-h: 40px;
+}
+
 .settings-dialog .dialog-card {
   display: flex;
-  width: min(94vw, 920px);
+  /* 宽度单点：由 SettingsDialog 传给 DialogShell 的 maxWidth 决定，
+     这里只负责占满遮罩内容盒（旧值 min(94vw,920px) 会被内联 maxWidth 恒压住，
+     留两个数字只会让人改错地方）。 */
+  width: 100%;
   height: min(720px, calc(100vh - 40px));
   max-height: calc(100vh - 40px);
   flex-direction: column;
@@ -33,13 +67,14 @@
   justify-self: end;
 }
 
-/* 壳：左导航 186px（设计稿 .set-nav；原 R7 补丁块已并入，避免声明后置
-   压过 @media (max-width: 720px) 的窄屏改写） */
+/* 壳：左导航 168px（设计稿 .set-nav；原 R7 补丁块已并入，避免声明后置
+   压过 @media (max-width: 720px) 的窄屏改写。186 → 168：最长导航标题
+   「事项默认值」实测 117px 宽，186 有 69px 空转，让给内容区） */
 .settings-layout {
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 186px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
 }
 
 .settings-sidebar {
@@ -59,7 +94,7 @@
   position: relative;
   display: grid;
   width: 100%;
-  min-height: 34px;
+  min-height: var(--control-lg);
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
@@ -134,13 +169,23 @@
 .settings-content {
   min-height: 0;
   overflow-y: auto;
+  /* 面板有的滚有的不滚（外观 860 / 常规 596）：不预留滚动条槽位时，
+     切面板会让右侧内容与右对齐控件横跳 10px */
+  scrollbar-gutter: stable;
   padding: 16px 20px 20px;
 }
 
+/* 面板头部：长面板滚动时靠粘性头部保留「我在哪个面板」的锚点。
+   底色必须与对话框卡面（--mica）一致，否则内容会从头部下方透出。 */
 .settings-content-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: grid;
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
+  background: var(--mica);
+  padding-bottom: var(--space-2);
 }
 
 .settings-content-head h3 {
@@ -152,9 +197,18 @@
   letter-spacing: 0;
 }
 
+/* 面板描述：settingsPanels 里的 description 此前只用于移动端列表与搜索关键词，
+   桌面端补上后，单节面板（提醒 / 快捷键 / 关于）不写分节标题也讲得清自己是干什么的 */
+.settings-content-desc {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .settings-panel {
   display: grid;
-  gap: 16px;
+  gap: var(--space-3);
 }
 
 .settings-dialog .dialog-footer {
@@ -165,7 +219,7 @@
 .settings-dialog .btn-secondary,
 .settings-dialog .btn-primary,
 .settings-dialog .btn-danger-solid {
-  min-height: 30px;
+  min-height: var(--control-md);
   gap: 6px;
   padding: 0 12px;
   font-size: 12px;
@@ -178,213 +232,242 @@
   height: 14px;
 }
 
-/* 区块扁平分组：去掉卡片盒子，用分隔线与间距表达分组 */
+/* ===== 分组外壳：唯一容器。底色表达层级，不描边 ===== */
 .settings-section {
-  padding: 0;
+  padding: var(--settings-group-pad);
+  border-radius: var(--settings-group-radius);
+  background: var(--surface-raised);
 }
 
-.settings-section + .settings-section {
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-}
-
+/* 分组标签：Windows 11 / HIG 的分节语言——小号、次级墨色、字距微开。
+   分节图标已撤（8 个图标与侧栏图标撞脸，且强调色只该属于「被选中」的东西）。 */
 .settings-section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 8px;
-  color: var(--text-primary);
-  font-size: 13px;
+  margin: 0;
+  padding: 8px 12px 4px;
+  color: var(--text-3);
+  font-size: 11px;
   font-weight: 700;
-  line-height: 20px;
+  line-height: 16px;
+  letter-spacing: 0.04em;
 }
 
-.settings-section-title .icon-sm {
+/* 节尾提示：分组内是缩进脚注，分组外（回顾 / 标签管理等复用点）是纯文字，
+   所以内缩只给 .settings-section 的直接子元素，不横向污染别处 */
+.settings-section-hint {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.settings-section > .settings-section-hint {
+  padding: 0 12px 8px;
+}
+
+/* ===== 设置行：左标签 / 右控件 ===== */
+.settings-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--settings-row-h);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+/* 行间发丝线：内缩 12px，不顶到分组外壳边缘 */
+.settings-row + .settings-row::before,
+.settings-choice-strip + .settings-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 12px;
+  left: 12px;
+  height: 1px;
+  background: var(--stroke);
+}
+
+/* 带说明的标签（主行 13 + 说明 11）：说明紧贴所属行，不再游离成独立段落 */
+.settings-row-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.settings-row-label {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.settings-row-desc {
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 控件列：默认贴右缘；Select 统一 176px 宽 ⇒ 同面板内宽度与右边界都一致 */
+.settings-row-control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  justify-self: end;
+}
+
+.settings-row-control > .select-root {
+  width: var(--settings-control-w);
+}
+
+.settings-row-control .font-picker {
+  width: var(--settings-control-w);
+}
+
+/* 字体下拉比触发器宽：长字体名要看得清，向左展开 */
+.settings-row-control .font-picker-panel {
+  right: 0;
+  left: auto;
+  width: 300px;
+}
+
+.settings-row-control.is-wide {
+  width: 240px;
+}
+
+/* 行内文本框（专注时长 / WebDAV 地址 / 用户名 …）与 Select 同一档体量 */
+.settings-row-control input[type="number"],
+.settings-row-control input[type="text"],
+.settings-row-control input[type="url"],
+.settings-row-control input[type="password"] {
+  width: var(--settings-control-w);
+  min-width: 0;
+  min-height: var(--control-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg-tertiary);
+  padding: 0 12px;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 19px;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.settings-row-control input[type="number"]:focus,
+.settings-row-control input[type="text"]:focus,
+.settings-row-control input[type="url"]:focus,
+.settings-row-control input[type="password"]:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* 从属行（时钟置顶 / 锁定 从属于「桌面时钟」）：缩进表达层级 */
+.settings-row.is-sub {
+  padding-left: 24px;
+}
+
+/* 通栏行（分段选择 / 滑杆）：仍贴同一个右缘，只是从左边撑满 */
+.settings-row.is-stacked {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.settings-row.is-stacked > .settings-row-control {
+  width: 100%;
+  justify-self: stretch;
+}
+
+/* ===== 整行可点：子级入口（.settings-row-nav 带 chevron）/ 整行动作
+   （.settings-row-action 无 chevron，动作就是行本身）取代 btn-secondary ===== */
+.settings-row-nav,
+.settings-row-action {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 19px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.settings-row-nav:hover,
+.settings-row-action:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text-1);
+}
+
+.settings-row-nav:focus-visible,
+.settings-row-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settings-row-action:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.settings-row-chevron {
   width: 14px;
   height: 14px;
-  color: var(--accent-hover);
+  color: var(--text-3);
 }
 
-.settings-section-hint {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.settings-row {
+/* 导航行的标签：icon + 文案（行仍是两列，icon 落在标签槽里） */
+.settings-row-nav-label {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
 }
 
-.settings-action-row {
-  justify-content: space-between;
-  gap: 10px 12px;
+.settings-row-nav-label .icon-sm {
+  flex: none;
+  color: var(--text-3);
 }
 
-/* 状态提示：信息/成功态为纯文字（与 section-hint 同语言）；
-   仅 danger 保留左边条卡片，错误才值得占据视觉重量 */
+/* 状态提示：信息/成功态为纯文字（与节尾提示同语言）；
+   仅 danger 保留视觉重量——错误才值得占据注意力 */
 .settings-status-note {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.settings-status-note.success {
-  color: var(--green);
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .settings-status-note.danger {
   display: flex;
   min-height: 30px;
   align-items: center;
-  margin: 0 0 2px;
-  border: 1px solid var(--border);
+  margin: 0 12px 8px;
   border-left: 2px solid var(--red);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--danger-bg) 72%, var(--bg-secondary));
+  background: color-mix(in srgb, var(--danger-bg) 72%, var(--surface-raised));
   padding: 6px 8px;
   color: var(--red);
-}
-
-.settings-preference-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 10px;
-}
-
-.settings-preference-grid .form-field {
-  gap: 4px;
-}
-
-.settings-preference-grid .form-field > span {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
-}
-
-.settings-export-panel {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
-  padding: 8px;
-}
-
-.settings-import-panel {
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
-  padding: 8px;
-}
-
-.settings-import-panel > input[type="file"] {
-  display: none;
-}
-
-.settings-import-backup {
-  display: grid;
-  gap: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-
-/* 「文件导入」与「备份恢复」两行同构：label 左、动作按钮右 */
-.settings-import-file-head,
-.settings-import-backup-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 17px;
-}
-
-.settings-import-backup select {
-  min-width: 0;
-  min-height: 32px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  outline: none;
-  background: var(--bg-secondary);
-  padding: 0 8px;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 12px;
-}
-
-.settings-import-backup select:focus {
-  border-color: var(--accent-border);
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-.settings-import-preview {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, auto) auto;
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-
-.settings-import-preview strong,
-.settings-import-preview > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-import-preview strong {
-  grid-column: 1 / -1;
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 17px;
-}
-
-.settings-import-preview > span {
-  color: var(--text-muted);
   font-size: 11px;
   line-height: 16px;
 }
 
-.settings-import-preview label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.settings-import-preview input[type="checkbox"] {
-  accent-color: var(--accent);
-}
-
-.settings-export-label {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 17px;
-  white-space: nowrap;
-}
-
-.settings-export-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 74px;
-  gap: 8px;
-  align-items: center;
+/* 导出：Select 撑满控件列，导出按钮固定宽度钉在右端 */
+.settings-row-control .settings-export-select {
+  flex: 1;
 }
 
 .settings-export-select .select-panel {
@@ -397,22 +480,92 @@
   min-width: 74px;
 }
 
-.sync-config-grid {
+/* 备份列表下拉：原生 select，与 .select-trigger 同规格 */
+.settings-backup-select {
+  min-width: 0;
+  min-height: var(--control-md);
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg-tertiary);
+  padding: 0 8px;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.settings-backup-select:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* 导入预览：分组内的内容块（文件名 + 计数 + 勾选项 + 导入按钮） */
+.settings-import-preview {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 10px;
+  gap: 8px;
+  margin: 4px 12px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  padding: 12px;
+}
+
+.settings-import-preview-head {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.settings-import-preview-head .settings-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-import-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-import-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.settings-import-pick input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-import-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 同步配置的容器已退役（2026-11-03）：外壳只允许 .settings-section 一个，
+   这层 wrapper 退化为透传，让行直接参与分组布局与发丝线 */
+.sync-config-grid {
+  display: contents;
 }
 
 .sync-progress {
   display: grid;
   gap: 8px;
-  margin: 10px 0 2px;
-  color: var(--text-secondary);
+  margin: 0;
+  padding: 4px 12px 8px;
+  color: var(--text-2);
   font-size: 12px;
 }
 
 .sync-progress > strong {
-  color: var(--text-primary);
+  color: var(--text-1);
   font-size: 12px;
 }
 
@@ -437,106 +590,18 @@
   font-weight: 700;
 }
 
-.sync-config-grid .form-field {
-  gap: 4px;
-}
-
-.sync-config-grid .form-field > span {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
-}
-
-.sync-config-grid input {
-  min-width: 0;
-  min-height: 32px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  outline: none;
-  background: var(--bg-tertiary);
-  padding: 0 8px;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 12px;
-}
-
-.sync-config-grid input:focus {
-  border-color: var(--accent-border);
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-.sync-encryption-card {
-  display: grid;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
-  padding: 10px;
-}
-
-.sync-encryption-head {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.sync-encryption-icon {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--accent-bg);
-  color: var(--accent-hover);
-}
-
-.sync-encryption-copy {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
-
-.sync-encryption-copy strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.sync-encryption-copy span {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.sync-encryption-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 10px;
-  border-top: 1px solid var(--border-light);
-  padding-top: 10px;
-}
-
-.sync-encryption-fields > p {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 16px;
-}
-
 .sync-setup-steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  padding: 4px 12px 8px;
 }
 
 .sync-setup-steps > span {
   min-width: 0;
   border-bottom: 2px solid var(--border);
   padding: 4px 4px 8px;
-  color: var(--text-muted);
+  color: var(--text-3);
   font-size: 11px;
   line-height: 16px;
   text-align: center;
@@ -544,96 +609,28 @@
 
 .sync-setup-steps > .is-current {
   border-color: var(--accent);
-  color: var(--text-primary);
+  color: var(--text-1);
   font-weight: 700;
 }
 
-.sync-initial-mode-list {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  margin: 0;
-  border: 0;
-  padding: 0;
-}
-
-.sync-initial-mode-list > legend {
-  margin-bottom: 2px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
-}
-
-.sync-initial-mode {
-  display: grid;
-  min-height: 52px;
-  grid-template-columns: 18px minmax(0, 1fr);
+/* 操作群：行内右对齐的一排按钮（不是网格，避免按钮被塞进网格列） */
+.settings-row.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
-  padding: 8px 10px;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
 }
 
-.sync-initial-mode:has(input:checked) {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-}
-
-.sync-config-grid .sync-initial-mode > input {
-  width: 16px;
-  min-height: 16px;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--accent);
-}
-
-.sync-initial-mode > span {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.sync-initial-mode strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 17px;
-}
-
-.sync-initial-mode small {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 16px;
-  white-space: normal;
-}
-
-.sync-initial-mode.is-disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.sync-actions {
-  margin-top: 8px;
-}
-
-/* 已配置态的「移除」是破坏性次要动作：推到行尾与主操作群分离 */
-.sync-actions .btn-danger-solid {
-  margin-left: auto;
-}
-
+/* 同步检查结果：分组内的提示块（左边条 + 软底），不再是独立描边卡 */
 .sync-inspection {
   display: grid;
   gap: 8px;
+  margin: 4px 12px 8px;
   border-left: 2px solid var(--accent);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent-bg) 45%, var(--bg-tertiary));
-  padding: 8px 10px;
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface-raised));
+  padding: 8px 12px;
 }
 
 .sync-inspection-copy {
@@ -643,14 +640,14 @@
 }
 
 .sync-inspection-copy strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 17px;
+  color: var(--text-1);
+  font-size: 13px;
+  line-height: 19px;
 }
 
 .sync-inspection-copy span {
   overflow-wrap: anywhere;
-  color: var(--text-muted);
+  color: var(--text-3);
   font-size: 11px;
   line-height: 16px;
 }
@@ -660,9 +657,9 @@
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--stroke);
   padding-top: 8px;
-  color: var(--text-secondary);
+  color: var(--text-2);
   cursor: pointer;
 }
 
@@ -682,37 +679,36 @@
 }
 
 .sync-confirm-row strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 17px;
+  color: var(--text-1);
+  font-size: 13px;
+  line-height: 19px;
 }
 
 .sync-confirm-row small {
-  color: var(--text-muted);
+  color: var(--text-3);
   font-size: 11px;
-  line-height: 15px;
+  line-height: 16px;
 }
 
 .sync-conflict-list {
   display: grid;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 12px;
+  padding: 0 4px;
 }
 
+/* 冲突项：每条冲突是独立内容块，保留自己的容器（这种「多条并列卡片」
+   不属于分组外壳的管辖范围） */
 .sync-conflict-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border: 1px solid var(--danger-border, var(--border));
+  border-left: 2px solid var(--danger-border, var(--border));
   border-radius: var(--radius-sm);
-  background: color-mix(
-    in srgb,
-    var(--danger-bg, var(--bg-secondary)) 55%,
-    var(--bg-secondary)
-  );
-  padding: 8px 8px;
+  background: color-mix(in srgb, var(--danger-bg) 55%, var(--surface-raised));
+  padding: 8px 10px;
 }
 
 .sync-conflict-diff {
@@ -736,13 +732,13 @@
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
   gap: 4px;
-  color: var(--text-muted);
+  color: var(--text-3);
   font-size: 10px;
   line-height: 14px;
 }
 
 .sync-conflict-diff-row > span {
-  color: var(--text-muted);
+  color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -750,7 +746,7 @@
 
 .sync-conflict-diff-row code {
   overflow: hidden;
-  color: var(--text-secondary);
+  color: var(--text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -768,7 +764,7 @@
 .sync-conflict-value:hover,
 .sync-conflict-value.is-selected {
   border-color: var(--accent-border);
-  background: var(--bg-tertiary);
+  background: var(--bg-hover);
 }
 
 .sync-conflict-value:focus-visible {
@@ -797,15 +793,15 @@
 }
 
 .sync-conflict-copy strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 17px;
+  color: var(--text-1);
+  font-size: 13px;
+  line-height: 19px;
 }
 
 .sync-conflict-copy span {
-  color: var(--text-muted);
+  color: var(--text-3);
   font-size: 11px;
-  line-height: 15px;
+  line-height: 16px;
 }
 
 .sync-conflict-actions {
@@ -920,13 +916,39 @@
     margin-left: 0;
   }
 
-  .settings-preference-grid,
-  .sync-config-grid {
-    grid-template-columns: 1fr;
+  /* 窄屏：带值控件（下拉 / 输入 / 字体 / 分段）的行改为上下两段，否则标签会被
+     压成省略号；开关与整行动作仍保持左右同排 */
+  .settings-row {
+    min-height: 52px;
   }
 
-  .sync-encryption-fields {
-    grid-template-columns: 1fr;
+  .settings-row:has(.select-root),
+  .settings-row:has(.font-picker),
+  .settings-row:has(input),
+  .settings-row:has(.segmented-control),
+  .settings-row:has(.accent-swatches) {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .settings-row:has(.select-root) > .settings-row-control,
+  .settings-row:has(.font-picker) > .settings-row-control,
+  .settings-row:has(input) > .settings-row-control,
+  .settings-row:has(.segmented-control) > .settings-row-control,
+  .settings-row:has(.accent-swatches) > .settings-row-control {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .settings-row-control > .select-root,
+  .settings-row-control .font-picker,
+  .settings-row-control input[type="number"],
+  .settings-row-control input[type="text"],
+  .settings-row-control input[type="url"],
+  .settings-row-control input[type="password"] {
+    width: 100%;
   }
 
   .settings-dialog .dialog-footer .btn-secondary {
@@ -936,14 +958,6 @@
 
   .settings-dialog .sync-actions button {
     min-height: 44px;
-  }
-
-  .settings-export-panel {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .settings-export-control {
-    grid-template-columns: minmax(0, 1fr) 74px;
   }
 
   .sync-conflict-diff-head {
@@ -977,46 +991,6 @@
   }
 }
 
-.sync-device-list {
-  display: grid;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.sync-device-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border-top: 1px solid var(--border-light);
-  padding: 8px 0 0;
-}
-
-.sync-device-copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.sync-device-copy strong,
-.sync-device-copy span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sync-device-copy strong {
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 17px;
-}
-
-.sync-device-copy span {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 15px;
-}
-
 /* 开关（switch）：2026-09-14 起唯一实现是 ToggleSwitch 组件（.switch-toggle，
    34×20 胶囊）。原 .settings-toggle checkbox 版（34×19）已随 10 处调用点
    全部迁移退役，两套视觉并存的问题消除。 */
@@ -1028,12 +1002,12 @@
 }
 
 .settings-list-label {
-  margin-top: 0;
-  color: var(--text-muted);
+  padding: 0 0 4px;
+  color: var(--text-3);
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 
 .settings-version {
@@ -1050,11 +1024,10 @@
 .settings-update-card {
   display: grid;
   gap: 8px;
-  margin-top: 6px;
-  border: 1px solid var(--accent-border, var(--border));
+  margin: 4px 12px 8px;
   border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  padding: 8px 10px;
+  background: var(--accent-soft);
+  padding: 12px;
 }
 
 .settings-update-card .settings-list-label {
@@ -1104,8 +1077,12 @@
   font-weight: 700;
 }
 
-.restore-confirm-card .settings-row {
+/* 确认浮层的动作行：按钮靠右成组（浮层不是设置分组，不套 .settings-row） */
+.restore-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 /* 迁移包预览：恢复前让用户确认「包里到底有什么」，
@@ -1286,34 +1263,11 @@
 
 /* === 桌面便签个性化（设置 → 外观，方案 docs/widget-personalization-plan.md §4） ===
    纸面 token 全部来自 widget.css（2026-09-08 收敛：海蓝即 :root 默认，主题块已删）。
-   2026-08-29 用户定稿：不设设置界面内预览卡——纸面/字体效果以桌面小窗本体为预览
-   （改动经 widget-settings-changed 广播实时生效）。 */
-
-/* ===== 外观分区（docs/appearance-layout-optimization-plan.md §3）=====
-   2026-09-15：便签主题/字体两组升格为标准 settings-section（带图标标题，
-   分隔节奏并入 .settings-section + .settings-section），appearance-group
-   分组壳退役。间距全落 4px 栅格（check:design 门禁把关）。 */
-
-/* note-slider-row 已删（2026-09-15）：字号滑杆 2026-09-08 移除后无引用的遗留；
-   磨砂浓度的滑杆样式在下方 note-glass-slider-* 块。 */
-
-/* 纸色色卡：自适应网格（当前 3 选项：海蓝 + 深色磨砂 + 浅色磨砂）。
-   卡片是「60px 预览 + 文字」的横向布局，设置面板内容宽约 562px：
-   minmax(220px) 下稳定两列（每张 275px，描述文字单行不挤），3 张会折成
-   2+1；再窄由下方 560px 媒体查询收成单列。三张一行会把描述挤到换行，
-   故不做。 */
-
-.note-theme-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 560px) {
-  .note-theme-grid {
-    grid-template-columns: 1fr;
-  }
-}
+   2026-08-29 用户定稿：不设整块纸面预览——纸面/字体的真实效果以桌面小窗本体为
+   预览（改动经 widget-settings-changed 广播实时生效）；设置里只保留 48px 高的
+   微缩瓦片，供「选哪一个主题」这一件事辨认材质。
+   2026-11-03 结构级重构：主题瓦片走 .settings-choice-strip（无边框，选中态只用
+   一个强调色 + 角标对勾），磨砂浓度与字体改回设置行。 */
 
 /* 字体选择器（FontPicker）：触发器 + 可搜索下拉面板 */
 
@@ -1327,10 +1281,10 @@
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 34px;
-  padding: 6px 10px;
+  min-height: var(--control-md);
+  padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
   cursor: pointer;
   text-align: left;
@@ -1513,71 +1467,8 @@
   text-align: center;
 }
 
-/* 便签主题卡：横向微缩便签画布 + 标题/描述/单选指示器 */
-
-.note-theme-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-tertiary);
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard);
-}
-
-.note-theme-card:hover {
-  border-color: var(--border-light);
-  background: var(--bg-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.note-theme-card.is-active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-tertiary));
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.note-theme-card:focus-within {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-/* 隐藏底层原生 radio */
-.note-theme-card input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* 微缩便签展示盒 */
-.note-theme-card-preview {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 72px;
-  border-radius: 8px;
-  background: var(--bg-secondary);
-  padding: 5px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
+/* 便签主题瓦片的预览（微缩便签）：瓦片样式走 .settings-choice 一套，
+   这里只管便签自身的纸面与墨线。 */
 .note-theme-mini-note {
   position: relative;
   display: flex;
@@ -1585,12 +1476,12 @@
   gap: 4px;
   width: 100%;
   height: 100%;
-  padding: 14px 6px 6px;
-  border-radius: 6px;
+  padding: 12px 6px 6px;
+  border-radius: var(--radius-sm);
 }
 
 /* 海蓝微缩便签 */
-.note-theme-card[data-note-theme="sky"] .note-theme-mini-note {
+[data-note-theme="sky"] .note-theme-mini-note {
   background: linear-gradient(180deg, #e8f1fa 0%, #dce9f7 50%, #cfe0f2 100%);
   box-shadow:
     inset 0 0 0 1px rgba(43, 58, 77, 0.16),
@@ -1605,7 +1496,12 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #ff8a4c 0%, #f56b1f 60%, #c44a0e 100%);
+  background: radial-gradient(
+    circle at 30% 30%,
+    #ff8a4c 0%,
+    #f56b1f 60%,
+    #c44a0e 100%
+  );
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -1613,7 +1509,7 @@
    纸面 alpha 跟随「磨砂浓度」滑杆（--note-glass-alpha 由色卡内联注入），
    让拖动滑杆时色卡同步变化；系数在 α=0.5 时与原硬编码值逐像素一致
    （顶 0.7 / 底 0.85），α=1 时溢出由 rgba() 自行截断。 */
-.note-theme-card[data-note-theme="glass"] .note-theme-mini-note {
+[data-note-theme="glass"] .note-theme-mini-note {
   --note-preview-alpha-top: calc(0.5 + var(--note-glass-alpha, 0.5) * 0.4);
   --note-preview-alpha-bottom: calc(0.65 + var(--note-glass-alpha, 0.5) * 0.4);
   background: linear-gradient(
@@ -1630,7 +1526,7 @@
 
 /* 浅色磨砂微缩便签：浅色透明纸面 + 深墨线（2026-11-02）。
    同样跟随滑杆；α=0.5 时与原值一致（顶 0.82 / 底 0.9）。 */
-.note-theme-card[data-note-theme="frost"] .note-theme-mini-note {
+[data-note-theme="frost"] .note-theme-mini-note {
   --note-preview-alpha-top: calc(0.6 + var(--note-glass-alpha, 0.5) * 0.44);
   --note-preview-alpha-bottom: calc(0.68 + var(--note-glass-alpha, 0.5) * 0.44);
   background: linear-gradient(
@@ -1652,160 +1548,76 @@
   opacity: 0.75;
 }
 
-.note-theme-card[data-note-theme="sky"] .note-theme-mini-line {
+[data-note-theme="sky"] .note-theme-mini-line {
   background: #2b3a4d;
 }
 
-.note-theme-card[data-note-theme="sky"] .note-theme-mini-line.is-title {
+[data-note-theme="sky"] .note-theme-mini-line.is-title {
   width: 65%;
   background: #2f5d8a;
   opacity: 1;
 }
 
-.note-theme-card[data-note-theme="sky"] .note-theme-mini-line.is-short {
+[data-note-theme="sky"] .note-theme-mini-line.is-short {
   width: 80%;
 }
 
-.note-theme-card[data-note-theme="sky"] .note-theme-mini-line.is-check {
+[data-note-theme="sky"] .note-theme-mini-line.is-check {
   width: 38%;
   background: #1f8a70;
   opacity: 1;
 }
 
-.note-theme-card[data-note-theme="glass"] .note-theme-mini-line {
+[data-note-theme="glass"] .note-theme-mini-line {
   background: rgba(240, 246, 252, 0.7);
 }
 
-.note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-title {
+[data-note-theme="glass"] .note-theme-mini-line.is-title {
   width: 65%;
   background: #ffffff;
   opacity: 1;
 }
 
-.note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-short {
+[data-note-theme="glass"] .note-theme-mini-line.is-short {
   width: 80%;
 }
 
-.note-theme-card[data-note-theme="glass"] .note-theme-mini-line.is-check {
+[data-note-theme="glass"] .note-theme-mini-line.is-check {
   width: 38%;
   background: #3fb950;
   opacity: 1;
 }
 
-.note-theme-card[data-note-theme="frost"] .note-theme-mini-line {
+[data-note-theme="frost"] .note-theme-mini-line {
   background: rgba(31, 41, 55, 0.68);
 }
 
-.note-theme-card[data-note-theme="frost"] .note-theme-mini-line.is-title {
+[data-note-theme="frost"] .note-theme-mini-line.is-title {
   width: 65%;
   background: #1e4f7a;
   opacity: 1;
 }
 
-.note-theme-card[data-note-theme="frost"] .note-theme-mini-line.is-short {
+[data-note-theme="frost"] .note-theme-mini-line.is-short {
   width: 80%;
 }
 
-.note-theme-card[data-note-theme="frost"] .note-theme-mini-line.is-check {
+[data-note-theme="frost"] .note-theme-mini-line.is-check {
   width: 38%;
   background: #17705b;
   opacity: 1;
 }
 
-/* 卡片文字区 */
-.note-theme-card-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.note-theme-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.note-theme-card-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 18px;
-}
-
-.note-theme-card-desc {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  line-height: 15px;
-}
-
-.note-theme-card-radio {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border-light);
-  background: transparent;
-  transition: all var(--motion-fast) var(--ease-standard);
-}
-
-.note-theme-card.is-active .note-theme-card-radio {
-  border-color: var(--accent);
-  background: var(--accent);
-  box-shadow: inset 0 0 0 3px var(--bg-tertiary);
-}
-
-/* 磨砂透明度内联调节面板：选中磨砂时优雅自然展开，不再悬浮突兀齿轮 */
-.note-glass-inline-panel {
-  margin-top: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-secondary);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.note-glass-slider-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.note-glass-slider-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* 滑杆两端方向小字：左端最淡（通透）、右端最浓（深邃） */
-.note-glass-slider-ends {
-  display: flex;
-  justify-content: space-between;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 15px;
-}
-
-.note-glass-slider-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-
-.note-glass-slider-track-wrap {
-  display: flex;
-  align-items: center;
-}
-
-.note-glass-slider-track-wrap input[type="range"] {
+/* 磨砂浓度滑杆：通栏行里的 range + 数值。原 note-glass-inline-panel
+   （580×95 描边容器）已撤，只留控件本身。 */
+.settings-range {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
+  min-width: 0;
   height: 20px;
   min-height: 0;
+  flex: 1;
   margin: 0;
   padding: 0;
   border: none;
@@ -1813,13 +1625,13 @@
   cursor: pointer;
 }
 
-.note-glass-slider-track-wrap input[type="range"]:focus-visible {
+.settings-range:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
   border-radius: 10px;
 }
 
-.note-glass-slider-track-wrap input[type="range"]::-webkit-slider-runnable-track {
+.settings-range::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(
@@ -1831,7 +1643,7 @@
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.note-glass-slider-track-wrap input[type="range"]::-webkit-slider-thumb {
+.settings-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -1844,30 +1656,49 @@
     0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-/* 恢复默认外观：沉底右对齐，text 风格弱化（与「更换/移除」链接同语言） */
-
-.note-reset-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.note-reset-link {
-  border: none;
-  background: none;
-  padding: 4px 8px;
+/* 滑杆数值：等宽数字，贴行右缘 */
+.settings-range-value {
+  flex: none;
+  min-width: 34px;
   color: var(--accent);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 分组内的弱化动作（「恢复默认外观」）：无底无框文字按钮，贴行右缘 */
+.settings-ghost-button {
+  display: inline-flex;
+  min-height: var(--control-md);
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0 8px;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 18px;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
-.note-reset-link:hover:not(:disabled) {
-  text-decoration: underline;
+.settings-ghost-button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text-1);
 }
 
-.note-reset-link:disabled {
+.settings-ghost-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settings-ghost-button:disabled {
   cursor: default;
   opacity: 0.6;
 }
@@ -1884,139 +1715,127 @@
   margin-right: auto;
 }
 
-/* 应用主题三卡（设计稿 settings-theme.css .theme-card，缩略色为固定示意值） */
-.theme-cards {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+/* === 选择瓦片：便签主题这类「需要预览的 3 选 1」 ===
+   取代旧 .settings-card 的「描边框 + 3px 光晕」卡片。一级是 3 个无边框瓦片，
+   选中态 = accent-soft 底 + 强调色标题 + 预览角上的对勾；整条不需要自己的
+   容器，外壳由 .settings-section 提供（每分组一个容器）。 */
+.settings-choice-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px 12px 8px;
 }
 
-.theme-card {
-  display: flex;
-  width: 116px;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid var(--stroke);
-  border-radius: 11px;
-  background: var(--mica-side);
-  padding: 8px;
+.settings-choice {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 6px;
   color: var(--text-2);
-  font-size: 12px;
   text-align: left;
   cursor: pointer;
   transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 }
 
-.theme-card:hover {
+.settings-choice:hover {
+  background: var(--hover);
   color: var(--text-1);
 }
 
-.theme-card.is-on {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+.settings-choice.is-on {
+  background: var(--accent-soft);
   color: var(--text-1);
 }
 
-.theme-card-preview {
+/* label + 隐藏 radio 版本（便签主题）：焦点只在键盘导航时画到瓦片上。
+   用 :focus-within 会让鼠标点击也留下描边（点 label 会把焦点交给 radio），
+   所以收窄到「radio 自己处于 focus-visible」——鼠标点击时 Chromium 不判定
+   focus-visible，方向键/ Tab 进入才会亮。 */
+.settings-choice:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settings-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  outline: none;
+  pointer-events: none;
+}
+
+.settings-choice-preview {
   position: relative;
   display: block;
-  height: 62px;
-  border-radius: 7px;
+  height: 48px;
+  border-radius: 6px;
   overflow: hidden;
+  background: var(--bg-tertiary);
 }
 
-.theme-card-preview .pv-side {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 26%;
+.settings-choice-title {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
 }
 
-.theme-card-preview .pv-line {
-  position: absolute;
-  top: 12px;
-  left: 34%;
-  width: 52%;
-  height: 5px;
-  border-radius: 999px;
+.settings-choice.is-on .settings-choice-title {
+  color: var(--accent-hover);
 }
 
-.theme-card-preview .pv-line.short {
-  top: 24px;
-  width: 34%;
-}
-
-.preview-light {
-  background: #eef1f7;
-}
-
-.preview-light .pv-side {
-  background: #d9e0ec;
-}
-
-.preview-light .pv-line {
-  background: #b8c2d4;
-}
-
-.preview-dark {
-  background: #10141d;
-}
-
-.preview-dark .pv-side {
-  background: #1c2230;
-}
-
-.preview-dark .pv-line {
-  background: #333d51;
-}
-
-.preview-system {
-  background: linear-gradient(90deg, #eef1f7 0 50%, #10141d 50% 100%);
-}
-
-.preview-system .pv-side {
-  background: linear-gradient(90deg, #d9e0ec 0 50%, #1c2230 50% 100%);
-}
-
-.preview-system .pv-line {
-  background: #94a0b8;
-}
-
-.theme-card-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 2px 2px;
-}
-
-/* 显示偏好（密度/字号）已于 2026-09-08 移除，界面恒标准档 */
-
-/* 说明条删除后，外观分区以控件收尾，留出分隔线前的呼吸空隙 */
-.theme-cards:last-child,
-.accent-swatches:last-child {
-  margin-bottom: 8px;
-}
-
-/* set-ph-picker/-switch/-kbd-row/-swatches 等设计稿占位类已删（2026-09-15，
-   无任何引用；真实控件为 Select/ToggleSwitch/accent-swatch）。
-   set-ph-note 保留：快捷键面板的「自定义暂未开放」占位行在用。 */
-.set-ph-note {
-  margin: 2px 0 0;
+.settings-choice-desc {
   color: var(--text-3);
   font-size: 11px;
+  line-height: 15px;
 }
 
-/* F2 · T-09：强调色六色板（真实生效，is-on 双环高亮沿用设计稿色板语言） */
+/* 选中角标：对勾落在预览右上角，是唯一的「选中」信号 */
+.settings-choice-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-spring);
+}
+
+.settings-choice.is-on .settings-choice-check {
+  opacity: 1;
+  transform: none;
+}
+
+/* F2 · T-09：强调色六色板（真实生效）。外环底色要跟所在容器一致，
+   否则「选中」会在分组外壳上留一圈突兀的对话框底色。 */
 .accent-swatches {
   display: flex;
   gap: 10px;
 }
 
 .accent-swatch {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: 50%;
   background: var(--swatch);
@@ -2030,8 +1849,13 @@
 
 .accent-swatch.is-on {
   box-shadow:
-    0 0 0 2px var(--mica),
+    0 0 0 2px var(--surface-raised),
     0 0 0 4px var(--swatch);
+}
+
+.accent-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* F2 · T-10 甲组：真实开关与快捷键表（开关视觉与设计稿 PhSwitch 同规格） */
@@ -2076,61 +1900,38 @@
   opacity: 0.5;
 }
 
-.settings-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 34px;
-  margin-top: 8px;
-}
-
-/* 开关说明副行：主行 13px + 灰色 11px，说明紧贴所属开关不再游离 */
-.settings-toggle-copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.settings-toggle-desc {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-/* 从属开关（时钟置顶/锁定 从属于「桌面时钟」）：缩进表达层级 */
-.settings-toggle-row.is-sub {
-  padding-left: 12px;
-}
-
-.settings-toggle-label {
-  color: var(--text-2);
-  font-size: 13px;
-}
-
+/* 快捷键表：键帽只留一层极淡描边，去掉底色与重描边（14 个键盘格本身
+   已经是「盒子」，再加重描边整页就像键盘矩阵） */
+/* 快捷键分组：与 .settings-section 同节奏，但组内用一条细分隔线收口 */
 .shortcut-group + .shortcut-group {
-  margin-top: 16px;
+  margin-top: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--stroke);
 }
 
 .shortcut-group-title {
-  margin: 0 0 6px;
+  margin: 0;
+  padding: 8px 12px 4px;
   color: var(--text-3);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 16px;
   letter-spacing: 0.04em;
 }
 
 .shortcut-row {
   display: flex;
+  min-height: var(--settings-row-h);
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 32px;
+  padding: 0 12px;
 }
 
 .shortcut-label {
   color: var(--text-2);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 19px;
 }
 
 .shortcut-keys {
@@ -2139,9 +1940,9 @@
 }
 
 .shortcut-keys kbd {
-  border: 1px solid var(--stroke-mid);
-  border-radius: 4px;
-  background: var(--hover);
+  border: 1px solid var(--stroke);
+  border-radius: 5px;
+  background: transparent;
   padding: 1px 6px;
   color: var(--text-3);
   font-family: inherit;
@@ -2158,7 +1959,7 @@
   border-radius: 8px;
   background: var(--sunken);
   padding: 0 10px;
-  height: 32px;
+  height: var(--control-md);
   color: var(--text-3);
 }
 

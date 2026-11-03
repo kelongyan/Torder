@@ -856,7 +856,9 @@
    select-trigger / select-chevron / segmented-option / footer 按钮尺寸覆写，
    全部回落到基础值（28/30 档统一） */
 
-.shortcut-row {
+/* 作用域限定在 .shortcut-list 内：.shortcut-row 这个类名与设置面板的
+   快捷键表重名，不加限定会把「键盘 + 下边框 + 14px」泄漏进设置页 */
+.shortcut-list .shortcut-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -868,7 +870,7 @@
   line-height: 22px;
 }
 
-.shortcut-row:last-child {
+.shortcut-list .shortcut-row:last-child {
   border-bottom: 0;
   padding-bottom: 0;
 }
@@ -1099,12 +1101,16 @@
   stroke-width: 5;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.8s ease;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent));
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)
+  );
 }
 
 .focus-dial-container.is-running .focus-dial-indicator {
   stroke: var(--accent-hi);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 70%, transparent));
+  filter: drop-shadow(
+    0 0 10px color-mix(in srgb, var(--accent) 70%, transparent)
+  );
 }
 
 .focus-dial-container.is-paused .focus-dial-indicator {
@@ -1743,4 +1749,3 @@
   align-items: center;
   gap: 8px;
 }
-

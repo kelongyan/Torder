@@ -1,8 +1,8 @@
 import { useState } from "react";
 import {
+  ChevronRight,
   FileText,
   GitBranch,
-  Info,
   MessageSquare,
   ScrollText,
 } from "lucide-react";
@@ -61,37 +61,39 @@ export function SettingsAboutExtras({
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">
-        <Info aria-hidden="true" className="icon-sm" />
-        更多信息
-      </h3>
+      <h3 className="settings-section-title">更多信息</h3>
+      {/* 子级入口 = 行 + 尾部 chevron，不再是 5 个 btn-secondary 方框 */}
       {externalLinks.map(({ label, url, icon: Icon }) => (
-        <div key={url} className="settings-row settings-action-row">
-          <span className="settings-version">{label}</span>
-          <button
-            type="button"
-            className="btn-secondary"
-            aria-label={`打开${label}`}
-            onClick={() => void handleOpenExternal(url)}
-          >
+        <button
+          key={url}
+          type="button"
+          className="settings-row settings-row-nav"
+          onClick={() => void handleOpenExternal(url)}
+        >
+          <span className="settings-row-label settings-row-nav-label">
             <Icon aria-hidden="true" className="icon-sm" />
-            打开
-          </button>
-        </div>
+            {label}
+          </span>
+          <span className="settings-row-control">
+            <ChevronRight aria-hidden="true" className="settings-row-chevron" />
+          </span>
+        </button>
       ))}
       {entries.map(({ id, label, icon: Icon }) => (
-        <div key={id} className="settings-row settings-action-row">
-          <span className="settings-version">{label}</span>
-          <button
-            type="button"
-            className="btn-secondary"
-            aria-label={`查看${label}`}
-            onClick={() => setRequested(id)}
-          >
+        <button
+          key={id}
+          type="button"
+          className="settings-row settings-row-nav"
+          onClick={() => setRequested(id)}
+        >
+          <span className="settings-row-label settings-row-nav-label">
             <Icon aria-hidden="true" className="icon-sm" />
-            查看
-          </button>
-        </div>
+            {label}
+          </span>
+          <span className="settings-row-control">
+            <ChevronRight aria-hidden="true" className="settings-row-chevron" />
+          </span>
+        </button>
       ))}
 
       {presence.rendered && openDialog === "changelog" && (

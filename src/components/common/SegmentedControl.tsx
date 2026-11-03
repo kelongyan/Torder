@@ -5,6 +5,8 @@ export interface SegmentedOption<T extends string | number> {
   label: string;
   color?: string;
   icon?: LucideIcon;
+  /** 单项不可用（向导里「远端已有数据」之类的互斥条件）。 */
+  disabled?: boolean;
 }
 
 export function SegmentedControl<T extends string | number>({
@@ -33,6 +35,7 @@ export function SegmentedControl<T extends string | number>({
             style={
               selected && option.color ? { color: option.color } : undefined
             }
+            disabled={option.disabled}
             onClick={() => onChange(option.value)}
           >
             {Icon ? <Icon aria-hidden="true" className="icon-sm" /> : null}

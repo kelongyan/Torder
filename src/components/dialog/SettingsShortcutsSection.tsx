@@ -31,9 +31,7 @@ export function SettingsShortcutsSection() {
           ))}
         </div>
       ))}
-      <div className="set-ph-note ui-placeholder" aria-disabled="true">
-        快捷键自定义 · 暂未开放
-      </div>
+      <p className="settings-section-hint">快捷键自定义 · 暂未开放</p>
     </section>
   );
 }

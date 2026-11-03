@@ -59,38 +59,50 @@ export function SettingsNotificationsSection({
           移动端提醒在应用打开时补发，不做后台常驻。
         </p>
       )}
-      <div className="settings-toggle-row">
-        <span className="settings-toggle-label">系统通知</span>
-        <ToggleSwitch
-          checked={settings.notificationsEnabled}
-          label="系统通知"
-          onChange={(next) =>
-            void savePreference(
-              "notificationsEnabled",
-              next,
-              next ? "已开启系统通知" : "已关闭系统通知",
-            )
-          }
-        />
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">系统通知</span>
+          <span className="settings-row-desc">
+            关闭后所有任务提醒与本应用通知都不再弹出
+          </span>
+        </div>
+        <div className="settings-row-control">
+          <ToggleSwitch
+            checked={settings.notificationsEnabled}
+            label="系统通知"
+            onChange={(next) =>
+              void savePreference(
+                "notificationsEnabled",
+                next,
+                next ? "已开启系统通知" : "已关闭系统通知",
+              )
+            }
+          />
+        </div>
       </div>
-      <div className="settings-toggle-row">
-        <span className="settings-toggle-label">每日回顾提醒</span>
-        <ToggleSwitch
-          checked={settings.reviewReminderEnabled}
-          label="每日回顾提醒"
-          onChange={(next) =>
-            void savePreference(
-              "reviewReminderEnabled",
-              next,
-              next ? "已开启每日回顾提醒" : "已关闭每日回顾提醒",
-            )
-          }
-        />
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">每日回顾提醒</span>
+          <span className="settings-row-desc">到点提醒你过一遍今天的事项</span>
+        </div>
+        <div className="settings-row-control">
+          <ToggleSwitch
+            checked={settings.reviewReminderEnabled}
+            label="每日回顾提醒"
+            onChange={(next) =>
+              void savePreference(
+                "reviewReminderEnabled",
+                next,
+                next ? "已开启每日回顾提醒" : "已关闭每日回顾提醒",
+              )
+            }
+          />
+        </div>
       </div>
       {settings.reviewReminderEnabled && (
-        <div className="settings-preference-grid">
-          <label className="form-field">
-            <span>提醒时刻</span>
+        <div className="settings-row">
+          <span className="settings-row-label">提醒时刻</span>
+          <div className="settings-row-control">
             <Select<string>
               value={settings.reviewReminderTime}
               options={reviewTimeOptions}
@@ -101,8 +113,9 @@ export function SettingsNotificationsSection({
                   "已更新提醒时刻",
                 )
               }
+              ariaLabel="每日回顾提醒时刻"
             />
-          </label>
+          </div>
         </div>
       )}
       {/*
@@ -110,28 +123,30 @@ export function SettingsNotificationsSection({
        * focusDndUntil 写入 settings KV，Rust notifier 轮询读取并抑制任务提醒
        * （暂停语义：专注结束后下轮轮询补发）。
        */}
-      <div className="settings-toggle-row">
-        <span className="settings-toggle-label">专注时段免打扰</span>
-        <ToggleSwitch
-          checked={settings.focusDndEnabled}
-          label="专注时段免打扰"
-          onChange={(next) =>
-            void savePreference(
-              "focusDndEnabled",
-              next,
-              next ? "已开启专注免打扰" : "已关闭专注免打扰",
-            )
-          }
-        />
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">专注时段免打扰</span>
+          <span className="settings-row-desc">
+            专注期间暂停任务提醒，结束后自动补发
+          </span>
+        </div>
+        <div className="settings-row-control">
+          <ToggleSwitch
+            checked={settings.focusDndEnabled}
+            label="专注时段免打扰"
+            onChange={(next) =>
+              void savePreference(
+                "focusDndEnabled",
+                next,
+                next ? "已开启专注免打扰" : "已关闭专注免打扰",
+              )
+            }
+          />
+        </div>
       </div>
-      {settings.focusDndEnabled && (
-        <p className="settings-section-hint">
-          专注期间暂停任务提醒，结束后自动补发。
-        </p>
-      )}
-      <div className="settings-preference-grid">
-        <label className="form-field">
-          <span>提示音</span>
+      <div className="settings-row">
+        <span className="settings-row-label">提示音</span>
+        <div className="settings-row-control">
           <Select<NotificationSound>
             value={settings.notificationSound}
             options={soundOptions}
@@ -144,9 +159,14 @@ export function SettingsNotificationsSection({
             }
             ariaLabel="提示音"
           />
-        </label>
-        <label className="form-field">
-          <span>默认提前提醒</span>
+        </div>
+      </div>
+      <div className="settings-row">
+        <div className="settings-row-copy">
+          <span className="settings-row-label">默认提前提醒</span>
+          <span className="settings-row-desc">新建事项时的默认提前量</span>
+        </div>
+        <div className="settings-row-control">
           <Select<number>
             value={settings.defaultReminderMinutes}
             options={reminderOptions}
@@ -159,7 +179,7 @@ export function SettingsNotificationsSection({
             }
             ariaLabel="默认提前提醒"
           />
-        </label>
+        </div>
       </div>
     </section>
   );
