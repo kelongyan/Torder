@@ -1,14 +1,14 @@
 {
-  "version": "2.8.20",
-  "notes": "v2.8.20：修复 WebDAV 附件同步（localReference 兼容、孤儿附件与快照自愈、幽灵设备清理、并发重试）以及看板拖拽/键盘交互；坚果云 403 现在会明确提示流量配额耗尽。",
-  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.20/Torder_2.8.20_x64-setup.exe",
-  "sha256": "349ce6efe030d5724d84d135475214ed30b15abeebdc18f1d062c439307b54ff",
+  "version": "2.8.21",
+  "notes": "v2.8.21：设置页结构级重构（行优先布局，去掉成套描边盒）；速记支持「从今天到下周一 写周报」这类跨天区间并逐日出现在便签浮窗；便签新增浅色磨砂，磨砂浓度可调区间放宽到 15–100%；修复开机自启时主窗口闪现。",
+  "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.21/Torder_2.8.21_x64-setup.exe",
+  "sha256": "9ebae815225d92b4b339cd13d6b5adfa335e3f9e08db508cc7236b93e84b070f",
   "platforms": {
     "windows": {
-      "version": "2.8.20",
-      "notes": "Windows v2.8.20：修复 WebDAV 附件兼容/孤儿附件/快照自愈/幽灵设备与并发重试；看板任务块可拖动，键盘拖拽与失败提示完善；坚果云 403 现在明确提示流量配额耗尽。",
-      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.20/Torder_2.8.20_x64-setup.exe",
-      "sha256": "349ce6efe030d5724d84d135475214ed30b15abeebdc18f1d062c439307b54ff"
+      "version": "2.8.21",
+      "notes": "Windows v2.8.21：设置页结构级重构（行优先布局，去掉成套描边盒；外观/关于/数据/同步面板全部收敛）；速记支持跨天区间并逐日出现在便签浮窗；便签新增浅色磨砂、磨砂浓度 15–100%；修复开机自启时主窗口闪现。",
+      "downloadUrl": "https://gitee.com/yankelong/Torder/releases/download/v2.8.21/Torder_2.8.21_x64-setup.exe",
+      "sha256": "9ebae815225d92b4b339cd13d6b5adfa335e3f9e08db508cc7236b93e84b070f"
     },
     "android": {
       "version": "2.8.20",
